@@ -21,6 +21,9 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
+- distributed-process == 0.7.8
+- binary
+- network-transport-tcp
 
 ghc-options:
 - -Wall
