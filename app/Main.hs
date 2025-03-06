@@ -30,19 +30,22 @@ instance Binary Pong where
   get = do getWord8; return Pong
 
 server :: ReceivePort (Ping, SendPort Pong) -> Process ()
-server resp = do
-  (Ping, port) <- receiveChan resp
+server pingAndSPort = do
+  (Ping, sPort) <- receiveChan pingAndSPort
   liftIO $ putStrLn "Got a ping!"
 
-  sendChan port Pong
+  sendChan sPort Pong
+  server pingAndSPort
 
+-- Inefficent: unnecessarily creates a new response channel every time.
 client :: SendPort (Ping, SendPort Pong) -> Process ()
-client sPing = do
-  (sPong, rPong) <- newChan
-  sendChan sPing (Ping, sPong)
+client sPort = do
+  (sPong, rPongAndSPing) <- newChan
+  sendChan sPort (Ping, sPong)
 
-  Pong <- receiveChan rPong
+  Pong <- receiveChan rPongAndSPing
   liftIO $ putStrLn "Got a pong!"
+  client sPort
 
 ignition :: Process ()
 ignition = do
