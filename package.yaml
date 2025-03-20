@@ -24,6 +24,7 @@ dependencies:
 - distributed-process == 0.7.8
 - binary
 - network-transport-tcp
+- algebraic-graphs == 0.7
 
 ghc-options:
 - -Wall
