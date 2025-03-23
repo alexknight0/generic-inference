@@ -12,10 +12,21 @@ import Control.Concurrent (threadDelay)
 import Control.Distributed.Process
 import Control.Distributed.Process.Node
 import Data.Binary
-import Data.List (nub)
+import Data.List (intersperse, nub, union)
+import Data.Tree
 import Data.Typeable
 import Lib
 import Network.Transport.TCP
+
+----------
+-- utils
+------------
+
+setDifference :: (Eq a) => [a] -> [a] -> [a]
+setDifference xs ys = filter (\x -> not $ x `elem` ys) xs
+
+-- Consider creating a typeclass for variables that has them implement 'hashCode' - nenok uses
+-- this to implement the binary heap ordering?
 
 type Domain a = [a]
 
@@ -29,10 +40,55 @@ domainIntersects xs ys = or [x == y | x <- xs, y <- ys]
 -- which is reflected by the functional dependency 'a -> b'.
 --
 -- Eq b was added for "primalGraph"
-class (Eq b) => Valuation a b | a -> b where
-  label :: a -> Domain b
-  combine :: a -> a -> a
-  project :: a -> Domain b -> a
+-- The a -> b functional dependency is valid here, because 'a' will be of some form
+-- 'ValInstance d b'. Hence, by picking our 'a', we have picked our 'b'; so the "a -> b"
+-- functional dependency would hinder our implementation.
+class (Eq var) => Valuation val var | val -> var where
+  label :: val -> Domain var
+  combine :: val -> val -> val
+  project :: val -> Domain var -> val
+
+-- The JoinTreeNode instance implies the valuation because the valuation is also
+-- stored inside the Node instance. Hence, if we have a valuation inside the node instance,
+-- we must already know what valuation we are talking about when we have the JoinTreeNode ('a').
+class (Valuation val var, Ord node, Eq node) => JoinTreeNode node val var | node -> val where
+  collect :: node -> node
+  getValuation :: node -> Maybe val
+  getDomain :: node -> Domain var
+  create :: Integer -> Domain var -> Maybe val -> node
+  nodeId :: node -> Integer
+
+data (Valuation val var) => CollectNode val var = CollectNode Integer (Domain var) (Maybe val)
+
+instance (Valuation val var) => Eq (CollectNode val var) where
+  (==) x y = nodeId x <= nodeId y
+
+instance (Valuation val var) => Ord (CollectNode val var) where
+  (<=) x y = nodeId x <= nodeId y
+
+instance (Valuation val var) => JoinTreeNode (CollectNode val var) val var where
+  collect = undefined
+  getValuation = undefined
+  getDomain (CollectNode _ d _) = d
+  create = CollectNode
+  nodeId (CollectNode x _ _) = x
+
+instance (Eq var, Show var) => Show (CollectNode (BVal var varValue) var) where
+  show (CollectNode x y (Just z)) = show x ++ " - " ++ show y ++ " - " ++ (show $ getColumns z)
+  show (CollectNode x y Nothing) = show x ++ " - " ++ show y ++ " - " ++ "Nothing"
+
+-- instance (Valuation val var, Show val, Show var) => Show (CollectNode val var) where
+--   show (CollectNode x y _) = show x ++ " - " ++ show y
+
+-- Heres the problem - say there are two instances of JoinTreeNode,
+-- 'CollectNode' and 'ShenoyNode'. Now, in a function you call
+--
+-- `domain myNode :: Domain BayesianVariable`
+--
+-- here, haskell doesn't know whether to use the 'CollectNode' or
+-- 'ShenoyNode' to evaluate the domain method - and we don't want our
+-- function to tell haskell whether or not it's a 'ShenoyNode' or 'CollectNode'
+-- because the whole point is to have our function accept ANY node.
 
 data ValNode a = ValNode {vertexNum :: Integer, contents :: a} deriving (Show)
 
@@ -114,7 +170,7 @@ getRows (BValColumns var conds ps) = BValRows fullRows'
 type Probability = Float
 
 -- Don't be suprised if you need to put (Enum, bounded) on 'b'.
-instance (Eq a) => Valuation (BVal a b) a where
+instance (Eq var) => Valuation (BVal var varVal) var where
   -- label :: BVal -> Domain BVar
   label (BValRows []) = []
   label (BValRows (x : _)) = fst (variable x) : map fst (conditions x)
@@ -151,6 +207,12 @@ p1Valuations =
 
 ----------------- JOIN TREE CONSTRUCTION
 
+-- Another possible implementation:
+-- data JoinTreeNode = CollectNode [function that collects for collect node] | OtherNode [...]
+--
+-- I think this does technically loosen typing rules:
+--  A tree that has mixed nodes would type correctly.
+
 primalGraph :: (Valuation a b) => [a] -> Graph (ValNode a)
 primalGraph bs = primalGraph' $ zip (zipWith (\x y -> vertex $ ValNode x y) [1 ..] bs) (fmap label bs)
   where
@@ -159,6 +221,64 @@ primalGraph bs = primalGraph' $ zip (zipWith (\x y -> vertex $ ValNode x y) [1 .
     primalGraph' ((v, d) : xs) = overlay connectionsToHead (primalGraph' xs)
       where
         connectionsToHead = (overlays [overlay (connect v v') (connect v' v) | (v', d') <- xs, domainIntersects d d'])
+
+triangulatedGraph :: Graph (ValNode a) -> Graph (ValNode a)
+triangulatedGraph = undefined
+
+showAdjacents :: (Ord a, Show a) => (Graph a) -> String
+showAdjacents graph = concat $ intersperse "\n\n\n" $ fmap (show) (adjacencyList graph)
+
+showAdjacentsValNode :: Graph (ValNode a) -> String
+showAdjacentsValNode graph = concat $ intersperse "\n\n" $ fmap showVertices (adjacencyList graph)
+  where
+    showVertices :: (ValNode a, [ValNode a]) -> String
+    showVertices (x, ys) = show (vertexNum x) ++ " -> " ++ (show $ map (\y -> vertexNum y) ys)
+
+-- WAIT don't we want something like 'f a' (i.e. Mirroring 'Maybe Int') instead of our flexible instances?
+
+joinTree :: forall node val var. (JoinTreeNode node val var) => [val] -> Graph node
+joinTree vs = edges $ joinTree' nextNodeId r d
+  where
+    d :: Domain var
+    d = foldr union [] $ map label vs
+
+    r :: [node]
+    r = zipWith (\nid v -> create nid (label v) (Just v)) [1 ..] vs
+
+    nextNodeId :: Integer
+    nextNodeId = fromIntegral $ length r
+
+joinTree' :: forall node val var. (JoinTreeNode node val var) => Integer -> [node] -> Domain var -> [(node, node)]
+joinTree' _ _ [] = []
+joinTree' nextNodeId r (x : d')
+  | length r <= 1 = []
+  | length r' > 0 = union ((nUnion, nP) : e) (joinTree' (nextNodeId + 2) (nP : r') d')
+  | otherwise = union e (joinTree' (nextNodeId + 2) r' d')
+  where
+    xIsInNodeDomain :: node -> Bool
+    xIsInNodeDomain n = x `elem` (getDomain n)
+
+    phiX :: [node]
+    phiX = filter xIsInNodeDomain r
+
+    domainOfPhiX :: Domain var
+    domainOfPhiX = foldr union [] $ map getDomain phiX
+
+    nUnion :: node
+    nUnion = create nextNodeId domainOfPhiX Nothing
+
+    r' :: [node]
+    r' = setDifference r phiX
+
+    e :: [(node, node)]
+    e = [(n, nUnion) | n <- phiX]
+
+    nP :: node
+    nP = create (nextNodeId + 1) (setDifference domainOfPhiX [x]) Nothing
+
+-- Just because every node has a valuation at the start doesn't mean that every node must have a valuation.
+-- I'm not exactly sure what it means to have a node that does not have a valuation on it when it comes
+-- to the time for message passing, but I believe i have seen similar things in my readings.
 
 {-
 
@@ -186,6 +306,10 @@ neighbours graph v = undefined
 node :: ReceivePort (a, SendPort a)
 node = undefined
 
+p1JoinTree :: Graph (CollectNode (BVal P1Var P1Value) P1Var)
+p1JoinTree = joinTree p1Valuations
+
 main :: IO ()
 main = do
-  print "foo"
+  -- putStrLn $ showAdjacentsValNode (primalGraph p1Valuations)
+  putStrLn $ showAdjacents p1JoinTree

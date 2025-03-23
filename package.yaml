@@ -25,6 +25,7 @@ dependencies:
 - binary
 - network-transport-tcp
 - algebraic-graphs == 0.7
+- containers
 
 ghc-options:
 - -Wall
