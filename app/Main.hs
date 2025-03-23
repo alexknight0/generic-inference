@@ -43,37 +43,37 @@ domainIntersects xs ys = or [x == y | x <- xs, y <- ys]
 -- The a -> b functional dependency is valid here, because 'a' will be of some form
 -- 'ValInstance d b'. Hence, by picking our 'a', we have picked our 'b'; so the "a -> b"
 -- functional dependency would hinder our implementation.
-class (Eq var) => Valuation val var | val -> var where
-  label :: val -> Domain var
-  combine :: val -> val -> val
-  project :: val -> Domain var -> val
+class Valuation val where
+  label :: val var -> Domain var
+  combine :: val var -> val var -> val var
+  project :: val var -> Domain var -> val var
 
--- The JoinTreeNode instance implies the valuation because the valuation is also
--- stored inside the Node instance. Hence, if we have a valuation inside the node instance,
--- we must already know what valuation we are talking about when we have the JoinTreeNode ('a').
-class (Valuation val var, Ord node, Eq node) => JoinTreeNode node val var | node -> val where
-  collect :: node -> node
-  getValuation :: node -> Maybe val
-  getDomain :: node -> Domain var
-  create :: Integer -> Domain var -> Maybe val -> node
-  nodeId :: node -> Integer
+-- Notably when we want class constraints, we now place them around the functions instead of at the typeclass level.
+-- For example, I wouldn't be suprised if in 'collect' we had to draw on the knowledge that 'val' is a 'Valuation',
+-- so we could add the class constraint '(Valuation val) => ...' to the front of the 'collect' method.
+class JoinTreeNode node where
+  collect :: node val var -> node val var
+  getValuation :: node val var -> Maybe (val var)
+  getDomain :: node val var -> Domain var
+  create :: Integer -> Domain var -> Maybe (val var) -> node val var
+  nodeId :: node val var -> Integer
 
-data (Valuation val var) => CollectNode val var = CollectNode Integer (Domain var) (Maybe val)
+data CollectNode val var = CollectNode Integer (Domain var) (Maybe (val var))
 
-instance (Valuation val var) => Eq (CollectNode val var) where
+instance (Valuation val) => Eq (CollectNode val var) where
   (==) x y = nodeId x <= nodeId y
 
-instance (Valuation val var) => Ord (CollectNode val var) where
+instance (Valuation val) => Ord (CollectNode val var) where
   (<=) x y = nodeId x <= nodeId y
 
-instance (Valuation val var) => JoinTreeNode (CollectNode val var) val var where
+instance JoinTreeNode CollectNode where
   collect = undefined
-  getValuation = undefined
+  getValuation (CollectNode _ _ v) = v
   getDomain (CollectNode _ d _) = d
   create = CollectNode
-  nodeId (CollectNode x _ _) = x
+  nodeId (CollectNode i _ _) = i
 
-instance (Eq var, Show var) => Show (CollectNode (BVal var varValue) var) where
+instance (Eq var, Show var) => Show (CollectNode (BVal varValue) var) where
   show (CollectNode x y (Just z)) = show x ++ " - " ++ show y ++ " - " ++ (show $ getColumns z)
   show (CollectNode x y Nothing) = show x ++ " - " ++ show y ++ " - " ++ "Nothing"
 
@@ -123,7 +123,7 @@ row of the table instead.
 BValColumns stores no redundant information, while BValRows stores a heap of redundant information,
 but allows accessing this information in a more haskell-like manner.
 -}
-data BVal a b = BValRows [BValRow a b]
+data BVal var val = BValRows [BValRow val var]
 
 -- An inefficent storage format, but we should get a working implementation first.
 data BValRow a b = BValRow
@@ -136,7 +136,7 @@ data BValRow a b = BValRow
 -- A supporting data structure, as inputting data in this format is often easier.
 data BValColumns a b = BValColumns a [a] [Probability] | BValColumnsNull deriving (Show)
 
-getColumns :: BVal a b -> BValColumns a b
+getColumns :: BVal var val -> BValColumns val var
 getColumns (BValRows []) = BValColumnsNull
 getColumns (BValRows rs'@(r : _)) = BValColumns v cs ps
   where
@@ -144,33 +144,33 @@ getColumns (BValRows rs'@(r : _)) = BValColumns v cs ps
     cs = map (fst) (conditions r)
     ps = map probability rs'
 
-getRows :: forall a b. (Enum b, Bounded b) => BValColumns a b -> BVal a b
+getRows :: forall val var. (Enum var, Bounded var) => BValColumns val var -> BVal var val
 getRows BValColumnsNull = BValRows []
 getRows (BValColumns var conds ps) = BValRows fullRows'
   where
-    fullRows' :: [BValRow a b]
+    fullRows' :: [BValRow val var]
     fullRows' = map (\(x, y, z) -> BValRow x y z) fullRows
 
-    fullRows :: [((a, b), [(a, b)], Probability)]
+    fullRows :: [((val, var), [(val, var)], Probability)]
     fullRows = zipWith (\(v, cs) p -> (v, cs, p)) rowsWithoutProbability ps
 
-    rowsWithoutProbability :: [((a, b), [(a, b)])]
+    rowsWithoutProbability :: [((val, var), [(val, var)])]
     rowsWithoutProbability = [(v, cs) | v <- vPermutations, cs <- csPermutations conds]
       where
-        vPermutations :: [(a, b)]
+        vPermutations :: [(val, var)]
         vPermutations = [(var, vVal) | vVal <- varValues]
 
-        csPermutations :: [a] -> [[(a, b)]]
+        csPermutations :: [val] -> [[(val, var)]]
         csPermutations [] = [[]]
         csPermutations (c : cs) = [(c, cVal) : rest | cVal <- varValues, rest <- csPermutations cs]
 
-        varValues :: [b]
+        varValues :: [var]
         varValues = [minBound .. maxBound]
 
 type Probability = Float
 
 -- Don't be suprised if you need to put (Enum, bounded) on 'b'.
-instance (Eq var) => Valuation (BVal var varVal) var where
+instance Valuation (BVal varVal) where
   -- label :: BVal -> Domain BVar
   label (BValRows []) = []
   label (BValRows (x : _)) = fst (variable x) : map fst (conditions x)
@@ -184,7 +184,7 @@ instance (Eq var) => Valuation (BVal var varVal) var where
   -- project :: BVal -> Domain BVar -> BVal
   project = undefined
 
-instance (Show a) => Show (BVal a b) where
+instance (Show b) => Show (BVal a b) where
   show xs = show $ getColumns xs
 
 ---------------- BAYESIAN END
@@ -194,7 +194,7 @@ data P1Var = F | B | L | D | H deriving (Eq, Ord, Show)
 
 data P1Value = P1False | P1True deriving (Enum, Bounded, Show)
 
-p1Valuations :: [BVal P1Var P1Value]
+p1Valuations :: [BVal P1Value P1Var]
 p1Valuations =
   [ getRows $ BValColumns F [] [0.85, 0.15],
     getRows $ BValColumns B [] [0.99, 0.01],
@@ -213,14 +213,14 @@ p1Valuations =
 -- I think this does technically loosen typing rules:
 --  A tree that has mixed nodes would type correctly.
 
-primalGraph :: (Valuation a b) => [a] -> Graph (ValNode a)
-primalGraph bs = primalGraph' $ zip (zipWith (\x y -> vertex $ ValNode x y) [1 ..] bs) (fmap label bs)
-  where
-    primalGraph' :: (Valuation a b) => [(Graph (ValNode a), Domain b)] -> Graph (ValNode a)
-    primalGraph' [] = empty
-    primalGraph' ((v, d) : xs) = overlay connectionsToHead (primalGraph' xs)
-      where
-        connectionsToHead = (overlays [overlay (connect v v') (connect v' v) | (v', d') <- xs, domainIntersects d d'])
+-- primalGraph :: (Valuation a b) => [a] -> Graph (ValNode a)
+-- primalGraph bs = primalGraph' $ zip (zipWith (\x y -> vertex $ ValNode x y) [1 ..] bs) (fmap label bs)
+--   where
+--     primalGraph' :: (Valuation a b) => [(Graph (ValNode a), Domain b)] -> Graph (ValNode a)
+--     primalGraph' [] = empty
+--     primalGraph' ((v, d) : xs) = overlay connectionsToHead (primalGraph' xs)
+--       where
+--         connectionsToHead = (overlays [overlay (connect v v') (connect v' v) | (v', d') <- xs, domainIntersects d d'])
 
 triangulatedGraph :: Graph (ValNode a) -> Graph (ValNode a)
 triangulatedGraph = undefined
@@ -234,46 +234,44 @@ showAdjacentsValNode graph = concat $ intersperse "\n\n" $ fmap showVertices (ad
     showVertices :: (ValNode a, [ValNode a]) -> String
     showVertices (x, ys) = show (vertexNum x) ++ " -> " ++ (show $ map (\y -> vertexNum y) ys)
 
--- WAIT don't we want something like 'f a' (i.e. Mirroring 'Maybe Int') instead of our flexible instances?
-
-joinTree :: forall node val var. (JoinTreeNode node val var) => [val] -> Graph node
+joinTree :: forall node val var. (JoinTreeNode node, Valuation val, Eq var, Eq (node val var)) => [val var] -> Graph (node val var)
 joinTree vs = edges $ joinTree' nextNodeId r d
   where
     d :: Domain var
     d = foldr union [] $ map label vs
 
-    r :: [node]
+    r :: [node val var]
     r = zipWith (\nid v -> create nid (label v) (Just v)) [1 ..] vs
 
     nextNodeId :: Integer
     nextNodeId = fromIntegral $ length r
 
-joinTree' :: forall node val var. (JoinTreeNode node val var) => Integer -> [node] -> Domain var -> [(node, node)]
+joinTree' :: forall node val var. (JoinTreeNode node, Valuation val, Eq var, Eq (node val var)) => Integer -> [node val var] -> Domain var -> [(node val var, node val var)]
 joinTree' _ _ [] = []
 joinTree' nextNodeId r (x : d')
   | length r <= 1 = []
   | length r' > 0 = union ((nUnion, nP) : e) (joinTree' (nextNodeId + 2) (nP : r') d')
   | otherwise = union e (joinTree' (nextNodeId + 2) r' d')
   where
-    xIsInNodeDomain :: node -> Bool
+    xIsInNodeDomain :: node val var -> Bool
     xIsInNodeDomain n = x `elem` (getDomain n)
 
-    phiX :: [node]
+    phiX :: [node val var]
     phiX = filter xIsInNodeDomain r
 
     domainOfPhiX :: Domain var
     domainOfPhiX = foldr union [] $ map getDomain phiX
 
-    nUnion :: node
+    nUnion :: node val var
     nUnion = create nextNodeId domainOfPhiX Nothing
 
-    r' :: [node]
+    r' :: [node val var]
     r' = setDifference r phiX
 
-    e :: [(node, node)]
+    e :: [(node val var, node val var)]
     e = [(n, nUnion) | n <- phiX]
 
-    nP :: node
+    nP :: node val var
     nP = create (nextNodeId + 1) (setDifference domainOfPhiX [x]) Nothing
 
 -- Just because every node has a valuation at the start doesn't mean that every node must have a valuation.
@@ -306,7 +304,7 @@ neighbours graph v = undefined
 node :: ReceivePort (a, SendPort a)
 node = undefined
 
-p1JoinTree :: Graph (CollectNode (BVal P1Var P1Value) P1Var)
+p1JoinTree :: Graph (CollectNode (BVal P1Value) P1Var)
 p1JoinTree = joinTree p1Valuations
 
 main :: IO ()
