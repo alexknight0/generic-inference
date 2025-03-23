@@ -15,6 +15,7 @@ import Data.Binary
 import Data.List (intersperse, nub, union)
 import Data.Tree
 import Data.Typeable
+import Debug.Trace
 import Lib
 import Network.Transport.TCP
 
@@ -61,7 +62,7 @@ class JoinTreeNode node where
 data CollectNode val var = CollectNode Integer (Domain var) (Maybe (val var))
 
 instance (Valuation val) => Eq (CollectNode val var) where
-  (==) x y = nodeId x <= nodeId y
+  (==) x y = nodeId x == nodeId y
 
 instance (Valuation val) => Ord (CollectNode val var) where
   (<=) x y = nodeId x <= nodeId y
@@ -241,7 +242,7 @@ joinTree vs = edges $ joinTree' nextNodeId r d
     d = foldr union [] $ map label vs
 
     r :: [node val var]
-    r = zipWith (\nid v -> create nid (label v) (Just v)) [1 ..] vs
+    r = zipWith (\nid v -> create nid (label v) (Just v)) [0 ..] vs
 
     nextNodeId :: Integer
     nextNodeId = fromIntegral $ length r
@@ -250,7 +251,7 @@ joinTree' :: forall node val var. (JoinTreeNode node, Valuation val, Eq var, Eq 
 joinTree' _ _ [] = []
 joinTree' nextNodeId r (x : d')
   | length r <= 1 = []
-  | length r' > 0 = union ((nUnion, nP) : e) (joinTree' (nextNodeId + 2) (nP : r') d')
+  | length r' > 0 = union (union [(nUnion, nP)] e) (joinTree' (nextNodeId + 2) (union [nP] r') d')
   | otherwise = union e (joinTree' (nextNodeId + 2) r' d')
   where
     xIsInNodeDomain :: node val var -> Bool
@@ -311,3 +312,4 @@ main :: IO ()
 main = do
   -- putStrLn $ showAdjacentsValNode (primalGraph p1Valuations)
   putStrLn $ showAdjacents p1JoinTree
+  print $ map label p1Valuations
