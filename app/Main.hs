@@ -172,17 +172,17 @@ type Probability = Float
 
 -- Don't be suprised if you need to put (Enum, bounded) on 'b'.
 instance Valuation (BVal varVal) where
-  -- label :: BVal -> Domain BVar
+  -- label :: BVal varVal var -> Domain var
   label (BValRows []) = []
   label (BValRows (x : _)) = fst (variable x) : map fst (conditions x)
 
-  -- combine :: BVal -> BVal -> BVal
+  -- combine :: BVal varVal var -> BVal varVal var -> BVal varVal var
   combine = undefined
 
   -- There is a lot about the data format i'm unsure about here -
   -- what if we get a p1 = A | B C and p2 = B | C scenario? Can this happen?
 
-  -- project :: BVal -> Domain BVar -> BVal
+  -- project :: BVal varVal var -> Domain var -> BVal varVal var
   project = undefined
 
 instance (Show b) => Show (BVal a b) where
@@ -274,10 +274,6 @@ joinTree' nextNodeId r (x : d')
 
     nP :: node val var
     nP = create (nextNodeId + 1) (setDifference domainOfPhiX [x]) Nothing
-
--- Just because every node has a valuation at the start doesn't mean that every node must have a valuation.
--- I'm not exactly sure what it means to have a node that does not have a valuation on it when it comes
--- to the time for message passing, but I believe i have seen similar things in my readings.
 
 {-
 
