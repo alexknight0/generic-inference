@@ -25,7 +25,11 @@ source-repository head
 
 library
   exposed-modules:
+      Bayesian
+      Collect
       Lib
+      SemiringValuationAlgebra
+      ValuationAlgebra
   other-modules:
       Paths_localcomputation
   autogen-modules:
