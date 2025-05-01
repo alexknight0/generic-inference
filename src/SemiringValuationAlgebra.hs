@@ -16,15 +16,15 @@ data Variable a b = Variable {
 
 data SemiringValuation variable value = SemiringValuation [variable] [value]
 
-instance Valuation (SemiringValuation variable) where
-    label :: val var -> Domain var
-    label = undefined
+instance Valuation (SemiringValuation) where
+    -- label :: val var -> Domain var
+    -- label = undefined
 
-    combine :: val var -> val var -> val var
-    combine = undefined
+    -- combine :: val var -> val var -> val var
+    -- combine = undefined
 
-    project :: val var -> Domain var -> val var
-    project = undefined
+    -- project :: val var -> Domain var -> val var
+    -- project = undefined
 
 
 

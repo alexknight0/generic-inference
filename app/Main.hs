@@ -33,7 +33,6 @@ main :: IO ()
 main = do
     -- putStrLn $ showAdjacents p1JoinTree
     -- print $ map label p1Valuations
-    print "foo"
+    putStrLn tmpMain
 
--- p1JoinTree :: Graph (CollectNode (BVal P1Value) P1Var)
--- p1JoinTree = joinTree p1Valuations
+

@@ -1,13 +1,13 @@
 {-# LANGUAGE InstanceSigs #-}
 
 module Collect
-    (
+    (CollectNode
     )
 where
 
 import ValuationAlgebra
 
-data CollectNode v a = CollectNode Integer (Domain a) (Maybe v) 
+data CollectNode v a b = CollectNode Integer (Domain a) (Maybe (v a b))
 
 -- instance (Valuation val) => Eq (CollectNode val var) where
 --     (==) x y = nodeId x == nodeId y
@@ -15,30 +15,35 @@ data CollectNode v a = CollectNode Integer (Domain a) (Maybe v)
 -- instance (Valuation val) => Ord (CollectNode val var) where
 --     (<=) x y = nodeId x <= nodeId y
 
-instance Node (CollectNode c) where
-    collect :: (Valuation v) => CollectNode c (v (Variable a b)) -> CollectNode c (v (Variable a b))
+instance Node CollectNode where
     collect = undefined
 
-    getValuation :: (Valuation v) => n (v (Variable a b)) -> Maybe (v (Variable a b))
-    getValuation = undefined
+    getValuation (CollectNode _ _ v) = v
 
-    getDomain :: (Valuation v) => n (v (Variable a b)) -> Domain (Variable a b)
-    getDomain = undefined
+    getDomain (CollectNode _ d _) = d
+
+    create = CollectNode
 
     -- Once we have joinTree working we can move to a version of join tree where we give it a specific node?
     -- type nCreator v a b = Integer -> Domain (Variable a b) -> Maybe (v (Variable a b)) -> n (v (Variable a b))
 
-    create :: (Valuation v) => Integer -> Domain (Variable a b) -> Maybe (v (Variable a b)) -> n (v (Variable a b))
-    create = undefined
+    nodeId (CollectNode i _ _) = i
 
-    nodeId :: n a -> Integer
-    nodeId = undefined
+instance Eq (CollectNode v a b) where
+    x == y = nodeId x == nodeId y
 
-    -- collect = undefined
-    -- getValuation (CollectNode _ _ v) = v
-    -- getDomain (CollectNode _ d _) = d
-    -- create = CollectNode
-    -- nodeId (CollectNode i _ _) = i
+instance Ord (CollectNode v a b) where
+    x <= y = nodeId x <= nodeId y
+
+-- Could put implementation inside the Node typeclass and then just call it from in here
+instance (Show (v a b), Show a) => Show (CollectNode v a b) where
+    show (CollectNode i d v) = "--------------------"     ++ "\n"
+                            ++ "[Index]: "      ++ show i ++ "\n"
+                            ++ "[Domain]: "     ++ show d ++ "\n"
+                            ++ "[Valuation]: "  ++ show v ++ "\n"
+                            ++ "--------------------"     ++ "\n"
+
+
 
 -- TODO this should not be specific for BVal - this should be for an valuation that is showable.
 -- instance (Eq var, Show var) => Show (CollectNode (BVal varValue) var) where
