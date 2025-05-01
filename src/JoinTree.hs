@@ -4,6 +4,8 @@
 
 module JoinTree
     ( joinTree
+    , Node
+    , collect, getValuation, getDomain, create, nodeId
     )
 where
 
@@ -11,6 +13,16 @@ import Algebra.Graph
 import Data.List (union)
 
 import ValuationAlgebra
+
+-- Note: while the 'Eq', 'Ord', and 'Show' instances can easily be generically written using
+-- the exposed parts of the 'Node' typeclass, a typeclass cannot implement another typeclass.
+-- Hence, this implementation must be deferred to the implementing type constructors.
+class Node n where
+    collect         :: (Valuation v) => n v a b -> n v a b
+    getValuation    :: (Valuation v) => n v a b -> Maybe (v a b)
+    getDomain       :: (Valuation v) => n v a b -> Domain a
+    create          :: (Valuation v) => Integer -> Domain a -> Maybe (v a b) -> n v a b
+    nodeId          ::                  n v a b -> Integer
 
 setDifference :: (Eq a) => [a] -> [a] -> [a]
 setDifference xs ys = filter (\x -> not $ x `elem` ys) xs

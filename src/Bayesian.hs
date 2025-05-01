@@ -38,17 +38,14 @@ data BayesValuation a b = Rows [Row a b]
 
 -- Don't be suprised if you need to put (Enum, bounded) on 'b'.
 instance Valuation BayesValuation where
-    -- label :: BVal varVal var -> Domain var
     label (Rows []) = []
     label (Rows (x : _)) = fst (variable x) : map fst (conditions x)
 
-    -- combine :: BVal varVal var -> BVal varVal var -> BVal varVal var
+    -- Identity / neutral element must be addressed here, or a plan made to address it in the main typeclass.
     combine = undefined
 
     -- There is a lot about the data format i'm unsure about here -
     -- what if we get a p1 = A | B C and p2 = B | C scenario? Can this happen?
-
-    -- project :: BVal varVal var -> Domain var -> BVal varVal var
     project = undefined
 
 instance (Show a) => Show (BayesValuation a b) where

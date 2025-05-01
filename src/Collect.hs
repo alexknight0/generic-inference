@@ -6,6 +6,7 @@ module Collect
 where
 
 import ValuationAlgebra
+import JoinTree
 
 data CollectNode v a b = CollectNode Integer (Domain a) (Maybe (v a b))
 
@@ -33,4 +34,6 @@ instance (Show (v a b), Show a) => Show (CollectNode v a b) where
                             ++ "[Domain]: "     ++ show d ++ "\n"
                             ++ "[Valuation]: "  ++ show v ++ "\n"
                             ++ "--------------------"     ++ "\n"
+
+
 
