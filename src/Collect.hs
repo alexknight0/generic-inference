@@ -34,4 +34,3 @@ instance (Show (v a b), Show a) => Show (CollectNode v a b) where
                             ++ "[Valuation]: "  ++ show v ++ "\n"
                             ++ "--------------------"     ++ "\n"
 
-

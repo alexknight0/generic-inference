@@ -1,14 +1,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Bayesian
-    (tmpMain)
+    ( getRows
+    , Columns (Columns)
+    , BayesValuation
+    )
 where
 
-import Algebra.Graph
-import Data.List (intersperse)
-
 import ValuationAlgebra
-import Collect
 
 {-
 In BValColumns, the first parameter is the variable, the second parameter
@@ -99,24 +98,3 @@ getRows (Columns var conds ps) = Rows fullRows'
 
 type Probability = Float
 
-showAdjacents :: (Ord a, Show a) => (Graph a) -> String
-showAdjacents graph = concat $ intersperse "\n\n\n" $ fmap (show) (adjacencyList graph)
-
-data P1Var = F | B | L | D | H deriving (Eq, Ord, Show)
-
-data P1Value = P1False | P1True deriving (Enum, Bounded, Show, Eq)
-
-p1Valuations :: [BayesValuation P1Var P1Value]
-p1Valuations =
-    [ getRows $ Columns F [] [0.85, 0.15],
-        getRows $ Columns B [] [0.99, 0.01],
-        getRows $ Columns L [F] [0.95, 0.4, 0.05, 0.6],
-        getRows $ Columns D [F, B] [0.7, 0.03, 0.1, 0.01, 0.3, 0.97, 0.9, 0.99],
-        getRows $ Columns H [D] [0.99, 0.3, 0.01, 0.7]
-    ]
-
-p1JoinTree :: Graph (CollectNode BayesValuation P1Var P1Value)
-p1JoinTree = joinTree p1Valuations
-
-tmpMain :: String
-tmpMain = showAdjacents p1JoinTree
