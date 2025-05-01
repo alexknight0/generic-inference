@@ -8,7 +8,7 @@
 
 module ValuationAlgebra
     ( Valuation (label, combine, project)
-    , Domain
+    , Variable, Domain
     , Node
     , collect, getValuation, getDomain, create, nodeId
     )
@@ -47,29 +47,34 @@ class Valuation v where
     combine :: v (Variable a b) -> v (Variable a b) -> v (Variable a b)
     project :: v (Variable a b) -> Domain (Variable a b) -> v (Variable a b)
 
-data Node v = CollectNode Integer v
 
-collect :: (Valuation v) => Node (v (Variable a b)) -> Node (v (Variable a b))
-collect = undefined
+class Node n where
+    collect :: (Valuation v) => n (v (Variable a b)) -> n (v (Variable a b))
+    collect = undefined
 
-getValuation :: (Valuation v) => Node (v (Variable a b)) -> Maybe (v (Variable a b))
-getValuation = undefined
+    getValuation :: (Valuation v) => n (v (Variable a b)) -> Maybe (v (Variable a b))
+    getValuation = undefined
 
-getDomain :: (Valuation v) => Node (v (Variable a b)) -> Domain (Variable a b)
-getDomain = undefined
+    getDomain :: (Valuation v) => n (v (Variable a b)) -> Domain (Variable a b)
+    getDomain = undefined
 
-create :: (Valuation v) => Integer -> Domain (Variable a b) -> Maybe (v (Variable a b)) -> Node (v (Variable a b))
-create = undefined
+    -- Once we have joinTree working we can move to a version of join tree where we give it a specific node?
+    -- type nCreator v a b = Integer -> Domain (Variable a b) -> Maybe (v (Variable a b)) -> n (v (Variable a b))
 
-nodeId :: (Valuation v) => Node (v (Variable a b)) -> Integer
-nodeId = undefined
+    create :: (Valuation v) => Integer -> Domain (Variable a b) -> Maybe (v (Variable a b)) -> n (v (Variable a b))
+    create = undefined
 
+    nodeId :: n a -> Integer
+    nodeId = undefined
 
-instance (Valuation v) => Eq (Node (v (Variable a b))) where
-    (==) x y = nodeId x == nodeId y
+    -- Can't simply implement Eq or Ord because Node is a typeclass not a type constructor, which means it is
+    -- capable of implementing both Node, and Eq or Ord. This would cause two possible operations on (==) or (<=).
+    idEquals :: n a -> n a -> Bool
+    idEquals x y = nodeId x == nodeId y
 
-instance (Valuation v) => Ord (Node (v (Variable a b))) where
-    (<=) x y = nodeId x <= nodeId y
+    idLessOrEqual :: n a -> n a -> Bool
+    idLessOrEqual x y = nodeId x <= nodeId y
+
 
 -- TODO this should not be specific for BVal - this should be for an valuation that is showable.
 -- instance (Eq var, Show var) => Show (CollectNode (BVal varValue) var) where
@@ -97,50 +102,57 @@ instance (Valuation v) => Ord (Node (v (Variable a b))) where
 --         showVertices :: (ValNode a, [ValNode a]) -> String
 --         showVertices (x, ys) = show (vertexNum x) ++ " -> " ++ (show $ map (\y -> vertexNum y) ys)
 -- 
-joinTree :: forall v a b. (Valuation v, Eq a, Eq b)
+
+-- 1. Can replace 'nextNodeId' with a function that increments itself like for blockus.
+--      A: Before we do this we should probably check it works, and write some tests.
+--
+-- 2. Is this specifically a collect join tree? If so, it should be renamed as such, and instead of
+--      taking a generic node it should probably take a collect node. Then i think we go back to
+--      typeclass for the generic node, so that we can actually target the collect node as a type.
+joinTree :: forall n v a b. (Node n, Valuation v, Eq a, Eq b, Eq (n (v (Variable a b))))
     => [v (Variable a b)]
-    -> Graph (Node (v (Variable a b)))
+    -> Graph (n (v (Variable a b)))
 joinTree vs = edges $ joinTree' nextNodeId r d
     where
         d :: Domain (Variable a b)
         d = foldr union [] $ map label vs
 
-        r :: [Node (v (Variable a b))]
+        r :: [n (v (Variable a b))]
         r = zipWith (\nid v -> create nid (label v) (Just v)) [0 ..] vs
 
         nextNodeId :: Integer
         nextNodeId = fromIntegral $ length r
 
-joinTree' :: forall v a b. (Valuation v, Eq a, Eq b)
+joinTree' :: forall n v a b. (Node n, Valuation v, Eq a, Eq b, Eq (n (v (Variable a b))))
     => Integer
-    -> [Node (v (Variable a b))]
+    -> [n (v (Variable a b))]
     -> Domain (Variable a b)
-    -> [(Node (v (Variable a b)), Node (v (Variable a b)))]
+    -> [(n (v (Variable a b)), n (v (Variable a b)))]
 joinTree' _ _ [] = []
 joinTree' nextNodeId r (x : d')
     | length r <= 1 = []
     | length r' > 0 = union (union [(nUnion, nP)] e) (joinTree' (nextNodeId + 2) (union [nP] r') d')
     | otherwise = union e (joinTree' (nextNodeId + 2) r' d')
     where
-        xIsInNodeDomain :: Node (v (Variable a b)) -> Bool
+        xIsInNodeDomain :: n (v (Variable a b)) -> Bool
         xIsInNodeDomain n = x `elem` (getDomain n)
 
-        phiX :: [Node (v (Variable a b))]
+        phiX :: [n (v (Variable a b))]
         phiX = filter xIsInNodeDomain r
 
         domainOfPhiX :: Domain (Variable a b)
         domainOfPhiX = foldr union [] $ map getDomain phiX
 
-        nUnion :: Node (v (Variable a b))
+        nUnion :: n (v (Variable a b))
         nUnion = create nextNodeId domainOfPhiX Nothing
 
-        r' :: [Node (v (Variable a b))]
+        r' :: [n (v (Variable a b))]
         r' = setDifference r phiX
 
-        e :: [(Node (v (Variable a b)), Node (v (Variable a b)))]
+        e :: [(n (v (Variable a b)), n (v (Variable a b)))]
         e = [(n, nUnion) | n <- phiX]
 
-        nP :: Node (v (Variable a b))
+        nP :: n (v (Variable a b))
         nP = create (nextNodeId + 1) (setDifference domainOfPhiX [x]) Nothing
 
 {-
