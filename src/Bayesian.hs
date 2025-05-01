@@ -10,9 +10,6 @@ import Data.List (intersperse)
 import ValuationAlgebra
 import Collect
 
-
--- This implementation only handles binary events.
-
 {-
 In BValColumns, the first parameter is the variable, the second parameter
 is a list of the conditions, and the third parameter is the list of probabilities,
@@ -58,11 +55,6 @@ instance Valuation BayesValuation where
 instance (Show a) => Show (BayesValuation a b) where
     show = show . getColumns
 
-
-
----------------- BAYESIAN
-
-
 -- An inefficent storage format, but we should get a working implementation first.
 data Row a b = Row
     { variable :: (a, b),
@@ -107,27 +99,8 @@ getRows (Columns var conds ps) = Rows fullRows'
 
 type Probability = Float
 
----------------- BAYESIAN END
-
----------------- BAYESIAN PROBLEM EXAMPLE
-
--- BAYESIAN PROBLEM EXAMPLE END
---
-
--- instance (Eq var, Show var) => Show (CollectNode (BVal varValue) var) where
---     show (CollectNode x y (Just z)) = show x ++ " - " ++ show y ++ " - " ++ (show $ getColumns z)
---     show (CollectNode x y Nothing) = show x ++ " - " ++ show y ++ " - " ++ "Nothing"
-
 showAdjacents :: (Ord a, Show a) => (Graph a) -> String
 showAdjacents graph = concat $ intersperse "\n\n\n" $ fmap (show) (adjacencyList graph)
-
-
--- showAdjacentsValNode :: Graph (ValNode a) -> String
--- showAdjacentsValNode graph = concat $ intersperse "\n\n" $ fmap showVertices (adjacencyList graph)
---     where
---         showVertices :: (ValNode a, [ValNode a]) -> String
---         showVertices (x, ys) = show (vertexNum x) ++ " -> " ++ (show $ map (\y -> vertexNum y) ys)
-
 
 data P1Var = F | B | L | D | H deriving (Eq, Ord, Show)
 

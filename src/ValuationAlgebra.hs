@@ -8,7 +8,7 @@
 
 module ValuationAlgebra
     ( Valuation (label, combine, project)
-    , Variable, Domain
+    , Domain
     , Node
     , collect, getValuation, getDomain, create, nodeId
     , joinTree
@@ -26,23 +26,6 @@ setDifference xs ys = filter (\x -> not $ x `elem` ys) xs
 domainIntersects :: (Eq a) => Domain a -> Domain a -> Bool
 domainIntersects xs ys = or [x == y | x <- xs, y <- ys]
 
--- When it comes time to make use of the 'possibleValues' field (AKA the 'frame')
--- consider a reimplementation where the 'possibleValues' is instead passed as a
--- mapping from variables to frames to whatever function requires the 'possibleValues'.
---
--- This better reflects the fact that two variables with the same name should have the
--- same frame.
-data Variable a b = Variable {
-      name :: a
-    , possibleValues :: [b]
-}
-
-instance (Eq a, Eq b) => Eq (Variable a b) where
-    (==) (Variable x1 vs1) (Variable x2 vs2)
-        | x1 == x2 && vs1 /= vs2 = error "Two variables with same name had different values"
-        | x1 == x2 = True
-        | otherwise = False
-
 class Valuation v where
     label   :: v a b -> Domain a
     combine :: v a b -> v a b -> v a b
@@ -59,34 +42,9 @@ class Node n where
     create          :: (Valuation v) => Integer -> Domain a -> Maybe (v a b) -> n v a b
     nodeId          ::                  n v a b -> Integer
 
--- TODO this should not be specific for BVal - this should be for an valuation that is showable.
--- instance (Eq var, Show var) => Show (CollectNode (BVal varValue) var) where
---     show (CollectNode x y (Just z)) = show x ++ " - " ++ show y ++ " - " ++ (show $ getColumns z)
---     show (CollectNode x y Nothing) = show x ++ " - " ++ show y ++ " - " ++ "Nothing"
 
--- data ValNode a = ValNode {vertexNum :: Integer, contents :: a} deriving (Show)
--- 
--- instance Eq (ValNode a) where
---     (==) (ValNode {vertexNum = x}) (ValNode {vertexNum = y}) = x == y
--- 
--- instance Ord (ValNode a) where
---     (<=) (ValNode {vertexNum = x}) (ValNode {vertexNum = y}) = x <= y
-
-
--- triangulatedGraph :: Graph (ValNode a) -> Graph (ValNode a)
--- triangulatedGraph = undefined
--- 
--- showAdjacents :: (Ord a, Show a) => (Graph a) -> String
--- showAdjacents graph = concat $ intersperse "\n\n\n" $ fmap (show) (adjacencyList graph)
--- 
--- 
-
--- 1. Can replace 'nextNodeId' with a function that increments itself like for blockus.
+-- Can replace 'nextNodeId' with a function that increments itself like for blockus.
 --      A: Before we do this we should probably check it works, and write some tests.
---
--- 2. Is this specifically a collect join tree? If so, it should be renamed as such, and instead of
---      taking a generic node it should probably take a collect node. Then i think we go back to
---      typeclass for the generic node, so that we can actually target the collect node as a type.
 joinTree :: forall n v a b. (Node n, Valuation v, Eq a, Eq (n v a b))
     => [v a b]
     -> Graph (n v a b)
@@ -133,20 +91,3 @@ joinTree' nextNodeId r (x : d')
         nP :: n v a b
         nP = create (nextNodeId + 1) (setDifference domainOfPhiX [x]) Nothing
 
-{-
-
-Construct the tree by triangulation and then assign numbers and edge directions?
-Q: What happens when a node holding P(A | B) points to one holding P(A)?
-A: When P(A | B) tries to combine I believe it first marginalizes to P(A)'s domain, so the
-     B is removed, and we probably get an identity combination.
-
--}
-
--- joinTree :: Graph (ValNode a) -> Graph (ValNode a)
--- joinTree graph = foldr f graph (vertexList graph)
---     where
---         f v acc = undefined
-
------------------ COLLECT ALGORITHM
-
--- COLLECT ALGORITHM END
