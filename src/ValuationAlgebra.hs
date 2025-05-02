@@ -6,7 +6,7 @@
 {-# LANGUAGE FunctionalDependencies #-}
 
 module ValuationAlgebra
-    ( Valuation (label, combine, project)
+    ( Valuation (label, combine, project, identity)
     , Domain
     )
 where
@@ -17,5 +17,6 @@ class Valuation v where
     label   :: v a b -> Domain a
     combine :: v a b -> v a b -> v a b
     project :: v a b -> Domain a -> v a b
+    identity :: v a b
 
 

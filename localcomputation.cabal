@@ -30,6 +30,7 @@ library
       JoinTree
       Lib
       SemiringValuationAlgebra
+      ShenoyShafer
       ValuationAlgebra
   other-modules:
       Paths_localcomputation

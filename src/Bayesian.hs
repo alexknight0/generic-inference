@@ -34,19 +34,25 @@ row of the table instead.
 BValColumns stores no redundant information, while BValRows stores a heap of redundant information,
 but allows accessing this information in a more haskell-like manner.
 -}
-data BayesValuation a b = Rows [Row a b]
+data BayesValuation a b = Rows [Row a b] | Identity
 
 -- Don't be suprised if you need to put (Enum, bounded) on 'b'.
 instance Valuation BayesValuation where
     label (Rows []) = []
     label (Rows (x : _)) = fst (variable x) : map fst (conditions x)
+    label Identity = []
 
     -- Identity / neutral element must be addressed here, or a plan made to address it in the main typeclass.
-    combine = undefined
+    combine Identity _ = Identity
+    combine _ Identity = Identity
+    combine _ _ = undefined
 
     -- There is a lot about the data format i'm unsure about here -
     -- what if we get a p1 = A | B C and p2 = B | C scenario? Can this happen?
-    project = undefined
+    project Identity _ = Identity
+    project _ _ = undefined
+
+    identity = Identity
 
 instance (Show a) => Show (BayesValuation a b) where
     show = show . getColumns
@@ -60,9 +66,10 @@ data Row a b = Row
     deriving (Show)
 
 -- A supporting data structure, as inputting data in this format is often easier.
-data Columns a b = Columns a [a] [Probability] | ColumnsNull deriving (Show)
+data Columns a b = Columns a [a] [Probability] | ColumnsNull | ColumnsIdentity deriving (Show)
 
 getColumns :: BayesValuation a b -> Columns a b
+getColumns Identity = ColumnsIdentity
 getColumns (Rows []) = ColumnsNull
 getColumns (Rows rs'@(r : _)) = Columns v cs ps
     where
@@ -71,6 +78,7 @@ getColumns (Rows rs'@(r : _)) = Columns v cs ps
         ps = map probability rs'
 
 getRows :: forall a b. (Enum b, Bounded b) => Columns a b -> BayesValuation a b
+getRows ColumnsIdentity = Identity
 getRows ColumnsNull = Rows []
 getRows (Columns var conds ps) = Rows fullRows'
     where

@@ -8,7 +8,7 @@ where
 import ValuationAlgebra
 import JoinTree
 
-data CollectNode v a b = CollectNode Integer (Domain a) (Maybe (v a b))
+data CollectNode v a b = CollectNode Integer (Domain a) (v a b)
 
 instance Node CollectNode where
     collect = undefined

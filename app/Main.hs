@@ -44,7 +44,7 @@ p1Valuations =
     ]
 
 p1JoinTree :: Graph (CollectNode BayesValuation P1Var P1Value)
-p1JoinTree = joinTree p1Valuations
+p1JoinTree = baseJoinTree p1Valuations
 
 main :: IO ()
 main = do
