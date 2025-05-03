@@ -62,16 +62,22 @@ domainIntersects xs ys = or [x == y | x <- xs, y <- ys]
 -- be skipped in the assignment of ids to nodes. All nodes either represent valuations,
 -- or are either projection or union nodes. No node was added to represent an 'empty'
 -- domain root.
+--
+-- The query domains are used only to ensure the join tree has a node that answers
+-- each query (by creating empty nodes for each the query domain). The node ids
+-- of the input valuations 'vs' in the final join tree are [0 .. (length vs)] respectively.
 baseJoinTree :: forall n v a b. (Node n, Valuation v, Eq a, Eq (n v a b))
     => [v a b]
+    -> [Domain a]
     -> Graph (n v a b)
-baseJoinTree vs = edges $ baseJoinTree' nextNodeId r d
+baseJoinTree vs queries = edges $ baseJoinTree' nextNodeId r d
     where
         d :: Domain a
         d = foldr union [] $ map label vs
 
         r :: [n v a b]
         r = zipWith (\nid v -> create nid (label v) v) [0 ..] vs
+            ++ zipWith (\nid q -> create nid q identity) [fromIntegral (length vs) ..] queries
 
         nextNodeId :: Integer
         nextNodeId = fromIntegral $ length r

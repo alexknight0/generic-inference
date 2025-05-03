@@ -3,7 +3,7 @@
 
 module Main (main) where
 
-import Algebra.Graph
+import Algebra.Graph.Undirected
 import Data.List (intersperse)
 
 -- LocalComputation library files
@@ -11,13 +11,14 @@ import ValuationAlgebra
 import Collect
 import Bayesian
 import JoinTree
+import ShenoyShafer
 
 
 ---- We will need these someday (probably)
--- import Control.Concurrent (threadDelay)
--- import Control.Distributed.Process
--- import Control.Distributed.Process.Node
--- import Network.Transport.TCP
+import Control.Concurrent (threadDelay)
+import Control.Distributed.Process
+import Control.Distributed.Process.Node
+import Network.Transport.TCP
 -- import Data.Tree
 
 ----------
@@ -27,8 +28,9 @@ import JoinTree
 -- Consider creating a typeclass for variables that has them implement 'hashCode' - nenok uses
 -- this to implement the binary heap ordering?
 
-showAdjacents :: (Ord a, Show a) => (Graph a) -> String
-showAdjacents graph = concat $ intersperse "\n\n\n" $ fmap (show) (adjacencyList graph)
+-- -- uses not-undirected graph so commented out for now
+-- showAdjacents :: (Ord a, Show a) => (Graph a) -> String
+-- showAdjacents graph = concat $ intersperse "\n\n\n" $ fmap (show) (adjacencyList graph)
 
 data P1Var = F | B | L | D | H deriving (Eq, Ord, Show)
 
@@ -43,13 +45,26 @@ p1Valuations =
         getRows $ Columns H [D] [0.99, 0.3, 0.01, 0.7]
     ]
 
-p1JoinTree :: Graph (CollectNode BayesValuation P1Var P1Value)
-p1JoinTree = baseJoinTree p1Valuations
+-- p1JoinTree :: Graph (CollectNode BayesValuation P1Var P1Value)
+-- p1JoinTree = baseJoinTree p1Valuations
 
 main :: IO ()
 main = do
-    -- putStrLn $ showAdjacents p1JoinTree
-    -- print $ map label p1Valuations
-    putStrLn $ showAdjacents p1JoinTree
+--     -- putStrLn $ showAdjacents p1JoinTree
+--     -- print $ map label p1Valuations
+--     putStrLn $ showAdjacents p1JoinTree
+    -- putStrLn $ showAdjacents $ fromUndirected p1Test
+    -- putStrLn $ "doing nothing"
+    
+    -- How do you run it? Because if u run it sequent
+    Right transport <-
+        createTransport (defaultTCPAddr "127.0.0.1" "8080") defaultTCPParameters
+    node <- newLocalNode transport initRemoteTable
+    runProcess node $ foldg (return ()) (\x -> do x; return ()) f f $ p1Test
+    
+        where f x y = do
+                  x
+                  y
 
 
+p1Test = initializeNodes (shenoyJoinTree p1Valuations [[F]])
