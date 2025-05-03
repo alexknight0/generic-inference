@@ -5,6 +5,7 @@
 module ShenoyShafer
     (
         initializeNodes
+        , initializeNodes3
         , shenoyJoinTree
     )
 where
@@ -17,11 +18,12 @@ import Network.Transport.TCP
 
 import qualified Algebra.Graph
 import Algebra.Graph.Undirected
+import qualified Data.List
 
 
 import ValuationAlgebra
 import JoinTree
-import Debug.Trace
+
 
 
 
@@ -99,6 +101,8 @@ initializeNodes = foldg empty f overlay g
             spawnLocal $ do
                 anId <- expect
                 liftIO $ putStrLn $ "Vertex " ++ show (nodeId v) ++ " Received: " ++ show (anId :: ProcessId)
+                anId2 <- expect
+                liftIO $ putStrLn $ "!2! Vertex " ++ show (nodeId v) ++ " Received: " ++ show (anId2 :: ProcessId)
 
         g :: Graph (Process ProcessId) -> Graph (Process ProcessId) -> Graph (Process ProcessId)
         g xSpawners ySpawners = do
@@ -131,7 +135,115 @@ initializeNodes = foldg empty f overlay g
                     return yId
                 )
 
+-- If you did the channel approach what you would want is to immediately spawn
+-- a process which creates all the necessary channels and then spawns processes
+-- one by one, giving them the channels they need as a part of their parameters.
+initializeNodes3 :: forall v a b. (Valuation v, Eq a)
+    => Graph (ShenoyShaferNode v a b)
+    -> Process ()
+initializeNodes3 graph = do
 
+    processIds <- processIdsM
+    mapM_ connectNodes (edgesAsProcessIds processIds)
+
+    where
+        processes :: [(ShenoyShaferNode v a b, Process ProcessId)]
+        processes = map f (vertexList graph)
+            where
+                f :: ShenoyShaferNode v a b -> (ShenoyShaferNode v a b, Process ProcessId)
+                f node = (node,
+                          spawnLocal $ do
+                              receiveAllNeighboursPids node
+
+                              liftIO $ putStrLn $ "Vertex " ++ show (nodeId node) ++ " ready to start!"
+                    )
+
+        receiveAllNeighboursPids :: ShenoyShaferNode v a b -> Process ()
+        receiveAllNeighboursPids node = do
+            mapM_ f (neighbours node graph)
+
+            where
+                f :: ShenoyShaferNode v a b -> Process ProcessId
+                f _ = do
+                    anId <- expect
+                    liftIO $ putStrLn $ "Vertex " ++ show (nodeId node) ++ " Received: " ++ show (anId :: ProcessId)
+                    return anId
+
+
+        processIdsM :: Process [(ShenoyShaferNode v a b, ProcessId)]
+        processIdsM = mapM g processes
+            where
+                g :: (ShenoyShaferNode v a b, Process ProcessId) -> Process (ShenoyShaferNode v a b, ProcessId)
+                g (v, p) = do
+                    pid <- p
+                    return (v, pid)
+
+        edgesAsProcessIds :: [(ShenoyShaferNode v a b, ProcessId)] -> [(ProcessId, ProcessId)]
+        edgesAsProcessIds mapping = map f (edgeList graph)
+            where
+                f :: (ShenoyShaferNode v a b, ShenoyShaferNode v a b) -> (ProcessId, ProcessId)
+                f (x, y) = (nodeToId x, nodeToId y)
+
+                nodeToId :: ShenoyShaferNode v a b -> ProcessId
+                nodeToId node = snd $ unsafeFind (\(n, _) -> n == node) mapping
+
+        connectNodes :: (ProcessId, ProcessId) -> Process ()
+        connectNodes (x, y) = do
+            send x y
+            send y x
+
+-- can be moved to utils file
+unsafeFind :: Foldable t => (a -> Bool) -> t a -> a
+unsafeFind p xs
+    | (Just y) <- Data.List.find p xs = y
+    | otherwise = error "unsafeFind found nothing"
+
+-- initializeNodes2 :: forall v a b. (Valuation v, Eq a)
+--     => Graph (ShenoyShaferNode v a b)
+--     -> [Process ProcessId]
+-- initializeNodes2 = foldg [] f (++) g
+--     where
+--         -- maps a node to a process creator
+--         f :: ShenoyShaferNode v a b -> [Process ProcessId]
+--         f v = [
+--             spawnLocal $ do
+--                 anId <- expect
+--                 liftIO $ putStrLn $ "Vertex " ++ show (nodeId v) ++ " Received: " ++ show (anId :: ProcessId)
+--                 anId2 <- expect
+--                 liftIO $ putStrLn $ "!2! Vertex " ++ show (nodeId v) ++ " Received: " ++ show (anId2 :: ProcessId)
+--               ]
+-- 
+-- 
+--         g :: [Process ProcessId] -> [Process ProcessId] -> [Process ProcessId]
+--         g xSpawners ySpawners = do
+--             -- x and y are processes that spawn a process
+--             xSpawner <- xSpawners
+--             ySpawner <- ySpawners
+-- 
+--             connect
+--                 (
+--                 vertex $ do
+--                     -- extends the xSpawner to send 
+-- 
+--                     -- creates a process, gets its id
+--                     xId <- xSpawner
+--                     -- creates a process, gets its id
+--                     -- doesnt this create another y because this is called in the other vertex too...
+--                     yId <- ySpawner
+--                     -- sends the pid of the process handling node x to the
+--                     -- process handling node y
+--                     send yId xId
+-- 
+--                     -- returns the pid of the process handling node x
+--                     return xId
+--                 )
+--                 (
+--                 vertex $ do
+--                     xId <- xSpawner
+--                     yId <- ySpawner
+--                     send xId yId
+--                     return yId
+--                 )
 
 
 

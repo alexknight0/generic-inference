@@ -49,17 +49,10 @@ p1Valuations =
 p1Query :: [Domain P1Var]
 p1Query = [[F]]
 
--- p1JoinTree :: Graph (CollectNode BayesValuation P1Var P1Value)
--- p1JoinTree = baseJoinTree p1Valuations
-
 main :: IO ()
 main = do
---     -- putStrLn $ showAdjacents p1JoinTree
---     -- print $ map label p1Valuations
---     putStrLn $ showAdjacents p1JoinTree
-    -- putStrLn $ showAdjacents $ fromUndirected p1Test
-    -- putStrLn $ "doing nothing"
-    putStrLn $ showAdjacents $ p1DirectedTree
+
+    -- putStrLn $ showAdjacents $ p1DirectedTree
     
     -- How do you run it? Because if u run it sequent
     Right transport <-
@@ -67,12 +60,17 @@ main = do
     node <- newLocalNode transport initRemoteTable
     runProcess node $ do
 
-        foldg (return ()) (\x -> do x; return ()) f f $ p1Nodes
-        liftIO $ threadDelay 100000
+        --foldg (return ()) (\x -> do x; return ()) f f $ p1NodesOld
+
+        
+        initializeNodes3 (shenoyJoinTree p1Valuations p1Query)
+
+        liftIO $ threadDelay 1000000
     
         where f x y = do x; y
 
 p1DirectedTree :: Directed.Graph (CollectNode BayesValuation P1Var P1Value)
 p1DirectedTree = baseJoinTree p1Valuations p1Query
 
-p1Nodes = initializeNodes (shenoyJoinTree p1Valuations p1Query)
+p1NodesOld = initializeNodes (shenoyJoinTree p1Valuations p1Query)
+

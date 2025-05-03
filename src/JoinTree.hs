@@ -24,6 +24,8 @@ class Node n where
     create          :: (Valuation v) => Integer -> Domain a -> v a b -> n v a b
     nodeId          ::                  n v a b -> Integer
 
+-- could rename Integer to like NodeId
+
 setDifference :: (Eq a) => [a] -> [a] -> [a]
 setDifference xs ys = filter (\x -> not $ x `elem` ys) xs
 
