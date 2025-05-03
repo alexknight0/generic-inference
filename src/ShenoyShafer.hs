@@ -6,6 +6,7 @@ module ShenoyShafer
     (
         initializeNodes
         , initializeNodes3
+        , initializeNodes4
         , shenoyJoinTree
     )
 where
@@ -14,11 +15,15 @@ where
 import Control.Concurrent (threadDelay)
 import Control.Distributed.Process
 import Control.Distributed.Process.Node
+import Control.Distributed.Process.Serializable
 import Network.Transport.TCP
 
 import qualified Algebra.Graph
 import Algebra.Graph.Undirected
 import qualified Data.List
+import Control.Monad (replicateM)
+import Control.Monad.Extra (concatMapM)
+import Data.Tuple.Extra (snd3)
 
 
 import ValuationAlgebra
@@ -134,6 +139,119 @@ initializeNodes = foldg empty f overlay g
                     send xId yId
                     return yId
                 )
+
+
+-- If you did the channel approach what you would want is to immediately spawn
+-- a process which creates all the necessary channels and then spawns processes
+-- one by one, giving them the channels they need as a part of their parameters.
+initializeNodes4 :: forall v a b. (Serializable (v a b), Valuation v, Eq a)
+    => Graph (ShenoyShaferNode v a b)
+    -> Process ()
+initializeNodes4 graph = do
+    ports <- portsM
+    mapM_ (initializeNode' ports) (vertexList graph)
+
+    where
+
+        portsForEdge :: (ShenoyShaferNode v a b, ShenoyShaferNode v a b)
+                    -> Process [(ShenoyShaferNode v a b, SendPort (v a b), ReceivePort (v a b))]
+        portsForEdge (x, y) = do
+            (xSendPort, yReceivePort) <- newChan
+            (ySendPort, xReceivePort) <- newChan
+
+            return [(x, xSendPort, xReceivePort), (y, ySendPort, yReceivePort)]
+
+        portsM :: Process [(ShenoyShaferNode v a b, SendPort (v a b), ReceivePort (v a b))]
+        portsM = concatMapM portsForEdge (edgeList graph)
+
+        portsForVertex :: ShenoyShaferNode v a b
+            -> [(ShenoyShaferNode v a b, SendPort (v a b), ReceivePort (v a b))]
+            -> [(SendPort (v a b), ReceivePort (v a b))]
+        portsForVertex node mapping = map (\(_, s, r) -> (s, r)) $ filter (\(n, _, _) -> n == node) mapping
+
+        initializeNode' :: [(ShenoyShaferNode v a b, SendPort (v a b), ReceivePort (v a b))]
+            -> ShenoyShaferNode v a b
+            -> Process ProcessId
+        initializeNode' ports node = initializeNode node (portsForVertex node ports)
+
+
+
+type PortIdentifier = Integer
+
+initializeNode :: forall v a b. (Serializable (v a b), Valuation v, Eq a)
+    => ShenoyShaferNode v a b
+    -> [(SendPort (v a b), ReceivePort (v a b))]
+    -> Process ProcessId
+initializeNode node ports = spawnLocal $ do
+
+    -- Read (ports - 1) messages
+    (messages, (unusedPortId, unusedPort)) <- receivePhaseOne receivePorts
+    liftIO $ putStrLn $ "[COLLECT] Vertex " ++ show (nodeId node) ++ " finished collect phase, "
+                        ++ "collecting from " ++ show (length messages) ++ " nodes."
+
+    -- Send message to only port that didn't send one to us
+    sendChan (idToSendPort unusedPortId) (getValuation node)
+
+    -- Receive from port we sent to
+    message <- receiveChan unusedPort
+
+    -- Send to the ports we originally received from
+    sequence_ $ map (\p -> sendChan p (getValuation node)) (unusedSendPorts unusedPortId)
+    liftIO $ putStrLn $ "[DISTRIBUTE] Vertex " ++ show (nodeId node) ++ " finished distribute phase"
+
+    where
+        ports' :: [(PortIdentifier, SendPort (v a b), ReceivePort (v a b))]
+        ports' = zipWith (\x (s, r) -> (x, s, r)) [0..] ports
+
+        receivePorts :: [(PortIdentifier, ReceivePort (v a b))]
+        receivePorts = map (\(x, _, r) -> (x, r)) ports'
+
+        idToSendPort :: PortIdentifier -> SendPort (v a b)
+        idToSendPort p = snd3 $ unsafeFind (\(x, _, _) -> x == p) ports'
+
+        unusedSendPorts :: PortIdentifier -> [SendPort (v a b)]
+        unusedSendPorts used = map (\(_, s, _) -> s) $ filter (\(x, _, _) -> x /= used) ports'
+
+-- Receives messages from all ports but one, returning the port that it never
+-- received a message from.
+receivePhaseOne :: Serializable a
+    => [(PortIdentifier, ReceivePort a)]
+    -> Process ([a], (PortIdentifier, ReceivePort a))
+receivePhaseOne [] = error "receivePhaseOne: Attempted to receive from no port."
+receivePhaseOne [p] = return ([], p)
+receivePhaseOne ps = do
+    (message, ps') <- receiveOnce ps
+    (messages, unusedPort) <- receivePhaseOne ps'
+    return ((message : messages), unusedPort)
+
+-- This non-blocking approach may or may not be less efficent than
+-- cloud haskells merged ports implementation - however we cannot
+-- use the merged ports as we don't know which port returned the value.
+-- One way to get around this could be to send an indentifier with
+-- the value through the port.
+receiveOnce :: Serializable a
+    => [(PortIdentifier, ReceivePort a)]
+    -> Process (a, [(PortIdentifier, ReceivePort a)])
+receiveOnce [] = error "receiveOnce: Attempted to receive from no port."
+receiveOnce ((pIndex, p):ps) = do
+    x <- receiveChanTimeout 0 p
+    case x of
+         (Just message) -> return (message, ps)
+         Nothing -> receiveOnce (ps ++ [(pIndex, p)])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -- If you did the channel approach what you would want is to immediately spawn
 -- a process which creates all the necessary channels and then spawns processes

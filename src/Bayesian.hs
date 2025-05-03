@@ -1,4 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Bayesian
     ( getRows
@@ -8,6 +10,8 @@ module Bayesian
 where
 
 import ValuationAlgebra
+import Data.Binary (Binary)
+import GHC.Generics
 
 {-
 In BValColumns, the first parameter is the variable, the second parameter
@@ -34,7 +38,7 @@ row of the table instead.
 BValColumns stores no redundant information, while BValRows stores a heap of redundant information,
 but allows accessing this information in a more haskell-like manner.
 -}
-data BayesValuation a b = Rows [Row a b] | Identity
+data BayesValuation a b = Rows [Row a b] | Identity deriving (Generic, Binary)
 
 -- Don't be suprised if you need to put (Enum, bounded) on 'b'.
 instance Valuation BayesValuation where
@@ -57,13 +61,14 @@ instance Valuation BayesValuation where
 instance (Show a) => Show (BayesValuation a b) where
     show = show . getColumns
 
+
 -- An inefficent storage format, but we should get a working implementation first.
 data Row a b = Row
     { variable :: (a, b),
         conditions :: [(a, b)],
         probability :: Probability
     }
-    deriving (Show)
+    deriving (Show, Generic, Binary)
 
 -- A supporting data structure, as inputting data in this format is often easier.
 data Columns a b = Columns a [a] [Probability] | ColumnsNull | ColumnsIdentity deriving (Show)

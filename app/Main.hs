@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
@@ -6,6 +9,8 @@ module Main (main) where
 import qualified Algebra.Graph as Directed
 import Algebra.Graph.Undirected
 import Data.List (intersperse)
+import Data.Binary (Binary)
+import GHC.Generics
 
 -- LocalComputation library files
 import ValuationAlgebra
@@ -33,9 +38,9 @@ import Network.Transport.TCP
 showAdjacents :: (Ord a, Show a) => (Directed.Graph a) -> String
 showAdjacents graph = concat $ intersperse "\n\n\n" $ fmap (show) (Directed.adjacencyList graph)
 
-data P1Var = F | B | L | D | H deriving (Eq, Ord, Show)
+data P1Var = F | B | L | D | H deriving (Eq, Ord, Show, Generic, Binary)
 
-data P1Value = P1False | P1True deriving (Enum, Bounded, Show, Eq)
+data P1Value = P1False | P1True deriving (Enum, Bounded, Show, Eq, Generic, Binary)
 
 p1Valuations :: [BayesValuation P1Var P1Value]
 p1Valuations =
@@ -63,11 +68,13 @@ main = do
         --foldg (return ()) (\x -> do x; return ()) f f $ p1NodesOld
 
         
-        initializeNodes3 (shenoyJoinTree p1Valuations p1Query)
+        initializeNodes4 (shenoyJoinTree p1Valuations p1Query)
 
         liftIO $ threadDelay 1000000
     
         where f x y = do x; y
+
+
 
 p1DirectedTree :: Directed.Graph (CollectNode BayesValuation P1Var P1Value)
 p1DirectedTree = baseJoinTree p1Valuations p1Query
