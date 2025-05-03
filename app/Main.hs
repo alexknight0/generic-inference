@@ -3,6 +3,7 @@
 
 module Main (main) where
 
+import qualified Algebra.Graph as Directed
 import Algebra.Graph.Undirected
 import Data.List (intersperse)
 
@@ -29,8 +30,8 @@ import Network.Transport.TCP
 -- this to implement the binary heap ordering?
 
 -- -- uses not-undirected graph so commented out for now
--- showAdjacents :: (Ord a, Show a) => (Graph a) -> String
--- showAdjacents graph = concat $ intersperse "\n\n\n" $ fmap (show) (adjacencyList graph)
+showAdjacents :: (Ord a, Show a) => (Directed.Graph a) -> String
+showAdjacents graph = concat $ intersperse "\n\n\n" $ fmap (show) (Directed.adjacencyList graph)
 
 data P1Var = F | B | L | D | H deriving (Eq, Ord, Show)
 
@@ -45,6 +46,9 @@ p1Valuations =
         getRows $ Columns H [D] [0.99, 0.3, 0.01, 0.7]
     ]
 
+p1Query :: [Domain P1Var]
+p1Query = [[F]]
+
 -- p1JoinTree :: Graph (CollectNode BayesValuation P1Var P1Value)
 -- p1JoinTree = baseJoinTree p1Valuations
 
@@ -55,16 +59,20 @@ main = do
 --     putStrLn $ showAdjacents p1JoinTree
     -- putStrLn $ showAdjacents $ fromUndirected p1Test
     -- putStrLn $ "doing nothing"
+    putStrLn $ showAdjacents $ p1DirectedTree
     
     -- How do you run it? Because if u run it sequent
     Right transport <-
         createTransport (defaultTCPAddr "127.0.0.1" "8080") defaultTCPParameters
     node <- newLocalNode transport initRemoteTable
-    runProcess node $ foldg (return ()) (\x -> do x; return ()) f f $ p1Test
+    runProcess node $ do
+
+        foldg (return ()) (\x -> do x; return ()) f f $ p1Nodes
+        liftIO $ threadDelay 100000
     
-        where f x y = do
-                  x
-                  y
+        where f x y = do x; y
 
+p1DirectedTree :: Directed.Graph (CollectNode BayesValuation P1Var P1Value)
+p1DirectedTree = baseJoinTree p1Valuations p1Query
 
-p1Test = initializeNodes (shenoyJoinTree p1Valuations [[F]])
+p1Nodes = initializeNodes (shenoyJoinTree p1Valuations p1Query)

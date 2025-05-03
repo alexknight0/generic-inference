@@ -93,31 +93,42 @@ initializeNodes :: forall v a b. (Valuation v, Eq a)
     -> Graph (Process ProcessId)
 initializeNodes = foldg empty f overlay g
     where
+        -- maps a node to a process creator
         f :: ShenoyShaferNode v a b -> Graph (Process ProcessId)
         f v = vertex $ do
             spawnLocal $ do
                 anId <- expect
-                trace ("Received: " ++ show (anId :: ProcessId)) $ return ()
+                liftIO $ putStrLn $ "Vertex " ++ show (nodeId v) ++ " Received: " ++ show (anId :: ProcessId)
 
         g :: Graph (Process ProcessId) -> Graph (Process ProcessId) -> Graph (Process ProcessId)
-        g xs ys = do
-            x <- xs
-            y <- ys
+        g xSpawners ySpawners = do
+            -- x and y are processes that spawn a process
+            xSpawner <- xSpawners
+            ySpawner <- ySpawners
 
             connect
                 (
                 vertex $ do
-                    xId <- x
-                    yId <- y
+                    -- extends the xSpawner to send 
+
+                    -- creates a process, gets its id
+                    xId <- xSpawner
+                    -- creates a process, gets its id
+                    -- doesnt this create another y because this is called in the other vertex too...
+                    yId <- ySpawner
+                    -- sends the pid of the process handling node x to the
+                    -- process handling node y
                     send yId xId
-                    x
+
+                    -- returns the pid of the process handling node x
+                    return xId
                 )
                 (
                 vertex $ do
-                    xId <- x
-                    yId <- y
+                    xId <- xSpawner
+                    yId <- ySpawner
                     send xId yId
-                    y
+                    return yId
                 )
 
 
