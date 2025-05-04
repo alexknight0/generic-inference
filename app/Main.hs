@@ -54,30 +54,34 @@ p1Valuations =
 p1Query :: [Domain P1Var]
 p1Query = [[F]]
 
+data MainParameters = MainParameters {
+    printJoinTree :: Bool,
+    performInference :: Bool
+}
+
 main :: IO ()
-main = do
+main = runProcess' $ mainProcess (MainParameters {printJoinTree = True, performInference = True})
 
-    -- putStrLn $ showAdjacents $ p1DirectedTree
-    
-    -- How do you run it? Because if u run it sequent
-    Right transport <-
-        createTransport (defaultTCPAddr "127.0.0.1" "8080") defaultTCPParameters
+mainProcess :: MainParameters -> Process ()
+mainProcess params = do
+
+    if printJoinTree params then liftIO $ putStrLn $ showAdjacents $ p1BasicTree else return ()
+
+    if performInference params then p1ShenoyInference else return ()
+
+    -- Wait for a second to make sure all message passing had a chance to finish.
+    -- (Should really be 'waiting' on the tasks...)
+    liftIO $ threadDelay 1000000
+
+p1BasicTree :: Directed.Graph (CollectNode BayesValuation P1Var P1Value)
+p1BasicTree = baseJoinTree p1Valuations p1Query
+
+p1ShenoyInference :: Process ()
+p1ShenoyInference = initializeNodes (shenoyJoinTree p1Valuations p1Query)
+
+runProcess' :: Process () -> IO ()
+runProcess' process = do
+
+    Right transport <- createTransport (defaultTCPAddr "127.0.0.1" "8080") defaultTCPParameters
     node <- newLocalNode transport initRemoteTable
-    runProcess node $ do
-
-        --foldg (return ()) (\x -> do x; return ()) f f $ p1NodesOld
-
-        
-        initializeNodes4 (shenoyJoinTree p1Valuations p1Query)
-
-        liftIO $ threadDelay 1000000
-    
-        where f x y = do x; y
-
-
-
-p1DirectedTree :: Directed.Graph (CollectNode BayesValuation P1Var P1Value)
-p1DirectedTree = baseJoinTree p1Valuations p1Query
-
-p1NodesOld = initializeNodes (shenoyJoinTree p1Valuations p1Query)
-
+    runProcess node process
