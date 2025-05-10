@@ -25,6 +25,9 @@ import Control.Monad.Extra (concatMapM)
 import Data.Tuple.Extra (snd3)
 import Type.Reflection (Typeable)
 import Data.Binary (Binary)
+import Data.Char (chr)
+import Data.Time (getCurrentTime, utctDayTime, UTCTime)
+import Text.Printf (printf)
 
 
 import ValuationAlgebra
@@ -120,18 +123,28 @@ initializeNode node ports = spawnLocal $ do
 
     -- Read (ports - 1) messages
     (messages, (unusedPortId, unusedPort)) <- receivePhaseOne receivePorts
-    liftIO $ putStrLn $ "[COLLECT] Vertex " ++ show (nodeId node) ++ " finished collect phase, "
-                        ++ "collecting from " ++ show (length messages) ++ " nodes."
+    collectTime <- liftIO $ formatTimeNicely <$> getCurrentTime
+    liftIO $ putStrLn $ collectTime ++ " [COLLECT]    " ++ show (chr $ fromInteger $ nodeId node) ++ " received from "
+                        ++ show (length messages) ++ " node(s). Sending..."
+
+    liftIO $ threadDelay 2000000
 
     -- Send message to only port that didn't send one to us
     sendChan (idToSendPort unusedPortId) (getValuation node)
 
+    liftIO $ threadDelay 2000000
+
     -- Receive from port we sent to
     message <- receiveChan unusedPort
 
+    distributeTime <- liftIO $ formatTimeNicely <$> getCurrentTime
+    liftIO $ putStrLn $ distributeTime ++ " [DISTRIBUTE] " ++ show (chr $ fromInteger $ nodeId node) ++ " received. "
+                        ++ "Sending to " ++ show (length messages) ++ " node(s)..."
+
+    liftIO $ threadDelay 2000000
+
     -- Send to the ports we originally received from
     sequence_ $ map (\p -> sendChan p (getValuation node)) (unusedSendPorts unusedPortId)
-    liftIO $ putStrLn $ "[DISTRIBUTE] Vertex " ++ show (nodeId node) ++ " finished distribute phase"
 
     where
         ports' :: [(PortIdentifier, SendPort (v a b), ReceivePort (v a b))]
@@ -180,4 +193,16 @@ unsafeFind :: Foldable t => (a -> Bool) -> t a -> a
 unsafeFind p xs
     | (Just y) <- Data.List.find p xs = y
     | otherwise = error "unsafeFind found nothing"
+
+formatTimeNicely :: UTCTime -> String
+formatTimeNicely time = printf "[%02d:%02d:%02d]" hours minutes seconds
+
+    where
+        secondsPastMidnight :: Integer
+        secondsPastMidnight = floor $ utctDayTime time
+
+        seconds = secondsPastMidnight `mod` 60
+        minutes = secondsPastMidnight `div` 60 `mod` 60
+        hours = secondsPastMidnight `div` 60 `div` 60 `mod` 60
+
 

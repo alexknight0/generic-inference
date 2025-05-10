@@ -27,6 +27,7 @@ dependencies:
 - algebraic-graphs == 0.7
 - containers
 - extra
+- time
 
 ghc-options:
 - -Wall

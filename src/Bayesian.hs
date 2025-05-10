@@ -4,7 +4,7 @@
 
 module Bayesian
     ( getRows
-    , Columns (Columns)
+    , Columns (Columns, ColumnsIdentity, ColumnsNull)
     , BayesValuation
     )
 where
