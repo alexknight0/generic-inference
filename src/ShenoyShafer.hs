@@ -57,11 +57,12 @@ instance Ord (ShenoyShaferNode v a b) where
 
 -- Could put implementation inside the Node typeclass and then just call it from in here
 instance (Show (v a b), Show a) => Show (ShenoyShaferNode v a b) where
-    show (ShenoyShaferNode i d v) = "--------------------"     ++ "\n"
-                            ++ "[Index]: "      ++ show i ++ "\n"
-                            ++ "[Domain]: "     ++ show d ++ "\n"
-                            ++ "[Valuation]: "  ++ show v ++ "\n"
-                            ++ "--------------------"     ++ "\n"
+    show (ShenoyShaferNode i d _) = show (i, d)
+    -- show (ShenoyShaferNode i d v) = "--------------------"     ++ "\n"
+    --                         ++ "[Index]: "      ++ show i ++ "\n"
+    --                         ++ "[Domain]: "     ++ show d ++ "\n"
+    --                         -- ++ "[Valuation]: "  ++ show v ++ "\n"
+    --                         -- ++ "--------------------"     ++ "\n"
 
 answerQueries :: forall v a b.
     [Domain a]

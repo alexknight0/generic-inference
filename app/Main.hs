@@ -13,6 +13,7 @@ import Data.Binary (Binary)
 import GHC.Generics
 import Data.Char (ord)
 import Data.Time (getCurrentTime)
+import Control.Monad (when)
 
 -- LocalComputation library files
 import ValuationAlgebra
@@ -38,7 +39,10 @@ import Network.Transport.TCP
 
 -- -- uses not-undirected graph so commented out for now
 showAdjacents :: (Ord a, Show a) => (Directed.Graph a) -> String
-showAdjacents graph = concat $ intersperse "\n\n\n" $ fmap (show) (Directed.adjacencyList graph)
+showAdjacents graph = concat $ intersperse "\n" $ fmap (show) (Directed.adjacencyList graph)
+
+showNodes :: (Ord a, Show a) => (Directed.Graph a) -> String
+showNodes graph = concat $ intersperse "\n" $ fmap show (Directed.vertexList graph)
 
 data P1Var = F | B | L | D | H deriving (Eq, Ord, Show, Generic, Binary)
 
@@ -56,14 +60,16 @@ p1Valuations =
 p1Query :: [Domain P1Var]
 p1Query = [[F]]
 
-data P2Var = Name | Age | Birthplace | ID | DeviceID | DeviceType deriving (Eq, Ord, Show, Generic, Binary)
+data P2Var = Name | Noun | Colour | ID | DeviceID | DeviceType deriving (Eq, Ord, Show, Generic, Binary)
 
 type P2Value = P1Value
 
+-- These are nonsense valuations just used for demoing the join tree construction process
+-- using the only half-implemented valuation algebra instance we have.
 p2Valuations :: [BayesValuation P2Var P2Value]
 p2Valuations =
-    [ getRows $ Columns Name [Age, Birthplace] [1, 1],
-        getRows $ Columns ID [Name] [1, 1],
+    [ getRows $ Columns Name [ID] [1, 1],
+        --getRows $ Columns Noun [Colour] [1, 1],
         getRows $ Columns ID [DeviceID] [1, 1],
         getRows $ Columns DeviceID [DeviceType] [1, 1]
     ]
@@ -89,13 +95,18 @@ main = runProcess' $ mainProcess (MainParameters {
 mainProcess :: MainParameters -> Process ()
 mainProcess params = do
 
-    if printP1JoinTree params then liftIO $ putStrLn $ showAdjacents $ p1BasicTree else return ()
 
-    if printP2JoinTree params then liftIO $ putStrLn $ showAdjacents $ p2BasicTree else return ()
+    when (printP1JoinTree params) $
+        liftIO $ putStrLn $ showAdjacents $ p1BasicTree
 
-    if performInference params then p1ShenoyInference else return ()
+    when (printP2JoinTree params) $
+        liftIO $ putStrLn $ showNodes $ p2BasicTree
 
-    if performP2SeminarInference params then p2SeminarInference else return ()
+    when (performInference params) $
+        p1ShenoyInference
+
+    when (performP2SeminarInference params) $
+        p2SeminarInference
 
     -- Wait for a second to make sure all message passing had a chance to finish.
     -- (Should really be 'waiting' on the tasks...)
@@ -109,16 +120,14 @@ p2BasicTree :: Directed.Graph (CollectNode BayesValuation P2Var P2Value)
 p2BasicTree = baseJoinTree p2Valuations p2Query
 
 p2SeminarTree :: Graph (CollectNode BayesValuation P2Var P2Value)
-p2SeminarTree = overlays [ connect a b, connect b z, connect q z, connect z x, connect x c, connect x d ]
-
+p2SeminarTree = overlays [ connect a x, connect b x, connect x z, connect z q, connect z c]
     where
-        a = vertex $ create (fromIntegral $ ord 'A')  [Name, Age, Birthplace] (getRows ColumnsNull)
-        b = vertex $ create (fromIntegral $ ord 'B') [ID, Name] (getRows ColumnsNull)
-        c = vertex $ create (fromIntegral $ ord 'C') [ID, DeviceID] (getRows ColumnsNull)
-        d = vertex $ create (fromIntegral $ ord 'D') [DeviceID, DeviceType] (getRows ColumnsNull)
+        a = vertex $ create (fromIntegral $ ord 'A') [Name, ID] (getRows ColumnsNull)
+        b = vertex $ create (fromIntegral $ ord 'B') [ID, DeviceID] (getRows ColumnsNull)
+        c = vertex $ create (fromIntegral $ ord 'C') [DeviceID, DeviceType] (getRows ColumnsNull)
         q = vertex $ create (fromIntegral $ ord 'Q') [Name, DeviceType] (getRows ColumnsNull)
-        z = vertex $ create (fromIntegral $ ord 'Z') [Name, ID, DeviceType] (getRows ColumnsIdentity)
-        x = vertex $ create (fromIntegral $ ord 'X') [ID, DeviceID, DeviceType] (getRows ColumnsIdentity)
+        x = vertex $ create (fromIntegral $ ord 'X') [Name, ID, DeviceID] (getRows ColumnsNull)
+        z = vertex $ create (fromIntegral $ ord 'Z') [Name, DeviceID, DeviceType] (getRows ColumnsIdentity)
 
 p2SeminarInference :: Process ()
 p2SeminarInference = initializeNodes p2SeminarTree

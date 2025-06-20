@@ -29,11 +29,12 @@ instance Ord (CollectNode v a b) where
 
 -- Could put implementation inside the Node typeclass and then just call it from in here
 instance (Show (v a b), Show a) => Show (CollectNode v a b) where
-    show (CollectNode i d v) = "--------------------"     ++ "\n"
-                            ++ "[Index]: "      ++ show i ++ "\n"
-                            ++ "[Domain]: "     ++ show d ++ "\n"
-                            ++ "[Valuation]: "  ++ show v ++ "\n"
-                            ++ "--------------------"     ++ "\n"
+    show (CollectNode i d _) = show (i, d)
+    -- show (CollectNode i d v) = "--------------------"     ++ "\n"
+    --                         ++ "[Index]: "      ++ show i ++ "\n"
+    --                         ++ "[Domain]: "     ++ show d ++ "\n"
+    --                         ++ "[Valuation]: "  ++ show v ++ "\n"
+    --                         ++ "--------------------"     ++ "\n"
 
 
 
