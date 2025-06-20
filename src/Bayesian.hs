@@ -4,7 +4,7 @@
 
 module Bayesian
     ( getRows
-    , Columns (Columns, ColumnsIdentity, ColumnsNull)
+    , Columns (Columns, ColumnsIdentity)
     , BayesValuation
     )
 where
@@ -32,19 +32,22 @@ where probabilities are ordered as follows:
      .    .   .        .                      .
      .    .   .        .                      .
 
-BValRows stores the equivalent information in a different format, storing each
+BValRows stores the equivalent information except as what is essentially as a tuple of each
 row of the table instead.
+
+Note that neither form allows the range of values that can be stored in a certain field differ across fields;
+i.e. if 'A' can range from 0 to 1, then B must also range from 0 to 1.
 
 BValColumns stores no redundant information, while BValRows stores a heap of redundant information,
 but allows accessing this information in a more haskell-like manner.
 -}
-data BayesValuation a b = Rows [Row a b] | Identity deriving (Generic, Binary)
+data BayesValuation a b = Table [Row a b] | Identity deriving (Generic, Binary)
 
 -- Don't be suprised if you need to put (Enum, bounded) on 'b'.
 instance Valuation BayesValuation where
-    label (Rows []) = []
-    label (Rows (x : _)) = fst (variable x) : map fst (conditions x)
     label Identity = []
+    label (Table []) = []
+    label (Table (x : _)) = map fst (variables x)
 
     -- Identity / neutral element must be addressed here, or a plan made to address it in the main typeclass.
     combine Identity _ = Identity
@@ -61,50 +64,37 @@ instance Valuation BayesValuation where
 instance (Show a) => Show (BayesValuation a b) where
     show = show . getColumns
 
-
 -- An inefficent storage format, but we should get a working implementation first.
 data Row a b = Row
-    { variable :: (a, b),
-        conditions :: [(a, b)],
+    {
+        variables :: [Variable a b],
         probability :: Probability
     }
     deriving (Show, Generic, Binary)
 
+type Variable a b = (a, b)
+
 -- A supporting data structure, as inputting data in this format is often easier.
-data Columns a b = Columns a [a] [Probability] | ColumnsNull | ColumnsIdentity deriving (Show)
+data Columns a b = Columns [a] [Probability] | ColumnsIdentity deriving (Show)
 
 getColumns :: BayesValuation a b -> Columns a b
 getColumns Identity = ColumnsIdentity
-getColumns (Rows []) = ColumnsNull
-getColumns (Rows rs'@(r : _)) = Columns v cs ps
+getColumns (Table []) = Columns [] []
+getColumns (Table rs'@(r : _)) = Columns vs ps
     where
-        v = fst (variable r)
-        cs = map (fst) (conditions r)
+        vs = map fst (variables r)
         ps = map probability rs'
 
 getRows :: forall a b. (Enum b, Bounded b) => Columns a b -> BayesValuation a b
 getRows ColumnsIdentity = Identity
-getRows ColumnsNull = Rows []
-getRows (Columns var conds ps) = Rows fullRows'
+getRows (Columns vars ps) = Table $ zipWith Row (vPermutations vars) ps
     where
-        fullRows' :: [Row a b]
-        fullRows' = map (\(x, y, z) -> Row x y z) fullRows
+        vPermutations :: [a] -> [[Variable a b]]
+        vPermutations [] = [[]]
+        vPermutations (v : vs) = [(v, vVal) : rest | vVal <- varValues, rest <- vPermutations vs]
 
-        fullRows :: [((a, b), [(a, b)], Probability)]
-        fullRows = zipWith (\(v, cs) p -> (v, cs, p)) rowsWithoutProbability ps
-
-        rowsWithoutProbability :: [((a, b), [(a, b)])]
-        rowsWithoutProbability = [(v, cs) | v <- vPermutations, cs <- csPermutations conds]
-            where
-                vPermutations :: [(a, b)]
-                vPermutations = [(var, vVal) | vVal <- varValues]
-
-                csPermutations :: [a] -> [[(a, b)]]
-                csPermutations [] = [[]]
-                csPermutations (c : cs) = [(c, cVal) : rest | cVal <- varValues, rest <- csPermutations cs]
-
-                varValues :: [b]
-                varValues = [minBound .. maxBound]
+        varValues :: [b]
+        varValues = [minBound .. maxBound]
 
 type Probability = Float
 
