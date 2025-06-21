@@ -31,6 +31,7 @@ library
       Lib
       SemiringValuationAlgebra
       ShenoyShafer
+      Utils
       ValuationAlgebra
   other-modules:
       Paths_localcomputation

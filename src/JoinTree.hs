@@ -12,6 +12,8 @@ where
 import Algebra.Graph
 import Data.List (union)
 import Debug.Trace
+import Data.Set (toList, fromList)
+import qualified Data.Set (union, empty)
 
 import ValuationAlgebra
 
@@ -30,7 +32,7 @@ class Node n where
 setDifference :: (Eq a) => [a] -> [a] -> [a]
 setDifference xs ys = filter (\x -> not $ x `elem` ys) xs
 
-domainIntersects :: (Eq a) => Domain a -> Domain a -> Bool
+domainIntersects :: (Eq a) => [a] -> [a] -> Bool
 domainIntersects xs ys = or [x == y | x <- xs, y <- ys]
 
 -- Can replace 'nextNodeId' with a function that increments itself like for blockus.
@@ -69,14 +71,14 @@ domainIntersects xs ys = or [x == y | x <- xs, y <- ys]
 -- The query domains are used only to ensure the join tree has a node that answers
 -- each query (by creating empty nodes for each the query domain). The node ids
 -- of the input valuations 'vs' in the final join tree are [0 .. (length vs)] respectively.
-baseJoinTree :: forall n v a b. (Node n, Valuation v, Eq a, Eq (n v a b))
+baseJoinTree :: forall n v a b. (Node n, Valuation v, Ord a, Eq (n v a b))
     => [v a b]
     -> [Domain a]
     -> Graph (n v a b)
 baseJoinTree vs queries = edges $ baseJoinTree' nextNodeId r d
     where
-        d :: Domain a
-        d = foldr union [] $ map label vs
+        d :: [a]
+        d = foldr (union . toList) [] $ map label vs
 
         r :: [n v a b]
         r = zipWith (\nid v -> create nid (label v) v) [0 ..] vs
@@ -85,10 +87,10 @@ baseJoinTree vs queries = edges $ baseJoinTree' nextNodeId r d
         nextNodeId :: Integer
         nextNodeId = fromIntegral $ length r
 
-baseJoinTree' :: forall n v a b. (Node n, Valuation v, Eq a, Eq (n v a b))
+baseJoinTree' :: forall n v a b. (Node n, Valuation v, Eq (n v a b), Ord a)
     => Integer
     -> [n v a b]
-    -> Domain a
+    -> [a]
     -> [(n v a b, n v a b)]
 baseJoinTree' _ _ [] = []
 baseJoinTree' nextNodeId r (x : d')
@@ -103,7 +105,7 @@ baseJoinTree' nextNodeId r (x : d')
         phiX = filter xIsInNodeDomain r
 
         domainOfPhiX :: Domain a
-        domainOfPhiX = foldr union [] $ map getDomain phiX
+        domainOfPhiX = foldr (Data.Set.union) (Data.Set.empty) $ map getDomain phiX
 
         nUnion :: n v a b
         nUnion = create nextNodeId domainOfPhiX identity
@@ -115,6 +117,6 @@ baseJoinTree' nextNodeId r (x : d')
         e = [(n, nUnion) | n <- phiX]
 
         nP :: n v a b
-        nP = create (nextNodeId + 1) (setDifference domainOfPhiX [x]) identity
+        nP = create (nextNodeId + 1) (fromList $ setDifference (toList domainOfPhiX) [x]) identity
 
 

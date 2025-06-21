@@ -1,17 +1,22 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
+--{-# LANGUAGE OverloadedLists #-}
 
 module Bayesian
     ( getRows
     , Columns (Columns, ColumnsIdentity)
-    , BayesValuation
+    , BayesValuation (Table)
+    ,
     )
 where
 
 import ValuationAlgebra
 import Data.Binary (Binary)
 import GHC.Generics
+import Data.Set (Set, member, fromList, toList, empty, intersection, union)
+import Utils (setMap)
+import Debug.Trace
 
 {-
 In BValColumns, the first parameter is the variable, the second parameter
@@ -45,14 +50,21 @@ data BayesValuation a b = Table [Row a b] | Identity deriving (Generic, Binary)
 
 -- Don't be suprised if you need to put (Enum, bounded) on 'b'.
 instance Valuation BayesValuation where
-    label Identity = []
-    label (Table []) = []
-    label (Table (x : _)) = map fst (variables x)
+    label Identity = empty
+    label (Table []) = empty
+    label (Table (x : _)) = setMap fst (variables x)
 
     -- Identity / neutral element must be addressed here, or a plan made to address it in the main typeclass.
-    combine Identity _ = Identity
-    combine _ Identity = Identity
-    combine _ _ = undefined
+    combine Identity x = x
+    combine x Identity = x
+    combine (Table []) _ = Table []
+    combine _ (Table []) = Table []
+    combine (Table (x:xs)) (Table (y:ys)) = Table $
+            [Row (union (variables a) (variables b)) (probability a * probability b)
+                | a <- (x:xs), b <- (y:ys), sharedVariablesAreSameValue numSharedVars a b]
+
+        where
+            numSharedVars = fromIntegral . length $ intersection (setMap fst (variables x)) (setMap fst (variables y))
 
     -- There is a lot about the data format i'm unsure about here -
     -- what if we get a p1 = A | B C and p2 = B | C scenario? Can this happen?
@@ -61,13 +73,13 @@ instance Valuation BayesValuation where
 
     identity = Identity
 
-instance (Show a) => Show (BayesValuation a b) where
+instance (Show a, Ord a) => Show (BayesValuation a b) where
     show = show . getColumns
 
 -- An inefficent storage format, but we should get a working implementation first.
 data Row a b = Row
     {
-        variables :: [Variable a b],
+        variables :: Set (Variable a b),
         probability :: Probability
     }
     deriving (Show, Generic, Binary)
@@ -75,26 +87,33 @@ data Row a b = Row
 type Variable a b = (a, b)
 
 -- A supporting data structure, as inputting data in this format is often easier.
-data Columns a b = Columns [a] [Probability] | ColumnsIdentity deriving (Show)
+data Columns a b = Columns (Set a) [Probability] | ColumnsIdentity deriving (Show)
 
-getColumns :: BayesValuation a b -> Columns a b
+getColumns :: (Ord a) => BayesValuation a b -> Columns a b
 getColumns Identity = ColumnsIdentity
-getColumns (Table []) = Columns [] []
+getColumns (Table []) = Columns empty []
 getColumns (Table rs'@(r : _)) = Columns vs ps
     where
-        vs = map fst (variables r)
+        vs = setMap fst (variables r)
         ps = map probability rs'
 
-getRows :: forall a b. (Enum b, Bounded b) => Columns a b -> BayesValuation a b
+getRows :: forall a b. (Enum b, Bounded b, Ord a, Ord b) => Columns a b -> BayesValuation a b
 getRows ColumnsIdentity = Identity
-getRows (Columns vars ps) = Table $ zipWith Row (vPermutations vars) ps
+getRows (Columns vars ps) = Table $ zipWith Row (vPermutations (toList vars)) ps
     where
-        vPermutations :: [a] -> [[Variable a b]]
-        vPermutations [] = [[]]
-        vPermutations (v : vs) = [(v, vVal) : rest | vVal <- varValues, rest <- vPermutations vs]
+        vPermutations :: [a] -> [Set (Variable a b)]
+        vPermutations [] = [empty]
+        vPermutations (v : vs) = fmap fromList [(v, vVal) : rest | vVal <- varValues, rest <- map toList $ vPermutations vs]
 
         varValues :: [b]
         varValues = [minBound .. maxBound]
 
 type Probability = Float
+
+-- Returns true iff the two rows should be combined as a part of a combine operation.
+-- The rows should be combined if all of their shared variables are the same value.
+sharedVariablesAreSameValue :: (Ord a, Ord b) => Integer -> Row a b -> Row a b -> Bool
+sharedVariablesAreSameValue numSharedVariables x y =
+        fromIntegral (length (intersection (variables x) (variables y))) == numSharedVariables
+
 

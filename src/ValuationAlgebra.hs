@@ -11,11 +11,13 @@ module ValuationAlgebra
     )
 where
 
-type Domain a = [a]
+import Data.Set (Set)
+
+type Domain a = Set a
 
 class Valuation v where
-    label   :: v a b -> Domain a
-    combine :: v a b -> v a b -> v a b
+    label   :: (Ord a) => v a b -> Domain a
+    combine :: (Ord a, Ord b) => v a b -> v a b -> v a b
     project :: v a b -> Domain a -> v a b
     identity :: v a b
 
