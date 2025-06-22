@@ -15,8 +15,10 @@ import ValuationAlgebra
 import Data.Binary (Binary)
 import GHC.Generics
 import Data.Set (Set, member, fromList, toList, empty, intersection, union)
-import Utils (setMap)
+import qualified Data.Set as S
+import Utils (setMap, nubWithBy)
 import Debug.Trace
+import Control.Exception (assert)
 
 {-
 In BValColumns, the first parameter is the variable, the second parameter
@@ -66,10 +68,12 @@ instance Valuation BayesValuation where
         where
             numSharedVars = fromIntegral . length $ intersection (setMap fst (variables x)) (setMap fst (variables y))
 
-    -- There is a lot about the data format i'm unsure about here -
-    -- what if we get a p1 = A | B C and p2 = B | C scenario? Can this happen?
+    -- todo can upgrade to hashmap.
     project Identity _ = Identity
-    project _ _ = undefined
+    project (Table xs) domain =  Table $ nubWithBy (\(Row vs _) -> vs) addRows $ map (\(Row vs p) -> Row (projectVars vs) p) xs
+        where
+            projectVars = S.filter (\x -> fst x `elem` domain)
+            addRows (Row vs1 p1) (Row vs2 p2) = assert (vs1 == vs2) $ Row vs1 (p1 + p2)
 
     identity = Identity
 
