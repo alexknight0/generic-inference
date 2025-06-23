@@ -28,10 +28,12 @@ import Data.Binary (Binary)
 import Data.Char (chr)
 import Data.Time (getCurrentTime, utctDayTime, UTCTime)
 import Text.Printf (printf)
+import Data.Set (intersection)
 
 
 import ValuationAlgebra
 import JoinTree
+import Utils
 
 
 
@@ -83,7 +85,7 @@ shenoyJoinTree vs qs = toUndirected (baseJoinTree vs qs)
 -- TODO probably want to take in queries as a parameter, and return Process ([v a b]) where [v a b] is a list of answers.
 --      This will probably involve passing a 'server' process id to each node (or a dedicated pipe to talk to the server),
 --      as we need a way of getting the 'results' of the query nodes.
-initializeNodes :: forall n v a b. (Node n, Serializable (v a b), Valuation v, Ord (n v a b))
+initializeNodes :: forall n v a b. (Node n, Serializable (v a b), Valuation v, Ord (n v a b), Ord a, Ord b)
     => Graph (n v a b)
     -> Process ()
 initializeNodes graph = do
@@ -93,22 +95,22 @@ initializeNodes graph = do
     where
 
         portsForEdge :: (n v a b, n v a b)
-                    -> Process [(n v a b, SendPort (v a b), ReceivePort (v a b))]
+                    -> Process [(n v a b, Domain a, SendPort (v a b), ReceivePort (v a b))]
         portsForEdge (x, y) = do
             (xSendPort, yReceivePort) <- newChan
             (ySendPort, xReceivePort) <- newChan
 
-            return [(x, xSendPort, xReceivePort), (y, ySendPort, yReceivePort)]
+            return [(x, getDomain y, xSendPort, xReceivePort), (y, getDomain x, ySendPort, yReceivePort)]
 
-        portsM :: Process [(n v a b, SendPort (v a b), ReceivePort (v a b))]
+        portsM :: Process [(n v a b, Domain a, SendPort (v a b), ReceivePort (v a b))]
         portsM = concatMapM portsForEdge (edgeList graph)
 
         portsForVertex :: n v a b
-            -> [(n v a b, SendPort (v a b), ReceivePort (v a b))]
-            -> [(SendPort (v a b), ReceivePort (v a b))]
-        portsForVertex node mapping = map (\(_, s, r) -> (s, r)) $ filter (\(n, _, _) -> n == node) mapping
+            -> [(n v a b, Domain a, SendPort (v a b), ReceivePort (v a b))]
+            -> [(Domain a, SendPort (v a b), ReceivePort (v a b))]
+        portsForVertex node mapping = map (\(_, d, s, r) -> (d, s, r)) $ filter (\(n, _, _, _) -> n == node) mapping
 
-        initializeNode' :: [(n v a b, SendPort (v a b), ReceivePort (v a b))]
+        initializeNode' :: [(n v a b, Domain a, SendPort (v a b), ReceivePort (v a b))]
             -> n v a b
             -> Process ProcessId
         initializeNode' ports node = initializeNode node (portsForVertex node ports)
@@ -116,57 +118,74 @@ initializeNodes graph = do
 
 type PortIdentifier = Integer
 
-initializeNode :: forall n v a b. (Node n, Binary (v a b), Typeable (v a b), Valuation v)
+initializeNode :: forall n v a b. (Node n, Binary (v a b), Typeable (v a b), Valuation v, Ord a, Ord b)
     => n v a b
-    -> [(SendPort (v a b), ReceivePort (v a b))]
+    -> [(Domain a, SendPort (v a b), ReceivePort (v a b))]
     -> Process ProcessId
 initializeNode node ports = spawnLocal $ do
 
-    -- Read (ports - 1) messages
-    (messages, (unusedPortId, unusedPort)) <- receivePhaseOne receivePorts
+    -- COLLECT PHASE
+
+    -- Wait for messages from (length ports - 1) ports
+    (initialMessages, unusedPortId) <- receivePhaseOne receivePorts
+
     collectTime <- liftIO $ formatTimeNicely <$> getCurrentTime
     liftIO $ putStrLn $ collectTime ++ " [COLLECT]    " ++ show (chr $ fromInteger $ nodeId node) ++ " received from "
-                        ++ show (length messages) ++ " node(s). Sending..."
+                        ++ show (length initialMessages) ++ " node(s). Sending..."
 
-    liftIO $ threadDelay 2000000
+    -- Combine messages into new message, and send to the only port we didn't receive a message from.
+    let unusedPort = idToPort unusedPortId
+    sendMessage (getValuation node : map snd initialMessages) (getDomain node) (snd4 unusedPort) (thd4 unusedPort)
 
-    -- Send message to only port that didn't send one to us
-    sendChan (idToSendPort unusedPortId) (getValuation node)
+    -- DISTRIBUTE PHASE
 
-    liftIO $ threadDelay 2000000
-
-    -- Receive from port we sent to
-    message <- receiveChan unusedPort
+    -- Wait for response from port we just sent a message to
+    message <- receiveChan (fth4 unusedPort)
 
     distributeTime <- liftIO $ formatTimeNicely <$> getCurrentTime
     liftIO $ putStrLn $ distributeTime ++ " [DISTRIBUTE] " ++ show (chr $ fromInteger $ nodeId node) ++ " received. "
-                        ++ "Sending to " ++ show (length messages) ++ " node(s)..."
+                        ++ "Sending to " ++ show (length initialMessages) ++ " node(s)..."
 
-    liftIO $ threadDelay 2000000
+    -- Combine this message with the old ones
+    let allMessages = (unusedPortId, message) : initialMessages
 
-    -- Send to the ports we originally received from
-    sequence_ $ map (\p -> sendChan p (getValuation node)) (unusedSendPorts unusedPortId)
+    sequence_ $ map (sendPhaseTwo allMessages) (allPortsExcept unusedPortId)
 
     where
-        ports' :: [(PortIdentifier, SendPort (v a b), ReceivePort (v a b))]
-        ports' = zipWith (\x (s, r) -> (x, s, r)) [0..] ports
+        ports' :: [(PortIdentifier, Domain a, SendPort (v a b), ReceivePort (v a b))]
+        ports' = zipWith (\x (d, s, r) -> (x, d, s, r)) [0..] ports
 
         receivePorts :: [(PortIdentifier, ReceivePort (v a b))]
-        receivePorts = map (\(x, _, r) -> (x, r)) ports'
+        receivePorts = map (\(x, _, _, r) -> (x, r)) ports'
 
-        idToSendPort :: PortIdentifier -> SendPort (v a b)
-        idToSendPort p = snd3 $ unsafeFind (\(x, _, _) -> x == p) ports'
+        idToPort :: PortIdentifier -> (PortIdentifier, Domain a, SendPort (v a b), ReceivePort (v a b))
+        idToPort p = unsafeFind (\(x, _, _, _) -> x == p) ports'
 
-        unusedSendPorts :: PortIdentifier -> [SendPort (v a b)]
-        unusedSendPorts used = map (\(_, s, _) -> s) $ filter (\(x, _, _) -> x /= used) ports'
+        allPortsExcept :: PortIdentifier -> [(PortIdentifier, Domain a, SendPort (v a b))]
+        allPortsExcept used = map (\(i, d, s, _) -> (i, d, s)) $ filter (\(x, _, _, _) -> x /= used) ports'
+
+        sendPhaseTwo :: (Serializable (v a b))
+            => [(PortIdentifier, v a b)]
+            -> (PortIdentifier, Domain a, SendPort (v a b))
+            -> Process ()
+        sendPhaseTwo allMessages (i, d, s) = sendMessage (getValuation node : (map snd $ filter (\(i', _) -> i' == i) allMessages)) (getDomain node) d s
+
+sendMessage :: (Serializable (v a b), Valuation v, Ord a, Ord b)
+    => [v a b]
+    -> Domain a
+    -> Domain a
+    -> SendPort (v a b)
+    -> Process ()
+sendMessage msgsToCombine nodeDomain recipientDomain sendPort = sendChan sendPort (project (combines msgsToCombine) (intersection nodeDomain recipientDomain))
+
 
 -- Receives messages from all ports but one, returning the port that it never
 -- received a message from.
 receivePhaseOne :: Serializable a
     => [(PortIdentifier, ReceivePort a)]
-    -> Process ([a], (PortIdentifier, ReceivePort a))
+    -> Process ([(PortIdentifier, a)], PortIdentifier)
 receivePhaseOne [] = error "receivePhaseOne: Attempted to receive from no port."
-receivePhaseOne [p] = return ([], p)
+receivePhaseOne [p] = return ([], fst p)
 receivePhaseOne ps = do
     (message, ps') <- receiveOnce ps
     (messages, unusedPort) <- receivePhaseOne ps'
@@ -179,12 +198,12 @@ receivePhaseOne ps = do
 -- the value through the port.
 receiveOnce :: Serializable a
     => [(PortIdentifier, ReceivePort a)]
-    -> Process (a, [(PortIdentifier, ReceivePort a)])
+    -> Process ((PortIdentifier, a), [(PortIdentifier, ReceivePort a)])
 receiveOnce [] = error "receiveOnce: Attempted to receive from no port."
 receiveOnce ((pIndex, p):ps) = do
     x <- receiveChanTimeout 0 p
     case x of
-         (Just message) -> return (message, ps)
+         (Just message) -> return ((pIndex, message), ps)
          Nothing -> receiveOnce (ps ++ [(pIndex, p)])
 
 

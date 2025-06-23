@@ -81,21 +81,20 @@ p2Query = [[Name, DeviceType]]
 data MainParameters = MainParameters {
     printP1JoinTree :: Bool,
     printP2JoinTree :: Bool,
-    performInference :: Bool,
+    performP1ShenoyInference :: Bool,
     performP2SeminarInference :: Bool
 }
 
 main :: IO ()
 main = runProcess' $ mainProcess (MainParameters {
-    printP1JoinTree = True,
-    printP2JoinTree = True,
-    performInference = False,
+    printP1JoinTree = False,
+    printP2JoinTree = False,
+    performP1ShenoyInference = False,
     performP2SeminarInference = True
 })
 
 mainProcess :: MainParameters -> Process ()
 mainProcess params = do
-
 
     when (printP1JoinTree params) $
         liftIO $ print $ length $ showAdjacents $ p1BasicTree
@@ -103,7 +102,7 @@ mainProcess params = do
     when (printP2JoinTree params) $
         liftIO $ putStrLn $ showNodes $ p2BasicTree
 
-    when (performInference params) $
+    when (performP1ShenoyInference params) $
         p1ShenoyInference
 
     when (performP2SeminarInference params) $

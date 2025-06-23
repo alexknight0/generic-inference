@@ -8,6 +8,7 @@
 module ValuationAlgebra
     ( Valuation (label, combine, project, identity)
     , Domain
+    , combines
     )
 where
 
@@ -20,5 +21,8 @@ class Valuation v where
     combine :: (Ord a, Ord b) => v a b -> v a b -> v a b
     project :: (Ord a, Ord b) => v a b -> Domain a -> v a b
     identity :: v a b
+
+combines :: (Foldable f, Valuation v, Ord a, Ord b) => f (v a b) -> v a b
+combines = foldr combine identity
 
 
