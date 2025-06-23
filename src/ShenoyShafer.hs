@@ -89,11 +89,26 @@ initializeNodes :: forall n v a b. (Node n, Serializable (v a b), Valuation v, O
     => Graph (n v a b)
     -> Process ()
 initializeNodes graph = do
+
+    -- Create necessary ports
     ports <- portsM
-    mapM_ (initializeNode' ports) (vertexList graph)
+
+    -- Initialize all nodes
+    let vs = vertexList graph
+    mapM_ (initializeNodeAndMonitor ports) vs
+
+    -- Monitor for termination
+    _ <- replicateM (length vs) $ do
+        (ProcessMonitorNotification _ _ reasonForTermination) <- expect
+        case reasonForTermination of
+             DiedNormal -> pure ()
+             DiedException e -> error $ "Error - DiedException (" ++ e ++ ")"
+             x -> error $ "Error - " ++ show x
+
+    liftIO $ print "Done"
+    pure ()
 
     where
-
         portsForEdge :: (n v a b, n v a b)
                     -> Process [(n v a b, Domain a, SendPort (v a b), ReceivePort (v a b))]
         portsForEdge (x, y) = do
@@ -110,10 +125,12 @@ initializeNodes graph = do
             -> [(Domain a, SendPort (v a b), ReceivePort (v a b))]
         portsForVertex node mapping = map (\(_, d, s, r) -> (d, s, r)) $ filter (\(n, _, _, _) -> n == node) mapping
 
-        initializeNode' :: [(n v a b, Domain a, SendPort (v a b), ReceivePort (v a b))]
+        initializeNodeAndMonitor :: [(n v a b, Domain a, SendPort (v a b), ReceivePort (v a b))]
             -> n v a b
-            -> Process ProcessId
-        initializeNode' ports node = initializeNode node (portsForVertex node ports)
+            -> Process MonitorRef
+        initializeNodeAndMonitor ports node = do
+            i <- initializeNode node (portsForVertex node ports)
+            monitor i
 
 
 type PortIdentifier = Integer

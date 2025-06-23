@@ -108,11 +108,6 @@ mainProcess params = do
     when (performP2SeminarInference params) $
         p2SeminarInference
 
-    -- Wait for a second to make sure all message passing had a chance to finish.
-    -- (Should really be 'waiting' on the tasks...)
-    liftIO $ putStrLn "Waiting for threads to finish..."
-    liftIO $ threadDelay 100000000
-
 p1BasicTree :: Directed.Graph (CollectNode BayesValuation P1Var P1Value)
 p1BasicTree = baseJoinTree p1Valuations p1Query
 
