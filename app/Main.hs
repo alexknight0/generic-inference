@@ -15,6 +15,7 @@ import GHC.Generics
 import Data.Char (ord)
 import Data.Time (getCurrentTime)
 import Control.Monad (when)
+import qualified Data.Map as M
 
 -- LocalComputation library files
 import ValuationAlgebra
@@ -125,10 +126,10 @@ p2SeminarTree = overlays [ connect a x, connect b x, connect x z, connect z q, c
         z = vertex $ create (fromIntegral $ ord 'Z') [Name, DeviceID, DeviceType] (getRows ColumnsIdentity)
 
 p2SeminarInference :: Process ()
-p2SeminarInference = initializeNodes p2SeminarTree
+p2SeminarInference = initializeNodes p2SeminarTree >> pure ()
 
 p1ShenoyInference :: Process ()
-p1ShenoyInference = initializeNodes (shenoyJoinTree p1Valuations p1Query)
+p1ShenoyInference = initializeNodes (shenoyJoinTree p1Valuations p1Query) >> pure ()
 
 runProcess' :: Process () -> IO ()
 runProcess' process = do

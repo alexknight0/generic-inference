@@ -29,6 +29,7 @@ import Data.Char (chr)
 import Data.Time (getCurrentTime, utctDayTime, UTCTime)
 import Text.Printf (printf)
 import Data.Set (intersection)
+import qualified Data.Map as M
 
 
 import ValuationAlgebra
@@ -85,19 +86,19 @@ shenoyJoinTree vs qs = toUndirected (baseJoinTree vs qs)
 -- TODO probably want to take in queries as a parameter, and return Process ([v a b]) where [v a b] is a list of answers.
 --      This will probably involve passing a 'server' process id to each node (or a dedicated pipe to talk to the server),
 --      as we need a way of getting the 'results' of the query nodes.
-initializeNodes :: forall n v a b. (Node n, Serializable (v a b), Valuation v, Ord (n v a b), Ord a, Ord b)
+initializeNodes :: forall n v a b. (Node n, Serializable (v a b), Serializable a, Valuation v, Ord (n v a b), Ord a, Ord b)
     => Graph (n v a b)
-    -> Process ()
+    -> Process ([(Domain a, v a b)])
 initializeNodes graph = do
 
-    -- Create necessary ports
+    -- Create necessary inter-node ports
     ports <- portsM
 
     -- Initialize all nodes
     let vs = vertexList graph
-    mapM_ (initializeNodeAndMonitor ports) vs
+    resultPorts <- mapM (initializeNodeAndMonitor ports) vs
 
-    -- Monitor for termination
+    -- Wait for normal termination
     _ <- replicateM (length vs) $ do
         (ProcessMonitorNotification _ _ reasonForTermination) <- expect
         case reasonForTermination of
@@ -105,8 +106,8 @@ initializeNodes graph = do
              DiedException e -> error $ "Error - DiedException (" ++ e ++ ")"
              x -> error $ "Error - " ++ show x
 
-    liftIO $ print "Done"
-    pure ()
+    -- Receive all messages
+    mapM (\p -> fmap assertHasMessage $ receiveChanTimeout 0 p) resultPorts
 
     where
         portsForEdge :: (n v a b, n v a b)
@@ -127,19 +128,27 @@ initializeNodes graph = do
 
         initializeNodeAndMonitor :: [(n v a b, Domain a, SendPort (v a b), ReceivePort (v a b))]
             -> n v a b
-            -> Process MonitorRef
+            -> Process (ReceivePort (Domain a, v a b))
         initializeNodeAndMonitor ports node = do
-            i <- initializeNode node (portsForVertex node ports)
-            monitor i
+            (sendFinalResult, receiveFinalResult) <- newChan
 
+            i <- initializeNode node (portsForVertex node ports) sendFinalResult
+            _ <- monitor i
+
+            pure receiveFinalResult
+
+assertHasMessage :: Maybe a -> a
+assertHasMessage (Just x) = x
+assertHasMessage Nothing = error "Error - a node terminated without sending a message on the result channel"
 
 type PortIdentifier = Integer
 
-initializeNode :: forall n v a b. (Node n, Binary (v a b), Typeable (v a b), Valuation v, Ord a, Ord b)
+initializeNode :: forall n v a b. (Node n, Binary (v a b), Binary a, Typeable (v a b), Typeable a, Valuation v, Ord a, Ord b)
     => n v a b
     -> [(Domain a, SendPort (v a b), ReceivePort (v a b))]
+    -> SendPort (Domain a, v a b)
     -> Process ProcessId
-initializeNode node ports = spawnLocal $ do
+initializeNode node ports resultPort = spawnLocal $ do
 
     -- COLLECT PHASE
 
@@ -166,7 +175,13 @@ initializeNode node ports = spawnLocal $ do
     -- Combine this message with the old ones
     let allMessages = (unusedPortId, message) : initialMessages
 
+    -- Send out messages to remaining nodes (which we now have enough information to send messages to)
     sequence_ $ map (sendPhaseTwo allMessages) (allPortsExcept unusedPortId)
+
+    -- QUERY ANSWERING
+
+    -- Send result back to parent process
+    sendChan resultPort (getDomain node, combines (getValuation node : map snd allMessages))
 
     where
         ports' :: [(PortIdentifier, Domain a, SendPort (v a b), ReceivePort (v a b))]
