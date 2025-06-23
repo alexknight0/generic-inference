@@ -7,6 +7,7 @@ module ShenoyShafer
     (
         initializeNodes
         , shenoyJoinTree
+        , shenoyInference
     )
 where
 
@@ -28,7 +29,7 @@ import Data.Binary (Binary)
 import Data.Char (chr)
 import Data.Time (getCurrentTime, utctDayTime, UTCTime)
 import Text.Printf (printf)
-import Data.Set (intersection)
+import Data.Set (intersection, isSubsetOf)
 import qualified Data.Map as M
 
 
@@ -67,11 +68,23 @@ instance (Show (v a b), Show a) => Show (ShenoyShaferNode v a b) where
     --                         -- ++ "[Valuation]: "  ++ show v ++ "\n"
     --                         -- ++ "--------------------"     ++ "\n"
 
-answerQueries :: forall v a b.
-    [Domain a]
+-- TODO safely handle invalid queries?
+answerQueries :: forall v a b. (Valuation v, Ord a, Ord b)
+    => [Domain a]
+    -> [(Domain a, v a b)]
     -> [v a b]
-    -> [v a b]
-answerQueries = undefined
+answerQueries qs results = map queryToAnswer qs
+    where
+        queryToAnswer :: Domain a -> v a b
+        queryToAnswer d = project (snd $ unsafeFind (\(d', _) -> d `isSubsetOf` d') results) d
+
+shenoyInference :: forall v a b . (Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
+    => [v a b]
+    -> [Domain a]
+    -> Process [v a b]
+shenoyInference vs qs = do
+    results <- initializeNodes (shenoyJoinTree vs qs)
+    pure $ answerQueries qs results
 
 -- The base join tree must be transformed to an undirected graph.
 -- While mailboxes should be connected up for each neighbour, this happens in the

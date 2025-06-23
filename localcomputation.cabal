@@ -47,7 +47,7 @@ library
     , containers
     , distributed-process ==0.7.8
     , extra
-    , hashmap
+    , hbayes
     , network-transport-tcp
     , time
   default-language: Haskell2010
@@ -64,7 +64,7 @@ executable localcomputation-exe
     , containers
     , distributed-process ==0.7.8
     , extra
-    , hashmap
+    , hbayes
     , localcomputation
     , network-transport-tcp
     , time
@@ -87,7 +87,7 @@ test-suite localcomputation-test
     , containers
     , distributed-process ==0.7.8
     , extra
-    , hashmap
+    , hbayes
     , localcomputation
     , network-transport-tcp
     , time

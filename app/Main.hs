@@ -59,8 +59,8 @@ p1Valuations =
         getRows $ Columns [H, D] [0.99, 0.3, 0.01, 0.7]
     ]
 
-p1Query :: [Domain P1Var]
-p1Query = [[F]]
+p1Queries :: [Domain P1Var]
+p1Queries = [[F]]
 
 data P2Var = Name | Noun | Colour | ID | DeviceID | DeviceType deriving (Eq, Ord, Show, Generic, Binary)
 
@@ -90,8 +90,8 @@ main :: IO ()
 main = runProcess' $ mainProcess (MainParameters {
     printP1JoinTree = False,
     printP2JoinTree = False,
-    performP1ShenoyInference = False,
-    performP2SeminarInference = True
+    performP1ShenoyInference = True,
+    performP2SeminarInference = False
 })
 
 mainProcess :: MainParameters -> Process ()
@@ -103,14 +103,16 @@ mainProcess params = do
     when (printP2JoinTree params) $
         liftIO $ putStrLn $ showNodes $ p2BasicTree
 
-    when (performP1ShenoyInference params) $
-        p1ShenoyInference
+    when (performP1ShenoyInference params) $ do
+        results <- shenoyInference p1Valuations p1Queries
+        liftIO $ print (zip p1Queries results)
+
 
     when (performP2SeminarInference params) $
         p2SeminarInference
 
 p1BasicTree :: Directed.Graph (CollectNode BayesValuation P1Var P1Value)
-p1BasicTree = baseJoinTree p1Valuations p1Query
+p1BasicTree = baseJoinTree p1Valuations p1Queries
 
 p2BasicTree :: Directed.Graph (CollectNode BayesValuation P2Var P2Value)
 p2BasicTree = baseJoinTree p2Valuations p2Query
@@ -129,7 +131,7 @@ p2SeminarInference :: Process ()
 p2SeminarInference = initializeNodes p2SeminarTree >> pure ()
 
 p1ShenoyInference :: Process ()
-p1ShenoyInference = initializeNodes (shenoyJoinTree p1Valuations p1Query) >> pure ()
+p1ShenoyInference = initializeNodes (shenoyJoinTree p1Valuations p1Queries) >> pure ()
 
 runProcess' :: Process () -> IO ()
 runProcess' process = do

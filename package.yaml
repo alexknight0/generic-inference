@@ -28,7 +28,7 @@ dependencies:
 - containers
 - extra
 - time
-- hashmap
+- hbayes
 
 ghc-options:
 - -Wall
