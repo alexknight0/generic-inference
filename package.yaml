@@ -28,7 +28,7 @@ dependencies:
 - containers
 - extra
 - time
-- hbayes
+- fft
 
 ghc-options:
 - -Wall

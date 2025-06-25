@@ -46,21 +46,38 @@ showAdjacents graph = concat $ intersperse "\n" $ fmap (show) (Directed.adjacenc
 showNodes :: (Ord a, Show a) => (Directed.Graph a) -> String
 showNodes graph = concat $ intersperse "\n" $ fmap show (Directed.vertexList graph)
 
-data P1Var = F | B | L | D | H deriving (Eq, Ord, Show, Generic, Binary)
+data P1Var = VisitToAsia | HasTuberculosis | Smoker | HasLungCancer
+           | HasBronchitis | TuberculosisOrCancer | XRayResult | Dyspnea
+           deriving (Eq, Ord, Show, Generic, Binary)
 
 data P1Value = P1False | P1True deriving (Enum, Bounded, Show, Eq, Generic, Binary, Ord)
 
+-- These match the ones used in NENOK and in https://online.bayesserver.com/
+-- (Only difference from project proposal is smoker).
+-- Note the probably values from https://online.bayesserver.com/ round to 1dp after %.
 p1Valuations :: [BayesValuation P1Var P1Value]
 p1Valuations =
-    [ getRows $ Columns [F] [0.85, 0.15],
-        getRows $ Columns [B] [0.99, 0.01],
-        getRows $ Columns [L, F] [0.95, 0.4, 0.05, 0.6],
-        getRows $ Columns [D, F, B] [0.7, 0.03, 0.1, 0.01, 0.3, 0.97, 0.9, 0.99],
-        getRows $ Columns [H, D] [0.99, 0.3, 0.01, 0.7]
+    [ getRows $ Columns [VisitToAsia] [0.99, 0.01],
+        getRows $ Columns [HasTuberculosis, VisitToAsia] [0.99, 0.95, 0.01, 0.05],
+        getRows $ Columns [Smoker] [0.5, 0.5],
+        getRows $ Columns [HasLungCancer, Smoker] [0.99, 0.9, 0.01, 0.1],
+        getRows $ Columns [HasBronchitis, Smoker] [0.7, 0.4, 0.3, 0.6],
+        getRows $ Columns [TuberculosisOrCancer, HasTuberculosis, HasLungCancer] [1, 0, 0, 0, 0, 1, 1, 1],
+        getRows $ Columns [XRayResult, TuberculosisOrCancer] [0.95, 0.02, 0.05, 0.98],
+        getRows $ Columns [Dyspnea, TuberculosisOrCancer, HasBronchitis] [0.9, 0.2, 0.3, 0.1, 0.1, 0.8, 0.7, 0.9]
     ]
 
 p1Queries :: [Domain P1Var]
-p1Queries = [[F]]
+p1Queries = [
+          [VisitToAsia]
+        , [HasTuberculosis]
+        , [Smoker]
+        , [HasLungCancer]
+        , [HasBronchitis]
+        , [TuberculosisOrCancer]
+        , [XRayResult]
+        , [Dyspnea]
+    ]
 
 data P2Var = Name | Noun | Colour | ID | DeviceID | DeviceType deriving (Eq, Ord, Show, Generic, Binary)
 
@@ -83,7 +100,8 @@ data MainParameters = MainParameters {
     printP1JoinTree :: Bool,
     printP2JoinTree :: Bool,
     performP1ShenoyInference :: Bool,
-    performP2SeminarInference :: Bool
+    performP2SeminarInference :: Bool,
+    test :: Bool
 }
 
 main :: IO ()
@@ -91,11 +109,14 @@ main = runProcess' $ mainProcess (MainParameters {
     printP1JoinTree = False,
     printP2JoinTree = False,
     performP1ShenoyInference = True,
-    performP2SeminarInference = False
+    performP2SeminarInference = False,
+    test = False
 })
 
 mainProcess :: MainParameters -> Process ()
 mainProcess params = do
+
+    liftIO $ putStrLn "\n\n\n\n\nRunning Program...\n\n"
 
     when (printP1JoinTree params) $
         liftIO $ print $ length $ showAdjacents $ p1BasicTree
@@ -104,15 +125,27 @@ mainProcess params = do
         liftIO $ putStrLn $ showNodes $ p2BasicTree
 
     when (performP1ShenoyInference params) $ do
-        results <- shenoyInference p1Valuations p1Queries
-        liftIO $ print (zip p1Queries results)
-
+        results <- answerQueriesM p1Valuations p1Queries
+        liftIO $ print (zip p1Queries (map normalize results))
 
     when (performP2SeminarInference params) $
         p2SeminarInference
 
+    when (test params) $
+        liftIO $ putStrLn p1Test
+
 p1BasicTree :: Directed.Graph (CollectNode BayesValuation P1Var P1Value)
 p1BasicTree = baseJoinTree p1Valuations p1Queries
+
+p1Test :: String
+p1Test = showAsRows $ normalize $ project (combines xs) [HasTuberculosis]
+    where
+        xs :: [BayesValuation P1Var P1Value]
+        xs = p1Valuations
+        -- xs = [
+        --       getRows $ Columns [VisitToAsia] [0.99, 0.01]
+        --     , getRows $ Columns [HasTuberculosis, VisitToAsia] [0.99, 0.95, 0.01, 0.05]
+        --     ]
 
 p2BasicTree :: Directed.Graph (CollectNode BayesValuation P2Var P2Value)
 p2BasicTree = baseJoinTree p2Valuations p2Query

@@ -7,7 +7,10 @@ module ShenoyShafer
     (
         initializeNodes
         , shenoyJoinTree
-        , shenoyInference
+        , answerQueriesM, answerQueryM
+        , answerQueries, answerQuery
+        , inference
+        , InferredData
     )
 where
 
@@ -68,23 +71,47 @@ instance (Show (v a b), Show a) => Show (ShenoyShaferNode v a b) where
     --                         -- ++ "[Valuation]: "  ++ show v ++ "\n"
     --                         -- ++ "--------------------"     ++ "\n"
 
+type InferredData v a b = [(Domain a, v a b)]
+
+
 -- TODO safely handle invalid queries?
 answerQueries :: forall v a b. (Valuation v, Ord a, Ord b)
     => [Domain a]
-    -> [(Domain a, v a b)]
+    -> InferredData v a b
     -> [v a b]
 answerQueries qs results = map queryToAnswer qs
     where
         queryToAnswer :: Domain a -> v a b
         queryToAnswer d = project (snd $ unsafeFind (\(d', _) -> d `isSubsetOf` d') results) d
 
-shenoyInference :: forall v a b . (Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
+-- TODO safely handle invalid queries?
+answerQuery :: forall v a b. (Valuation v, Ord a, Ord b)
+    => Domain a
+    -> InferredData v a b
+    -> v a b
+answerQuery q results = head $ answerQueries [q] results
+
+answerQueriesM :: forall v a b . (Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
     => [v a b]
     -> [Domain a]
     -> Process [v a b]
-shenoyInference vs qs = do
+answerQueriesM vs qs = do
     results <- initializeNodes (shenoyJoinTree vs qs)
     pure $ answerQueries qs results
+
+answerQueryM :: forall v a b . (Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
+    => [v a b]
+    -> Domain a
+    -> Process (v a b)
+answerQueryM vs q = do
+    results <- initializeNodes (shenoyJoinTree vs [q])
+    pure $ answerQuery q results
+
+inference :: forall v a b . (Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
+    => [v a b]
+    -> [Domain a]
+    -> Process (InferredData v a b)
+inference vs qs = initializeNodes (shenoyJoinTree vs qs)
 
 -- The base join tree must be transformed to an undirected graph.
 -- While mailboxes should be connected up for each neighbour, this happens in the
@@ -96,9 +123,6 @@ shenoyJoinTree :: forall v a b. (Valuation v, Ord a)
 shenoyJoinTree vs qs = toUndirected (baseJoinTree vs qs)
 
 -- Initializes all nodes in the join tree for message passing according to the Shenoy-Shafer algorithm.
--- TODO probably want to take in queries as a parameter, and return Process ([v a b]) where [v a b] is a list of answers.
---      This will probably involve passing a 'server' process id to each node (or a dedicated pipe to talk to the server),
---      as we need a way of getting the 'results' of the query nodes.
 initializeNodes :: forall n v a b. (Node n, Serializable (v a b), Serializable a, Valuation v, Ord (n v a b), Ord a, Ord b)
     => Graph (n v a b)
     -> Process ([(Domain a, v a b)])
@@ -213,7 +237,7 @@ initializeNode node ports resultPort = spawnLocal $ do
             => [(PortIdentifier, v a b)]
             -> (PortIdentifier, Domain a, SendPort (v a b))
             -> Process ()
-        sendPhaseTwo allMessages (i, d, s) = sendMessage (getValuation node : (map snd $ filter (\(i', _) -> i' == i) allMessages)) (getDomain node) d s
+        sendPhaseTwo allMessages (i, d, s) = sendMessage (getValuation node : (map snd $ filter (\(i', _) -> i' /= i) allMessages)) (getDomain node) d s
 
 sendMessage :: (Serializable (v a b), Valuation v, Ord a, Ord b)
     => [v a b]
@@ -254,11 +278,6 @@ receiveOnce ((pIndex, p):ps) = do
 
 
 -- can be moved to utils file
-unsafeFind :: Foldable t => (a -> Bool) -> t a -> a
-unsafeFind p xs
-    | (Just y) <- Data.List.find p xs = y
-    | otherwise = error "unsafeFind found nothing"
-
 formatTimeNicely :: UTCTime -> String
 formatTimeNicely time = printf "[%02d:%02d:%02d]" hours minutes seconds
 

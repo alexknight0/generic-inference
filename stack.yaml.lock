@@ -18,13 +18,6 @@ packages:
       size: 605
   original:
     hackage: network-transport-tcp-0.8.6@sha256:82818f659c4324f1ef7d008803ee362669cbcef66c93bd00367e3370d547a813,3792
-- completed:
-    hackage: hbayes-0.5.2@sha256:1636527360a59d6a59959fe0383d7b4573306a4e876a32917da7046fb0a2cca6,4814
-    pantry-tree:
-      sha256: 1e18c7f45bb2159fcb28639ec9243b556055840fd286799bc9e6380e184df8d1
-      size: 2251
-  original:
-    hackage: hbayes-0.5.2@sha256:1636527360a59d6a59959fe0383d7b4573306a4e876a32917da7046fb0a2cca6,4814
 snapshots:
 - completed:
     sha256: 4a0e5e187fbef423f9c60072bfb1dd56f2a01a07a2667eb1469bd79073cfceaf
