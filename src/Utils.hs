@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Utils
-    ( setMap, nubWithBy, thd4, snd4, fth4, unsafeFind, unionUnsafe, fromListAssertDisjoint )
+    ( setMap, nubWithBy, thd4, snd4, fth4, findAssertSingleMatch, unsafeFind, unionUnsafe, fromListAssertDisjoint, unionAssertDisjoint )
 where
 
 import Data.List (find)
@@ -35,13 +35,22 @@ normalize xs = fmap (/ sumXs) xs
     where
         sumXs = sum xs
 
+findAssertSingleMatch :: (a -> Bool) -> [a] -> a
+findAssertSingleMatch p xs
+    | [y] <- filter p xs = y
+    | ys <- filter p xs = let numMatches = length (take 10000 ys) in
+                                error $ "findAssertSingleMatch found " ++ (if numMatches == 10000 then ">" else "") ++ show numMatches ++ " matches"
+
 unsafeFind :: Foldable t => (a -> Bool) -> t a -> a
 unsafeFind p xs
     | (Just y) <- Data.List.find p xs = y
     | otherwise = error "unsafeFind found nothing"
 
 unionUnsafe :: (Eq b, Ord a) => Map a b -> Map a b -> Map a b
-unionUnsafe = M.unionWith (\x y -> if x /= y then error "Map key sets are not disjoint" else x)
+unionUnsafe = M.unionWith (\x y -> if x /= y then error "Map keys that exist in both maps do not have the same value" else x)
+
+unionAssertDisjoint :: (Ord a) => Map a b -> Map a b -> Map a b
+unionAssertDisjoint = M.unionWith (\_ _ -> error "Map key sets are not disjoint")
 
 fromListAssertDisjoint :: (Ord a) => [(a, b)] -> Map a b
 fromListAssertDisjoint = M.fromListWith (\_ _ -> error "Attempted to create map from non disjoint assoc list")

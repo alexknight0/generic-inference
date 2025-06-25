@@ -23,6 +23,7 @@ import Collect
 import Bayesian
 import JoinTree
 import ShenoyShafer
+import Utils
 
 
 ---- We will need these someday (probably)
@@ -67,6 +68,14 @@ p1Valuations =
         getRows $ Columns [Dyspnea, TuberculosisOrCancer, HasBronchitis] [0.9, 0.2, 0.3, 0.1, 0.1, 0.8, 0.7, 0.9]
     ]
 
+p1ProbabilityQueries :: [ProbabilityQuery P1Var P1Value]
+p1ProbabilityQueries = [
+          (M.singleton HasTuberculosis P1True, M.singleton VisitToAsia P1True)
+        , (M.singleton TuberculosisOrCancer P1True, fromListAssertDisjoint [(VisitToAsia, P1True), (Smoker, P1False), (HasBronchitis, P1True)])
+        , (M.singleton TuberculosisOrCancer P1True, fromListAssertDisjoint [(VisitToAsia, P1True), (HasTuberculosis, P1True), (Smoker, P1False), (HasBronchitis, P1True)])
+        , (M.singleton TuberculosisOrCancer P1True, fromListAssertDisjoint [(VisitToAsia, P1True), (HasTuberculosis, P1False), (Smoker, P1False), (HasBronchitis, P1True)])
+    ]
+
 p1Queries :: [Domain P1Var]
 p1Queries = [
           [VisitToAsia]
@@ -100,6 +109,7 @@ data MainParameters = MainParameters {
     printP1JoinTree :: Bool,
     printP2JoinTree :: Bool,
     performP1ShenoyInference :: Bool,
+    queryP1Network :: Bool,
     performP2SeminarInference :: Bool,
     test :: Bool
 }
@@ -108,7 +118,8 @@ main :: IO ()
 main = runProcess' $ mainProcess (MainParameters {
     printP1JoinTree = False,
     printP2JoinTree = False,
-    performP1ShenoyInference = True,
+    performP1ShenoyInference = False,
+    queryP1Network = True,
     performP2SeminarInference = False,
     test = False
 })
@@ -128,10 +139,14 @@ mainProcess params = do
         results <- answerQueriesM p1Valuations p1Queries
         liftIO $ print (zip p1Queries (map normalize results))
 
+    when (queryP1Network params) $ do
+        results <- queryNetwork p1ProbabilityQueries p1Valuations
+        liftIO $ print (zip p1ProbabilityQueries results)
+
     when (performP2SeminarInference params) $
         p2SeminarInference
 
-    when (test params) $
+    when (test params) $ do
         liftIO $ putStrLn p1Test
 
 p1BasicTree :: Directed.Graph (CollectNode BayesValuation P1Var P1Value)
@@ -146,6 +161,7 @@ p1Test = showAsRows $ normalize $ project (combines xs) [HasTuberculosis]
         --       getRows $ Columns [VisitToAsia] [0.99, 0.01]
         --     , getRows $ Columns [HasTuberculosis, VisitToAsia] [0.99, 0.95, 0.01, 0.05]
         --     ]
+
 
 p2BasicTree :: Directed.Graph (CollectNode BayesValuation P2Var P2Value)
 p2BasicTree = baseJoinTree p2Valuations p2Query

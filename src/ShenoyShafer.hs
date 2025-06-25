@@ -228,7 +228,7 @@ initializeNode node ports resultPort = spawnLocal $ do
         receivePorts = map (\(x, _, _, r) -> (x, r)) ports'
 
         idToPort :: PortIdentifier -> (PortIdentifier, Domain a, SendPort (v a b), ReceivePort (v a b))
-        idToPort p = unsafeFind (\(x, _, _, _) -> x == p) ports'
+        idToPort p = findAssertSingleMatch (\(x, _, _, _) -> x == p) ports'
 
         allPortsExcept :: PortIdentifier -> [(PortIdentifier, Domain a, SendPort (v a b))]
         allPortsExcept used = map (\(i, d, s, _) -> (i, d, s)) $ filter (\(x, _, _, _) -> x /= used) ports'

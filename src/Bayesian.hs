@@ -4,10 +4,10 @@
 --{-# LANGUAGE OverloadedLists #-}
 
 module Bayesian
-    ( getRows, showAsRows, normalize
+    ( getRows, showAsRows, normalize, queryNetwork
     , Columns (Columns, ColumnsIdentity)
     , BayesValuation (Table)
-    ,
+    , ProbabilityQuery
     )
 where
 
@@ -152,37 +152,38 @@ sharedVariablesAreSameValue :: (Ord a, Ord b) => Integer -> Row a b -> Row a b -
 sharedVariablesAreSameValue numSharedVariables x y =
         fromIntegral (length (intersection (S.fromList $ M.assocs $ variables x) (S.fromList $ M.assocs $ variables y))) == numSharedVariables
 
--- conditionalProbability :: Set a -> Set a -> (Set a -> Probability) -> Probability
--- conditionalProbability vs givenVs p = p (union vs givenVs) / p givenVs
+conditionalProbability :: (Ord a) => Variables a b -> Variables a b -> (Variables a b -> Probability) -> Probability
+conditionalProbability vs givenVs p = p (unionAssertDisjoint vs givenVs) / p givenVs
 
 -- unsafe
 findProbability :: (Eq a, Eq b) => Variables a b -> BayesValuation a b -> Probability
-findProbability x (Table rows) = (\(Row _ p) -> p) $ unsafeFind (\(Row vs _) -> vs == x) rows
+findProbability x (Table rows) = (\(Row _ p) -> p) $ findAssertSingleMatch (\(Row vs _) -> vs == x) rows
 findProbability _ Identity = error "findProbability: Attempted to read probability from an identity valuation."
 
--- queryNetwork :: forall a b. (Serializable a, Serializable b, Ord a, Ord b)
---     => [ProbabilityQuery a b]
---     -> Network a b
---     -> Process [Probability]
--- queryNetwork qs network = do
---     results <- inference network queriesForInference
---     pure $ map (\(vs, givenVs) -> conditionalProbability vs givenVs (\vs' -> queryToProbability vs' results)) qs
---     undefined
--- 
---     where
---         queriesForInference :: [Domain a]
---         queriesForInference = map (\(vs, givenVs) -> assert (S.disjoint (M.keysSet vs) (M.keysSet givenVs)) $
---                                    union (M.keysSet vs) (M.keysSet givenVs)) qs
--- 
--- 
+queryNetwork :: forall a b. (Serializable a, Serializable b, Ord a, Ord b)
+    => [ProbabilityQuery a b]
+    -> Network a b
+    -> Process [Probability]
+queryNetwork qs network = do
+    results <- inference network queriesForInference
+    let f vs = queryToProbability vs results
+    pure $ map (\(vs, givenVs) -> conditionalProbability vs givenVs f) qs
+
+    where
+        queriesForInference :: [Domain a]
+        queriesForInference = map (\(vs, givenVs) -> assert (S.disjoint (M.keysSet vs) (M.keysSet givenVs)) $
+                                   union (M.keysSet vs) (M.keysSet givenVs)) qs
+
+
+
 
 
 --- Probably wnat an interface such that we don't rely on shenoyshafer exporting a type (Domain a, BayesValuation a) as that seems a bit internal....
 -- try only use shenoyINfernece.
 
 -- ASSUMES THE QUERY IS COVERED BY THE NETWORK
--- queryToProbability :: (Ord a, Ord b) => M.Map a b -> InferredData BayesValuation a b -> Probability
--- queryToProbability vs results = findProbability vs (normalize $ answerQuery (S.map fst vs) results)
+queryToProbability :: (Ord a, Ord b) => Variables a b -> InferredData BayesValuation a b -> Probability
+queryToProbability vs results = findProbability vs (normalize $ answerQuery (M.keysSet vs) results)
 
 -- queryToProbability :: ProbabilityQuery a b -> InferredData v a b -> Probability
 -- queryToProbability (vs, givenVs) results = findProbability 
