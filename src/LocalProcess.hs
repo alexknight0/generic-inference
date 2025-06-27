@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
-module LocalProcess ( runProcessLocal, runProcessLocal', runProcessLocal'' ) where
+module LocalProcess (runProcessLocal) where
 
 import qualified Data.Map as M
 
@@ -22,15 +22,21 @@ import Control.Concurrent.MVar.Strict (newEmptyMVar, tryPutMVar, tryTakeMVar)
 import Control.DeepSeq (NFData)
 
 import Control.Exception (assert, throw)
+import qualified Control.Exception as E
+import GHC.IO.Exception (IOErrorType (ResourceBusy), ioe_type)
 
+maxTcpPortNum :: Integer
+maxTcpPortNum = 65535
 
--- If we do tests in parallel I'm guessing using the same tcp addr could probably cause errors.
--- Maybe see network-transport-inmemory in this case.
-runProcessLocal' :: (NFData a) => Process a -> IO a
-runProcessLocal' process = do
+defaultPort :: Integer
+defaultPort = 8080
+
+{- | Runs a process locally and returns the result. -}
+runProcessLocal :: (NFData a) => Process a -> IO a
+runProcessLocal process = do
     resultPointer <- newEmptyMVar
 
-    _ <- runProcessLocal 8080 $ do
+    _ <- runProcessLocal' defaultPort $ do
         result <- process
         settingResultIsSuccess <- liftIO $ tryPutMVar resultPointer result
         assert settingResultIsSuccess $ pure ()
@@ -40,51 +46,32 @@ runProcessLocal' process = do
          Nothing -> error "issue"
          Just x -> pure x
 
-runProcessLocal'' :: Process () -> Transport -> IO ()
-runProcessLocal'' = undefined
--- runProcessLocal'' :: Process () -> Transport -> IO ()
--- runProcessLocal'' process = do
---
---     transportOrFail <- createTransport (defaultTCPAddr "127.0.0.1" "8080") defaultTCPParameters
---     case transportOrFail of
---          Left e -> error "issue"
---          Right transport -> do
---                 node <- newLocalNode transport initRemoteTable
---                 runProcess node process
---                 node2 <- newLocalNode transport initRemoteTable
---                 runProcess node2 process
 
 
 
+{- | Runs a process on a local TCP address, returning the port number it is running on.
 
-
-
-
-
-
-
-    -- result' <- newEmptyMVar
-    -- runProcess node $ do
-    --   ...
-    -- -- must never fail, we prefer exception over blocking handler that holds on to memory
-    -- Just (HttpResponse status body) <- tryTakeMVar result'
-    -- respond $ responseLBS status [] (BSL.fromStrict body)
-
-
--- Creates a new transport and closes it on finish.
--- Likely can be more efficent if the transport is kept
--- around for the next operation, running the process with
--- the same transport instead.
-runProcessLocal :: Integer -> Process () -> IO Integer
-runProcessLocal x process = do
+As this function creates a new transport and closes it on finish, may be inefficent to
+call this many times instead of reusing the same transport.
+-}
+runProcessLocal' :: Integer -> Process () -> IO Integer
+runProcessLocal' x process = do
 
     transportOrFail <- createTransport (defaultTCPAddr "127.0.0.1" (show x)) defaultTCPParameters
     case transportOrFail of
+         -- Try a new port if failed because port was in use.
          Left e -> do
-             putStrLn $ "skipping " ++ show x
-             runProcessLocal (x+1) process
+             case ioe_type e of
+                  ResourceBusy -> assert (x < maxTcpPortNum) $ runProcessLocal' (x+1) process
+                  _ -> throw e
+
+         -- Run process with transport, cleaning up even if an exception occurs.
          Right transport -> do
-                node <- newLocalNode transport initRemoteTable
-                runProcess node process
-                closeTransport transport
-                pure (x+1)
+                E.bracket
+                    (pure ())
+                    (\_ -> closeTransport transport)
+                    (\_ -> do
+                        node <- newLocalNode transport initRemoteTable
+                        runProcess node process)
+                pure x
+

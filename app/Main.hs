@@ -127,7 +127,7 @@ data MainParameters = MainParameters {
 }
 
 main :: IO ()
-main = runProcessLocal' $ mainProcess (MainParameters {
+main = runProcessLocal $ mainProcess (MainParameters {
     printP1JoinTree = False,
     printP2JoinTree = False,
     performP1ShenoyInference = False,
