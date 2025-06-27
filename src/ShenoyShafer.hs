@@ -65,11 +65,6 @@ instance Ord (ShenoyShaferNode v a b) where
 -- Could put implementation inside the Node typeclass and then just call it from in here
 instance (Show (v a b), Show a) => Show (ShenoyShaferNode v a b) where
     show (ShenoyShaferNode i d _) = show (i, d)
-    -- show (ShenoyShaferNode i d v) = "--------------------"     ++ "\n"
-    --                         ++ "[Index]: "      ++ show i ++ "\n"
-    --                         ++ "[Domain]: "     ++ show d ++ "\n"
-    --                         -- ++ "[Valuation]: "  ++ show v ++ "\n"
-    --                         -- ++ "--------------------"     ++ "\n"
 
 type InferredData v a b = [(Domain a, v a b)]
 
@@ -192,10 +187,6 @@ initializeNode node ports resultPort = spawnLocal $ do
     -- Wait for messages from (length ports - 1) ports
     (initialMessages, unusedPortId) <- receivePhaseOne receivePorts
 
-    -- collectTime <- liftIO $ formatTimeNicely <$> getCurrentTime
-    -- liftIO $ putStrLn $ collectTime ++ " [COLLECT]    " ++ show (chr $ fromInteger $ nodeId node) ++ " received from "
-    --                     ++ show (length initialMessages) ++ " node(s). Sending..."
-
     -- Combine messages into new message, and send to the only port we didn't receive a message from.
     let unusedPort = idToPort unusedPortId
     sendMessage (getValuation node : map snd initialMessages) (getDomain node) (snd4 unusedPort) (thd4 unusedPort)
@@ -204,10 +195,6 @@ initializeNode node ports resultPort = spawnLocal $ do
 
     -- Wait for response from port we just sent a message to
     message <- receiveChan (fth4 unusedPort)
-
-    -- distributeTime <- liftIO $ formatTimeNicely <$> getCurrentTime
-    -- liftIO $ putStrLn $ distributeTime ++ " [DISTRIBUTE] " ++ show (chr $ fromInteger $ nodeId node) ++ " received. "
-    --                     ++ "Sending to " ++ show (length initialMessages) ++ " node(s)..."
 
     -- Combine this message with the old ones
     let allMessages = (unusedPortId, message) : initialMessages

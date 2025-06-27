@@ -95,8 +95,8 @@ baseJoinTree' :: forall n v a b. (Node n, Valuation v, Eq (n v a b), Ord a)
 baseJoinTree' _ _ [] = []
 baseJoinTree' nextNodeId r (x : d')
     | length r <= 1 = []
-    | length r' > 0 = trace "foo" $ union (union [(nUnion, nP)] e) (baseJoinTree' (nextNodeId + 2) (union [nP] r') d')
-    | otherwise = trace "bar" $ union e (baseJoinTree' (nextNodeId + 2) r' d')
+    | length r' > 0 = union (union [(nUnion, nP)] e) (baseJoinTree' (nextNodeId + 2) (union [nP] r') d')
+    | otherwise = union e (baseJoinTree' (nextNodeId + 2) r' d')
     where
         xIsInNodeDomain :: n v a b -> Bool
         xIsInNodeDomain n = x `elem` (getDomain n)
