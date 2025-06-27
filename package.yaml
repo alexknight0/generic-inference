@@ -33,6 +33,8 @@ dependencies:
 - strict-concurrency
 - deepseq
 - network-transport
+- dijkstra-simple
+- parsec
 
 ghc-options:
 - -Wall

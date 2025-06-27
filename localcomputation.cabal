@@ -48,12 +48,14 @@ library
     , binary
     , containers
     , deepseq
+    , dijkstra-simple
     , distributed-process ==0.7.8
     , extra
     , fft
     , hedgehog
     , network-transport
     , network-transport-tcp
+    , parsec
     , strict-concurrency
     , time
   default-language: Haskell2010
@@ -69,6 +71,7 @@ executable localcomputation-exe
     , binary
     , containers
     , deepseq
+    , dijkstra-simple
     , distributed-process ==0.7.8
     , extra
     , fft
@@ -76,6 +79,7 @@ executable localcomputation-exe
     , localcomputation
     , network-transport
     , network-transport-tcp
+    , parsec
     , strict-concurrency
     , time
   default-language: Haskell2010
@@ -97,6 +101,7 @@ test-suite localcomputation-test
     , binary
     , containers
     , deepseq
+    , dijkstra-simple
     , distributed-process ==0.7.8
     , extra
     , fft
@@ -104,6 +109,7 @@ test-suite localcomputation-test
     , localcomputation
     , network-transport
     , network-transport-tcp
+    , parsec
     , strict-concurrency
     , time
   default-language: Haskell2010

@@ -1,10 +1,10 @@
+{-# LANGUAGE DeriveAnyClass      #-}
+{-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
 --{-# LANGUAGE OverloadedLists #-}
 
 module Bayesian
-    ( getRows, showAsRows, normalize, queryNetwork
+    ( getRows, showAsRows, normalize, queryNetwork, parseNetwork, mapTableKeys
     , Columns (Columns, ColumnsIdentity)
     , BayesValuation (Table)
     , ProbabilityQuery
@@ -12,24 +12,35 @@ module Bayesian
     )
 where
 
-import ValuationAlgebra
-import ShenoyShafer
-import Utils
+import           ShenoyShafer
+import           Utils
+import           Utils                                    (nubWithBy, setMap)
+import           ValuationAlgebra
 
-import Data.Binary (Binary)
-import GHC.Generics
-import Data.Set (Set, member, fromList, toList, empty, intersection, union)
-import qualified Data.Set as S
-import Utils (setMap, nubWithBy)
-import Debug.Trace
-import Control.Exception (assert)
-import Data.Map (Map)
-import qualified Data.Map as M
-import qualified Data.Set as S
+import           Control.Exception                        (assert)
+import           Data.Binary                              (Binary)
+import           Data.Functor                             (void)
+import           Data.Functor.Identity                    (Identity)
+import           Data.Map                                 (Map)
+import qualified Data.Map                                 as M
+import           Data.Set                                 (Set, empty, fromList,
+                                                           intersection, member,
+                                                           toList, union)
+import qualified Data.Set                                 as S
+import           Debug.Trace
+import           GHC.Generics
+import           System.IO                                (openFile, hGetContents', IOMode (ReadMode))
+import           Text.Parsec.Char                         (endOfLine)
+import           Text.Parsec.Language                     (haskellDef)
+import           Text.Parsec.Token                        (GenTokenParser,
+                                                           float,
+                                                           makeTokenParser)
+import           Text.ParserCombinators.Parsec
+import           Text.ParserCombinators.Parsec            as P
 
 
-import Control.Distributed.Process
-import Control.Distributed.Process.Serializable
+import           Control.Distributed.Process
+import           Control.Distributed.Process.Serializable
 
 {-
 In BValColumns, the first parameter is the variable, the second parameter
@@ -63,8 +74,8 @@ data BayesValuation a b = Table [Row a b] | Identity deriving (Generic, Binary)
 
 -- Don't be suprised if you need to put (Enum, bounded) on 'b'.
 instance Valuation BayesValuation where
-    label Identity = empty
-    label (Table []) = empty
+    label Identity        = empty
+    label (Table [])      = empty
     label (Table (x : _)) = M.keysSet (variables x)
 
     -- Identity / neutral element must be addressed here, or a plan made to address it in the main typeclass.
@@ -103,7 +114,7 @@ showAsRows Identity = "------ Table ------\n"
 -- An inefficent storage format, but we should get a working implementation first.
 data Row a b = Row
     {
-        variables :: Variables a b,
+        variables   :: Variables a b,
         probability :: Probability
     }
     deriving (Show, Generic, Binary)
@@ -113,14 +124,6 @@ type Variables a b = M.Map a b
 
 -- A supporting data structure, as inputting data in this format is often easier.
 data Columns a b = Columns [a] [Probability] | ColumnsIdentity deriving (Show)
-
--- getColumns :: (Ord a) => BayesValuation a b -> Columns a b
--- getColumns Identity = ColumnsIdentity
--- getColumns (Table []) = Columns empty []
--- getColumns (Table rs'@(r : _)) = Columns vs ps
---     where
---         vs = setMap fst (variables r)
---         ps = map probability rs'
 
 getRows :: forall a b. (Enum b, Bounded b, Ord a) => Columns a b -> BayesValuation a b
 getRows ColumnsIdentity = Identity
@@ -165,8 +168,8 @@ queryNetwork :: forall a b. (Serializable a, Serializable b, Ord a, Ord b)
     => [ProbabilityQuery a b]
     -> Network a b
     -> Process [Probability]
-queryNetwork qs network = do
-    results <- inference network queriesForInference
+queryNetwork qs network' = do
+    results <- inference network' queriesForInference
     let f vs = queryToProbability vs results
     pure $ map (\(vs, givenVs) -> conditionalProbability vs givenVs f) qs
 
@@ -175,48 +178,127 @@ queryNetwork qs network = do
         queriesForInference = map (\(vs, givenVs) -> assert (S.disjoint (M.keysSet vs) (M.keysSet givenVs)) $
                                    union (M.keysSet vs) (M.keysSet givenVs)) qs
 
-
-
-
-
---- Probably wnat an interface such that we don't rely on shenoyshafer exporting a type (Domain a, BayesValuation a) as that seems a bit internal....
--- try only use shenoyINfernece.
-
--- ASSUMES THE QUERY IS COVERED BY THE NETWORK
+{- | Takes a query and returns the resulting probability. Assumes the query is covered by the network. -}
 queryToProbability :: (Ord a, Ord b) => Variables a b -> InferredData BayesValuation a b -> Probability
 queryToProbability vs results = findProbability vs (normalize $ answerQuery (M.keysSet vs) results)
 
--- queryToProbability :: ProbabilityQuery a b -> InferredData v a b -> Probability
--- queryToProbability (vs, givenVs) results = findProbability 
---     where
---         numeratorDomain = assert (S.disjoint (M.keysSet vs) (M.keysSet givenVs)) $
---                               union (M.keysSet vs) (M.keysSet givenVs)
---         denominatorDomain = M.keysSet givenVs
--- 
---         numeratorVs
--- 
---         numeratorTable = normalize $ answerQuery numeratorDomain results
---         denominatorTable = normalize $ answerQuery denominatorDomain results
+mapTableKeys :: (Ord b) => (a -> b) -> BayesValuation a c -> BayesValuation b c
+mapTableKeys f (Table xs) = Table $ map (\(Row vs p) -> Row (M.mapKeys f vs) p) xs
+mapTableKeys _ Identity = Identity
+
+parseNetwork' :: String -> String -> Either ParseError (Network String Bool)
+parseNetwork' xs filename = parse network filename xs
+
+parseNetwork :: FilePath -> IO (Either ParseError (Network String Bool))
+parseNetwork filename = do
+    handle <- openFile filename ReadMode
+    contents <- hGetContents' handle
+    pure $ parseNetwork' contents filename
+
+network :: GenParser Char st (Network String Bool)
+network = do
+    emptyHeader
+    _ <- many node
+    potentials <- many potential
+    _ <- many spacesAndNewLine
+    eof
+
+    pure potentials
+
+spaces' :: GenParser Char st ()
+spaces' = skipMany (oneOf " \t")
+
+spacesAndNewLine :: GenParser Char st ()
+spacesAndNewLine = do
+    spaces'
+    _ <- endOfLine
+    pure ()
+
+notNewLineNorNoneOf :: String -> GenParser Char st Char
+notNewLineNorNoneOf xs = do
+    notFollowedBy endOfLine
+    noneOf xs
+
+-- Used to tell the parser whose definition of 'float' we are using when
+-- we say we want to parse a float.
+lexer :: GenTokenParser String u Identity
+lexer = makeTokenParser haskellDef
 
 
+emptyHeader :: GenParser Char st ()
+emptyHeader = do
+        skipMany spacesAndNewLine
+        _ <- string "net"
+        _ <- spacesAndNewLine
+        _ <- char '{'
+        _ <- spacesAndNewLine
+        _ <- char '}'
+        _ <- spacesAndNewLine
+        pure ()
+    <?> "empty header"
 
 
+{- | Parses a node. For example;
 
+\n{\n  states = ( \"yes\" \"no\" );\n}\n
+-}
+node :: GenParser Char st ()
+node = do
+        skipMany spacesAndNewLine
 
-            
+        _ <- spaces' >> string "node " >> many1 (notNewLineNorNoneOf " ") >> spacesAndNewLine
 
+        _ <- char '{' >> spacesAndNewLine
 
+        _ <- spaces' >> string "states" >> spaces' >> char '=' >> spaces' >> char '('
+        _ <- spaces' >> many1 (notNewLineNorNoneOf " ") >> spaces' >> many1 (notNewLineNorNoneOf " ")
+        _ <- spaces' >> char ')' >> spaces' >> char ';' >> spacesAndNewLine
 
+        _ <- char '}' >> spacesAndNewLine
+        pure ()
+    <?> "node"
 
-        
-        
+-- todo may not have conditional vars. i.e. terminators and initials.
+potential :: GenParser Char st (BayesValuation String Bool)
+potential = do
+        skipMany spacesAndNewLine
 
+        _ <- string "potential" >> spaces' >> char '(' >> spaces'
+        conditionedVar <- many1 (notNewLineNorNoneOf " |)")
+        _ <- spaces' >> optionMaybe (char '|') >> spaces'
+        conditionalVars <- many $ do
+            _ <- spaces'
+            conditionalVar <- many1 (notNewLineNorNoneOf " |)")
+            _ <- spaces'
+            pure conditionalVar
+        _ <- char ')' >> spacesAndNewLine
 
+        _ <- char '{' >> spacesAndNewLine
+        _ <- spaces' >> string "data" >> spaces' >> char '=' >> spaces'
+        probabilities <- potentialData
+        _ <- spaces' >> char ';' >> spacesAndNewLine
 
+        _ <- char '}' >> spacesAndNewLine
+        pure (getRows $ Columns (conditionedVar : conditionalVars) probabilities)
+    <?> "potential"
 
+-- We don't worry about verifying the file is in the correct format here,
+-- we simply throw away all brackets and just read the numbers sequentially.
+potentialData :: GenParser Char st [Probability]
+potentialData = do
+        probabilities <- many $ potentialDataEntry
 
+        -- Convert to list that iterates probabilities like a truth table that starts at FFF.
+        pure (reverse $ map fst probabilities ++ map snd probabilities)
+    <?> "data"
 
-
-
-
+potentialDataEntry :: GenParser Char st (Probability, Probability)
+potentialDataEntry = do
+        _ <- many $ oneOf "( "
+        trueP <- float lexer
+        _ <- spaces'
+        falseP <- float lexer
+        _ <- many $ oneOf ") "
+        pure (trueP, falseP)
+    <?> "tuple inside data"
 

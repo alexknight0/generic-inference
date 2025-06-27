@@ -1,18 +1,18 @@
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass  #-}
+{-# LANGUAGE DeriveGeneric   #-}
 {-# LANGUAGE OverloadedLists #-}
 
 module Data
-    ( AsiaVar, AsiaValue, asiaDefaultQueries, asiaDefaultValuations, asiaMultipleConditionedVarsQueries, asiaMultipleConditionedVarsValuations )
+    ( AsiaVar, AsiaValue, asiaDefaultQueries, asiaDefaultValuations, asiaMultipleConditionedVarsQueries, asiaMultipleConditionedVarsValuations, stringToAsiaVar, asiaDefaultAnswers)
 where
 
-import Data.Binary (Binary)
-import GHC.Generics (Generic)
-import qualified Data.Map as M
+import           Data.Binary      (Binary)
+import qualified Data.Map         as M
+import           GHC.Generics     (Generic)
 
-import ValuationAlgebra
-import Bayesian
-import Utils
+import           Bayesian
+import           Utils
+import           ValuationAlgebra
 
 
 data AsiaVar = VisitToAsia | HasTuberculosis | Smoker | HasLungCancer
@@ -20,6 +20,17 @@ data AsiaVar = VisitToAsia | HasTuberculosis | Smoker | HasLungCancer
            deriving (Eq, Ord, Show, Generic, Binary)
 
 type AsiaValue = Bool
+
+stringToAsiaVar :: String -> AsiaVar
+stringToAsiaVar "asia" = VisitToAsia
+stringToAsiaVar "tub" = HasTuberculosis
+stringToAsiaVar "smoke" = Smoker
+stringToAsiaVar "lung" = HasLungCancer
+stringToAsiaVar "bronc" = HasBronchitis
+stringToAsiaVar "either" = TuberculosisOrCancer
+stringToAsiaVar "xray" = XRayResult
+stringToAsiaVar "dysp" = Dyspnea
+stringToAsiaVar _ = error "Unexpected string representing an asia var."
 
 -- These match the ones used in NENOK and in https://online.bayesserver.com/
 -- (Only difference from project proposal is smoker).
@@ -46,6 +57,8 @@ asiaDefaultQueries = [
         , (fromListAssertDisjoint [(XRayResult, True), (Dyspnea, True)], fromListAssertDisjoint [(VisitToAsia, True)])
         , (fromListAssertDisjoint [(XRayResult, True), (Dyspnea, True)], fromListAssertDisjoint [(HasBronchitis, False), (HasLungCancer, True)])
     ]
+asiaDefaultAnswers :: [Probability]
+asiaDefaultAnswers = [0.05, 0.0595, 1, 0.01, 0.1855, 0.099, 0.686]
 
 asiaMultipleConditionedVarsValuations :: [BayesValuation AsiaVar AsiaValue]
 asiaMultipleConditionedVarsValuations =
@@ -64,4 +77,6 @@ asiaMultipleConditionedVarsQueries :: [ProbabilityQuery AsiaVar AsiaValue]
 asiaMultipleConditionedVarsQueries = [
         (fromListAssertDisjoint [(XRayResultAndDyspnea, True)], fromListAssertDisjoint [(VisitToAsia, True)])
     ]
+
+
 

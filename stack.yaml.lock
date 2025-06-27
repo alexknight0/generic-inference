@@ -18,6 +18,20 @@ packages:
       size: 605
   original:
     hackage: network-transport-tcp-0.8.6@sha256:82818f659c4324f1ef7d008803ee362669cbcef66c93bd00367e3370d547a813,3792
+- completed:
+    hackage: dijkstra-simple-0.1.0@sha256:c8ef4401c26369aaea1531eafb59a253cfe9b88f5608c4874e7a9e4d64d0133a,1676
+    pantry-tree:
+      sha256: 3f992ea20c6777802688be2af0b0ddb0dd40742d21cc634483643c31cc9ef31c
+      size: 529
+  original:
+    hackage: dijkstra-simple-0.1.0@sha256:c8ef4401c26369aaea1531eafb59a253cfe9b88f5608c4874e7a9e4d64d0133a,1676
+- completed:
+    hackage: fingertree-0.1.4.2@sha256:b368fda61b14073bd798f45c8fa91e1c5331628193a8b88d93fb5a4341849c64,2063
+    pantry-tree:
+      sha256: 1f7ac1e80c1e11dbc05692d6ccdc4abec3cde8878e67cafeced63cdbe96b4249
+      size: 530
+  original:
+    hackage: fingertree-0.1.4.2@sha256:b368fda61b14073bd798f45c8fa91e1c5331628193a8b88d93fb5a4341849c64,2063
 snapshots:
 - completed:
     sha256: 4a0e5e187fbef423f9c60072bfb1dd56f2a01a07a2667eb1469bd79073cfceaf
