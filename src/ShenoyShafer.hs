@@ -192,9 +192,9 @@ initializeNode node ports resultPort = spawnLocal $ do
     -- Wait for messages from (length ports - 1) ports
     (initialMessages, unusedPortId) <- receivePhaseOne receivePorts
 
-    collectTime <- liftIO $ formatTimeNicely <$> getCurrentTime
-    liftIO $ putStrLn $ collectTime ++ " [COLLECT]    " ++ show (chr $ fromInteger $ nodeId node) ++ " received from "
-                        ++ show (length initialMessages) ++ " node(s). Sending..."
+    -- collectTime <- liftIO $ formatTimeNicely <$> getCurrentTime
+    -- liftIO $ putStrLn $ collectTime ++ " [COLLECT]    " ++ show (chr $ fromInteger $ nodeId node) ++ " received from "
+    --                     ++ show (length initialMessages) ++ " node(s). Sending..."
 
     -- Combine messages into new message, and send to the only port we didn't receive a message from.
     let unusedPort = idToPort unusedPortId
@@ -205,9 +205,9 @@ initializeNode node ports resultPort = spawnLocal $ do
     -- Wait for response from port we just sent a message to
     message <- receiveChan (fth4 unusedPort)
 
-    distributeTime <- liftIO $ formatTimeNicely <$> getCurrentTime
-    liftIO $ putStrLn $ distributeTime ++ " [DISTRIBUTE] " ++ show (chr $ fromInteger $ nodeId node) ++ " received. "
-                        ++ "Sending to " ++ show (length initialMessages) ++ " node(s)..."
+    -- distributeTime <- liftIO $ formatTimeNicely <$> getCurrentTime
+    -- liftIO $ putStrLn $ distributeTime ++ " [DISTRIBUTE] " ++ show (chr $ fromInteger $ nodeId node) ++ " received. "
+    --                     ++ "Sending to " ++ show (length initialMessages) ++ " node(s)..."
 
     -- Combine this message with the old ones
     let allMessages = (unusedPortId, message) : initialMessages

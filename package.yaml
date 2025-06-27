@@ -29,6 +29,10 @@ dependencies:
 - extra
 - time
 - fft
+- hedgehog
+- strict-concurrency
+- deepseq
+- network-transport
 
 ghc-options:
 - -Wall

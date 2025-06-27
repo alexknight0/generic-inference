@@ -8,6 +8,7 @@ module Bayesian
     , Columns (Columns, ColumnsIdentity)
     , BayesValuation (Table)
     , ProbabilityQuery
+    , Probability
     )
 where
 

@@ -1,2 +1,6 @@
+import qualified BayesianTests as B
+
 main :: IO ()
-main = putStrLn "Test suite not yet implemented"
+main = B.tests >> pure ()
+
+

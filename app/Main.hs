@@ -24,6 +24,7 @@ import Bayesian
 import JoinTree
 import ShenoyShafer
 import Utils
+import LocalProcess
 
 
 ---- We will need these someday (probably)
@@ -31,14 +32,6 @@ import Control.Concurrent (threadDelay)
 import Control.Distributed.Process
 import Control.Distributed.Process.Node
 import Network.Transport.TCP
--- import Data.Tree
-
-----------
--- utils
-------------
-
--- Consider creating a typeclass for variables that has them implement 'hashCode' - nenok uses
--- this to implement the binary heap ordering?
 
 -- -- uses not-undirected graph so commented out for now
 showAdjacents :: (Ord a, Show a) => (Directed.Graph a) -> String
@@ -134,7 +127,7 @@ data MainParameters = MainParameters {
 }
 
 main :: IO ()
-main = runProcess' $ mainProcess (MainParameters {
+main = runProcessLocal' $ mainProcess (MainParameters {
     printP1JoinTree = False,
     printP2JoinTree = False,
     performP1ShenoyInference = False,
@@ -203,10 +196,3 @@ p2SeminarInference = initializeNodes p2SeminarTree >> pure ()
 
 p1ShenoyInference :: Process ()
 p1ShenoyInference = initializeNodes (shenoyJoinTree p1Valuations p1Queries) >> pure ()
-
-runProcess' :: Process () -> IO ()
-runProcess' process = do
-
-    Right transport <- createTransport (defaultTCPAddr "127.0.0.1" "8080") defaultTCPParameters
-    node <- newLocalNode transport initRemoteTable
-    runProcess node process
