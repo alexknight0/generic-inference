@@ -35,6 +35,7 @@ dependencies:
 - network-transport
 - dijkstra-simple
 - parsec
+- probability
 
 ghc-options:
 - -Wall

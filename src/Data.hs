@@ -3,7 +3,12 @@
 {-# LANGUAGE OverloadedLists #-}
 
 module Data
-    ( AsiaVar, AsiaValue, asiaDefaultQueries, asiaDefaultValuations, asiaMultipleConditionedVarsQueries, asiaMultipleConditionedVarsValuations, stringToAsiaVar, asiaDefaultAnswers)
+    ( AsiaValue, asiaDefaultQueries, asiaDefaultValuations, asiaMultipleConditionedVarsQueries,
+      asiaMultipleConditionedVarsValuations, stringToAsiaVar, asiaDefaultAnswers,
+      AsiaVar (VisitToAsia, HasTuberculosis, Smoker, HasLungCancer,
+               HasBronchitis, TuberculosisOrCancer, XRayResult, Dyspnea,
+               XRayResultAndDyspnea)
+    )
 where
 
 import           Data.Binary      (Binary)
@@ -22,15 +27,15 @@ data AsiaVar = VisitToAsia | HasTuberculosis | Smoker | HasLungCancer
 type AsiaValue = Bool
 
 stringToAsiaVar :: String -> AsiaVar
-stringToAsiaVar "asia" = VisitToAsia
-stringToAsiaVar "tub" = HasTuberculosis
-stringToAsiaVar "smoke" = Smoker
-stringToAsiaVar "lung" = HasLungCancer
-stringToAsiaVar "bronc" = HasBronchitis
+stringToAsiaVar "asia"   = VisitToAsia
+stringToAsiaVar "tub"    = HasTuberculosis
+stringToAsiaVar "smoke"  = Smoker
+stringToAsiaVar "lung"   = HasLungCancer
+stringToAsiaVar "bronc"  = HasBronchitis
 stringToAsiaVar "either" = TuberculosisOrCancer
-stringToAsiaVar "xray" = XRayResult
-stringToAsiaVar "dysp" = Dyspnea
-stringToAsiaVar _ = error "Unexpected string representing an asia var."
+stringToAsiaVar "xray"   = XRayResult
+stringToAsiaVar "dysp"   = Dyspnea
+stringToAsiaVar _        = error "Unexpected string representing an asia var."
 
 -- These match the ones used in NENOK and in https://online.bayesserver.com/
 -- (Only difference from project proposal is smoker).
@@ -49,13 +54,45 @@ asiaDefaultValuations =
 
 asiaDefaultQueries :: [ProbabilityQuery AsiaVar AsiaValue]
 asiaDefaultQueries = [
-          (M.singleton HasTuberculosis True, M.singleton VisitToAsia True)
-        , (M.singleton TuberculosisOrCancer True, fromListAssertDisjoint [(VisitToAsia, True), (Smoker, False), (HasBronchitis, True)])
-        , (M.singleton TuberculosisOrCancer True, fromListAssertDisjoint [(VisitToAsia, True), (HasTuberculosis, True), (Smoker, False), (HasBronchitis, True)])
-        , (M.singleton TuberculosisOrCancer True, fromListAssertDisjoint [(VisitToAsia, True), (HasTuberculosis, False), (Smoker, False), (HasBronchitis, True)])
-        , (M.singleton Dyspnea False, fromListAssertDisjoint [(HasTuberculosis, True), (HasLungCancer, True)])
-        , (fromListAssertDisjoint [(XRayResult, True), (Dyspnea, True)], fromListAssertDisjoint [(VisitToAsia, True)])
-        , (fromListAssertDisjoint [(XRayResult, True), (Dyspnea, True)], fromListAssertDisjoint [(HasBronchitis, False), (HasLungCancer, True)])
+          (M.singleton HasTuberculosis True,
+            M.singleton VisitToAsia True)
+
+        , (M.singleton TuberculosisOrCancer True,
+            fromListAssertDisjoint [
+                (VisitToAsia, True),
+                (Smoker, False),
+                (HasBronchitis, True)
+                ])
+
+        , (M.singleton TuberculosisOrCancer True,
+            fromListAssertDisjoint [
+                (VisitToAsia, True),
+                (HasTuberculosis, True),
+                (Smoker, False),
+                (HasBronchitis, True)
+                ])
+
+        , (M.singleton TuberculosisOrCancer True,
+            fromListAssertDisjoint [
+                (VisitToAsia, True),
+                (HasTuberculosis, False),
+                (Smoker, False),
+                (HasBronchitis, True)
+                ])
+        , (M.singleton Dyspnea False,
+            fromListAssertDisjoint [
+                (HasTuberculosis, True),
+                (HasLungCancer, True)
+                ])
+        , (fromListAssertDisjoint [(XRayResult, True), (Dyspnea, True)],
+            fromListAssertDisjoint [
+                (VisitToAsia, True)
+                ])
+        , (fromListAssertDisjoint [(XRayResult, True), (Dyspnea, True)],
+            fromListAssertDisjoint [
+                (HasBronchitis, False),
+                (HasLungCancer, True)
+                ])
     ]
 asiaDefaultAnswers :: [Probability]
 asiaDefaultAnswers = [0.05, 0.0595, 1, 0.01, 0.1855, 0.099, 0.686]
