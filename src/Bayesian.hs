@@ -4,8 +4,9 @@
 
 module Bayesian
     ( getRows, showAsRows, normalize, queryNetwork, mapTableKeys, toProbabilityQuery
-    , Columns (Columns, ColumnsIdentity)
-    , BayesValuation (Table)
+    , Columns (Columns)
+    , BayesValuation (Table, Identity)
+    , Row (Row)
     , ProbabilityQuery
     , Probability
     , Network
@@ -109,11 +110,10 @@ type Variable a b = (a, b)
 type Variables a b = M.Map a b
 
 -- A supporting data structure, as inputting data in this format is often easier.
-data Columns a b = Columns [a] [Probability] | ColumnsIdentity deriving (Show)
+data Columns a b = Columns [a] [Probability] deriving (Show)
 
 getRows :: forall a b. (Enum b, Bounded b, Ord a) => Columns a b -> BayesValuation a b
-getRows ColumnsIdentity = Identity
-getRows (Columns vars ps) = Table $ zipWith Row (vPermutations vars) ps
+getRows (Columns vars ps) = Table $ zipWithAssert Row (vPermutations vars) ps
     where
         varValues :: [b]
         varValues = [minBound .. maxBound]

@@ -189,7 +189,7 @@ p2SeminarTree = overlays [ connect a x, connect b x, connect x z, connect z q, c
         c = vertex $ create (fromIntegral $ ord 'C') [DeviceID, DeviceType] (identity)
         q = vertex $ create (fromIntegral $ ord 'Q') [Name, DeviceType] (identity)
         x = vertex $ create (fromIntegral $ ord 'X') [Name, ID, DeviceID] (identity)
-        z = vertex $ create (fromIntegral $ ord 'Z') [Name, DeviceID, DeviceType] (getRows ColumnsIdentity)
+        z = vertex $ create (fromIntegral $ ord 'Z') [Name, DeviceID, DeviceType] (identity)
 
 p2SeminarInference :: Process ()
 p2SeminarInference = initializeNodes p2SeminarTree >> pure ()

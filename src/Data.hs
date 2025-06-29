@@ -49,22 +49,23 @@ stringToAsiaVar "xray"   = XRayResult
 stringToAsiaVar "dysp"   = Dyspnea
 stringToAsiaVar _        = error "Unexpected string representing an asia var."
 
+
 -- These match the ones used in NENOK and in https://online.bayesserver.com/
 -- (Only difference from project proposal is smoker).
 -- Note the probably values from https://online.bayesserver.com/ round to 1dp after %.
-asiaValuations :: [BayesValuation AsiaVar Bool]
-asiaValuations =
-    [ getRows $ Columns [VisitToAsia] [0.99, 0.01],
-        getRows $ Columns [HasTuberculosis, VisitToAsia] [0.99, 0.95, 0.01, 0.05],
-        getRows $ Columns [Smoker] [0.5, 0.5],
-        getRows $ Columns [HasLungCancer, Smoker] [0.99, 0.9, 0.01, 0.1],
-        getRows $ Columns [HasBronchitis, Smoker] [0.7, 0.4, 0.3, 0.6],
-        getRows $ Columns [TuberculosisOrCancer, HasTuberculosis, HasLungCancer] [1, 0, 0, 0, 0, 1, 1, 1],
-        getRows $ Columns [XRayResult, TuberculosisOrCancer] [0.95, 0.02, 0.05, 0.98],
-        getRows $ Columns [Dyspnea, TuberculosisOrCancer, HasBronchitis] [0.9, 0.2, 0.3, 0.1, 0.1, 0.8, 0.7, 0.9]
+asiaValuations :: [Columns AsiaVar Bool]
+asiaValuations = [
+        Columns [VisitToAsia] [0.99, 0.01],
+        Columns [HasTuberculosis, VisitToAsia] [0.99, 0.95, 0.01, 0.05],
+        Columns [Smoker] [0.5, 0.5],
+        Columns [HasLungCancer, Smoker] [0.99, 0.9, 0.01, 0.1],
+        Columns [HasBronchitis, Smoker] [0.7, 0.4, 0.3, 0.6],
+        Columns [TuberculosisOrCancer, HasTuberculosis, HasLungCancer] [1, 0, 0, 0, 0, 1, 1, 1],
+        Columns [XRayResult, TuberculosisOrCancer] [0.95, 0.02, 0.05, 0.98],
+        Columns [Dyspnea, TuberculosisOrCancer, HasBronchitis] [0.9, 0.2, 0.3, 0.1, 0.1, 0.8, 0.7, 0.9]
     ]
 
-asiaValuationsP1 :: [BayesValuation AsiaVar Bool]
+asiaValuationsP1 :: [Columns AsiaVar Bool]
 asiaValuationsP1 = asiaValuations
 
 asiaQueriesP1 :: [ProbabilityQuery AsiaVar Bool]
@@ -94,7 +95,7 @@ asiaQueriesP1 = map toProbabilityQuery [
 asiaAnswersP1 :: [Probability]
 asiaAnswersP1 = [0.05, 0.0595, 1, 0.01, 0.1855]
 
-asiaValuationsP2 :: [BayesValuation AsiaVar Bool]
+asiaValuationsP2 :: [Columns AsiaVar Bool]
 asiaValuationsP2 = asiaValuations
 
 asiaQueriesP2 :: [ProbabilityQuery AsiaVar Bool]
@@ -112,8 +113,8 @@ asiaQueriesP2 = map toProbabilityQuery [
 asiaAnswersP2 :: [Probability]
 asiaAnswersP2 = [0.099, 0.686]
 
-asiaValuationsP3 :: [BayesValuation AsiaVar Bool]
-asiaValuationsP3 = asiaValuations ++ [getRows $ Columns [XRayResultAndDyspnea, XRayResult, Dyspnea] [1, 1, 1, 0, 0, 0, 0, 1]]
+asiaValuationsP3 :: [Columns AsiaVar Bool]
+asiaValuationsP3 = asiaValuations ++ [Columns [XRayResultAndDyspnea, XRayResult, Dyspnea] [1, 1, 1, 0, 0, 0, 0, 1]]
 
 asiaQueriesP3 :: [ProbabilityQuery AsiaVar Bool]
 asiaQueriesP3 = map toProbabilityQuery [

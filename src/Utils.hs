@@ -1,16 +1,22 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Utils
-    ( setMap, nubWithBy, thd4, snd4, fth4, findAssertSingleMatch, unsafeFind, unionUnsafe, fromListAssertDisjoint, unionAssertDisjoint )
+    ( setMap, nubWithBy, thd4, snd4, fth4, findAssertSingleMatch, unsafeFind, unionUnsafe, fromListAssertDisjoint, unionAssertDisjoint, unzipWith, zipWithAssert, zipAssert, divAssert )
 where
 
-import Data.List (find)
-import Data.Set (Set, map, intersection)
-import Data.Map (insert, adjust, Map, elems, member)
-import qualified Data.Map as M
+import           Data.List (find)
+import           Data.Map  (Map, adjust, elems, insert, member)
+import qualified Data.Map  as M
+import           Data.Set  (Set)
+import qualified Data.Set  as S
+
+divAssert :: (Integral a) => a -> a -> a
+divAssert x y
+    | x `mod` y /= 0 = error "Was remainder after division"
+    | otherwise = x `div` y
 
 setMap :: (Ord b) => (a -> b) -> Set a -> Set b
-setMap f xs = Data.Set.map f xs
+setMap f xs = S.map f xs
 
 nubWithBy :: forall a b . (Ord b) => (a -> b) -> (a -> a -> a) -> [a] -> [a]
 nubWithBy toKey f xs = elems $ foldr g M.empty xs
@@ -54,3 +60,16 @@ unionAssertDisjoint = M.unionWith (\_ _ -> error "Map key sets are not disjoint"
 
 fromListAssertDisjoint :: (Ord a) => [(a, b)] -> Map a b
 fromListAssertDisjoint = M.fromListWith (\_ _ -> error "Attempted to create map from non disjoint assoc list")
+
+unzipWith :: (a -> (b, c)) -> [a] -> ([b], [c])
+unzipWith f xs = (map (fst . f) xs, map (snd . f) xs)
+
+zipWithAssert :: (a -> b -> c) -> [a] -> [b] -> [c]
+zipWithAssert f xs ys
+    | length xs /= length ys = error "Length of lists didn't match"
+    | otherwise = zipWith f xs ys
+
+zipAssert :: [a] -> [b] -> [(a,b)]
+zipAssert xs ys
+    | length xs /= length ys = error "Length of lists didn't match"
+    | otherwise = zip xs ys

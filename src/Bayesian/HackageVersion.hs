@@ -1,24 +1,27 @@
 module Bayesian.HackageVersion
-    ( runQuery, createNetwork )
+    ( runQuery, createNetwork, runQueries )
 where
 
 import qualified Bayesian                             as B
 import           Data                                 (AsiaVar (..))
+import qualified Data.Map                             as M
 import           Numeric.Probability.Distribution     ((?=<<), (??))
 import           Numeric.Probability.Example.Bayesian (PState, SPred, STrans,
                                                        State, event, happens,
                                                        network, source)
 import qualified Numeric.Probability.Example.Bayesian as P (Probability)
-import qualified Data.Map as M
 
-import           Utils                                (findAssertSingleMatch)
+import           Utils                                (findAssertSingleMatch, zipAssert, divAssert)
 
 type Network a = PState a
 type Potential a = STrans a
 
-createNetwork :: [Potential a] -> Network a
-createNetwork = network
+createNetwork :: (Eq a) => [B.Columns a Bool] -> Network a
+createNetwork xs = network $ map createPotential xs
 
+createPotential :: (Eq a) => B.Columns a Bool -> Potential a
+createPotential (B.Columns [] _) = error "Can't create potential with no variables"
+createPotential (B.Columns (v:vs) ps) = potential v vs (drop (length ps `divAssert` 2) $ map toRational ps)
 
 doesNotHappen :: Eq a => SPred a
 doesNotHappen x y = not (x `elem` y)
@@ -27,6 +30,9 @@ happens' :: Eq a => Bool -> SPred a
 happens' x
     | x = happens
     | otherwise = doesNotHappen
+
+runQueries :: (Eq a) => Network a -> [B.ProbabilityQuery a Bool] -> [B.Probability]
+runQueries n qs = map (runQuery n) qs
 
 runQuery :: (Eq a) => Network a -> B.ProbabilityQuery a Bool -> B.Probability
 runQuery n (conditioned, conditional)
@@ -85,10 +91,7 @@ potential conditionedV conditionalVs ps s = event p conditionedV s
         (p, _) = findAssertSingleMatch snd events
 
         events :: [(P.Probability, Bool)]
-        events = zip ps (map (hasVariableSetOccured s) $ vPermutations conditionalVs)
-
-
-
+        events = zipAssert ps (map (hasVariableSetOccured s) $ vPermutations conditionalVs)
 
 hasVariableSetOccured :: Eq a => State a -> [(a, Bool)] -> Bool
 hasVariableSetOccured s xs = all f xs
@@ -96,8 +99,6 @@ hasVariableSetOccured s xs = all f xs
         f (var, varIsTrue)
             | varIsTrue = elem var s
             | otherwise = not (elem var s)
-
-
 
 vPermutations :: [a] -> [[(a, Bool)]]
 vPermutations [] = [[]]
