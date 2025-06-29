@@ -1,17 +1,40 @@
-module PrebuiltBayesian
-    ( asiaQuery )
+module Bayesian.HackageVersion
+    ( runQuery, createNetwork )
 where
 
-import           Data                                 (AsiaVar (Dyspnea, HasBronchitis, HasLungCancer, HasTuberculosis, Smoker, TuberculosisOrCancer, VisitToAsia, VisitToAsia, XRayResult, XRayResultAndDyspnea))
+import qualified Bayesian                             as B
+import           Data                                 (AsiaVar (..))
 import           Numeric.Probability.Distribution     ((?=<<), (??))
-import           Numeric.Probability.Example.Bayesian (PState, Probability,
-                                                       STrans, State, bin,
-                                                       event, happens, network,
-                                                       source, SPred)
+import           Numeric.Probability.Example.Bayesian (PState, SPred, STrans,
+                                                       State, event, happens,
+                                                       network, source)
+import qualified Numeric.Probability.Example.Bayesian as P (Probability)
+import qualified Data.Map as M
+
 import           Utils                                (findAssertSingleMatch)
+
+type Network a = PState a
+type Potential a = STrans a
+
+createNetwork :: [Potential a] -> Network a
+createNetwork = network
+
 
 doesNotHappen :: Eq a => SPred a
 doesNotHappen x y = not (x `elem` y)
+
+happens' :: Eq a => Bool -> SPred a
+happens' x
+    | x = happens
+    | otherwise = doesNotHappen
+
+runQuery :: (Eq a) => Network a -> B.ProbabilityQuery a Bool -> B.Probability
+runQuery n (conditioned, conditional)
+    | length conditioned /= 1 = error "Expected exactly one conditioned var for a query on the hackage version of a bNet."
+    | otherwise = fromRational $ runQuery' n (head $ M.assocs conditioned, M.assocs conditional)
+
+runQuery' :: (Eq a) => Network a -> ((a, Bool), [(a, Bool)]) -> P.Probability
+runQuery' n ((x, xVal), ys) = happens' xVal x ?? foldr (\(y, yVal) acc -> happens' yVal y ?=<< acc) n ys
 
 asiaQuery :: [Double]
 asiaQuery = map fromRational [
@@ -56,12 +79,12 @@ and P is probability. A is before B inside the conditional variables
 list, and probability values inside the the table are the index of their
 position inside the probabilities list.
 -}
-potential :: Eq a => a -> [a] -> [Probability] -> STrans a
+potential :: (Eq a) => a -> [a] -> [P.Probability] -> Potential a
 potential conditionedV conditionalVs ps s = event p conditionedV s
     where
         (p, _) = findAssertSingleMatch snd events
 
-        events :: [(Probability, Bool)]
+        events :: [(P.Probability, Bool)]
         events = zip ps (map (hasVariableSetOccured s) $ vPermutations conditionalVs)
 
 

@@ -26,12 +26,13 @@ source-repository head
 library
   exposed-modules:
       Bayesian
+      Bayesian.HackageVersion
+      Bayesian.Parser
       Collect
       Data
       JoinTree
       Lib
       LocalProcess
-      PrebuiltBayesian
       SemiringValuationAlgebra
       ShenoyShafer
       Utils
