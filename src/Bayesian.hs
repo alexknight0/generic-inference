@@ -1,10 +1,10 @@
-{-# LANGUAGE DeriveAnyClass      #-}
-{-# LANGUAGE DeriveGeneric       #-}
-{-# LANGUAGE DerivingStrategies       #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DeriveAnyClass             #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE UndecidableInstances       #-}
 
 module Bayesian
     ( getRows, showAsRows, normalize, queryNetwork, mapTableKeys, toProbabilityQuery
@@ -17,19 +17,19 @@ module Bayesian
     )
 where
 
-import qualified SemiringValuationAlgebra as S
+import qualified SemiringValuationAlgebra                 as S
 import           ShenoyShafer
 import           Utils
 import           ValuationAlgebra
 
+import           Control.DeepSeq                          (NFData)
 import           Control.Exception                        (assert)
 import           Data.Binary                              (Binary)
 import qualified Data.Map                                 as M
-import           Data.Set                                 (empty,
-                                                           intersection, union)
+import           Data.Set                                 (empty, intersection,
+                                                           union)
 import qualified Data.Set                                 as S
 import           GHC.Generics
-import Control.DeepSeq (NFData)
 
 
 import           Control.Distributed.Process
@@ -145,7 +145,7 @@ normalize (Table xs) = Table $ fmap (\(Row vs p) -> Row vs (p / sumOfAllPs)) xs
 newtype Probability = P Double deriving newtype (Num, Fractional, Binary, Show, NFData, Ord, Eq)
 
 deriving instance Generic (Probability)
-    
+
 
 type Network a b = [BayesValuation a b]
 -- | (conditionedVariables, conditionalVariables)
