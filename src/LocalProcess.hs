@@ -1,29 +1,31 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 module LocalProcess (runProcessLocal) where
 
-import qualified Data.Map as M
+import qualified Data.Map                         as M
 
 -- LocalComputation library files
-import ValuationAlgebra
-import Collect
-import Bayesian
-import JoinTree
-import ShenoyShafer
-import Utils
+import           Bayesian
+import           Collect
+import           JoinTree
+import           ShenoyShafer
+import           Utils
+import           ValuationAlgebra
 
 
 ---- We will need these someday (probably)
-import Control.Concurrent (threadDelay)
-import Control.Distributed.Process
-import Control.Distributed.Process.Node
-import Network.Transport.TCP
-import Network.Transport (Transport, closeTransport)
-import Control.Concurrent.MVar.Strict (newEmptyMVar, tryPutMVar, tryTakeMVar)
-import Control.DeepSeq (NFData)
+import           Control.Concurrent               (threadDelay)
+import           Control.Concurrent.MVar.Strict   (newEmptyMVar, tryPutMVar,
+                                                   tryTakeMVar)
+import           Control.DeepSeq                  (NFData)
+import           Control.Distributed.Process
+import           Control.Distributed.Process.Node
+import           Network.Transport                (Transport, closeTransport)
+import           Network.Transport.TCP
 
-import Control.Exception (assert, throw)
-import qualified Control.Exception as E
-import GHC.IO.Exception (IOErrorType (ResourceBusy), ioe_type)
+import           Control.Exception                (assert, throw)
+import qualified Control.Exception                as E
+import           GHC.IO.Exception                 (IOErrorType (ResourceBusy),
+                                                   ioe_type)
 
 maxTcpPortNum :: Integer
 maxTcpPortNum = 65535
@@ -44,7 +46,7 @@ runProcessLocal process = do
     y <- tryTakeMVar resultPointer
     case y of
          Nothing -> error "issue"
-         Just x -> pure x
+         Just x  -> pure x
 
 
 

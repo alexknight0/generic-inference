@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{-# LANGUAGE MonoLocalBinds      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE MonoLocalBinds #-}
 
 module ShenoyShafer
     (
@@ -15,30 +15,33 @@ module ShenoyShafer
 where
 
 -- Cloud Haskell
-import Control.Concurrent (threadDelay)
-import Control.Distributed.Process
-import Control.Distributed.Process.Node
-import Control.Distributed.Process.Serializable
-import Network.Transport.TCP
+import           Control.Concurrent                       (threadDelay)
+import           Control.Distributed.Process
+import           Control.Distributed.Process.Node
+import           Control.Distributed.Process.Serializable
+import           Network.Transport.TCP
 
 import qualified Algebra.Graph
-import Algebra.Graph.Undirected
+import           Algebra.Graph.Undirected
+import           Control.Monad                            (replicateM)
+import           Control.Monad.Extra                      (concatMapM)
+import           Data.Binary                              (Binary)
+import           Data.Char                                (chr)
 import qualified Data.List
-import Control.Monad (replicateM)
-import Control.Monad.Extra (concatMapM)
-import Data.Tuple.Extra (snd3)
-import Type.Reflection (Typeable)
-import Data.Binary (Binary)
-import Data.Char (chr)
-import Data.Time (getCurrentTime, utctDayTime, UTCTime)
-import Text.Printf (printf)
-import Data.Set (intersection, isSubsetOf)
-import qualified Data.Map as M
+import qualified Data.Map                                 as M
+import           Data.Set                                 (intersection,
+                                                           isSubsetOf)
+import           Data.Time                                (UTCTime,
+                                                           getCurrentTime,
+                                                           utctDayTime)
+import           Data.Tuple.Extra                         (snd3)
+import           Text.Printf                              (printf)
+import           Type.Reflection                          (Typeable)
 
 
-import ValuationAlgebra
-import JoinTree
-import Utils
+import           JoinTree
+import           Utils
+import           ValuationAlgebra
 
 
 
@@ -134,9 +137,9 @@ initializeNodes graph = do
     _ <- replicateM (length vs) $ do
         (ProcessMonitorNotification _ _ reasonForTermination) <- expect
         case reasonForTermination of
-             DiedNormal -> pure ()
+             DiedNormal      -> pure ()
              DiedException e -> error $ "Error - DiedException (" ++ e ++ ")"
-             x -> error $ "Error - " ++ show x
+             x               -> error $ "Error - " ++ show x
 
     -- Receive all messages
     mapM (\p -> fmap assertHasMessage $ receiveChanTimeout 0 p) resultPorts
@@ -260,7 +263,7 @@ receiveOnce ((pIndex, p):ps) = do
     x <- receiveChanTimeout 0 p
     case x of
          (Just message) -> return ((pIndex, message), ps)
-         Nothing -> receiveOnce (ps ++ [(pIndex, p)])
+         Nothing        -> receiveOnce (ps ++ [(pIndex, p)])
 
 
 

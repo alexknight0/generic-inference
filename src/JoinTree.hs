@@ -9,13 +9,13 @@ module JoinTree
     )
 where
 
-import Algebra.Graph
-import Data.List (union)
-import Debug.Trace
-import Data.Set (toList, fromList)
-import qualified Data.Set (union, empty)
+import           Algebra.Graph
+import           Data.List        (union)
+import           Data.Set         (fromList, toList)
+import qualified Data.Set         (empty, union)
+import           Debug.Trace
 
-import ValuationAlgebra
+import           ValuationAlgebra
 
 -- Note: while the 'Eq', 'Ord', and 'Show' instances can easily be generically written using
 -- the exposed parts of the 'Node' typeclass, a typeclass cannot implement another typeclass.

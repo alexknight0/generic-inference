@@ -4,16 +4,16 @@ module Bayesian.Parser
     )
 where
 
-import Bayesian
-import SemiringValuationAlgebra
+import           Bayesian
+import           SemiringValuationAlgebra
 
-import           Data.Functor.Identity                    (Identity)
-import           System.IO                                (openFile, hGetContents', IOMode (ReadMode))
-import           Text.Parsec.Char                         (endOfLine)
-import           Text.Parsec.Language                     (haskellDef)
-import           Text.Parsec.Token                        (GenTokenParser,
-                                                           float,
-                                                           makeTokenParser)
+import           Data.Functor.Identity         (Identity)
+import           System.IO                     (IOMode (ReadMode),
+                                                hGetContents', openFile)
+import           Text.Parsec.Char              (endOfLine)
+import           Text.Parsec.Language          (haskellDef)
+import           Text.Parsec.Token             (GenTokenParser, float,
+                                                makeTokenParser)
 import           Text.ParserCombinators.Parsec
 
 

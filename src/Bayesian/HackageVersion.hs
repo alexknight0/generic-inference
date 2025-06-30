@@ -2,7 +2,6 @@ module Bayesian.HackageVersion
     ( runQuery, createNetwork, runQueries )
 where
 
-import SemiringValuationAlgebra
 import qualified Bayesian                             as B
 import           Data                                 (AsiaVar (..))
 import qualified Data.Map                             as M
@@ -11,8 +10,11 @@ import           Numeric.Probability.Example.Bayesian (PState, SPred, STrans,
                                                        State, event, happens,
                                                        network, source)
 import qualified Numeric.Probability.Example.Bayesian as P (Probability)
+import           SemiringValuationAlgebra
 
-import           Utils                                (findAssertSingleMatch, zipAssert, divAssert)
+import           Utils                                (divAssert,
+                                                       findAssertSingleMatch,
+                                                       zipAssert)
 
 type Network a = PState a
 type Potential a = STrans a

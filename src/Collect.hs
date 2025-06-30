@@ -5,8 +5,8 @@ module Collect
     )
 where
 
-import ValuationAlgebra
-import JoinTree
+import           JoinTree
+import           ValuationAlgebra
 
 data CollectNode v a b = CollectNode Integer (Domain a) (v a b)
 

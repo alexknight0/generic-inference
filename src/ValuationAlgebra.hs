@@ -1,8 +1,8 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DeriveDataTypeable     #-}
+{-# LANGUAGE FlexibleContexts       #-}
+{-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
 
 module ValuationAlgebra
@@ -12,7 +12,7 @@ module ValuationAlgebra
     )
 where
 
-import Data.Set (Set)
+import           Data.Set (Set)
 
 type Domain a = Set a
 
