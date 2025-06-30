@@ -5,6 +5,7 @@ module Bayesian.Parser
 where
 
 import Bayesian
+import SemiringValuationAlgebra
 
 import           Data.Functor.Identity                    (Identity)
 import           System.IO                                (openFile, hGetContents', IOMode (ReadMode))

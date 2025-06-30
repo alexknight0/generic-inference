@@ -7,17 +7,15 @@
 {-# LANGUAGE UndecidableInstances       #-}
 
 module Bayesian
-    ( getRows, showAsRows, normalize, queryNetwork, mapTableKeys, toProbabilityQuery
-    , Columns (Columns)
-    , BayesValuation (Table, Identity)
-    , Row (Row)
+    ( normalize, queryNetwork, toProbabilityQuery
     , ProbabilityQuery
     , Probability (P)
     , Network
+    , BayesValuation
     )
 where
 
-import qualified SemiringValuationAlgebra                 as S
+import           SemiringValuationAlgebra
 import           ShenoyShafer
 import           Utils
 import           ValuationAlgebra
@@ -63,77 +61,11 @@ i.e. if 'A' can range from 0 to 1, then B must also range from 0 to 1.
 BValColumns stores no redundant information, while BValRows stores a heap of redundant information,
 but allows accessing this information in a more haskell-like manner.
 -}
-data BayesValuation a b = Table [Row a b] | Identity deriving (Generic, Binary)
+type BayesValuation a b = SemiringValuation Probability a b
 
--- instance S.SemiringValue Probability where
---     multiply = (*)
---     add = (+)
-
--- Don't be suprised if you need to put (Enum, bounded) on 'b'.
-instance Valuation BayesValuation where
-    label Identity        = empty
-    label (Table [])      = empty
-    label (Table (x : _)) = M.keysSet (variables x)
-
-    -- Identity / neutral element must be addressed here, or a plan made to address it in the main typeclass.
-    combine Identity x = x
-    combine x Identity = x
-    combine (Table []) _ = Table []
-    combine _ (Table []) = Table []
-    combine (Table (x:xs)) (Table (y:ys)) = Table $
-            [Row (unionUnsafe (variables a) (variables b)) (probability a * probability b)
-                | a <- (x:xs), b <- (y:ys), sharedVariablesAreSameValue numSharedVars a b]
-
-        where
-            numSharedVars = fromIntegral . length $ intersection (M.keysSet (variables x)) (M.keysSet (variables y))
-
-    -- todo can upgrade to hashmap.
-    project Identity _ = Identity
-    project (Table xs) domain = Table $ nubWithBy (\(Row vs _) -> vs) addRows $ map (\(Row vs p) -> Row (projectedDomain vs) p) xs
-        where
-            projectedDomain = M.filterWithKey (\k _ -> k `elem` domain)
-            addRows (Row vs1 p1) (Row vs2 p2) = assert (vs1 == vs2) $ Row vs1 (p1 + p2)
-
-    identity = Identity
-
-instance (Show a, Show b) => Show (BayesValuation a b) where
-    show = showAsRows
-
-showAsRows :: (Show a, Show b) => BayesValuation a b -> String
-showAsRows (Table xs) = "------ Table ------\n"
-                     ++ concatMap (\(Row vs p) -> show vs ++ "   " ++ show p ++ "\n") xs
-                     ++ "-------------------\n"
-showAsRows Identity = "------ Table ------\n"
-                   ++ "Identity"
-                   ++ "-------------------\n"
-
-
--- An inefficent storage format, but we should get a working implementation first.
-data Row a b = Row
-    {
-        variables   :: Variables a b,
-        probability :: Probability
-    }
-    deriving (Show, Generic, Binary)
-
-type Variable a b = (a, b)
-type Variables a b = M.Map a b
-
--- A supporting data structure, as inputting data in this format is often easier.
-data Columns a b = Columns [a] [Probability] deriving (Show)
-
-getRows :: forall a b. (Enum b, Bounded b, Ord a) => Columns a b -> BayesValuation a b
-getRows (Columns vars ps) = Table $ zipWithAssert Row (vPermutations vars) ps
-    where
-        varValues :: [b]
-        varValues = [minBound .. maxBound]
-
-        vPermutations :: [a] -> [Variables a b]
-        vPermutations xs = map fromListAssertDisjoint $ vPermutations' xs
-            where
-                vPermutations' :: [a] -> [[Variable a b]]
-                vPermutations' [] = [[]]
-                vPermutations' (v : vs) = [(v, vVal) : rest | vVal <- varValues, rest <- vPermutations' vs]
+instance SemiringValue Probability where
+    multiply = (*)
+    add = (+)
 
 
 normalize :: BayesValuation a b -> BayesValuation a b
@@ -143,7 +75,6 @@ normalize (Table xs) = Table $ fmap (\(Row vs p) -> Row vs (p / sumOfAllPs)) xs
         sumOfAllPs = sum $ map (\(Row _ p) -> p) xs
 
 newtype Probability = P Double deriving newtype (Num, Fractional, Binary, Show, NFData, Ord, Eq)
-
 deriving instance Generic (Probability)
 
 
@@ -151,19 +82,8 @@ type Network a b = [BayesValuation a b]
 -- | (conditionedVariables, conditionalVariables)
 type ProbabilityQuery a b = (Variables a b, Variables a b)
 
--- Returns true iff the two rows should be combined as a part of a combine operation.
--- The rows should be combined if all of their shared variables are the same value.
-sharedVariablesAreSameValue :: (Ord a, Ord b) => Integer -> Row a b -> Row a b -> Bool
-sharedVariablesAreSameValue numSharedVariables x y =
-        fromIntegral (length (intersection (S.fromList $ M.assocs $ variables x) (S.fromList $ M.assocs $ variables y))) == numSharedVariables
-
 conditionalProbability :: (Ord a) => Variables a b -> Variables a b -> (Variables a b -> Probability) -> Probability
 conditionalProbability vs givenVs p = p (unionAssertDisjoint vs givenVs) / p givenVs
-
--- unsafe
-findProbability :: (Eq a, Eq b) => Variables a b -> BayesValuation a b -> Probability
-findProbability x (Table rows) = (\(Row _ p) -> p) $ findAssertSingleMatch (\(Row vs _) -> vs == x) rows
-findProbability _ Identity = error "findProbability: Attempted to read probability from an identity valuation."
 
 queryNetwork :: forall a b. (Serializable a, Serializable b, Ord a, Ord b)
     => [ProbabilityQuery a b]
@@ -180,12 +100,8 @@ queryNetwork qs network' = do
                                    union (M.keysSet vs) (M.keysSet givenVs)) qs
 
 {- | Takes a query and returns the resulting probability. Assumes the query is covered by the network. -}
-queryToProbability :: (Ord a, Ord b) => Variables a b -> InferredData BayesValuation a b -> Probability
-queryToProbability vs results = findProbability vs (normalize $ answerQuery (M.keysSet vs) results)
-
-mapTableKeys :: (Ord b) => (a -> b) -> BayesValuation a c -> BayesValuation b c
-mapTableKeys f (Table xs) = Table $ map (\(Row vs p) -> Row (M.mapKeys f vs) p) xs
-mapTableKeys _ Identity = Identity
+queryToProbability :: (Ord a, Ord b) => Variables a b -> InferredData (SemiringValuation Probability) a b -> Probability
+queryToProbability vs results = findValue vs (normalize $ answerQuery (M.keysSet vs) results)
 
 toProbabilityQuery :: (Ord a) => ([(a, b)], [(a, b)]) -> ProbabilityQuery a b
 toProbabilityQuery (x, y) = (fromListAssertDisjoint x, fromListAssertDisjoint y)

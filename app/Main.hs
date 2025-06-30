@@ -25,6 +25,7 @@ import JoinTree
 import ShenoyShafer
 import Utils
 import LocalProcess
+import SemiringValuationAlgebra
 
 
 ---- We will need these someday (probably)
@@ -164,7 +165,7 @@ mainProcess params = do
     when (test params) $ do
         liftIO $ putStrLn p1Test
 
-p1BasicTree :: Directed.Graph (CollectNode BayesValuation P1Var P1Value)
+p1BasicTree :: Directed.Graph (CollectNode (SemiringValuation Probability) P1Var P1Value)
 p1BasicTree = baseJoinTree p1Valuations p1Queries
 
 p1Test :: String
@@ -178,10 +179,10 @@ p1Test = showAsRows $ normalize $ project (combines xs) [HasTuberculosis]
         --     ]
 
 
-p2BasicTree :: Directed.Graph (CollectNode BayesValuation P2Var P2Value)
+p2BasicTree :: Directed.Graph (CollectNode (SemiringValuation Probability) P2Var P2Value)
 p2BasicTree = baseJoinTree p2Valuations p2Query
 
-p2SeminarTree :: Graph (CollectNode BayesValuation P2Var P2Value)
+p2SeminarTree :: Graph (CollectNode (SemiringValuation Probability) P2Var P2Value)
 p2SeminarTree = overlays [ connect a x, connect b x, connect x z, connect z q, connect z c]
     where
         a = vertex $ create (fromIntegral $ ord 'A') [Name, ID] (identity)

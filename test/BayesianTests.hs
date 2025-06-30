@@ -5,6 +5,7 @@ module BayesianTests
     ( tests )
 where
 
+import SemiringValuationAlgebra
 import           Bayesian
 import           Bayesian.HackageVersion
 import           Bayesian.Parser

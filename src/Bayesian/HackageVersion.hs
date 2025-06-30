@@ -2,6 +2,7 @@ module Bayesian.HackageVersion
     ( runQuery, createNetwork, runQueries )
 where
 
+import SemiringValuationAlgebra
 import qualified Bayesian                             as B
 import           Data                                 (AsiaVar (..))
 import qualified Data.Map                             as M
@@ -16,12 +17,12 @@ import           Utils                                (findAssertSingleMatch, zi
 type Network a = PState a
 type Potential a = STrans a
 
-createNetwork :: (Eq a) => [B.Columns a Bool] -> Network a
+createNetwork :: (Eq a) => [Columns B.Probability a Bool] -> Network a
 createNetwork xs = network $ map createPotential xs
 
-createPotential :: (Eq a) => B.Columns a Bool -> Potential a
-createPotential (B.Columns [] _) = error "Can't create potential with no variables"
-createPotential (B.Columns (v:vs) ps) = potential v vs (drop (length ps `divAssert` 2) $ map (toRational . (\(B.P x) -> x)) ps)
+createPotential :: (Eq a) => Columns B.Probability a Bool -> Potential a
+createPotential (Columns [] _) = error "Can't create potential with no variables"
+createPotential (Columns (v:vs) ps) = potential v vs (drop (length ps `divAssert` 2) $ map (toRational . (\(B.P x) -> x)) ps)
 
 doesNotHappen :: Eq a => SPred a
 doesNotHappen x y = not (x `elem` y)

@@ -11,6 +11,9 @@ module SemiringValuationAlgebra
     , Columns (Columns)
     , SemiringValuation (Table, Identity)
     , Row (Row)
+    , Variables
+    , findValue
+    , mapTableKeys
     )
 where
 
