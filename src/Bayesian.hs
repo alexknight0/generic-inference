@@ -1,6 +1,10 @@
 {-# LANGUAGE DeriveAnyClass      #-}
 {-# LANGUAGE DeriveGeneric       #-}
+{-# LANGUAGE DerivingStrategies       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Bayesian
     ( getRows, showAsRows, normalize, queryNetwork, mapTableKeys, toProbabilityQuery
@@ -8,11 +12,12 @@ module Bayesian
     , BayesValuation (Table, Identity)
     , Row (Row)
     , ProbabilityQuery
-    , Probability
+    , Probability (P)
     , Network
     )
 where
 
+import qualified SemiringValuationAlgebra as S
 import           ShenoyShafer
 import           Utils
 import           ValuationAlgebra
@@ -24,6 +29,7 @@ import           Data.Set                                 (empty,
                                                            intersection, union)
 import qualified Data.Set                                 as S
 import           GHC.Generics
+import Control.DeepSeq (NFData)
 
 
 import           Control.Distributed.Process
@@ -58,6 +64,10 @@ BValColumns stores no redundant information, while BValRows stores a heap of red
 but allows accessing this information in a more haskell-like manner.
 -}
 data BayesValuation a b = Table [Row a b] | Identity deriving (Generic, Binary)
+
+-- instance S.SemiringValue Probability where
+--     multiply = (*)
+--     add = (+)
 
 -- Don't be suprised if you need to put (Enum, bounded) on 'b'.
 instance Valuation BayesValuation where
@@ -132,7 +142,11 @@ normalize (Table xs) = Table $ fmap (\(Row vs p) -> Row vs (p / sumOfAllPs)) xs
     where
         sumOfAllPs = sum $ map (\(Row _ p) -> p) xs
 
-type Probability = Double
+newtype Probability = P Double deriving newtype (Num, Fractional, Binary, Show, NFData, Ord, Eq)
+
+deriving instance Generic (Probability)
+    
+
 type Network a b = [BayesValuation a b]
 -- | (conditionedVariables, conditionalVariables)
 type ProbabilityQuery a b = (Variables a b, Variables a b)

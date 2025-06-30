@@ -21,7 +21,7 @@ createNetwork xs = network $ map createPotential xs
 
 createPotential :: (Eq a) => B.Columns a Bool -> Potential a
 createPotential (B.Columns [] _) = error "Can't create potential with no variables"
-createPotential (B.Columns (v:vs) ps) = potential v vs (drop (length ps `divAssert` 2) $ map toRational ps)
+createPotential (B.Columns (v:vs) ps) = potential v vs (drop (length ps `divAssert` 2) $ map (toRational . (\(B.P x) -> x)) ps)
 
 doesNotHappen :: Eq a => SPred a
 doesNotHappen x y = not (x `elem` y)

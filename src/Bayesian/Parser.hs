@@ -129,5 +129,5 @@ potentialDataEntry = do
         _ <- spaces'
         falseP <- float lexer
         _ <- many $ oneOf ") "
-        pure (trueP, falseP)
+        pure (P trueP, P falseP)
     <?> "tuple inside data"
