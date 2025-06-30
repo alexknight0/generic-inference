@@ -19,12 +19,12 @@ import           Utils                                (divAssert,
 type Network a = PState a
 type Potential a = STrans a
 
-createNetwork :: (Eq a) => [Columns B.Probability a Bool] -> Network a
-createNetwork xs = network $ map createPotential xs
+createNetwork :: (Eq a) => [([a], [B.Probability])] -> Network a
+createNetwork xs = network $ map (uncurry createPotential) xs
 
-createPotential :: (Eq a) => Columns B.Probability a Bool -> Potential a
-createPotential (Columns [] _) = error "Can't create potential with no variables"
-createPotential (Columns (v:vs) ps) = potential v vs (drop (length ps `divAssert` 2) $ map (toRational . (\(B.P x) -> x)) ps)
+createPotential :: (Eq a) => [a] -> [B.Probability] -> Potential a
+createPotential [] _ = error "Can't create potential with no variables"
+createPotential (v:vs) ps = potential v vs (drop (length ps `divAssert` 2) $ map (toRational . (\(B.P x) -> x)) ps)
 
 doesNotHappen :: Eq a => SPred a
 doesNotHappen x y = not (x `elem` y)

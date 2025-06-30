@@ -5,10 +5,8 @@
 module SemiringValuationAlgebra
     ( SemiringValuation
     , SemiringValue (multiply, add)
-    , Columns
     , getRows
     , showAsRows
-    , Columns (Columns)
     , SemiringValuation (Table, Identity)
     , Row (Row)
     , Variables
@@ -117,21 +115,16 @@ data Row a b c = Row
 type Variable a b = (a, b)
 type Variables a b = M.Map a b
 
--- A supporting data structure, as inputting data in this format is often easier.
-data Columns a b c = Columns [b] [a] deriving (Show)
-
-getRows :: forall a b c. (Enum c, Bounded c, Ord b) => Columns a b c -> SemiringValuation a b c
-getRows (Columns vars ps) = Table $ zipWithAssert Row (vPermutations vars) ps
+getRows :: forall a b c. (Ord b) => [(b, [c])] -> [a] -> SemiringValuation a b c
+getRows vars ps = Table $ zipWithAssert Row (vPermutations vars) ps
     where
-        varValues :: [c]
-        varValues = [minBound .. maxBound]
 
-        vPermutations :: [b] -> [Variables b c]
+        vPermutations :: [(b, [c])] -> [Variables b c]
         vPermutations xs = map fromListAssertDisjoint $ vPermutations' xs
             where
-                vPermutations' :: [b] -> [[Variable b c]]
+                vPermutations' :: [(b, [c])] -> [[Variable b c]]
                 vPermutations' [] = [[]]
-                vPermutations' (v : vs) = [(v, vVal) : rest | vVal <- varValues, rest <- vPermutations' vs]
+                vPermutations' ((v, vVals) : vs) = [(v, vVal) : rest | vVal <- vVals, rest <- vPermutations' vs]
 
 
 -- Returns true iff the two rows should be combined as a part of a combine operation.

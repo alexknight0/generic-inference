@@ -54,15 +54,24 @@ parseNetwork'' filename = do
 unitTest :: PropertyT IO a -> Property
 unitTest = withTests 1 . property . void
 
+boolify :: a -> (a, [Bool])
+boolify x = (x, [False, True])
+
+inferenceAnswers :: [ProbabilityQuery AsiaVar Bool] -> [Probability] -> [([AsiaVar], [Probability])] -> Property
+inferenceAnswers qs as vs = unitTest $ checkQueries qs as (pure $ map (uncurry getRows) withVariableDomains)
+    where
+        withVariableDomains :: [([(AsiaVar, [Bool])], [Probability])]
+        withVariableDomains = map (\(xs, ps) -> (map boolify xs, ps)) vs
+
 prop_inferenceAnswersP1 :: Property
-prop_inferenceAnswersP1 = unitTest $ checkQueries asiaQueriesP1 asiaAnswersP1 (pure $ map getRows asiaValuationsP1)
+prop_inferenceAnswersP1 = inferenceAnswers asiaQueriesP1 asiaAnswersP1 asiaValuationsP1
 
 prop_inferenceAnswersP2 :: Property
-prop_inferenceAnswersP2 = unitTest $ checkQueries asiaQueriesP2 asiaAnswersP2 (pure $ map getRows asiaValuationsP2)
+prop_inferenceAnswersP2 = inferenceAnswers asiaQueriesP2 asiaAnswersP2 asiaValuationsP2
 
 -- The valuations for this test differ from the valuations inside the asia.net file.
 prop_inferenceAnswersP3 :: Property
-prop_inferenceAnswersP3 = unitTest $ checkQueries asiaQueriesP3 asiaAnswersP3 (pure $ map getRows asiaValuationsP3)
+prop_inferenceAnswersP3 = inferenceAnswers asiaQueriesP3 asiaAnswersP3 asiaValuationsP3
 
 prop_inferenceAnswersAfterParsingP1 :: Property
 prop_inferenceAnswersAfterParsingP1 = unitTest $ checkQueries asiaQueriesP1 asiaAnswersP1 $ do

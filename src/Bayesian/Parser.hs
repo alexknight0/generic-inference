@@ -110,7 +110,7 @@ potential = do
         _ <- spaces' >> char ';' >> spacesAndNewLine
 
         _ <- char '}' >> spacesAndNewLine
-        pure (getRows $ Columns (conditionedVar : conditionalVars) probabilities)
+        pure (getRows (map (\x -> (x, [False, True])) (conditionedVar : conditionalVars)) probabilities)
     <?> "potential"
 
 -- We don't worry about verifying the file is in the correct format here,
