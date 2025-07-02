@@ -14,11 +14,12 @@ import           Control.Distributed.Process
 import           Control.Distributed.Process.Node
 import           Control.Distributed.Process.Serializable (Serializable)
 import           Data.Functor                             (void)
+import           Data.Maybe                               (isNothing)
+import           Debug.Trace                              (traceShow,
+                                                           traceShowId)
+import           GHC.Float                                (properFractionDouble)
 import           System.IO.Silently                       (capture)
 import           Utils
-import Debug.Trace (traceShowId, traceShow)
-import Data.Maybe (isNothing)
-import GHC.Float (properFractionDouble)
 
 tests :: IO Bool
 tests = checkParallel $$(discover)

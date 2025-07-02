@@ -19,14 +19,14 @@ import           ShenoyShafer
 import           Utils
 import           ValuationAlgebra
 
+import           Control.Exception           (assert)
 import           Data.Complex                (Complex ((:+)))
 import qualified Data.Complex                as C
 import qualified Data.Map                    as M
 import qualified Data.Set                    as S
+import           Debug.Trace
 import           Math.FFT                    (dftN)
 import           Numeric.Natural
-import Debug.Trace
-import Control.Exception (assert)
 
 import           Control.Distributed.Process (Process, liftIO)
 
@@ -35,12 +35,12 @@ import           Control.DeepSeq             (NFData)
 import           Data.Binary                 (Binary)
 import           GHC.Generics                (Generic)
 
-import           Foreign.Marshal      (pokeArray)
-import           Math.FFT             (dft)
-import Data.Array.CArray (createCArray)
-import Data.Array.CArray.Base (CArray)
-import System.IO (hPutStrLn, stderr)
-import Data.Maybe (fromJust)
+import           Data.Array.CArray           (createCArray)
+import           Data.Array.CArray.Base      (CArray)
+import           Data.Maybe                  (fromJust)
+import           Foreign.Marshal             (pokeArray)
+import           Math.FFT                    (dft)
+import           System.IO                   (hPutStrLn, stderr)
 
 newtype FourierComplex = FourierComplex (C.Complex Double) deriving newtype (Num, Fractional, Binary, Show, NFData, Eq, Generic)
 

@@ -1,38 +1,38 @@
+{-# LANGUAGE DeriveAnyClass    #-}
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
-{-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE OverloadedLists   #-}
 
 module Main (main) where
 
-import qualified Algebra.Graph as Directed
-import Algebra.Graph.Undirected
-import Data.List (intersperse)
-import Data.Binary (Binary)
-import GHC.Generics
-import Data.Char (ord)
-import Data.Time (getCurrentTime)
-import Control.Monad (when)
-import qualified Data.Map as M
+import qualified Algebra.Graph                    as Directed
+import           Algebra.Graph.Undirected
+import           Control.Monad                    (when)
+import           Data.Binary                      (Binary)
+import           Data.Char                        (ord)
+import           Data.List                        (intersperse)
+import qualified Data.Map                         as M
+import           Data.Time                        (getCurrentTime)
+import           GHC.Generics
 
 -- LocalComputation library files
-import ValuationAlgebra
-import Collect
-import Bayesian
-import JoinTree
-import ShenoyShafer
-import Utils
-import LocalProcess
-import SemiringValuationAlgebra
+import           Bayesian
+import           Collect
+import           JoinTree
+import           LocalProcess
+import           SemiringValuationAlgebra
+import           ShenoyShafer
+import           Utils
+import           ValuationAlgebra
 
 
 ---- We will need these someday (probably)
-import Control.Concurrent (threadDelay)
-import Control.Distributed.Process
-import Control.Distributed.Process.Node
-import Network.Transport.TCP
+import           Control.Concurrent               (threadDelay)
+import           Control.Distributed.Process
+import           Control.Distributed.Process.Node
+import           Network.Transport.TCP
 
 -- -- uses not-undirected graph so commented out for now
 showAdjacents :: (Ord a, Show a) => (Directed.Graph a) -> String
@@ -43,12 +43,12 @@ showNodes graph = concat $ intersperse "\n" $ fmap show (Directed.vertexList gra
 
 
 data MainParameters = MainParameters {
-    printP1JoinTree :: Bool,
-    printP2JoinTree :: Bool,
-    performP1ShenoyInference :: Bool,
-    queryP1Network :: Bool,
+    printP1JoinTree           :: Bool,
+    printP2JoinTree           :: Bool,
+    performP1ShenoyInference  :: Bool,
+    queryP1Network            :: Bool,
     performP2SeminarInference :: Bool,
-    test :: Bool
+    test                      :: Bool
 }
 
 main :: IO ()
@@ -72,8 +72,8 @@ mainProcess params = do
 
 -- p1BasicTree :: Directed.Graph (CollectNode (SemiringValuation Probability) P1Var P1Value)
 -- p1BasicTree = baseJoinTree p1Valuations p1Queries
--- 
--- 
+--
+--
 -- p2BasicTree :: Directed.Graph (CollectNode (SemiringValuation Probability) P2Var P2Value)
 -- p2BasicTree = baseJoinTree p2Valuations p2Query
 

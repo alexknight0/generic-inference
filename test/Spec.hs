@@ -1,6 +1,6 @@
 import qualified BayesianTests as B
-import qualified FourierTests as F
-import qualified UtilsTests as U
+import qualified FourierTests  as F
+import qualified UtilsTests    as U
 
 
 

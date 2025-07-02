@@ -36,8 +36,8 @@ import           Hedgehog          (Property, PropertyT, diff, property,
                                     withTests)
 
 import           Control.Exception (assert)
+import           Debug.Trace
 import           Numeric.Natural
-import Debug.Trace
 
 divAssert :: (Integral a) => a -> a -> a
 divAssert x y

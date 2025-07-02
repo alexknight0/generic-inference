@@ -22,11 +22,12 @@ import           FastFourierTransform
 import           System.IO.Silently                       (capture)
 import           Utils
 
-import           Data.Complex         (Complex ((:+)), realPart, imagPart)
-import Data.Array.CArray (createCArray)
-import Data.Array.CArray.Base (CArray)
-import           Math.FFT             (dft)
-import qualified Data.Array.IArray as I
+import           Data.Array.CArray                        (createCArray)
+import           Data.Array.CArray.Base                   (CArray)
+import qualified Data.Array.IArray                        as I
+import           Data.Complex                             (Complex ((:+)),
+                                                           imagPart, realPart)
+import           Math.FFT                                 (dft)
 
 tests :: IO Bool
 tests = checkSequential $$(discover)
