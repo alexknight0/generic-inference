@@ -5,12 +5,13 @@ module BayesianTests
     ( tests )
 where
 
-import SemiringValuationAlgebra
 import           Bayesian
 import           Bayesian.HackageVersion
 import           Bayesian.Parser
 import           Data
 import           LocalProcess
+import           SemiringValuationAlgebra
+import           Utils
 
 import           Hedgehog
 import qualified Hedgehog.Gen                             as Gen
@@ -22,20 +23,11 @@ import           Control.Distributed.Process.Node
 import           Control.Distributed.Process.Serializable (Serializable)
 import           Data.Functor                             (void)
 
-{-
-- Our tests need to run with
--}
-
-
-
 tests :: IO Bool
 tests = checkParallel $$(discover)
 
 probabilityApproxEqual :: Probability -> Probability -> Bool
 probabilityApproxEqual x y = abs (x - y) < 0.0002
-
-checkAnswers :: (Show a) => (a -> a -> Bool) -> [a] -> [a] -> PropertyT IO ()
-checkAnswers f results answers = diff results (\rs as -> and (zipWith f rs as)) answers
 
 checkQueries :: (Serializable a, Serializable b, Ord a, Ord b) => [ProbabilityQuery a b] -> [Probability] -> PropertyT IO (Network a b) -> PropertyT IO (Network a b)
 checkQueries qs ps getNetwork = do
@@ -50,9 +42,6 @@ parseNetwork'' filename = do
     case parsed of
         Left e        -> do annotateShow e; failure
         Right network -> pure (network)
-
-unitTest :: PropertyT IO a -> Property
-unitTest = withTests 1 . property . void
 
 boolify :: a -> (a, [Bool])
 boolify x = (x, [False, True])

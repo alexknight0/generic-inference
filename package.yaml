@@ -36,6 +36,9 @@ dependencies:
 - dijkstra-simple
 - parsec
 - probability
+- carray
+- silently
+- array
 
 ghc-options:
 - -Wall

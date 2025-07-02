@@ -77,7 +77,7 @@ answerQueries :: forall v a b. (Valuation v, Ord a, Ord b)
     => [Domain a]
     -> InferredData v a b
     -> [v a b]
-answerQueries qs results = map queryToAnswer qs
+answerQueries queryDomains results = map queryToAnswer queryDomains
     where
         queryToAnswer :: Domain a -> v a b
         queryToAnswer d = project (snd $ unsafeFind (\(d', _) -> d `isSubsetOf` d') results) d
@@ -93,9 +93,9 @@ answerQueriesM :: forall v a b . (Serializable (v a b), Serializable a, Valuatio
     => [v a b]
     -> [Domain a]
     -> Process [v a b]
-answerQueriesM vs qs = do
-    results <- initializeNodes (shenoyJoinTree vs qs)
-    pure $ answerQueries qs results
+answerQueriesM vs queryDomains = do
+    results <- initializeNodes (shenoyJoinTree vs queryDomains)
+    pure $ answerQueries queryDomains results
 
 answerQueryM :: forall v a b . (Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
     => [v a b]
@@ -109,7 +109,7 @@ inference :: forall v a b . (Serializable (v a b), Serializable a, Valuation v, 
     => [v a b]
     -> [Domain a]
     -> Process (InferredData v a b)
-inference vs qs = initializeNodes (shenoyJoinTree vs qs)
+inference vs queryDomains = initializeNodes (shenoyJoinTree vs queryDomains)
 
 -- The base join tree must be transformed to an undirected graph.
 -- While mailboxes should be connected up for each neighbour, this happens in the
@@ -118,7 +118,7 @@ shenoyJoinTree :: forall v a b. (Valuation v, Ord a)
     => [v a b]
     -> [Domain a]
     -> Graph (ShenoyShaferNode v a b)
-shenoyJoinTree vs qs = toUndirected (baseJoinTree vs qs)
+shenoyJoinTree vs queryDomains = toUndirected (baseJoinTree vs queryDomains)
 
 -- Initializes all nodes in the join tree for message passing according to the Shenoy-Shafer algorithm.
 initializeNodes :: forall n v a b. (Node n, Serializable (v a b), Serializable a, Valuation v, Ord (n v a b), Ord a, Ord b)

@@ -3,27 +3,41 @@
 {-# LANGUAGE OverloadedLists #-}
 
 module Data
-    ( asiaValuationsP1,
-      asiaValuationsP2,
-      asiaValuationsP3,
-      asiaQueriesP1,
-      asiaQueriesP2,
-      asiaQueriesP3,
-      asiaAnswersP1,
-      asiaAnswersP2,
-      asiaAnswersP3,
-      AsiaVar (..),
-      stringToAsiaVar,
-      asiaFilepath,
-      andesFilepath
+    ( asiaValuationsP1
+    , asiaValuationsP2
+    , asiaValuationsP3
+    , asiaQueriesP1
+    , asiaQueriesP2
+    , asiaQueriesP3
+    , asiaAnswersP1
+    , asiaAnswersP2
+    , asiaAnswersP3
+    , AsiaVar (..)
+    , stringToAsiaVar
+    , asiaFilepath
+    , andesFilepath
+    , fourierP1Queries
+    , fourierP1Samples
+    , fourierP1Answers
+    , fourierP2Queries
+    , fourierP2Samples
+    , fourierP2Answers
     )
 where
 
-import           Data.Binary              (Binary)
-import           GHC.Generics             (Generic)
+-- Typeclasses
+import           Data.Binary          (Binary)
+import           GHC.Generics         (Generic)
+
+import           Data.Complex         (Complex ((:+)))
+import           Numeric.Natural
 
 import           Bayesian
-import           SemiringValuationAlgebra
+import qualified FastFourierTransform as F
+import           Foreign.Marshal      (pokeArray)
+import           Math.FFT             (dft)
+import Data.Array.CArray (createCArray)
+import Data.Array.CArray.Base (CArray)
 
 dataDirectory :: String
 dataDirectory = "data/"
@@ -127,5 +141,32 @@ asiaQueriesP3 = map toProbabilityQuery [
 
 asiaAnswersP3 :: [Probability]
 asiaAnswersP3 = [0.099]
+
+fourierP1Queries :: [Natural]
+fourierP1Queries = zipWith const [0..] fourierP1Samples
+
+fourierP1Samples :: [F.FourierComplex]
+fourierP1Samples = map F.FourierComplex [1 :+ 0, 2 :+ 0, 3 :+ 0, 4 :+ 0]
+
+fourierP1Answers :: [F.FourierComplex]
+fourierP1Answers = map F.FourierComplex [10 :+ 0, (negate 2) :+ 2, (negate 2) :+ 0, (negate 2) :+ (negate 2)]
+
+fourierP2Queries :: [Natural]
+fourierP2Queries = zipWith const [0..] fourierP2Samples
+
+fourierP2Samples :: [F.FourierComplex]
+fourierP2Samples = map F.FourierComplex [1 :+ 0, 4 :+ 0]
+
+fourierP2Answers :: [F.FourierComplex]
+fourierP2Answers = map F.FourierComplex [5 :+ 0, (negate 3) :+ 0]
+
+-- test'' :: IO ()
+-- test'' = do
+--     xs <- createComplexArray [1 :+ 0, 2 :+ 0, 3 :+ 0, 4 :+ 0]
+--     print $ dft xs
+--     ys <- createComplexArray [4 :+ 0, 4 :+ 0, 4 :+ 0, 4 :+ 0]
+--     print $ dft ys
+--     pure ()
+
 
 

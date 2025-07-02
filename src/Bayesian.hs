@@ -1,6 +1,4 @@
-{-# LANGUAGE DeriveAnyClass             #-}
 {-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE StandaloneDeriving         #-}
@@ -24,10 +22,9 @@ import           Control.DeepSeq                          (NFData)
 import           Control.Exception                        (assert)
 import           Data.Binary                              (Binary)
 import qualified Data.Map                                 as M
-import           Data.Set                                 (empty, intersection,
-                                                           union)
+import           Data.Set                                 (union)
 import qualified Data.Set                                 as S
-import           GHC.Generics
+import           GHC.Generics                             (Generic)
 
 
 import           Control.Distributed.Process
@@ -74,8 +71,8 @@ normalize (Table xs) = Table $ fmap (\(Row vs p) -> Row vs (p / sumOfAllPs)) xs
     where
         sumOfAllPs = sum $ map (\(Row _ p) -> p) xs
 
-newtype Probability = P Double deriving newtype (Num, Fractional, Binary, Show, NFData, Ord, Eq)
-deriving instance Generic (Probability)
+--
+newtype Probability = P Double deriving (Num, Fractional, Binary, Show, NFData, Ord, Eq, Generic)
 
 
 type Network a b = [BayesValuation a b]

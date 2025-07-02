@@ -30,6 +30,7 @@ library
       Bayesian.Parser
       Collect
       Data
+      FastFourierTransform
       JoinTree
       Lib
       LocalProcess
@@ -46,8 +47,10 @@ library
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       algebraic-graphs ==0.7
+    , array
     , base >=4.7 && <5
     , binary
+    , carray
     , containers
     , deepseq
     , dijkstra-simple
@@ -59,6 +62,7 @@ library
     , network-transport-tcp
     , parsec
     , probability
+    , silently
     , strict-concurrency
     , time
   default-language: Haskell2010
@@ -70,8 +74,10 @@ executable localcomputation-exe
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       algebraic-graphs ==0.7
+    , array
     , base >=4.7 && <5
     , binary
+    , carray
     , containers
     , deepseq
     , dijkstra-simple
@@ -84,6 +90,7 @@ executable localcomputation-exe
     , network-transport-tcp
     , parsec
     , probability
+    , silently
     , strict-concurrency
     , time
   default-language: Haskell2010
@@ -93,6 +100,8 @@ test-suite localcomputation-test
   main-is: Spec.hs
   other-modules:
       BayesianTests
+      FourierTests
+      UtilsTests
       Paths_localcomputation
   autogen-modules:
       Paths_localcomputation
@@ -101,8 +110,10 @@ test-suite localcomputation-test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       algebraic-graphs ==0.7
+    , array
     , base >=4.7 && <5
     , binary
+    , carray
     , containers
     , deepseq
     , dijkstra-simple
@@ -115,6 +126,7 @@ test-suite localcomputation-test
     , network-transport-tcp
     , parsec
     , probability
+    , silently
     , strict-concurrency
     , time
   default-language: Haskell2010

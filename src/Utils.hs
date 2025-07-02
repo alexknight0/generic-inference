@@ -1,14 +1,40 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Utils
-    ( setMap, nubWithBy, thd4, snd4, fth4, findAssertSingleMatch, unsafeFind, unionUnsafe, fromListAssertDisjoint, unionAssertDisjoint, unzipWith, zipWithAssert, zipAssert, divAssert )
+    ( setMap
+    , nubWithBy
+    , snd4
+    , thd4
+    , fth4
+    , findAssertSingleMatch
+    , unsafeFind
+    , unionUnsafe
+    , fromListAssertDisjoint
+    , unionAssertDisjoint
+    , unzipWith
+    , zipWithAssert
+    , zipAssert
+    , divAssert
+    , toBinary
+    , unitTest
+    , checkAnswers
+    , toBinaryLeadingZeroes
+    , assert'
+    )
 where
 
-import           Data.List (find)
-import           Data.Map  (Map, adjust, elems, insert, member)
-import qualified Data.Map  as M
-import           Data.Set  (Set)
-import qualified Data.Set  as S
+import           Data.List         (find)
+import           Data.Map          (Map, adjust, elems, insert, member)
+import qualified Data.Map          as M
+import           Data.Set          (Set)
+import qualified Data.Set          as S
+
+import           Data.Functor      (void)
+import           Hedgehog          (Property, PropertyT, diff, property,
+                                    withTests)
+
+import           Control.Exception (assert)
+import           Numeric.Natural
 
 divAssert :: (Integral a) => a -> a -> a
 divAssert x y
@@ -73,3 +99,27 @@ zipAssert :: [a] -> [b] -> [(a,b)]
 zipAssert xs ys
     | length xs /= length ys = error "Length of lists didn't match"
     | otherwise = zip xs ys
+
+-- | Returns result with MSB as the head of the list.
+toBinary :: Natural -> [Bool]
+toBinary x = toBinary' x []
+    where
+        toBinary' :: Natural -> [Natural] -> [Bool]
+        toBinary' 0 digits = map (toEnum . fromIntegral) digits
+        toBinary' n digits
+            | otherwise = toBinary' (n `quot` 2) (n `mod` 2 : digits)
+
+toBinaryLeadingZeroes :: Natural -> Natural -> [Bool]
+toBinaryLeadingZeroes totalDigits x = take numLeadingZeroes (repeat False) ++ binary
+    where
+        binary = toBinary x
+        numLeadingZeroes = assert' (>0) (fromIntegral totalDigits - length binary)
+
+assert' :: (a -> Bool) -> a -> a
+assert' p x = assert (p x) x
+
+unitTest :: PropertyT IO a -> Property
+unitTest = withTests 1 . property . void
+
+checkAnswers :: (Show a) => (a -> a -> Bool) -> [a] -> [a] -> PropertyT IO ()
+checkAnswers f answers results = diff answers (\rs as -> and (zipWithAssert f rs as)) results

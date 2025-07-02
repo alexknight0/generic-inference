@@ -10,6 +10,7 @@ module SemiringValuationAlgebra
     , SemiringValuation (Table, Identity)
     , Row (Row)
     , Variables
+    , Variable
     , findValue
     , mapTableKeys
     )
@@ -71,19 +72,17 @@ instance (SemiringValue a) => Valuation (SemiringValuation a) where
     label (Table [])      = empty
     label (Table (x : _)) = M.keysSet (variables x)
 
-    -- Identity / neutral element must be addressed here, or a plan made to address it in the main typeclass.
     combine Identity x = x
     combine x Identity = x
     combine (Table []) _ = Table []
     combine _ (Table []) = Table []
     combine (Table (x:xs)) (Table (y:ys)) = Table $
-            [Row (unionUnsafe (variables a) (variables b)) (probability a `multiply` probability b)
+            [Row (unionUnsafe (variables a) (variables b)) (value a `multiply` value b)
                 | a <- (x:xs), b <- (y:ys), sharedVariablesAreSameValue numSharedVars a b]
 
         where
             numSharedVars = fromIntegral . length $ intersection (M.keysSet (variables x)) (M.keysSet (variables y))
 
-    -- todo can upgrade to hashmap.
     project Identity _ = Identity
     project (Table xs) domain = Table $ nubWithBy (\(Row vs _) -> vs) addRows $ map (\(Row vs p) -> Row (projectedDomain vs) p) xs
         where
@@ -96,10 +95,10 @@ instance (Show a, Show b, Show c) => Show (SemiringValuation a b c) where
     show = showAsRows
 
 showAsRows :: (Show a, Show b, Show c) => SemiringValuation a b c -> String
-showAsRows (Table xs) = "------ Table ------\n"
+showAsRows (Table xs) = "\n------ Table ------\n"
                      ++ concatMap (\(Row vs p) -> show vs ++ "   " ++ show p ++ "\n") xs
                      ++ "-------------------\n"
-showAsRows Identity = "------ Table ------\n"
+showAsRows Identity = "\n------ Table ------\n"
                    ++ "Identity"
                    ++ "-------------------\n"
 
@@ -108,7 +107,7 @@ showAsRows Identity = "------ Table ------\n"
 data Row a b c = Row
     {
         variables   :: Variables b c,
-        probability :: a
+        value :: a
     }
     deriving (Show, Generic, Binary)
 
@@ -136,7 +135,7 @@ sharedVariablesAreSameValue numSharedVariables x y =
 -- unsafe
 findValue :: (Eq a, Eq b) => Variables a b -> SemiringValuation c a b -> c
 findValue x (Table rows) = (\(Row _ p) -> p) $ findAssertSingleMatch (\(Row vs _) -> vs == x) rows
-findValue _ Identity = error "findProbability: Attempted to read probability from an identity valuation."
+findValue _ Identity = error "findProbability: Attempted to read value from an identity valuation."
 
 mapTableKeys :: (Ord b) => (a -> b) -> SemiringValuation d a c -> SemiringValuation d b c
 mapTableKeys f (Table xs) = Table $ map (\(Row vs p) -> Row (M.mapKeys f vs) p) xs
