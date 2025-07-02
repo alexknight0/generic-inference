@@ -106,8 +106,8 @@ showAsRows Identity = "\n------ Table ------\n"
 -- An inefficent storage format, but we should get a working implementation first.
 data Row a b c = Row
     {
-        variables   :: Variables b c,
-        value :: a
+        variables :: Variables b c,
+        value     :: a
     }
     deriving (Show, Generic, Binary)
 
