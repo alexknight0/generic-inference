@@ -38,15 +38,29 @@ approximateEquals (FourierComplex x) (FourierComplex y) = abs (realPart x - real
 
 prop_queryMatchesKnownAnswers :: Property
 prop_queryMatchesKnownAnswers = unitTest $ do
+
     resultsP1 <- liftIO $ runProcessLocal $ query fourierP1Samples fourierP1Queries
-    checkAnswers approximateEquals fourierP1Answers resultsP1
+    case resultsP1 of
+        Nothing -> failure
+        Just xs -> checkAnswers approximateEquals fourierP1Answers xs
+
     resultsP2 <- liftIO $ runProcessLocal $ query fourierP2Samples fourierP2Queries
-    checkAnswers approximateEquals fourierP2Answers resultsP2
+    case resultsP2 of
+        Nothing -> failure
+        Just xs -> checkAnswers approximateEquals fourierP2Answers xs
 
 prop_matchesHackagePackage :: Property
-prop_matchesHackagePackage = withTests 30 . property $ do
-    samples <- forAll $ Gen.filterT (\xs -> length xs `elem` [2,4,8,16,32,64,128,256,512]) $ Gen.list (Range.linear 0 100) $ Gen.double (Range.exponentialFloat (-100000) 100000)
+prop_matchesHackagePackage = withTests 100 . property $ do
+
+    -- Get random list of samples. Making this too large makes inference take too long.
+    i <- forAll $ Gen.int (Range.linear 1 4)
+    samples <- forAll $ Gen.list (Range.singleton (listOfPowersOfTwo !! i)) $
+                        Gen.double (Range.exponentialFloat (-100000) 100000)
     let samples' = map (\x -> FourierComplex $ x :+ 0) samples
-    results <- liftIO $ runProcessLocal $ query samples' [0 .. (fromIntegral $ length samples' - 1)]
+
     answers <- liftIO $ fmap dft (createComplexArray samples')
-    checkAnswers approximateEquals (map (FourierComplex) $ I.elems answers) results
+    results <- liftIO $ runProcessLocal $ query samples' [0 .. (fromIntegral $ length samples' - 1)]
+
+    case results of
+        Nothing -> failure
+        Just xs -> checkAnswers approximateEquals (map (FourierComplex) $ I.elems answers) xs

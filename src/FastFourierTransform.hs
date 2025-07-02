@@ -10,6 +10,7 @@ module FastFourierTransform
     , FourierComplex (FourierComplex)
     , createComplexArray
     , createComplexArray'
+    , toBinaryVariableSet
     )
 where
 
@@ -25,6 +26,7 @@ import qualified Data.Set                    as S
 import           Math.FFT                    (dftN)
 import           Numeric.Natural
 import Debug.Trace
+import Control.Exception (assert)
 
 import           Control.Distributed.Process (Process, liftIO)
 
@@ -38,6 +40,7 @@ import           Math.FFT             (dft)
 import Data.Array.CArray (createCArray)
 import Data.Array.CArray.Base (CArray)
 import System.IO (hPutStrLn, stderr)
+import Data.Maybe (fromJust)
 
 newtype FourierComplex = FourierComplex (C.Complex Double) deriving newtype (Num, Fractional, Binary, Show, NFData, Eq, Generic)
 
@@ -56,10 +59,6 @@ instance SemiringValue FourierComplex where
     multiply = (*)
     add = (+)
 
-{- | For a given N, returns the smallest m such that `N <= 2^m` -}
-getM :: Natural -> Natural
-getM n = ceiling $ logBase 2 (fromIntegral n :: Double)
-
 getE' :: Natural -> Natural -> Natural -> Natural -> Natural -> Complex Double
 getE' m j l nj kl = exp $ negate $ (/) (2 * pi * i * nj' * kl') (2 ^ (m - j - l))
     where
@@ -77,24 +76,26 @@ getE m j l = Table $ map row [(0, 0), (0, 1), (1, 0), (1, 1)]
 getKnowledgebase :: [FourierComplex] -> [FastFourierValuation]
 getKnowledgebase samples = f : [getE m j l | j <- [0 .. m-1], l <- [0 .. m-1-j]]
     where
-        m = getM (fromIntegral $ length samples)
+        m = fromJust $ integerLogBase2 (fromIntegral $ length samples)
 
         f :: FastFourierValuation
         f = Table $ zipWith (\x s -> Row (toBinaryVariableSet m x X) s) [0..] samples
 
--- TODO not sure how it handles a non 2-power number of samples.
-query :: [FourierComplex] -> [Natural] -> Process [FourierComplex]
-query samples qs = do
+{- | Calculates the fourier transform from the given samples and returns the corresponding values for the given y values.
 
-    result <- answerQueryM (getKnowledgebase samples) queryDomain
-    pure $ map (findBinaryValue result m) qs
-
-    where
-        m = getM (fromIntegral $ length samples)
-
+Only operates if the number of samples is > 1 and is a power of two (I think theoretically this could be expanded to any power
+of a prime number, but that hasn't been done here). Returns Nothing if and only if the number of samples is > 1 and not a power of two.
+-}
+query :: [FourierComplex] -> [Natural] -> Process (Maybe [FourierComplex])
+query samples qs = case integerLogBase2 (fromIntegral $ length samples) of
+    Nothing -> pure Nothing
+    (Just 0) -> pure Nothing
+    (Just m) -> do
         -- Each query has the same domain - the domain of all bits of the Y, i.e. Y_0 to Y_m-1
-        queryDomain :: Domain FastFourierVariable
-        queryDomain = S.fromList $ map Y [0 .. m-1]
+        let queryDomain = S.fromList $ map Y $ [0 .. m-1]
+
+        result <- answerQueryM (getKnowledgebase samples) queryDomain
+        pure $ pure $ map (findBinaryValue result m) qs
 
 findBinaryValue :: SemiringValuation FourierComplex FastFourierVariable Natural -> Natural -> Natural -> FourierComplex
 findBinaryValue table numDigits x = findValue (toBinaryVariableSet numDigits x Y) table

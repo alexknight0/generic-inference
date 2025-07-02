@@ -16,6 +16,9 @@ import           Control.Distributed.Process.Serializable (Serializable)
 import           Data.Functor                             (void)
 import           System.IO.Silently                       (capture)
 import           Utils
+import Debug.Trace (traceShowId, traceShow)
+import Data.Maybe (isNothing)
+import GHC.Float (properFractionDouble)
 
 tests :: IO Bool
 tests = checkParallel $$(discover)
@@ -29,9 +32,19 @@ prop_binaryConversion = withTests 100 . property $ do
     where
         -- Assumes first bit is LSB
         convertBackToInt :: [Bool] -> Int
-        convertBackToInt xs = sum $ zipWith (\x y -> fromEnum x * y) xs listOfMultiplesOfTwo
-
-        listOfMultiplesOfTwo :: [Int]
-        listOfMultiplesOfTwo = 1 : (map (*2) listOfMultiplesOfTwo)
+        convertBackToInt xs = sum $ zipWith (\x y -> fromEnum x * y) xs listOfPowersOfTwo
 
 
+prop_integerLogBase2 :: Property
+prop_integerLogBase2 = withTests 100 . property $ do
+    x <- forAll $ Gen.int (Range.linear 0 100000)
+    let result = integerLogBase2 (fromIntegral x)
+        answer = properFractionDouble $ logBase 2 (fromIntegral x)
+
+    if x == 0
+        then assert $ isNothing result
+        else
+            -- If remainder is super small, then it is just fraction errors.
+            if snd answer < 0.00000001
+                then diff (Just $ fst answer) (==) result
+                else assert $ isNothing result

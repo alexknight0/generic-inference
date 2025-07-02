@@ -20,6 +20,8 @@ module Utils
     , checkAnswers
     , toBinaryLeadingZeroes
     , assert'
+    , integerLogBase2
+    , listOfPowersOfTwo
     )
 where
 
@@ -35,6 +37,7 @@ import           Hedgehog          (Property, PropertyT, diff, property,
 
 import           Control.Exception (assert)
 import           Numeric.Natural
+import Debug.Trace
 
 divAssert :: (Integral a) => a -> a -> a
 divAssert x y
@@ -113,7 +116,7 @@ toBinaryLeadingZeroes :: Natural -> Natural -> [Bool]
 toBinaryLeadingZeroes totalDigits x = take numLeadingZeroes (repeat False) ++ binary
     where
         binary = toBinary x
-        numLeadingZeroes = assert' (>0) (fromIntegral totalDigits - length binary)
+        numLeadingZeroes = assert' (>=0) (fromIntegral totalDigits - length binary)
 
 assert' :: (a -> Bool) -> a -> a
 assert' p x = assert (p x) x
@@ -123,3 +126,17 @@ unitTest = withTests 1 . property . void
 
 checkAnswers :: (Show a) => (a -> a -> Bool) -> [a] -> [a] -> PropertyT IO ()
 checkAnswers f answers results = diff answers (\rs as -> and (zipWithAssert f rs as)) results
+
+integerLogBase2 :: Natural -> Maybe Natural
+integerLogBase2 x = integerLogBase2' 0 x
+    where
+        integerLogBase2' :: Natural -> Natural -> Maybe Natural
+        integerLogBase2' _ 0 = Nothing
+        integerLogBase2' acc 1 = Just acc
+        integerLogBase2' acc y
+            | y `mod` 2 == 0 = integerLogBase2' (acc + 1) (y `div` 2)
+            | otherwise = Nothing
+
+listOfPowersOfTwo :: [Int]
+listOfPowersOfTwo = 1 : (map (*2) listOfPowersOfTwo)
+
