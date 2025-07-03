@@ -32,6 +32,7 @@ library
       Data
       FastFourierTransform
       JoinTree
+      LabelledMatrix
       Lib
       LocalProcess
       ShenoyShafer
@@ -104,6 +105,7 @@ test-suite localcomputation-test
   other-modules:
       BayesianTests
       FourierTests
+      MatrixTests
       UtilsTests
       Paths_localcomputation
   autogen-modules:

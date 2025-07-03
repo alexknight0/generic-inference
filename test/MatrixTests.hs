@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module UtilsTests
+module MatrixTests
     ( tests )
 where
 
@@ -86,4 +86,3 @@ prop_matrixMultiplication = withTests 100 . property $ do
         genMatrixSideLength = Gen.int (Range.linear 1 6)
 
         multiply = L.multiply (+) (*)
-
