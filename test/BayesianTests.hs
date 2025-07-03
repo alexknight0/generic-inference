@@ -10,7 +10,7 @@ import           Bayesian.HackageVersion
 import           Bayesian.Parser
 import           Data
 import           LocalProcess
-import           SemiringValuationAlgebra
+import           ValuationAlgebra.Semiring
 import           Utils
 
 import           Hedgehog

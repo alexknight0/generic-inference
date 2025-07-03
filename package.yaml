@@ -39,6 +39,7 @@ dependencies:
 - carray
 - silently
 - array
+- matrix
 
 ghc-options:
 - -Wall

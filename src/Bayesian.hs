@@ -13,10 +13,10 @@ module Bayesian
     )
 where
 
-import           SemiringValuationAlgebra
 import           ShenoyShafer
 import           Utils
 import           ValuationAlgebra
+import           ValuationAlgebra.Semiring
 
 import           Control.DeepSeq                          (NFData)
 import           Control.Exception                        (assert)

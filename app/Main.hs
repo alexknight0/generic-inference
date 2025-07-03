@@ -22,10 +22,10 @@ import           Bayesian
 import           Collect
 import           JoinTree
 import           LocalProcess
-import           SemiringValuationAlgebra
 import           ShenoyShafer
 import           Utils
 import           ValuationAlgebra
+import           ValuationAlgebra.Semiring
 
 
 ---- We will need these someday (probably)

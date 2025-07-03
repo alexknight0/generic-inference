@@ -1,0 +1,5 @@
+
+module ValuationAlgebra.QuasiRegular
+    (
+    )
+where

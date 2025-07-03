@@ -34,10 +34,11 @@ library
       JoinTree
       Lib
       LocalProcess
-      SemiringValuationAlgebra
       ShenoyShafer
       Utils
       ValuationAlgebra
+      ValuationAlgebra.QuasiRegular
+      ValuationAlgebra.Semiring
   other-modules:
       Paths_localcomputation
   autogen-modules:
@@ -58,6 +59,7 @@ library
     , extra
     , fft
     , hedgehog
+    , matrix
     , network-transport
     , network-transport-tcp
     , parsec
@@ -86,6 +88,7 @@ executable localcomputation-exe
     , fft
     , hedgehog
     , localcomputation
+    , matrix
     , network-transport
     , network-transport-tcp
     , parsec
@@ -122,6 +125,7 @@ test-suite localcomputation-test
     , fft
     , hedgehog
     , localcomputation
+    , matrix
     , network-transport
     , network-transport-tcp
     , parsec

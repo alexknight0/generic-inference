@@ -14,21 +14,17 @@ module FastFourierTransform
     )
 where
 
-import           SemiringValuationAlgebra
 import           ShenoyShafer
 import           Utils
-import           ValuationAlgebra
+import           ValuationAlgebra.Semiring
 
-import           Control.Exception           (assert)
 import           Data.Complex                (Complex ((:+)))
 import qualified Data.Complex                as C
 import qualified Data.Map                    as M
 import qualified Data.Set                    as S
-import           Debug.Trace
-import           Math.FFT                    (dftN)
 import           Numeric.Natural
 
-import           Control.Distributed.Process (Process, liftIO)
+import           Control.Distributed.Process (Process)
 
 -- Typeclasses
 import           Control.DeepSeq             (NFData)
@@ -39,8 +35,6 @@ import           Data.Array.CArray           (createCArray)
 import           Data.Array.CArray.Base      (CArray)
 import           Data.Maybe                  (fromJust)
 import           Foreign.Marshal             (pokeArray)
-import           Math.FFT                    (dft)
-import           System.IO                   (hPutStrLn, stderr)
 
 newtype FourierComplex = FourierComplex (C.Complex Double) deriving newtype (Num, Fractional, Binary, Show, NFData, Eq, Generic)
 

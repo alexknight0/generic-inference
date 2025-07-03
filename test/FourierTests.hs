@@ -7,7 +7,7 @@ where
 
 import           Data
 import           LocalProcess
-import           SemiringValuationAlgebra
+import           ValuationAlgebra.Semiring
 
 import           Hedgehog
 import qualified Hedgehog.Gen                             as Gen

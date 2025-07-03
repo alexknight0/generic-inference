@@ -2,9 +2,8 @@
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module SemiringValuationAlgebra
-    ( SemiringValuation
-    , SemiringValue (multiply, add)
+module ValuationAlgebra.Semiring
+    ( SemiringValue (multiply, add)
     , getRows
     , showAsRows
     , SemiringValuation (Table, Identity)
@@ -16,21 +15,17 @@ module SemiringValuationAlgebra
     )
 where
 
-import           ShenoyShafer
 import           Utils
 import           ValuationAlgebra
 
-import           Control.Exception                        (assert)
-import           Data.Binary                              (Binary)
-import qualified Data.Map                                 as M
-import           Data.Set                                 (empty, intersection,
-                                                           union)
-import qualified Data.Set                                 as S
+import           Control.Exception (assert)
+import           Data.Binary       (Binary)
+import qualified Data.Map          as M
+import           Data.Set          (empty, intersection)
+import qualified Data.Set          as S
 import           GHC.Generics
 
 
-import           Control.Distributed.Process
-import           Control.Distributed.Process.Serializable
 
 {-
 In BValColumns, the first parameter is the variable, the second parameter
