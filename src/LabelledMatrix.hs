@@ -22,6 +22,7 @@ module LabelledMatrix
     )
 where
 
+import           Control.Exception                           (assert)
 import qualified Control.Monad                               as Monad
 import qualified Data.Map                                    as M
 import qualified Data.Matrix                                 as M'
@@ -46,9 +47,6 @@ instance Functor (LabelledMatrix a b) where
     fmap :: (c -> d) -> LabelledMatrix a b c -> LabelledMatrix a b d
     fmap f (Matrix m dA dB) = Matrix (M.map f m) dA dB
 
-assertIsWellFormed :: LabelledMatrix a b c -> Bool
-assertIsWellFormed (Matrix m dA dB) = undefined
-
 -- | Transforms a regular matrix from Data.Matrix into a matrix labelled by Integers.
 fromMatrix :: M'.Matrix a -> LabelledMatrix Integer Integer a
 fromMatrix m = fromList $ concat $ zipWith (\i row -> zipWith (\j x -> ((i, j), x)) [0..] row) [0..] (M'.toLists m)
@@ -66,6 +64,7 @@ fromList xs
         fromListDisjoint = M.fromListWith (\_ _ -> error "Duplicate key in matrix creation assoc list.")
 
 isSquare :: LabelledMatrix a b c -> Bool
+isSquare x | assertIsWellFormed x = undefined
 isSquare (Matrix _ dA dB) = length dA == length dB
 
 domain :: LabelledMatrix a b c -> (S.Set a, S.Set b)
@@ -73,6 +72,7 @@ domain (Matrix _ dA dB) = (dA, dB)
 
 -- | Returns the simplified domain of a square matrix that has the same domain for both labels. Returns Nothing if the given matrix is not square.
 squareDomain :: (Eq a) => LabelledMatrix a a c -> Maybe (S.Set a)
+squareDomain x | assertIsWellFormed x = undefined
 squareDomain (Matrix _ dA1 dA2)
     | dA1 /= dA2 = Nothing
     | otherwise = Just dA1
@@ -85,6 +85,7 @@ identity dA zero one = fromList [((x, y), if x == y then one else zero) | x <- a
 
 -- | Extend a matrix to a larger domain, filling spots with the given zero element. Returns Nothing if the domain to extend to is not a superset.
 extension :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> c -> Maybe (LabelledMatrix a b c)
+extension x _ _ _ | assertIsWellFormed x = undefined
 extension (Matrix m dA dB) newDA newDB zero
     | newDA `S.isProperSubsetOf` dA || newDB `S.isProperSubsetOf` dB = Nothing
     | otherwise = Just $ Matrix (m `M.union` mapOfZeroes) newDA newDB
@@ -93,24 +94,28 @@ extension (Matrix m dA dB) newDA newDB zero
 
 -- | Project the domain of a matrix down to a new domain. Returns nothing if the given domain is not a subset of the old domain.
 project :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> Maybe (LabelledMatrix a b c)
+project x _ _ | assertIsWellFormed x = undefined
 project (Matrix m dA dB) newDA newDB
     | newDA `S.isSubsetOf` dA && newDB `S.isSubsetOf` dB = Just $ Matrix (M.filterWithKey (\(a, b) _ -> a `elem` newDA && b `elem` newDB) m) newDA newDB
     | otherwise = Nothing
 
 -- | Returns an element from the matrix. Returns Nothing if the element is not in the domain of the matrix.
 find :: (Ord a, Ord b) => (a, b) -> LabelledMatrix a b c -> Maybe c
+find _ x | assertIsWellFormed x = undefined
 find (a, b) (Matrix m dA dB)
     | a `elem` dA && b `elem` dB = assert' isJust $ M.lookup (a, b) m
     | otherwise = Nothing
 
 -- | Basic addition on two matrices. Returns Nothing if the provided matrices have different shapes.
 add :: (Ord a, Ord b) => (c -> c -> c) -> LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
+add _ x y | assertAllWellFormed [x, y] = undefined
 add addElems (Matrix m1 dA1 dB1) (Matrix m2 dA2 dB2)
     | dA1 /= dA2 || dB1 /= dB2 = Nothing
     | otherwise = Just $ Matrix (M.intersectionWith addElems m1 m2) dA1 dB1
 
 -- | Basic matrix multiplication on two matrices. Returns Nothing if the provided matrices have the wrong shape for matrix multiplication.
 multiply :: (Ord a, Ord b, Ord c) => (d -> d -> d) -> (d -> d -> d) -> LabelledMatrix a b d -> LabelledMatrix b c d -> Maybe (LabelledMatrix a c d)
+multiply _ _ x y | assertIsWellFormed x || assertIsWellFormed y = undefined
 multiply addElems multiplyElems m1@(Matrix _ dA dB1) m2@(Matrix _ dB2 dC)
     | dB1 /= dB2 = Nothing
     | otherwise = Just $ Matrix (fromListAssertDisjoint newAssocList) dA dC
@@ -122,6 +127,7 @@ multiply addElems multiplyElems m1@(Matrix _ dA dB1) m2@(Matrix _ dB2 dC)
                         ) | a <- as, c <- cs]
 
 multiplys :: (Functor t, Foldable t, Ord a) => (c -> c -> c) -> (c -> c -> c) -> t (LabelledMatrix a a c) -> Maybe (LabelledMatrix a a c)
+multiplys _ _ xs | assertAllWellFormed xs = undefined
 multiplys addElems multiplyElems xs
     | null xs = Nothing
     | otherwise = foldl1 (liftA2' (multiply addElems multiplyElems)) (fmap Just xs)
@@ -133,6 +139,7 @@ multiplys addElems multiplyElems xs
 This formula is detailed in "Generic Inference" (Pouly and Kohlas, 2012).
 -}
 quasiInverse :: (Ord a, Q.QuasiRegularSemiringValue c) => LabelledMatrix a a c -> Maybe (LabelledMatrix a a c)
+quasiInverse x | assertIsWellFormed x = undefined
 quasiInverse m@(Matrix _ dA dB)
     | length dA /= length dB = Nothing
     | length dA == 1 = Just $ fmap Q.quasiInverse m
@@ -164,6 +171,7 @@ Returns a tuple (A, B, C, D) defined through the following shape:
 Where A is a 1x1 matrix. Returns Nothing if the matrix is empty.
 -}
 decompose :: (Ord a, Ord b) => LabelledMatrix a b c -> Maybe (LabelledMatrix a b c, LabelledMatrix a b c, LabelledMatrix a b c, LabelledMatrix a b c)
+decompose x | assertIsWellFormed x = undefined
 decompose m@(Matrix _ dA dB) = do
     aDA <- takeOne dA
     aDB <- takeOne dB
@@ -182,6 +190,7 @@ decompose m@(Matrix _ dA dB) = do
 
 -- | Joins two disjoint matrices. Returns Nothing if the matrices are not disjoint.
 join :: (Ord a, Ord b) => LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
+join x y | assertAllWellFormed [x, y] = undefined
 join (Matrix m1 dA1 dB1) (Matrix m2 dA2 dB2)
     | not (S.disjoint dA1 dA2) || not (S.disjoint dB1 dB2) = Nothing
     | otherwise = Just $ Matrix (unionDisjoint m1 m2) (S.union dA1 dA2) (S.union dB1 dB2)
@@ -200,8 +209,19 @@ For inputs A -> B -> C -> D returns:
 Note that this does not indicate that the resulting matrix is a square matrix.
 -}
 joinSquare :: (Ord a, Ord b) => LabelledMatrix a b c -> LabelledMatrix a b c -> LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
+joinSquare a b c d | assertAllWellFormed [a, b, c, d] = undefined
 joinSquare mA@(Matrix _ aDA aDB) mB@(Matrix _ bDA bDB) mC@(Matrix _ cDA cDB) mD@(Matrix _ dDA dDB)
     | aDA /= bDA || cDA /= dDA || aDB /= cDB || bDB /= dDB = Nothing
     | otherwise = foldr1 (liftA2' join) (map Just [mA, mB, mC, mD])
     where
         liftA2' f x y = Monad.join (liftA2 f x y)
+
+isWellFormed :: LabelledMatrix a b c -> Bool
+isWellFormed (Matrix m dA dB) = length m == length dA * length dB
+
+assertIsWellFormed :: LabelledMatrix a b c -> Bool
+assertIsWellFormed x = assert (isWellFormed x) False
+
+assertAllWellFormed :: (Foldable t) => t (LabelledMatrix a b c) -> Bool
+assertAllWellFormed = any (\x -> assert (isWellFormed x) False)
+
