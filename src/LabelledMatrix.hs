@@ -46,6 +46,9 @@ instance Functor (LabelledMatrix a b) where
     fmap :: (c -> d) -> LabelledMatrix a b c -> LabelledMatrix a b d
     fmap f (Matrix m dA dB) = Matrix (M.map f m) dA dB
 
+assertIsWellFormed :: LabelledMatrix a b c -> Bool
+assertIsWellFormed (Matrix m dA dB) = undefined
+
 -- | Transforms a regular matrix from Data.Matrix into a matrix labelled by Integers.
 fromMatrix :: M'.Matrix a -> LabelledMatrix Integer Integer a
 fromMatrix m = fromList $ concat $ zipWith (\i row -> zipWith (\j x -> ((i, j), x)) [0..] row) [0..] (M'.toLists m)
@@ -148,7 +151,6 @@ quasiInverse m@(Matrix _ dA dB)
         add' x y = fromJust $ add Q.add x y
         multiplys' xs = fromJust $ multiplys Q.add Q.multiply xs
         quasiInverse' x = fromJust $ quasiInverse x
-
 
 {- Decomposes a matrix into four matrices.
 
