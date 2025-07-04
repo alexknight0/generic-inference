@@ -22,6 +22,7 @@ module Utils
     , assert'
     , integerLogBase2
     , listOfPowersOfTwo
+    , safeHead
     )
 where
 
@@ -140,3 +141,6 @@ integerLogBase2 x = integerLogBase2' 0 x
 listOfPowersOfTwo :: [Int]
 listOfPowersOfTwo = 1 : (map (*2) listOfPowersOfTwo)
 
+safeHead :: [a] -> Maybe a
+safeHead []     = Nothing
+safeHead (x:xs) = Just x

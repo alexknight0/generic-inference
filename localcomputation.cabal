@@ -39,6 +39,7 @@ library
       Utils
       ValuationAlgebra
       ValuationAlgebra.QuasiRegular
+      ValuationAlgebra.QuasiRegular.SemiringValue
       ValuationAlgebra.Semiring
   other-modules:
       Paths_localcomputation
