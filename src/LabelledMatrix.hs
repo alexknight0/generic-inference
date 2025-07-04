@@ -4,6 +4,9 @@ module LabelledMatrix
     ( LabelledMatrix
     , fromMatrix
     , fromList
+    , identity
+    , extension
+    , project
     , find
     , add
     , multiply
@@ -39,6 +42,26 @@ fromList xs
     where
         as = S.fromList $ map (\((x, _), _) -> x) xs
         bs = S.fromList $ map (\((_, x), _) -> x) xs
+
+-- | Returns the identity matrix created with the given zero and one elements.
+identity :: (Ord a) => S.Set a -> c -> c -> LabelledMatrix a a c
+identity dA zero one = fromList [((x, y), if x == y then one else zero) | x <- as, y <- as]
+    where
+        as = S.toList dA
+
+-- | Extend a matrix to a larger domain, filling spots with the given zero element. Returns Nothing if the domain to extend to is not a superset.
+extension :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> c -> Maybe (LabelledMatrix a b c)
+extension (Matrix m dA dB) newDA newDB zero
+    | newDA `S.isProperSubsetOf` dA || newDB `S.isProperSubsetOf` dB = Nothing
+    | otherwise = Just $ Matrix (m `M.union` mapOfZeroes) newDA newDB
+    where
+        mapOfZeroes = M.fromList [((a, b), zero) | a <- S.toList newDA, b <- S.toList newDB]
+
+-- | Project the domain of a matrix down to a new domain. Returns nothing if the given domain is not a subset of the old domain.
+project :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> Maybe (LabelledMatrix a b c)
+project (Matrix m dA dB) newDA newDB
+    | newDA `S.isSubsetOf` dA && newDB `S.isSubsetOf` dB = Just $ Matrix (M.filterWithKey (\(a, b) _ -> a `elem` newDA && b `elem` newDB) m) newDA newDB
+    | otherwise = Nothing
 
 -- | Returns an element from the matrix. Returns Nothing if the element is not in the domain of the matrix.
 find :: (Ord a, Ord b) => (a, b) -> LabelledMatrix a b c -> Maybe c
