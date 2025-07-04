@@ -3,7 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module ValuationAlgebra.Semiring
-    ( SemiringValue (multiply, add)
+    ( SemiringValue (add, multiply, zero, one)
     , getRows
     , showAsRows
     , SemiringValuation (Table, Identity)
@@ -18,12 +18,13 @@ where
 import           Utils
 import           ValuationAlgebra
 
-import           Control.Exception (assert)
-import           Data.Binary       (Binary)
-import qualified Data.Map          as M
-import           Data.Set          (empty, intersection)
-import qualified Data.Set          as S
+import           Control.Exception              (assert)
+import           Data.Binary                    (Binary)
+import qualified Data.Map                       as M
+import           Data.Set                       (empty, intersection)
+import qualified Data.Set                       as S
 import           GHC.Generics
+import           ValuationAlgebra.SemiringValue
 
 
 
@@ -56,10 +57,6 @@ BValColumns stores no redundant information, while BValRows stores a heap of red
 but allows accessing this information in a more haskell-like manner.
 -}
 data SemiringValuation a b c = Table [Row a b c] | Identity deriving (Generic, Binary)
-
-class SemiringValue a where
-    multiply :: a -> a -> a
-    add :: a -> a -> a
 
 -- Don't be suprised if you need to put (Enum, bounded) on 'b'.
 instance (SemiringValue a) => Valuation (SemiringValuation a) where

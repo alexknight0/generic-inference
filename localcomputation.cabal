@@ -36,11 +36,13 @@ library
       Lib
       LocalProcess
       ShenoyShafer
+      ShortestPath
       Utils
       ValuationAlgebra
       ValuationAlgebra.QuasiRegular
       ValuationAlgebra.QuasiRegular.SemiringValue
       ValuationAlgebra.Semiring
+      ValuationAlgebra.SemiringValue
   other-modules:
       Paths_localcomputation
   autogen-modules:

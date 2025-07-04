@@ -50,8 +50,12 @@ data FastFourierVariable = X Natural | Y Natural deriving (Eq, Ord, Binary, Gene
 type FastFourierValuation = SemiringValuation FourierComplex FastFourierVariable Natural
 
 instance SemiringValue FourierComplex where
-    multiply = (*)
     add = (+)
+    multiply = (*)
+
+    -- Not used. Should probably look into how they would be defined.
+    zero = error "Not implemented"
+    one = error "Not implemented"
 
 getE' :: Natural -> Natural -> Natural -> Natural -> Natural -> Complex Double
 getE' m j l nj kl = exp $ negate $ (/) (2 * pi * i * nj' * kl') (2 ^ (m - j - l))

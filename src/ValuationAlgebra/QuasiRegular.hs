@@ -1,6 +1,6 @@
-
 module ValuationAlgebra.QuasiRegular
-    ( QuasiRegularSemiringValue (add, multiply, quasiInverse)
+    ( QuasiRegularSemiringValue (quasiInverse)
+    , SemiringValue (add, multiply, zero, one)
     )
 where
 
@@ -11,10 +11,9 @@ import qualified LabelledMatrix                              as M
 import           Utils
 import           ValuationAlgebra
 import           ValuationAlgebra.QuasiRegular.SemiringValue
+import           ValuationAlgebra.SemiringValue
 
 data QuasiRegularValuation c a b = Valuation (M.LabelledMatrix a a c) (M.LabelledMatrix a () c) | Identity
-
-
 
 create :: (Eq a) => M.LabelledMatrix a a c -> M.LabelledMatrix a () c -> Maybe (QuasiRegularValuation c a b)
 create m b
@@ -27,9 +26,6 @@ isWellFormed (Valuation m b) = (M.isSquare m) && ((fst $ M.domain m) == (fst $ M
 
 assertIsWellFormed :: (Eq a) => QuasiRegularValuation c a b -> Bool
 assertIsWellFormed x = assert (isWellFormed x) False
-
-errorInvalidStructure :: a
-errorInvalidStructure = error "QuasiRegularValuation is not well formed."
 
 instance (QuasiRegularSemiringValue c) => Valuation (QuasiRegularValuation c) where
     label x | assertIsWellFormed x = undefined

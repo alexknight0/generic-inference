@@ -63,6 +63,8 @@ type BayesValuation a b = SemiringValuation Probability a b
 instance SemiringValue Probability where
     multiply = (*)
     add = (+)
+    zero = 0
+    one = 1
 
 
 normalize :: BayesValuation a b -> BayesValuation a b
