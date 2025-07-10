@@ -11,6 +11,7 @@ module Utils
     , unionUnsafe
     , fromListAssertDisjoint
     , unionAssertDisjoint
+    , unionAssertDisjoint'
     , unzipWith
     , zipWithAssert
     , zipAssert
@@ -87,8 +88,13 @@ unsafeFind p xs
 unionUnsafe :: (Eq b, Ord a) => Map a b -> Map a b -> Map a b
 unionUnsafe = M.unionWith (\x y -> if x /= y then error "Map keys that exist in both maps do not have the same value" else x)
 
-unionAssertDisjoint :: (Ord a) => Map a b -> Map a b -> Map a b
+unionAssertDisjoint :: (HasCallStack, Ord a) => Map a b -> Map a b -> Map a b
 unionAssertDisjoint = M.unionWith (\_ _ -> error "Map key sets are not disjoint")
+
+unionAssertDisjoint' :: (HasCallStack, Ord a) => Set a -> Set a -> Set a
+unionAssertDisjoint' x y
+    | not (S.disjoint x y) = error "Sets are not disjoint."
+    | otherwise = S.union x y
 
 fromListAssertDisjoint :: (Ord a) => [(a, b)] -> Map a b
 fromListAssertDisjoint = M.fromListWith (\_ _ -> error "Attempted to create map from non disjoint assoc list")

@@ -33,10 +33,10 @@ library
       FastFourierTransform
       JoinTree
       LabelledMatrix
-      Lib
       LocalProcess
       ShenoyShafer
       ShortestPath.SingleTarget
+      Table
       Utils
       ValuationAlgebra
       ValuationAlgebra.QuasiRegular

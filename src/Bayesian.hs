@@ -5,7 +5,7 @@
 {-# LANGUAGE UndecidableInstances       #-}
 
 module Bayesian
-    ( normalize, queryNetwork, toProbabilityQuery
+    ( queryNetwork, toProbabilityQuery
     , ProbabilityQuery
     , Probability (P)
     , Network
@@ -60,22 +60,13 @@ but allows accessing this information in a more haskell-like manner.
 -}
 type BayesValuation a b = SemiringValuation Probability a b
 
+newtype Probability = P Double deriving (Num, Fractional, Binary, Show, NFData, Ord, Eq, Generic)
+
 instance SemiringValue Probability where
     multiply = (*)
     add = (+)
     zero = 0
     one = 1
-
-
-normalize :: BayesValuation a b -> BayesValuation a b
-normalize (Identity x) = Identity x
-normalize (Table xs d) = Table (fmap (\(Row vs p) -> Row vs (p / sumOfAllPs)) xs) d
-    where
-        sumOfAllPs = sum $ map (\(Row _ p) -> p) xs
-
---
-newtype Probability = P Double deriving (Num, Fractional, Binary, Show, NFData, Ord, Eq, Generic)
-
 
 type Network a b = [BayesValuation a b]
 -- | (conditionedVariables, conditionalVariables)
