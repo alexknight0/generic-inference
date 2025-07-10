@@ -23,6 +23,7 @@ module Utils
     , integerLogBase2
     , listOfPowersOfTwo
     , safeHead
+    , fromListAssertDisjoint'
     )
 where
 
@@ -90,6 +91,9 @@ unionAssertDisjoint = M.unionWith (\_ _ -> error "Map key sets are not disjoint"
 
 fromListAssertDisjoint :: (Ord a) => [(a, b)] -> Map a b
 fromListAssertDisjoint = M.fromListWith (\_ _ -> error "Attempted to create map from non disjoint assoc list")
+
+fromListAssertDisjoint' :: Ord a => [a] -> Set a
+fromListAssertDisjoint' xs = assert' (\ys -> length ys == length xs) (S.fromList xs)
 
 unzipWith :: (a -> (b, c)) -> [a] -> ([b], [c])
 unzipWith f xs = (map (fst . f) xs, map (snd . f) xs)

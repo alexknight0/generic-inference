@@ -10,8 +10,8 @@ import           Bayesian.HackageVersion
 import           Bayesian.Parser
 import           Data
 import           LocalProcess
-import           ValuationAlgebra.Semiring
 import           Utils
+import           ValuationAlgebra.Semiring
 
 import           Hedgehog
 import qualified Hedgehog.Gen                             as Gen
@@ -29,7 +29,7 @@ tests = checkParallel $$(discover)
 probabilityApproxEqual :: Probability -> Probability -> Bool
 probabilityApproxEqual x y = abs (x - y) < 0.0002
 
-checkQueries :: (Serializable a, Serializable b, Ord a, Ord b) => [ProbabilityQuery a b] -> [Probability] -> PropertyT IO (Network a b) -> PropertyT IO (Network a b)
+checkQueries :: (Show a, Show b, Serializable a, Serializable b, Ord a, Ord b) => [ProbabilityQuery a b] -> [Probability] -> PropertyT IO (Network a b) -> PropertyT IO (Network a b)
 checkQueries qs ps getNetwork = do
     network <- getNetwork
     results <- liftIO $ runProcessLocal $ queryNetwork qs network

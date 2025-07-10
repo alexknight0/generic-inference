@@ -66,7 +66,7 @@ getE' m j l nj kl = exp $ negate $ (/) (2 * pi * i * nj' * kl') (2 ^ (m - j - l)
 
 -- Variables X_j and Y_l are binary numbers, so only take values 0 or 1.
 getE :: Natural -> Natural -> Natural -> FastFourierValuation
-getE m j l = Table $ map row [(0, 0), (0, 1), (1, 0), (1, 1)]
+getE m j l = Table (map row [(0, 0), (0, 1), (1, 0), (1, 1)]) (fromListAssertDisjoint' [X j, Y l])
     where
         row :: (Natural, Natural) -> Row FourierComplex FastFourierVariable Natural
         row (x, y) = Row (fromListAssertDisjoint [(X j, x), (Y l, y)]) (FourierComplex $ getE' m j l x y)
@@ -77,7 +77,7 @@ getKnowledgebase samples = f : [getE m j l | j <- [0 .. m-1], l <- [0 .. m-1-j]]
         m = fromJust $ integerLogBase2 (fromIntegral $ length samples)
 
         f :: FastFourierValuation
-        f = Table $ zipWith (\x s -> Row (toBinaryVariableSet m x X) s) [0..] samples
+        f = Table (zipWith (\x s -> Row (toBinaryVariableSet m x X) s) [0..] samples) (fromListAssertDisjoint' $ map (\x -> X x) [0..m-1])
 
 {- | Calculates the fourier transform from the given samples and returns the corresponding values for the given y values.
 

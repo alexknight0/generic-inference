@@ -1,7 +1,8 @@
-import qualified BayesianTests as B
-import qualified FourierTests  as F
-import qualified MatrixTests   as M
-import qualified UtilsTests    as U
+import qualified BayesianTests     as B
+import qualified FourierTests      as F
+import qualified MatrixTests       as M
+import qualified ShortestPathTests as S
+import qualified UtilsTests        as U
 
 
 
@@ -26,6 +27,8 @@ hedgehog output to a file. This can be done with `stack test > foo.txt`.
 -}
 
 main :: IO ()
-main = B.tests >> F.tests >> U.tests >> M.tests >> pure ()
+main = B.tests >> F.tests >> M.tests >> U.tests >> pure ()
+-- S.tests >> pure ()
+
 
 

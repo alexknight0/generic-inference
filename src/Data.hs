@@ -22,24 +22,29 @@ module Data
     , fourierP2Queries
     , fourierP2Samples
     , fourierP2Answers
+    , graphP1
+    , graphQueryP1
+    , graphAnswerP1
     )
 where
 
 -- Typeclasses
-import           Data.Binary            (Binary)
-import           GHC.Generics           (Generic)
+import           Data.Binary                                 (Binary)
+import           GHC.Generics                                (Generic)
 
-import           Data.Complex           (Complex ((:+)))
+import           Data.Complex                                (Complex ((:+)))
 import           Numeric.Natural
 
 import           Bayesian
-import           Data.Array.CArray      (createCArray)
-import           Data.Array.CArray.Base (CArray)
-import qualified FastFourierTransform   as F
-import           Foreign.Marshal        (pokeArray)
-import           Math.FFT               (dft)
+import           Data.Array.CArray                           (createCArray)
+import           Data.Array.CArray.Base                      (CArray)
+import qualified FastFourierTransform                        as F
+import           Foreign.Marshal                             (pokeArray)
+import           Math.FFT                                    (dft)
+import           ValuationAlgebra.QuasiRegular.SemiringValue
 
-import qualified LabelledMatrix         as M
+import qualified LabelledMatrix                              as M
+import           ShortestPath                                (DistanceMap)
 
 dataDirectory :: String
 dataDirectory = "data/"
@@ -170,13 +175,12 @@ fourierP2Answers = map F.FourierComplex [5 :+ 0, (negate 3) :+ 0]
 --     print $ dft ys
 --     pure ()
 
--- TODO: Need an instance of QuasiRegularSemiringValue.
 {- | Example graph used for a shortest path problem.
 
 Source: https://www.geeksforgeeks.org/dsa/dijkstras-algorithm-for-adjacency-list-representation-greedy-algo-8/
 -}
-test :: [M.LabelledMatrix Integer Integer Integer]
-test = map M.fromList [ [((0, 1), 4), ((0, 7), 8)]
+graphP1 :: [DistanceMap Integer]
+graphP1 = map M.fromList [ [((0, 1), 4), ((0, 7), 8)]
                       , [((1, 0), 4), ((1, 2), 8), ((1, 7), 11)]
                       , [((2, 1), 8), ((2, 3), 7), ((2, 8), 2)]
                       , [((3, 2), 7), ((3, 4), 9), ((3, 5), 14)]
@@ -187,6 +191,14 @@ test = map M.fromList [ [((0, 1), 4), ((0, 7), 8)]
                       , [((8, 2), 2), ((8, 6), 6), ((8, 7), 7)]
                     ]
 
+graphQueryP1 :: (Integer, Integer)
+graphQueryP1 = (0, 5)
+
+graphAnswerP1 :: TropicalSemiringValue
+graphAnswerP1 = 11
+
+queriesP1 :: [(Integer, Integer)]
+queriesP1 = undefined
 
 
 

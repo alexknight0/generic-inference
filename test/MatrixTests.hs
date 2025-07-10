@@ -85,4 +85,4 @@ prop_matrixMultiplication = withTests 100 . property $ do
         genMatrixSideLength :: Gen Int
         genMatrixSideLength = Gen.int (Range.linear 1 6)
 
-        multiply = L.multiply (+) (*)
+        multiply = L.multiply (+) (*) 0

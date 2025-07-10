@@ -73,7 +73,7 @@ type InferredData v a b = [(Domain a, v a b)]
 
 
 -- TODO safely handle invalid queries?
-answerQueries :: forall v a b. (Valuation v, Ord a, Ord b)
+answerQueries :: forall v a b. (Show a, Show b, Valuation v, Ord a, Ord b)
     => [Domain a]
     -> InferredData v a b
     -> [v a b]
@@ -83,13 +83,13 @@ answerQueries queryDomains results = map queryToAnswer queryDomains
         queryToAnswer d = project (snd $ unsafeFind (\(d', _) -> d `isSubsetOf` d') results) d
 
 -- TODO safely handle invalid queries?
-answerQuery :: forall v a b. (Valuation v, Ord a, Ord b)
+answerQuery :: forall v a b. (Show a, Show b, Valuation v, Ord a, Ord b)
     => Domain a
     -> InferredData v a b
     -> v a b
 answerQuery q results = head $ answerQueries [q] results
 
-answerQueriesM :: forall v a b . (Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
+answerQueriesM :: forall v a b . (Show a, Show b, Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
     => [v a b]
     -> [Domain a]
     -> Process [v a b]
@@ -97,7 +97,7 @@ answerQueriesM vs queryDomains = do
     results <- initializeNodes (shenoyJoinTree vs queryDomains)
     pure $ answerQueries queryDomains results
 
-answerQueryM :: forall v a b . (Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
+answerQueryM :: forall v a b . (Show a, Show b, Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
     => [v a b]
     -> Domain a
     -> Process (v a b)
@@ -105,7 +105,7 @@ answerQueryM vs q = do
     results <- initializeNodes (shenoyJoinTree vs [q])
     pure $ answerQuery q results
 
-inference :: forall v a b . (Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
+inference :: forall v a b . (Show a, Show b, Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
     => [v a b]
     -> [Domain a]
     -> Process (InferredData v a b)
@@ -114,14 +114,14 @@ inference vs queryDomains = initializeNodes (shenoyJoinTree vs queryDomains)
 -- The base join tree must be transformed to an undirected graph.
 -- While mailboxes should be connected up for each neighbour, this happens in the
 -- 'initializeNodes' function which also handles starting the message passing.
-shenoyJoinTree :: forall v a b. (Valuation v, Ord a)
+shenoyJoinTree :: forall v a b. (Show a, Show b, Valuation v, Ord a)
     => [v a b]
     -> [Domain a]
     -> Graph (ShenoyShaferNode v a b)
 shenoyJoinTree vs queryDomains = toUndirected (baseJoinTree vs queryDomains)
 
 -- Initializes all nodes in the join tree for message passing according to the Shenoy-Shafer algorithm.
-initializeNodes :: forall n v a b. (Node n, Serializable (v a b), Serializable a, Valuation v, Ord (n v a b), Ord a, Ord b)
+initializeNodes :: forall n v a b. (Show a, Show b, Node n, Serializable (v a b), Serializable a, Valuation v, Ord (n v a b), Ord a, Ord b)
     => Graph (n v a b)
     -> Process ([(Domain a, v a b)])
 initializeNodes graph = do
@@ -139,6 +139,8 @@ initializeNodes graph = do
         case reasonForTermination of
              DiedNormal      -> pure ()
              DiedException e -> error $ "Error - DiedException (" ++ e ++ ")"
+             -- TODO: Does 'DiedUnknownId' indicate that the process died *before*
+             -- we got a chance to wait on it?
              x               -> error $ "Error - " ++ show x
 
     -- Receive all messages
@@ -178,7 +180,7 @@ assertHasMessage Nothing = error "Error - a node terminated without sending a me
 
 type PortIdentifier = Integer
 
-initializeNode :: forall n v a b. (Node n, Binary (v a b), Binary a, Typeable (v a b), Typeable a, Valuation v, Ord a, Ord b)
+initializeNode :: forall n v a b. (Show a, Show b, Node n, Binary (v a b), Binary a, Typeable (v a b), Typeable a, Valuation v, Ord a, Ord b)
     => n v a b
     -> [(Domain a, SendPort (v a b), ReceivePort (v a b))]
     -> SendPort (Domain a, v a b)
@@ -229,7 +231,8 @@ initializeNode node ports resultPort = spawnLocal $ do
             -> Process ()
         sendPhaseTwo allMessages (i, d, s) = sendMessage (getValuation node : (map snd $ filter (\(i', _) -> i' /= i) allMessages)) (getDomain node) d s
 
-sendMessage :: (Serializable (v a b), Valuation v, Ord a, Ord b)
+-- | TODO: rename combines combines1
+sendMessage :: (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
     => [v a b]
     -> Domain a
     -> Domain a

@@ -71,7 +71,7 @@ domainIntersects xs ys = or [x == y | x <- xs, y <- ys]
 -- The query domains are used only to ensure the join tree has a node that answers
 -- each query (by creating empty nodes for each the query domain). The node ids
 -- of the input valuations 'vs' in the final join tree are [0 .. (length vs)] respectively.
-baseJoinTree :: forall n v a b. (Node n, Valuation v, Ord a, Eq (n v a b))
+baseJoinTree :: forall n v a b. (Show a, Show b, Node n, Valuation v, Ord a, Eq (n v a b))
     => [v a b]
     -> [Domain a]
     -> Graph (n v a b)
@@ -82,7 +82,7 @@ baseJoinTree vs queries = edges $ baseJoinTree' nextNodeId r d
 
         r :: [n v a b]
         r = zipWith (\nid v -> create nid (label v) v) [0 ..] vs
-            ++ zipWith (\nid q -> create nid q identity) [fromIntegral (length vs) ..] queries
+            ++ zipWith (\nid q -> create nid q (identity q)) [fromIntegral (length vs) ..] queries
 
         nextNodeId :: Integer
         nextNodeId = fromIntegral $ length r
@@ -108,7 +108,7 @@ baseJoinTree' nextNodeId r (x : d')
         domainOfPhiX = foldr (Data.Set.union) (Data.Set.empty) $ map getDomain phiX
 
         nUnion :: n v a b
-        nUnion = create nextNodeId domainOfPhiX identity
+        nUnion = create nextNodeId domainOfPhiX (identity domainOfPhiX)
 
         r' :: [n v a b]
         r' = setDifference r phiX
@@ -117,6 +117,8 @@ baseJoinTree' nextNodeId r (x : d')
         e = [(n, nUnion) | n <- phiX]
 
         nP :: n v a b
-        nP = create (nextNodeId + 1) (fromList $ setDifference (toList domainOfPhiX) [x]) identity
+        nP = create (nextNodeId + 1) nPDomain (identity nPDomain)
+            where
+                nPDomain = (fromList $ setDifference (toList domainOfPhiX) [x])
 
 

@@ -68,8 +68,8 @@ instance SemiringValue Probability where
 
 
 normalize :: BayesValuation a b -> BayesValuation a b
-normalize Identity = Identity
-normalize (Table xs) = Table $ fmap (\(Row vs p) -> Row vs (p / sumOfAllPs)) xs
+normalize (Identity x) = Identity x
+normalize (Table xs d) = Table (fmap (\(Row vs p) -> Row vs (p / sumOfAllPs)) xs) d
     where
         sumOfAllPs = sum $ map (\(Row _ p) -> p) xs
 
@@ -84,7 +84,7 @@ type ProbabilityQuery a b = (Variables a b, Variables a b)
 conditionalProbability :: (Ord a) => Variables a b -> Variables a b -> (Variables a b -> Probability) -> Probability
 conditionalProbability vs givenVs p = p (unionAssertDisjoint vs givenVs) / p givenVs
 
-queryNetwork :: forall a b. (Serializable a, Serializable b, Ord a, Ord b)
+queryNetwork :: forall a b. (Show a, Show b, Serializable a, Serializable b, Ord a, Ord b)
     => [ProbabilityQuery a b]
     -> Network a b
     -> Process [Probability]
@@ -99,7 +99,7 @@ queryNetwork qs network' = do
                                    union (M.keysSet vs) (M.keysSet givenVs)) qs
 
 {- | Takes a query and returns the resulting probability. Assumes the query is covered by the network. -}
-queryToProbability :: (Ord a, Ord b) => Variables a b -> InferredData (SemiringValuation Probability) a b -> Probability
+queryToProbability :: (Show a, Show b, Ord a, Ord b) => Variables a b -> InferredData (SemiringValuation Probability) a b -> Probability
 queryToProbability vs results = findValue vs (normalize $ answerQuery (M.keysSet vs) results)
 
 toProbabilityQuery :: (Ord a) => ([(a, b)], [(a, b)]) -> ProbabilityQuery a b

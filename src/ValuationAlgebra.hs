@@ -17,12 +17,12 @@ import           Data.Set (Set)
 type Domain a = Set a
 
 class Valuation v where
-    label   :: (Ord a) => v a b -> Domain a
-    combine :: (Ord a, Ord b) => v a b -> v a b -> v a b
-    project :: (Ord a, Ord b) => v a b -> Domain a -> v a b
-    identity :: v a b
+    label   :: (Show a, Show b, Ord a) => v a b -> Domain a
+    combine :: (Show a, Show b, Ord a, Ord b) => v a b -> v a b -> v a b
+    project :: (Show a, Show b, Ord a, Ord b) => v a b -> Domain a -> v a b
+    identity :: Domain a -> v a b
 
-combines :: (Foldable f, Valuation v, Ord a, Ord b) => f (v a b) -> v a b
-combines = foldr combine identity
+combines :: (Show a, Show b, Foldable f, Valuation v, Ord a, Ord b) => f (v a b) -> v a b
+combines = foldr1 combine
 
 

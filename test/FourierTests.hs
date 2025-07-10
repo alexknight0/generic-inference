@@ -32,6 +32,7 @@ import           Math.FFT                                 (dft)
 tests :: IO Bool
 tests = checkSequential $$(discover)
 
+tolerableError :: Double
 tolerableError = 0.00000001
 
 approximateEquals :: FourierComplex -> FourierComplex -> Bool
