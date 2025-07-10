@@ -18,6 +18,7 @@ import qualified Hedgehog.Range                           as Range
 import           Control.Concurrent                       (threadDelay)
 import           Control.Distributed.Process              (Process, liftIO)
 import           Control.Distributed.Process.Serializable (Serializable)
+import           Control.Monad                            (forM, forM_)
 import           Data.Functor                             (void)
 import           System.IO.Silently                       (capture)
 
@@ -32,8 +33,9 @@ approx x y = abs (x - y) < tolerableError
 
 prop_p1 :: Property
 prop_p1 = withTests 1 . property $ do
-    result <- liftIO $ runProcessLocal $ answerQuery graphP1 graphQueryP1
-    diff graphAnswerP1 approx result
+    forM_ (zipAssert graphQueriesP1 graphAnswersP1) $ \(q, answer) -> do
+        result <- liftIO $ runProcessLocal $ answerQuery graphP1 q
+        diff answer approx result
 
 
 

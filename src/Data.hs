@@ -23,8 +23,8 @@ module Data
     , fourierP2Samples
     , fourierP2Answers
     , graphP1
-    , graphQueryP1
-    , graphAnswerP1
+    , graphQueriesP1
+    , graphAnswersP1
     )
 where
 
@@ -191,14 +191,26 @@ graphP1 = map M.fromList [ [((0, 1), 4), ((0, 7), 8)]
                       , [((8, 2), 2), ((8, 6), 6), ((8, 7), 7)]
                     ]
 
-graphQueryP1 :: (Integer, Integer)
-graphQueryP1 = (0, 5)
+graphQueriesP1 :: [(Integer, Integer)]
+graphQueriesP1 = [(0, 1)
+                , (0, 2)
+                , (0, 3)
+                , (0, 4)
+                , (0, 5)
+                , (0, 6)
+                , (0, 7)
+                , (0, 8)
+            ]
 
-graphAnswerP1 :: TropicalSemiringValue
-graphAnswerP1 = 11
-
-queriesP1 :: [(Integer, Integer)]
-queriesP1 = undefined
-
+graphAnswersP1 :: [TropicalSemiringValue]
+graphAnswersP1 = [4
+                , 12
+                , 19
+                , 21
+                , 11
+                , 9
+                , 8
+                , 14
+            ]
 
 

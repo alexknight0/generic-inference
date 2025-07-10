@@ -10,7 +10,8 @@ import           Data.Maybe                                  (fromJust)
 import qualified Data.Set                                    as S
 
 import qualified LabelledMatrix                              as M
-import           ShenoyShafer                                (answerQueryM)
+import           ShenoyShafer                                (answerQueriesM,
+                                                              answerQueryM)
 import           ValuationAlgebra
 import           ValuationAlgebra.QuasiRegular               (QuasiRegularValuation,
                                                               create, solution)
@@ -42,6 +43,14 @@ knowledgeBase xs q = map f xs
                 m' = makeMapSquare m
                 b = M.fromList [((a, ()), if a == snd q then one else zero) | a <- S.toList $ fst (M.domain m')]
 
+-- knowledgeBase2 :: (Ord a, Show a) => [DistanceMap a] -> [Query a] -> Knowledgebase a
+-- knowledgeBase2 xs q = map f xs
+--     where
+--         f m = fromJust $ create m' b
+--             where
+--                 m' = makeMapSquare m
+--                 b = M.fromList [((a, ()), if a `elem` snd q then one else zero) | a <- S.toList $ fst (M.domain m')]
+
 -- | Retuns an entry from a distance map. Unsafe.
 getDistance :: (Ord a, Show a) => DistanceVector a -> Query a -> TropicalSemiringValue
 getDistance m (source, _) = fromJust $ M.find (source, ()) m
@@ -56,6 +65,17 @@ answerQuery xs q = do
 
     where
         k = knowledgeBase xs q
+
+-- answerQueries :: (Show a, Typeable a, Binary a,  Binary (QuasiRegularValuation TropicalSemiringValue a ()), Ord a)
+--     => [DistanceMap a]
+--     -> [Query a]
+--     -> Process [TropicalSemiringValue]
+-- answerQueries xs qs = do
+--     m <- answerQueriesM k $ map (\(qSource, qDestination) -> S.fromList [qSource, qDestination]) qs
+--     pure $ map (getDistance (solution m)) qs
+--
+--     where
+--         k = knowledgeBase xs q
 
 
 
