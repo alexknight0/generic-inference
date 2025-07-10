@@ -39,6 +39,7 @@ import           Hedgehog          (Property, PropertyT, diff, property,
 
 import           Control.Exception (assert)
 import           Debug.Trace
+import           GHC.Stack         (HasCallStack)
 import           Numeric.Natural
 
 divAssert :: (Integral a) => a -> a -> a
@@ -123,7 +124,7 @@ toBinaryLeadingZeroes totalDigits x = take numLeadingZeroes (repeat False) ++ bi
         binary = toBinary x
         numLeadingZeroes = assert' (>=0) (fromIntegral totalDigits - length binary)
 
-assert' :: (a -> Bool) -> a -> a
+assert' :: HasCallStack => (a -> Bool) -> a -> a
 assert' p x = assert (p x) x
 
 unitTest :: PropertyT IO a -> Property

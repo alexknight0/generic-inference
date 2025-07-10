@@ -27,7 +27,7 @@ hedgehog output to a file. This can be done with `stack test > foo.txt`.
 -}
 
 main :: IO ()
-main = B.tests >> F.tests >> M.tests >> U.tests >> pure ()
+main = B.tests >> F.tests >> M.tests >> S.tests >> U.tests >> pure ()
 -- S.tests >> pure ()
 
 

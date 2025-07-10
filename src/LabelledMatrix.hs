@@ -19,7 +19,6 @@ module LabelledMatrix
     , multiplys
     , quasiInverse
     , decompose
-    , join
     , joinSquare
     , isWellFormed
     )
@@ -148,12 +147,13 @@ multiplys addElems multiplyElems zero xs
 
 This formula is detailed in "Generic Inference" (Pouly and Kohlas, 2012).
 -}
-quasiInverse :: (Ord a, Q.QuasiRegularSemiringValue c, Show a) => LabelledMatrix a a c -> Maybe (LabelledMatrix a a c)
+quasiInverse :: (Ord a, Q.QuasiRegularSemiringValue c, Show a, Show c) => LabelledMatrix a a c -> Maybe (LabelledMatrix a a c)
 quasiInverse x | assertIsWellFormed x = undefined
 quasiInverse m@(Matrix _ dA dB)
     | length dA /= length dB = Nothing
     | length dA == 0 = Just $ m
     | length dA == 1 = Just $ fmap Q.quasiInverse m
+    | Nothing <- joinSquare newB newC newD newE = trace ("Attempted joinSquare:\n    newB: " ++ show newB ++ "\n    newC" ++ show newC ++ "\n    newD" ++ show newD ++ "\n    newE" ++ show newE ++ ".") Nothing
     | otherwise = assert' isJust $ joinSquare newB newC newD newE
     where
         (b, c, d, e) = fromJust $ decompose m
@@ -201,11 +201,13 @@ decompose m@(Matrix _ dA dB) = do
 
 -- | Joins two disjoint matrices. Returns Nothing if the matrices are not disjoint.
 -- TODO: I think result may not be well formed? If so probably should not expose.
-join :: (Ord a, Ord b) => LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
-join x y | assertAllWellFormed [x, y] = undefined
+join :: (Show a, Show b, Ord a, Ord b) => LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
+-- join x y | assertAllWellFormed [x, y] = undefined
 join (Matrix m1 dA1 dB1) (Matrix m2 dA2 dB2)
-    | not (S.disjoint dA1 dA2) || not (S.disjoint dB1 dB2) = Nothing
-    | otherwise = Just $ assert' isWellFormed $ Matrix (unionDisjoint m1 m2) (S.union dA1 dA2) (S.union dB1 dB2)
+    | not (M.disjoint m1 m2) = Nothing
+    -- | not (S.disjoint dA1 dA2) = trace ("Attempted join: " ++ show dA1 ++ " union " ++ show dA2 ++ ".") Nothing
+    -- | not (S.disjoint dB1 dB2) = trace ("Attempted join: " ++ show dB1 ++ " union " ++ show dB2 ++ ".") Nothing
+    | otherwise = Just $ Matrix (unionDisjoint m1 m2) (S.union dA1 dA2) (S.union dB1 dB2)
     where
         unionDisjoint = M.unionWith (\_ _ -> error "Maps not disjoint despite sets indicating disjoint")
 
@@ -220,11 +222,11 @@ For inputs A -> B -> C -> D returns:
 
 Note that this does not indicate that the resulting matrix is a square matrix.
 -}
-joinSquare :: (Ord a, Ord b) => LabelledMatrix a b c -> LabelledMatrix a b c -> LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
+joinSquare :: (Show a, Show b, Ord a, Ord b) => LabelledMatrix a b c -> LabelledMatrix a b c -> LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
 joinSquare a b c d | assertAllWellFormed [a, b, c, d] = undefined
 joinSquare mA@(Matrix _ aDA aDB) mB@(Matrix _ bDA bDB) mC@(Matrix _ cDA cDB) mD@(Matrix _ dDA dDB)
     | aDA /= bDA || cDA /= dDA || aDB /= cDB || bDB /= dDB = Nothing
-    | otherwise = assert' (isWellFormed . fromJust) $ foldr1 (liftA2' join) (map Just [mA, mB, mC, mD])
+    | otherwise = foldr1 (liftA2' join) (map Just [mA, mB, mC, mD])
     where
         liftA2' f x y = Monad.join (liftA2 f x y)
 

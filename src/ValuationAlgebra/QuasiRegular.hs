@@ -39,8 +39,8 @@ instance (Show c, QuasiRegularSemiringValue c) => Valuation (QuasiRegularValuati
     label (Valuation _ b) = fst (M.domain b)
 
     combine x y | assertIsWellFormed x || assertIsWellFormed y = undefined
-    combine i@(Identity _) x = x
-    combine x i@(Identity _) = x
+    combine (Identity d) x = extension x (S.union (label x) d)
+    combine x (Identity d) = extension x (S.union (label x) d)
     combine v1 v2 = valuationAdd (extension v1 sUnionT) (extension v2 sUnionT)
         where
             sUnionT = S.union (label v1) (label v2)
@@ -64,7 +64,7 @@ instance (Show c, QuasiRegularSemiringValue c) => Valuation (QuasiRegularValuati
     identity d = Identity d
 
 -- | Returns a product useful for the solution of fixpoint systems. Detailed page 367 of "Generic Inference" (Pouly & Kohlas, 2012)
-solution :: (Show a, Ord a, QuasiRegularSemiringValue c) => QuasiRegularValuation c a b -> M.LabelledMatrix a () c
+solution :: (Show a, Ord a, Show c, QuasiRegularSemiringValue c) => QuasiRegularValuation c a b -> M.LabelledMatrix a () c
 solution (Identity _)    = error "'solution' called on identity valuation."
 solution (Valuation m b) = matrixMultiply (matrixQuasiInverse m) b
 
@@ -80,7 +80,7 @@ extension x _ | assertIsWellFormed x = undefined
 extension (Identity _) d = Identity d
 extension (Valuation m b) t = fromJust $ create (fromJust $ M.extension m t t zero) (fromJust $ M.extension b t (S.singleton ()) zero)
 
-matrixQuasiInverse :: (Show a, Ord a, QuasiRegularSemiringValue c) => M.LabelledMatrix a a c -> M.LabelledMatrix a a c
+matrixQuasiInverse :: (Show a, Ord a, Show c, QuasiRegularSemiringValue c) => M.LabelledMatrix a a c -> M.LabelledMatrix a a c
 matrixQuasiInverse = fromJust . M.quasiInverse
 
 matrixProject :: (Show a, Show b, Ord a, Ord b, SemiringValue c) => String -> M.LabelledMatrix a b c -> S.Set a -> S.Set b -> M.LabelledMatrix a b c
