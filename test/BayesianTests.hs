@@ -18,16 +18,26 @@ import qualified Hedgehog.Gen                             as Gen
 import qualified Hedgehog.Range                           as Range
 
 import           Control.Concurrent                       (threadDelay)
+import           Control.DeepSeq                          (force)
 import           Control.Distributed.Process
 import           Control.Distributed.Process.Node
 import           Control.Distributed.Process.Serializable (Serializable)
+import qualified Control.Exception                        as E
+import           Control.Monad                            (forM)
 import           Data.Functor                             (void)
+import qualified Data.Set                                 as S
 
 tests :: IO Bool
 tests = checkParallel $$(discover)
 
 probabilityApproxEqual :: Probability -> Probability -> Bool
 probabilityApproxEqual x y = abs (x - y) < 0.0002
+
+dataToValuations :: [([AsiaVar], [Probability])] -> Network AsiaVar Bool
+dataToValuations vs = map (uncurry getRows) withVariableDomains
+    where
+        withVariableDomains :: [([(AsiaVar, [Bool])], [Probability])]
+        withVariableDomains = map (\(xs, ps) -> (map boolify xs, ps)) vs
 
 checkQueries :: (Show a, Show b, Serializable a, Serializable b, Ord a, Ord b) => [ProbabilityQuery a b] -> [Probability] -> PropertyT IO (Network a b) -> PropertyT IO (Network a b)
 checkQueries qs ps getNetwork = do
@@ -47,10 +57,7 @@ boolify :: a -> (a, [Bool])
 boolify x = (x, [False, True])
 
 inferenceAnswers :: [ProbabilityQuery AsiaVar Bool] -> [Probability] -> [([AsiaVar], [Probability])] -> Property
-inferenceAnswers qs as vs = unitTest $ checkQueries qs as (pure $ map (uncurry getRows) withVariableDomains)
-    where
-        withVariableDomains :: [([(AsiaVar, [Bool])], [Probability])]
-        withVariableDomains = map (\(xs, ps) -> (map boolify xs, ps)) vs
+inferenceAnswers qs as vs = unitTest $ checkQueries qs as (pure $ dataToValuations vs)
 
 prop_inferenceAnswersP1 :: Property
 prop_inferenceAnswersP1 = inferenceAnswers asiaQueriesP1 asiaAnswersP1 asiaValuationsP1
@@ -81,6 +88,51 @@ prop_prebuiltAnswersP3 :: Property
 prop_prebuiltAnswersP3 = unitTest $ do
     let results = runQueries (createNetwork asiaValuationsP3) asiaQueriesP3
     checkAnswers probabilityApproxEqual results asiaAnswersP3
+
+genQuery :: Gen (ProbabilityQuery AsiaVar Bool)
+genQuery = do
+    vars <- genVarsWithAssignedValue
+    conditionedVarIndex <- Gen.int (Range.linear 0 (length vars - 1))
+    let conditionedVar = vars !! conditionedVarIndex
+        conditionalVars = filter (\x -> x /= conditionedVar) vars
+    pure $ toProbabilityQuery ([conditionedVar], conditionalVars)
+
+    where
+        genVars = Gen.set (Range.linear 1 numVarsToChooseFrom)
+                          (Gen.enum minAsiaP1 maxAsiaP1)
+
+        genVarsWithAssignedValue = do
+            vars <- genVars
+            forM (S.toList vars) $ \x -> do
+                b <- Gen.bool
+                pure (x, b)
+
+        numVarsToChooseFrom = length [minAsiaP1 .. maxAsiaP1]
+
+prop_inferenceAnswersMatchPrebuilt :: Property
+prop_inferenceAnswersMatchPrebuilt = withTests 100 . property $ do
+    qs <- forAll genQueries
+    prebuiltResults' <- prebuiltResults qs
+
+    case prebuiltResults' of
+        -- Some queries result in underflow as when we incrementally impose conditions as in
+        -- the prebuit case, we may attempt to impose a condition that has a 0% chance of occuring.
+        -- Discard these cases.
+        Left (E.RatioZeroDenominator) -> discard
+        Left _ -> failure
+        Right prebuiltResults'' -> do
+            algebraResults' <- algebraResults qs
+            checkAnswers probabilityApproxEqual algebraResults' prebuiltResults''
+
+    where
+        genQueries :: Gen ([ProbabilityQuery AsiaVar Bool])
+        genQueries = Gen.list (Range.linear 1 6) genQuery
+
+        algebraResults qs = liftIO $ runProcessLocal $ queryNetwork qs (dataToValuations asiaValuationsP1)
+        prebuiltResults qs = liftIO $ E.try $ E.evaluate $ force $ runQueries (createNetwork asiaValuationsP1) qs
+
+
+
 
 prop_parsesAndes :: Property
 prop_parsesAndes = unitTest $ parseNetwork'' andesFilepath

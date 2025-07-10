@@ -7,7 +7,7 @@ where
 
 import           Data
 import           LocalProcess
-import           ShortestPath
+import qualified ShortestPath.SingleTarget                as ST
 import           Utils
 import           ValuationAlgebra.QuasiRegular
 
@@ -33,9 +33,8 @@ approx x y = abs (x - y) < tolerableError
 
 prop_p1 :: Property
 prop_p1 = withTests 1 . property $ do
-    forM_ (zipAssert graphQueriesP1 graphAnswersP1) $ \(q, answer) -> do
-        result <- liftIO $ runProcessLocal $ answerQuery graphP1 q
-        diff answer approx result
+    results <- liftIO $ runProcessLocal $ ST.answerQueries graphP1 (fst graphQueriesP1) (snd graphQueriesP1)
+    checkAnswers approx results graphAnswersP1
 
 
 

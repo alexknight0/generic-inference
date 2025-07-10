@@ -13,6 +13,8 @@ module Data
     , asiaAnswersP2
     , asiaAnswersP3
     , AsiaVar (..)
+    , minAsiaP1
+    , maxAsiaP1
     , stringToAsiaVar
     , asiaFilepath
     , andesFilepath
@@ -44,7 +46,7 @@ import           Math.FFT                                    (dft)
 import           ValuationAlgebra.QuasiRegular.SemiringValue
 
 import qualified LabelledMatrix                              as M
-import           ShortestPath                                (DistanceMap)
+import           ShortestPath.SingleTarget                   (DistanceMap)
 
 dataDirectory :: String
 dataDirectory = "data/"
@@ -56,9 +58,17 @@ andesFilepath :: String
 andesFilepath = dataDirectory ++ "andes.net"
 
 
+-- | Variables (AKA nodes) of the asia example. XRayResultAndDyspnea appears only in P3.
+-- If order is updated, also update minAsiaP1 and maxAsiaP1 to define the range of values
+-- that a random value should be generated between.
 data AsiaVar = VisitToAsia | HasTuberculosis | Smoker | HasLungCancer
            | HasBronchitis | TuberculosisOrCancer | XRayResult | Dyspnea | XRayResultAndDyspnea
-           deriving (Eq, Ord, Show, Generic, Binary)
+           deriving (Eq, Ord, Show, Generic, Binary, Enum)
+
+minAsiaP1 :: AsiaVar
+minAsiaP1 = VisitToAsia
+maxAsiaP1 :: AsiaVar
+maxAsiaP1 = Dyspnea
 
 stringToAsiaVar :: String -> AsiaVar
 stringToAsiaVar "asia"   = VisitToAsia
@@ -191,16 +201,16 @@ graphP1 = map M.fromList [ [((0, 1), 4), ((0, 7), 8)]
                       , [((8, 2), 2), ((8, 6), 6), ((8, 7), 7)]
                     ]
 
-graphQueriesP1 :: [(Integer, Integer)]
-graphQueriesP1 = [(0, 1)
-                , (0, 2)
-                , (0, 3)
-                , (0, 4)
-                , (0, 5)
-                , (0, 6)
-                , (0, 7)
-                , (0, 8)
-            ]
+graphQueriesP1 :: ([Integer], Integer)
+graphQueriesP1 = ([1
+                , 2
+                , 3
+                , 4
+                , 5
+                , 6
+                , 7
+                , 8
+            ], 0)
 
 graphAnswersP1 :: [TropicalSemiringValue]
 graphAnswersP1 = [4

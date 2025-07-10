@@ -131,7 +131,7 @@ unitTest :: PropertyT IO a -> Property
 unitTest = withTests 1 . property . void
 
 checkAnswers :: (Show a) => (a -> a -> Bool) -> [a] -> [a] -> PropertyT IO ()
-checkAnswers f answers results = diff answers (\rs as -> and (zipWithAssert f rs as)) results
+checkAnswers f results answers = diff results (\rs as -> and (zipWithAssert f rs as)) answers
 
 integerLogBase2 :: Natural -> Maybe Natural
 integerLogBase2 x = integerLogBase2' 0 x

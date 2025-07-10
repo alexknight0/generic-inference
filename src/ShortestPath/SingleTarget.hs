@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
-module ShortestPath
+module ShortestPath.SingleTarget
     ( answerQuery
+    , answerQueries
     , DistanceMap
     )
 where
@@ -35,21 +36,13 @@ makeMapSquare m = fromJust $ M.extension m newD newD zero
         (d1, d2) = M.domain m
         newD = S.union d1 d2
 
-knowledgeBase :: (Ord a, Show a) => [DistanceMap a] -> Query a -> Knowledgebase a
-knowledgeBase xs q = map f xs
+knowledgeBase :: (Ord a, Show a) => [DistanceMap a] -> a -> Knowledgebase a
+knowledgeBase xs target = map f xs
     where
         f m = fromJust $ create m' b
             where
                 m' = makeMapSquare m
-                b = M.fromList [((a, ()), if a == snd q then one else zero) | a <- S.toList $ fst (M.domain m')]
-
--- knowledgeBase2 :: (Ord a, Show a) => [DistanceMap a] -> [Query a] -> Knowledgebase a
--- knowledgeBase2 xs q = map f xs
---     where
---         f m = fromJust $ create m' b
---             where
---                 m' = makeMapSquare m
---                 b = M.fromList [((a, ()), if a `elem` snd q then one else zero) | a <- S.toList $ fst (M.domain m')]
+                b = M.fromList [((a, ()), if a == target then one else zero) | a <- S.toList $ fst (M.domain m')]
 
 -- | Retuns an entry from a distance map. Unsafe.
 getDistance :: (Ord a, Show a) => DistanceVector a -> Query a -> TropicalSemiringValue
@@ -59,24 +52,17 @@ answerQuery :: (Show a, Typeable a, Binary a,  Binary (QuasiRegularValuation Tro
     => [DistanceMap a]
     -> Query a
     -> Process TropicalSemiringValue
-answerQuery xs q = do
-    m <- answerQueryM k (S.fromList [fst q, snd q])
-    pure $ getDistance (solution m) q
+answerQuery vs (source, target) = fmap head $ answerQueries vs [source] target
+
+answerQueries :: (Show a, Typeable a, Binary a,  Binary (QuasiRegularValuation TropicalSemiringValue a ()), Ord a)
+    => [DistanceMap a]
+    -> [a]
+    -> a
+    -> Process [TropicalSemiringValue]
+answerQueries vs sources target = do
+    results <- answerQueriesM k $ map (\s -> S.fromList [s, target]) sources
+    pure $ map (\(s, r) -> getDistance (solution r) (s, target)) $ zip sources results
 
     where
-        k = knowledgeBase xs q
-
--- answerQueries :: (Show a, Typeable a, Binary a,  Binary (QuasiRegularValuation TropicalSemiringValue a ()), Ord a)
---     => [DistanceMap a]
---     -> [Query a]
---     -> Process [TropicalSemiringValue]
--- answerQueries xs qs = do
---     m <- answerQueriesM k $ map (\(qSource, qDestination) -> S.fromList [qSource, qDestination]) qs
---     pure $ map (getDistance (solution m)) qs
---
---     where
---         k = knowledgeBase xs q
-
-
-
+        k = knowledgeBase vs target
 

@@ -44,12 +44,12 @@ prop_queryMatchesKnownAnswers = unitTest $ do
     resultsP1 <- liftIO $ runProcessLocal $ query fourierP1Samples fourierP1Queries
     case resultsP1 of
         Nothing -> failure
-        Just xs -> checkAnswers approximateEquals fourierP1Answers xs
+        Just xs -> checkAnswers approximateEquals xs fourierP1Answers
 
     resultsP2 <- liftIO $ runProcessLocal $ query fourierP2Samples fourierP2Queries
     case resultsP2 of
         Nothing -> failure
-        Just xs -> checkAnswers approximateEquals fourierP2Answers xs
+        Just xs -> checkAnswers approximateEquals xs fourierP2Answers
 
 prop_matchesHackagePackage :: Property
 prop_matchesHackagePackage = withTests 100 . property $ do
@@ -65,4 +65,4 @@ prop_matchesHackagePackage = withTests 100 . property $ do
 
     case results of
         Nothing -> failure
-        Just xs -> checkAnswers approximateEquals (map (FourierComplex) $ I.elems answers) xs
+        Just xs -> checkAnswers approximateEquals xs (map (FourierComplex) $ I.elems answers)
