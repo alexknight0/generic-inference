@@ -17,7 +17,7 @@ import           Data.Set (Set)
 type Domain a = Set a
 
 class Valuation v where
-    label   :: (Show a, Show b, Ord a) => v a b -> Domain a
+    label   :: (Show a, Show b, Ord a, Ord b) => v a b -> Domain a
     combine :: (Show a, Show b, Ord a, Ord b) => v a b -> v a b -> v a b
     project :: (Show a, Show b, Ord a, Ord b) => v a b -> Domain a -> v a b
     identity :: Domain a -> v a b

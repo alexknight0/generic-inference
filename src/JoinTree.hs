@@ -71,7 +71,7 @@ domainIntersects xs ys = or [x == y | x <- xs, y <- ys]
 -- The query domains are used only to ensure the join tree has a node that answers
 -- each query (by creating empty nodes for each the query domain). The node ids
 -- of the input valuations 'vs' in the final join tree are [0 .. (length vs)] respectively.
-baseJoinTree :: forall n v a b. (Show a, Show b, Node n, Valuation v, Ord a, Eq (n v a b))
+baseJoinTree :: forall n v a b. (Show a, Show b, Node n, Valuation v, Ord a, Ord b, Eq (n v a b))
     => [v a b]
     -> [Domain a]
     -> Graph (n v a b)

@@ -36,7 +36,6 @@ library
       LocalProcess
       ShenoyShafer
       ShortestPath.SingleTarget
-      Table
       Utils
       ValuationAlgebra
       ValuationAlgebra.QuasiRegular

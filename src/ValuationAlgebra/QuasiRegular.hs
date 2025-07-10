@@ -46,6 +46,7 @@ instance (Show c, QuasiRegularSemiringValue c) => Valuation (QuasiRegularValuati
             sUnionT = S.union (label v1) (label v2)
 
     project x _ | assertIsWellFormed x = undefined
+    project x y | assert (S.isSubsetOf y (label x)) False = undefined
     project (Identity _) newD = Identity newD
     project (Valuation m b) t = fromJust $ create newM newB
         where

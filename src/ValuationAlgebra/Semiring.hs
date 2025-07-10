@@ -29,21 +29,29 @@ import           Data.Set                       (empty, intersection)
 import qualified Data.Set                       as S
 import           Debug.Trace                    (trace)
 import           GHC.Generics
+import           GHC.Stack                      (HasCallStack)
 import           ValuationAlgebra.SemiringValue
 
+assertAllWellFormed :: (HasCallStack, Foldable t, Ord a, Eq b) => t (SemiringValuation c a b) -> Bool
+assertAllWellFormed = any (\x -> assert (isWellFormed x) False)
+
+assertIsWellFormed :: (HasCallStack, Ord a, Eq b) => SemiringValuation c a b -> Bool
+assertIsWellFormed x = assert (isWellFormed x) False
+
 isWellFormed :: forall a b c. (Ord a, Eq b) => SemiringValuation c a b -> Bool
+isWellFormed (Identity _) = True
 isWellFormed (Valuation rows d valueDomains vacuousExtension)
-    | M.keysSet valueDomains /= d = False
-    | any (not . validRow) (M.keysSet rows) = False
-    | length (M.toList rows) /= numPermutations = False
-    | not (S.disjoint d vacuousExtension) = False
+    | M.keysSet valueDomains /= d = trace "r1" False
+    | any (not . validRow) (M.keysSet rows) = trace "r2" False
+    | length (M.toList rows) /= numPermutations = trace "r3" False
+    | not (S.disjoint d vacuousExtension) = trace "r4" False
     | otherwise = True
 
     where
         validRow :: M.Map a b -> Bool
         validRow row
-            | M.keysSet row /= d = False
-            | any (\(var, value) -> value `notElem` (valueDomains M.! var)) (M.toList row) = False
+            | M.keysSet row /= d = trace "r5" False
+            | any (\(var, value) -> value `notElem` (valueDomains M.! var)) (M.toList row) = trace "r6" False
             | otherwise = True
 
         numPermutations = foldr ((*) . length) 1 (M.elems valueDomains)
@@ -92,23 +100,15 @@ create x y z w
     where
         result = Valuation x y z w
 
--- create' :: (Ord a, Eq b) => M.Map (M.Map a b) c -> Maybe (SemiringValuation c a b)
--- create' rowMap
---     | null rowMap = assert isWellFormed $ create (M.empty) (S.empty) (M.empty) (S.empty)
---     | isWellFormed (create rowMap d
---     where
---         d = M.keysSet (head $ M.keys rowMap)
---         e = S.empty
-
-
--- Don't be suprised if you need to put (Enum, bounded) on 'b'.
 instance (Show c, SemiringValue c) => Valuation (SemiringValuation c) where
+    label x | assertIsWellFormed x = undefined
     label (Identity d)                       = d
     label (Valuation {varDomain, extension}) = S.union varDomain extension
 
+    combine x y | assertAllWellFormed [x, y] = undefined
     combine (Identity d1) (Identity d2) = Identity (S.union d1 d2)
-    combine (Identity d1) (Valuation x y z d2) = Valuation x y z (S.union d1 d2)
-    combine (Valuation x y z d2) (Identity d1) = Valuation x y z (S.union d1 d2)
+    combine (Identity d1) (Valuation rowMap d2 vD e) = Valuation rowMap d2 vD (S.difference (S.union d1 e) d2)
+    combine (Valuation rowMap d1 vD e) (Identity d2) = Valuation rowMap d1 vD (S.difference (S.union d2 e) d1)
     combine (Valuation rowMap1 d1 vD1 e1) (Valuation rowMap2 d2 vD2 e2)
         | null rowMap1 = Valuation rowMap2 d2 vD2 (S.difference (S.union e1 e2) d2)
         | null rowMap2 = Valuation rowMap1 d1 vD1 (S.difference (S.union e1 e2) d1)
@@ -123,10 +123,13 @@ instance (Show c, SemiringValue c) => Valuation (SemiringValuation c) where
             unionAssert' :: (Ord a, Eq b) => M.Map a b -> M.Map a b -> M.Map a b
             unionAssert' = M.unionWith (\v1 v2 -> assert (v1 == v2) v1)
 
+    project x _ | assertIsWellFormed x = undefined
+    project x y | assert (S.isSubsetOf y (label x)) False = undefined
     project (Identity _) y = Identity y
-    project (Valuation rMap _ vD _) newD = Valuation (M.mapKeysWith add projectDomain rMap) newD (projectDomain vD) newD
+    project (Valuation rMap d vD e) newD = Valuation (M.mapKeysWith add projectDomain rMap) (projectDomain' d) (projectDomain vD) (projectDomain' e)
         where
             projectDomain = M.filterWithKey (\k _ -> k `elem` newD)
+            projectDomain' = S.filter (\k -> k `elem` newD)
 
     identity = Identity
 
@@ -146,7 +149,7 @@ type Variable a b = (a, b)
 type Variables a b = M.Map a b
 
 getRows :: forall a b c. (Ord b, Ord c) => [(b, [c])] -> [a] -> SemiringValuation a b c
-getRows vars ps = Valuation rMap d valueDomains extension
+getRows vars ps = assert' isWellFormed $ Valuation rMap d valueDomains extension
     where
         rMap = fromListAssertDisjoint $ zipAssert (vPermutations vars) ps
         d = fromListAssertDisjoint' $ map fst vars

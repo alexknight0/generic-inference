@@ -114,7 +114,7 @@ inference vs queryDomains = initializeNodes (shenoyJoinTree vs queryDomains)
 -- The base join tree must be transformed to an undirected graph.
 -- While mailboxes should be connected up for each neighbour, this happens in the
 -- 'initializeNodes' function which also handles starting the message passing.
-shenoyJoinTree :: forall v a b. (Show a, Show b, Valuation v, Ord a)
+shenoyJoinTree :: forall v a b. (Show a, Show b, Valuation v, Ord a, Ord b)
     => [v a b]
     -> [Domain a]
     -> Graph (ShenoyShaferNode v a b)
