@@ -74,6 +74,12 @@ extension        :: Domain a
     an extra variable to the 'varDomain' where the variable only has one
     possible value, so no extra permutations are generated.
 
+    This is required as combination of a valuation with an identity element
+    must result in a label that contains the union of identity element's
+    domain and the other element's domain. If this does not occur, it will
+    appear that projections to domains that are outside a valuation's label
+    are occuring.
+
 Note that a restriction of this form is that the type of the value of each
 variable in a variable arrangement is the same.
 -}
