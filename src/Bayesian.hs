@@ -30,10 +30,9 @@ import           GHC.Generics                             (Generic)
 import           Control.Distributed.Process
 import           Control.Distributed.Process.Serializable
 
-{-
-In BValColumns, the first parameter is the variable, the second parameter
-is a list of the conditions, and the third parameter is the list of probabilities,
-where probabilities are ordered as follows:
+{- | Valuation for the valuation algebra of probability potentials. While the initial valuations before
+inference are entered as conditional probability tables as shown below, after inference these
+valuations have looser meaning as simply unnormalized probability distributions.
 
     var   A   B   Probability
 
@@ -48,15 +47,6 @@ where probabilities are ordered as follows:
      .    .   .        .                      .
      .    .   .        .                      .
      .    .   .        .                      .
-
-BValRows stores the equivalent information except as what is essentially as a tuple of each
-row of the table instead.
-
-Note that neither form allows the range of values that can be stored in a certain field differ across fields;
-i.e. if 'A' can range from 0 to 1, then B must also range from 0 to 1.
-
-BValColumns stores no redundant information, while BValRows stores a heap of redundant information,
-but allows accessing this information in a more haskell-like manner.
 -}
 type BayesValuation a b = SemiringValuation Probability a b
 

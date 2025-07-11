@@ -1,7 +1,5 @@
 {-# LANGUAGE DeriveAnyClass      #-}
 {-# LANGUAGE DeriveGeneric       #-}
-{-# LANGUAGE NamedFieldPuns      #-}
-{-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module ValuationAlgebra.Semiring
@@ -25,7 +23,6 @@ import           ValuationAlgebra
 import           Control.Exception              (assert)
 import           Data.Binary                    (Binary)
 import qualified Data.Map                       as M
-import           Data.Set                       (empty, intersection)
 import qualified Data.Set                       as S
 import           Debug.Trace                    (trace)
 import           GHC.Generics
@@ -85,37 +82,36 @@ extension        :: Domain a
     but without adding any extra rows. This could be thought of as adding
     an extra variable to the 'varDomain' where the variable only has one
     possible value, so no extra permutations are generated.
+
+Note that a restriction of this form is that the type of the value of each
+variable in a variable arrangement is the same.
 -}
-data SemiringValuation c a b = Valuation
-    {
-        rowMap           :: M.Map (VariableArrangement a b) c,
-        varDomain        :: Domain a,
-        varToValueDomain :: M.Map a (Domain b),
-        -- Vacuous extension to the variable domain.
-        extension        :: Domain a
-    } | Identity (Domain a) deriving (Generic, Binary)
+data SemiringValuation c a b = Valuation (M.Map (VariableArrangement a b) c) (Domain a) (M.Map a (Domain b)) (Domain a) | Identity (Domain a) deriving (Generic, Binary)
 
 type Variable a b = (a, b)
 type VariableArrangement a b = M.Map a b
 
+-- | Returns 'False' if the data structure does not satisfy it's given description.
 isWellFormed :: forall a b c. (Ord a, Eq b) => SemiringValuation c a b -> Bool
 isWellFormed (Identity _) = True
 isWellFormed (Valuation rows d valueDomains vacuousExtension)
-    | M.keysSet valueDomains /= d = trace "r1" False
-    | any (not . validRow) (M.keysSet rows) = trace "r2" False
-    | length (M.toList rows) /= numPermutations = trace "r3" False
-    | not (S.disjoint d vacuousExtension) = trace "r4" False
+    | M.keysSet valueDomains /= d = False
+    | any (not . validRow) (M.keysSet rows) = False
+    | length (M.toList rows) /= numPermutations = False
+    | not (S.disjoint d vacuousExtension) = False
     | otherwise = True
 
     where
         validRow :: M.Map a b -> Bool
         validRow row
-            | M.keysSet row /= d = trace "r5" False
-            | any (\(var, value) -> value `notElem` (valueDomains M.! var)) (M.toList row) = trace "r6" False
+            | M.keysSet row /= d = False
+            | any (\(var, value) -> value `notElem` (valueDomains M.! var)) (M.toList row) = False
             | otherwise = True
 
         numPermutations = foldr ((*) . length) 1 (M.elems valueDomains)
 
+-- | Creates a valuation, returning 'Nothing' if the given parameters would lead to the creation
+-- of a valuation that is not well formed.
 create :: (Ord a, Eq b) => M.Map (M.Map a b) c -> Domain a -> M.Map a (Domain b) -> Domain a -> Maybe (SemiringValuation c a b)
 create x y z w
     | isWellFormed result = Just result
@@ -123,12 +119,10 @@ create x y z w
     where
         result = Valuation x y z w
 
-
-
 instance (Show c, SemiringValue c) => Valuation (SemiringValuation c) where
     label x | assertIsWellFormed x = undefined
     label (Identity d)                       = d
-    label (Valuation {varDomain, extension}) = S.union varDomain extension
+    label (Valuation _ d _ e) = S.union d e
 
     combine x y | assertAllWellFormed [x, y] = undefined
     combine (Identity d1) (Identity d2) = Identity (S.union d1 d2)
@@ -185,33 +179,6 @@ with the values of the second parameter. For example:
     < Australia      Water           4
     < Korea          Gum             6
     < Korea          Water           8
-
-lists are ordered first parameter is the variable, the second parameter
-is a list of the conditions, and the third parameter is the list of probabilities,
-where probabilities are ordered as follows:
-
-    var   A   B   Probability
-
-     0    0   0       0.7       P(var == 0 | A == 0 && B == 0)
-
-     0    0   1       0.4       P(var == 0 | A == 0 && B == 1)
-
-     0    0   2       0.3       P(var == 0 | A == 0 && B == 2)
-
-     0    1   0       0.6       P(var == 0 | A == 1 && B == 0)
-
-     .    .   .        .                      .
-     .    .   .        .                      .
-     .    .   .        .                      .
-
-BValRows stores the equivalent information except as what is essentially as a tuple of each
-row of the table instead.
-
-Note that neither form allows the range of values that can be stored in a certain field differ across fields;
-i.e. if 'A' can range from 0 to 1, then B must also range from 0 to 1.
-
-BValColumns stores no redundant information, while BValRows stores a heap of redundant information,
-but allows accessing this information in a more haskell-like manner.
 -}
 getRows :: forall a b c. (Ord b, Ord c) => [(b, [c])] -> [a] -> SemiringValuation a b c
 getRows vars ps = assert' isWellFormed $ Valuation rMap d valueDomains extension
@@ -235,7 +202,7 @@ hasSameValueForSharedVariables xs ys = all (\k -> xs M.! k == ys M.! k) sharedKe
 
 -- unsafe
 findValue :: (Ord a, Ord b) => VariableArrangement a b -> SemiringValuation c a b -> c
-findValue x (Valuation {rowMap}) = rowMap M.! x
+findValue x (Valuation rowMap _ _ _) = rowMap M.! x
 findValue _ (Identity _) = error "findProbability: Attempted to read value from an identity valuation."
 
 mapTableKeys :: (Ord b, Ord c) => (a -> b) -> SemiringValuation d a c -> SemiringValuation d b c
