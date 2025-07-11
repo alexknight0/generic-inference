@@ -1,5 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
+-- GHC thinks HasCallStack constraints are redundant.
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
+
 module Utils
     ( setMap
     , nubWithBy
@@ -39,7 +42,6 @@ import           Hedgehog          (Property, PropertyT, diff, property,
                                     withTests)
 
 import           Control.Exception (assert)
-import           Debug.Trace
 import           GHC.Stack         (HasCallStack)
 import           Numeric.Natural
 
@@ -68,11 +70,6 @@ snd4 (_, x, _, _) = x
 
 fth4 :: (a, b, c, d) -> d
 fth4 (_, _, _, x) = x
-
-normalize :: (Fractional a) => [a] -> [a]
-normalize xs = fmap (/ sumXs) xs
-    where
-        sumXs = sum xs
 
 findAssertSingleMatch :: (a -> Bool) -> [a] -> a
 findAssertSingleMatch p xs
@@ -153,5 +150,5 @@ listOfPowersOfTwo :: [Int]
 listOfPowersOfTwo = 1 : (map (*2) listOfPowersOfTwo)
 
 safeHead :: [a] -> Maybe a
-safeHead []     = Nothing
-safeHead (x:xs) = Just x
+safeHead []    = Nothing
+safeHead (x:_) = Just x

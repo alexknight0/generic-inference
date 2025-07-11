@@ -8,7 +8,6 @@ module ValuationAlgebra.Semiring
     , create
     , normalize
     , getRows
-    , showAsRows
     , Valuation
     , VariableArrangement
     , Variable
@@ -24,16 +23,8 @@ import           Control.Exception              (assert)
 import           Data.Binary                    (Binary)
 import qualified Data.Map                       as M
 import qualified Data.Set                       as S
-import           Debug.Trace                    (trace)
 import           GHC.Generics
-import           GHC.Stack                      (HasCallStack)
 import           ValuationAlgebra.SemiringValue
-
-assertAllWellFormed :: (HasCallStack, Foldable t, Ord a, Eq b) => t (SemiringValuation c a b) -> Bool
-assertAllWellFormed = any (\x -> assert (isWellFormed x) False)
-
-assertIsWellFormed :: (HasCallStack, Ord a, Eq b) => SemiringValuation c a b -> Bool
-assertIsWellFormed x = assert (isWellFormed x) False
 
 {- | Valuation for a semiring valuation algebra.
 
@@ -153,15 +144,12 @@ instance (Show c, SemiringValue c) => Valuation (SemiringValuation c) where
     identity = Identity
 
 instance (Show a, Show b, Show c) => Show (SemiringValuation a b c) where
-    show = showAsRows
-
--- TODO: finish
-showAsRows :: (Show a, Show b, Show c) => SemiringValuation a b c -> String
-showAsRows (Valuation {}) = "\n------ Table ------\n"
-                     ++ "-------------------\n"
-showAsRows (Identity _) = "\n------ Table ------\n"
-                   ++ "Identity"
-                   ++ "-------------------\n"
+    show (Valuation rowMap _ _ _) = "\n------ SemiringValuation ------\n"
+                                 ++ show rowMap
+                                 ++ "\n-------------------------------\n"
+    show (Identity _) = "\n------ Table ------\n"
+                     ++ "Identity"
+                     ++ "\n-------------------\n"
 
 {-
 The first parameter is an association list mapping a variable to a list of values that the variable can take.
@@ -200,7 +188,7 @@ hasSameValueForSharedVariables xs ys = all (\k -> xs M.! k == ys M.! k) sharedKe
     where
         sharedKeys = S.toList $ S.intersection (M.keysSet xs) (M.keysSet ys)
 
--- unsafe
+-- | Returns the value of the given variable arrangement. Unsafe.
 findValue :: (Ord a, Ord b) => VariableArrangement a b -> SemiringValuation c a b -> c
 findValue x (Valuation rowMap _ _ _) = rowMap M.! x
 findValue _ (Identity _) = error "findProbability: Attempted to read value from an identity valuation."
@@ -214,3 +202,9 @@ normalize (Identity x) = Identity x
 normalize (Valuation rowMap d vD e) = Valuation (M.map (/ sumOfAllXs) rowMap) d vD e
     where
         sumOfAllXs = sum $ M.elems rowMap
+
+assertAllWellFormed :: (Foldable t, Ord a, Eq b) => t (SemiringValuation c a b) -> Bool
+assertAllWellFormed = any (\x -> assert (isWellFormed x) False)
+
+assertIsWellFormed :: (Ord a, Eq b) => SemiringValuation c a b -> Bool
+assertIsWellFormed x = assert (isWellFormed x) False

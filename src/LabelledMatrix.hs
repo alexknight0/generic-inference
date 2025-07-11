@@ -30,7 +30,6 @@ import qualified Data.Map                                    as M
 import qualified Data.Matrix                                 as M'
 import           Data.Maybe                                  (fromJust, isJust)
 import qualified Data.Set                                    as S
-import           GHC.Stack
 import           Utils
 import qualified ValuationAlgebra.QuasiRegular.SemiringValue as Q
 
@@ -42,7 +41,7 @@ import           GHC.Generics                                (Generic)
 
 {- | A labelled matrix.
 
-A vector can be created by specifying `LabelledMatrix () b c` or `LabelledMatrix a () c`
+A column or row matrix can be created by specifying `LabelledMatrix () b c` or `LabelledMatrix a () c`
 -}
 data LabelledMatrix a b c = Matrix (M.Map (a, b) c) (S.Set a) (S.Set b) deriving (Binary, NFData, Ord, Generic, Read)
 
@@ -102,7 +101,7 @@ extension (Matrix m dA dB) newDA newDB zero
         mapOfZeroes = M.fromList [((a, b), zero) | a <- S.toList newDA, b <- S.toList newDB]
 
 -- | Project the domain of a matrix down to a new domain. Returns nothing if the given domain is not a subset of the old domain.
-project :: (Show a, Show b, HasCallStack, Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> Maybe (LabelledMatrix a b c)
+project :: (Show a, Show b, Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> Maybe (LabelledMatrix a b c)
 project x _ _ | assertIsWellFormed x = undefined
 project (Matrix m dA dB) newDA newDB
     | newDA `S.isSubsetOf` dA && newDB `S.isSubsetOf` dB = Just $ Matrix (M.filterWithKey (\(a, b) _ -> a `elem` newDA && b `elem` newDB) m) newDA newDB
@@ -199,14 +198,10 @@ decompose m@(Matrix _ dA dB) = do
 
         project' x y z = fromJust $ project x y z
 
--- | Joins two disjoint matrices. Returns Nothing if the matrices are not disjoint.
--- TODO: I think result may not be well formed? If so probably should not expose.
-join :: (Show a, Show b, Ord a, Ord b) => LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
--- join x y | assertAllWellFormed [x, y] = undefined
+-- | Joins two disjoint matrices. Returns Nothing if the matrices are not disjoint. Result may not be well-formed, so should probably not be exposed.
+join :: (Ord a, Ord b) =>LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
 join (Matrix m1 dA1 dB1) (Matrix m2 dA2 dB2)
     | not (M.disjoint m1 m2) = Nothing
-    -- | not (S.disjoint dA1 dA2) = trace ("Attempted join: " ++ show dA1 ++ " union " ++ show dA2 ++ ".") Nothing
-    -- | not (S.disjoint dB1 dB2) = trace ("Attempted join: " ++ show dB1 ++ " union " ++ show dB2 ++ ".") Nothing
     | otherwise = Just $ Matrix (unionDisjoint m1 m2) (S.union dA1 dA2) (S.union dB1 dB2)
     where
         unionDisjoint = M.unionWith (\_ _ -> error "Maps not disjoint despite sets indicating disjoint")
@@ -222,7 +217,7 @@ For inputs A -> B -> C -> D returns:
 
 Note that this does not indicate that the resulting matrix is a square matrix.
 -}
-joinSquare :: (Show a, Show b, Ord a, Ord b) => LabelledMatrix a b c -> LabelledMatrix a b c -> LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
+joinSquare :: (Ord a, Ord b) =>LabelledMatrix a b c -> LabelledMatrix a b c -> LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
 joinSquare a b c d | assertAllWellFormed [a, b, c, d] = undefined
 joinSquare mA@(Matrix _ aDA aDB) mB@(Matrix _ bDA bDB) mC@(Matrix _ cDA cDB) mD@(Matrix _ dDA dDB)
     | aDA /= bDA || cDA /= dDA || aDB /= cDB || bDB /= dDB = Nothing
@@ -233,9 +228,9 @@ joinSquare mA@(Matrix _ aDA aDB) mB@(Matrix _ bDA bDB) mC@(Matrix _ cDA cDB) mD@
 isWellFormed :: LabelledMatrix a b c -> Bool
 isWellFormed (Matrix m dA dB) = length m == length dA * length dB
 
-assertIsWellFormed :: HasCallStack => LabelledMatrix a b c -> Bool
+assertIsWellFormed :: LabelledMatrix a b c -> Bool
 assertIsWellFormed x = assert (isWellFormed x) False
 
-assertAllWellFormed :: (HasCallStack, Foldable t) => t (LabelledMatrix a b c) -> Bool
+assertAllWellFormed :: (Foldable t) => t (LabelledMatrix a b c) -> Bool
 assertAllWellFormed = any (\x -> assert (isWellFormed x) False)
 

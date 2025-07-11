@@ -62,9 +62,10 @@ main = runProcessLocal $ mainProcess (MainParameters {
 })
 
 mainProcess :: MainParameters -> Process ()
-mainProcess params = do
+mainProcess _ = do
 
     liftIO $ putStrLn "\n\n\n\n\nRunning Program...\n\n"
+    liftIO $ putStrLn "\nFinished.\n"
 
     -- when (printP1JoinTree params) $
     --     liftIO $ print $ length $ showAdjacents $ p1BasicTree

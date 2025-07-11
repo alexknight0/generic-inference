@@ -38,11 +38,7 @@ import           Data.Complex                                (Complex ((:+)))
 import           Numeric.Natural
 
 import           Bayesian
-import           Data.Array.CArray                           (createCArray)
-import           Data.Array.CArray.Base                      (CArray)
 import qualified FastFourierTransform                        as F
-import           Foreign.Marshal                             (pokeArray)
-import           Math.FFT                                    (dft)
 import           ValuationAlgebra.QuasiRegular.SemiringValue
 
 import qualified LabelledMatrix                              as M
