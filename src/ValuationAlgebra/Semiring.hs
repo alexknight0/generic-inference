@@ -12,7 +12,7 @@ module ValuationAlgebra.Semiring
     , getRows
     , showAsRows
     , Valuation
-    , Variables
+    , VariableArrangement
     , Variable
     , findValue
     , mapTableKeys
@@ -38,6 +38,66 @@ assertAllWellFormed = any (\x -> assert (isWellFormed x) False)
 assertIsWellFormed :: (HasCallStack, Ord a, Eq b) => SemiringValuation c a b -> Bool
 assertIsWellFormed x = assert (isWellFormed x) False
 
+{- | Valuation for a semiring valuation algebra.
+
+This can be thought of as a table, with each entry as a row.
+For example:
+
+    rowMap:  [([("Country", "Australia"), ("Item", "Gum")],   2),
+              ([("Country", "Australia"), ("Item", "Water")], 4),
+              ([("Country", "Korea"),     ("Item", "Gum")],   6),
+              ([("Country", "Korea"),     ("Item", "Water")], 8),
+            ]
+
+    varDomain:        ["Country", "Item"]
+    varToValueDomain: [("Country", ["Australia", "Korea"]),
+                       ("Item", ["Gum", "Water"])]
+    extension:        []
+
+Represents:
+
+    Country        Item
+
+    Australia      Gum             2
+    Australia      Water           4
+    Korea          Gum             6
+    Korea          Water           8
+
+
+rowMap           :: M.Map (M.Map a b) c,
+
+    A mapping from variable arrangements 'M.Map a b' to values 'c'.
+    Each variable arrangement is a permutation of an assignment of
+    each element of the domain 'varDomain' to a value from
+    'varToValueDomain'. All permutations can be found in rowMap.
+
+varDomain        :: Domain a,
+
+    All the variables that are included in a variable arrangement.
+
+varToValueDomain :: M.Map a (Domain b),
+
+    The possible values each variable can take in a variable arrangement.
+
+extension        :: Domain a
+
+    An extension to 'varDomain' that extends the domain of the valuation
+    but without adding any extra rows. This could be thought of as adding
+    an extra variable to the 'varDomain' where the variable only has one
+    possible value, so no extra permutations are generated.
+-}
+data SemiringValuation c a b = Valuation
+    {
+        rowMap           :: M.Map (VariableArrangement a b) c,
+        varDomain        :: Domain a,
+        varToValueDomain :: M.Map a (Domain b),
+        -- Vacuous extension to the variable domain.
+        extension        :: Domain a
+    } | Identity (Domain a) deriving (Generic, Binary)
+
+type Variable a b = (a, b)
+type VariableArrangement a b = M.Map a b
+
 isWellFormed :: forall a b c. (Ord a, Eq b) => SemiringValuation c a b -> Bool
 isWellFormed (Identity _) = True
 isWellFormed (Valuation rows d valueDomains vacuousExtension)
@@ -56,49 +116,14 @@ isWellFormed (Valuation rows d valueDomains vacuousExtension)
 
         numPermutations = foldr ((*) . length) 1 (M.elems valueDomains)
 
-{-
-In BValColumns, the first parameter is the variable, the second parameter
-is a list of the conditions, and the third parameter is the list of probabilities,
-where probabilities are ordered as follows:
-
-    var   A   B   Probability
-
-     0    0   0       0.7       P(var == 0 | A == 0 && B == 0)
-
-     0    0   1       0.4       P(var == 0 | A == 0 && B == 1)
-
-     0    0   2       0.3       P(var == 0 | A == 0 && B == 2)
-
-     0    1   0       0.6       P(var == 0 | A == 1 && B == 0)
-
-     .    .   .        .                      .
-     .    .   .        .                      .
-     .    .   .        .                      .
-
-BValRows stores the equivalent information except as what is essentially as a tuple of each
-row of the table instead.
-
-Note that neither form allows the range of values that can be stored in a certain field differ across fields;
-i.e. if 'A' can range from 0 to 1, then B must also range from 0 to 1.
-
-BValColumns stores no redundant information, while BValRows stores a heap of redundant information,
-but allows accessing this information in a more haskell-like manner.
--}
-data SemiringValuation c a b = Valuation
-    {
-        rowMap           :: M.Map (M.Map a b) c,
-        varDomain        :: Domain a,
-        varToValueDomain :: M.Map a (Domain b),
-        -- Vacuous extension to the variable domain.
-        extension        :: Domain a
-    } | Identity (Domain a) deriving (Generic, Binary)
-
 create :: (Ord a, Eq b) => M.Map (M.Map a b) c -> Domain a -> M.Map a (Domain b) -> Domain a -> Maybe (SemiringValuation c a b)
 create x y z w
     | isWellFormed result = Just result
     | otherwise = Nothing
     where
         result = Valuation x y z w
+
+
 
 instance (Show c, SemiringValue c) => Valuation (SemiringValuation c) where
     label x | assertIsWellFormed x = undefined
@@ -144,10 +169,50 @@ showAsRows (Identity _) = "\n------ Table ------\n"
                    ++ "Identity"
                    ++ "-------------------\n"
 
+{-
+The first parameter is an association list mapping a variable to a list of values that the variable can take.
+The list of values that the variable can take should not contain duplicate elements, and the association list
+should not contain duplicate entries for a key. The second parameter is a list of values assigned to each row.
 
-type Variable a b = (a, b)
-type Variables a b = M.Map a b
+The values of the association list are permuted based on the order they are found in the list, and then zipped
+with the values of the second parameter. For example:
 
+    > getRows [("Country", ["Australia", "Korea"]), ("Item", ["Gum", "Water"])] [2,4,6,8]
+
+    < Country        Item
+    <
+    < Australia      Gum             2
+    < Australia      Water           4
+    < Korea          Gum             6
+    < Korea          Water           8
+
+lists are ordered first parameter is the variable, the second parameter
+is a list of the conditions, and the third parameter is the list of probabilities,
+where probabilities are ordered as follows:
+
+    var   A   B   Probability
+
+     0    0   0       0.7       P(var == 0 | A == 0 && B == 0)
+
+     0    0   1       0.4       P(var == 0 | A == 0 && B == 1)
+
+     0    0   2       0.3       P(var == 0 | A == 0 && B == 2)
+
+     0    1   0       0.6       P(var == 0 | A == 1 && B == 0)
+
+     .    .   .        .                      .
+     .    .   .        .                      .
+     .    .   .        .                      .
+
+BValRows stores the equivalent information except as what is essentially as a tuple of each
+row of the table instead.
+
+Note that neither form allows the range of values that can be stored in a certain field differ across fields;
+i.e. if 'A' can range from 0 to 1, then B must also range from 0 to 1.
+
+BValColumns stores no redundant information, while BValRows stores a heap of redundant information,
+but allows accessing this information in a more haskell-like manner.
+-}
 getRows :: forall a b c. (Ord b, Ord c) => [(b, [c])] -> [a] -> SemiringValuation a b c
 getRows vars ps = assert' isWellFormed $ Valuation rMap d valueDomains extension
     where
@@ -156,7 +221,7 @@ getRows vars ps = assert' isWellFormed $ Valuation rMap d valueDomains extension
         valueDomains = fromListAssertDisjoint (map (\(v, values) -> (v, fromListAssertDisjoint' values)) vars)
         extension = S.empty
 
-        vPermutations :: [(b, [c])] -> [Variables b c]
+        vPermutations :: [(b, [c])] -> [VariableArrangement b c]
         vPermutations xs = map fromListAssertDisjoint $ vPermutations' xs
             where
                 vPermutations' :: [(b, [c])] -> [[Variable b c]]
@@ -169,7 +234,7 @@ hasSameValueForSharedVariables xs ys = all (\k -> xs M.! k == ys M.! k) sharedKe
         sharedKeys = S.toList $ S.intersection (M.keysSet xs) (M.keysSet ys)
 
 -- unsafe
-findValue :: (Ord a, Ord b) => Variables a b -> SemiringValuation c a b -> c
+findValue :: (Ord a, Ord b) => VariableArrangement a b -> SemiringValuation c a b -> c
 findValue x (Valuation {rowMap}) = rowMap M.! x
 findValue _ (Identity _) = error "findProbability: Attempted to read value from an identity valuation."
 
