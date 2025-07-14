@@ -5,7 +5,7 @@
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
-module FastFourierTransform
+module Instances.FastFourierTransform
     ( query
     , FourierComplex (FourierComplex)
     , createComplexArray
@@ -14,7 +14,7 @@ module FastFourierTransform
     )
 where
 
-import           ShenoyShafer
+import           Inference.ShenoyShafer
 import           Utils
 import           ValuationAlgebra.Semiring
 

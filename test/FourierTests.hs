@@ -6,6 +6,7 @@ module FourierTests
 where
 
 import           Data
+import           Instances.FastFourierTransform
 import           LocalProcess
 import           ValuationAlgebra.Semiring
 
@@ -18,7 +19,6 @@ import           Control.Distributed.Process
 import           Control.Distributed.Process.Node
 import           Control.Distributed.Process.Serializable (Serializable)
 import           Data.Functor                             (void)
-import           FastFourierTransform
 import           System.IO.Silently                       (capture)
 import           Utils
 

@@ -4,7 +4,7 @@
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
-module Bayesian
+module Instances.Bayesian
     ( queryNetwork, toProbabilityQuery
     , ProbabilityQuery
     , Probability (P)
@@ -13,7 +13,7 @@ module Bayesian
     )
 where
 
-import           ShenoyShafer
+import           Inference.ShenoyShafer
 import           Utils
 import           ValuationAlgebra
 import           ValuationAlgebra.Semiring

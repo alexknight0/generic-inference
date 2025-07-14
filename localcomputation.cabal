@@ -25,18 +25,18 @@ source-repository head
 
 library
   exposed-modules:
-      Bayesian
-      Bayesian.HackageVersion
-      Bayesian.Parser
-      Collect
       Data
-      EliminationSequence
-      FastFourierTransform
-      JoinTree
+      Inference.Collect
+      Inference.EliminationSequence
+      Inference.JoinTree
+      Inference.ShenoyShafer
+      Instances.Bayesian
+      Instances.Bayesian.HackageVersion
+      Instances.Bayesian.Parser
+      Instances.FastFourierTransform
+      Instances.ShortestPath.SingleTarget
       LabelledMatrix
       LocalProcess
-      ShenoyShafer
-      ShortestPath.SingleTarget
       Utils
       ValuationAlgebra
       ValuationAlgebra.QuasiRegular

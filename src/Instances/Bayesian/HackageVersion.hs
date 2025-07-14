@@ -1,9 +1,9 @@
-module Bayesian.HackageVersion
+module Instances.Bayesian.HackageVersion
     ( runQuery, createNetwork, runQueries )
 where
 
-import qualified Bayesian                             as B
 import qualified Data.Map                             as M
+import qualified Instances.Bayesian                   as B
 import           Numeric.Probability.Distribution     ((?=<<), (??))
 import           Numeric.Probability.Example.Bayesian (PState, SPred, STrans,
                                                        State, event, happens,

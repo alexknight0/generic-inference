@@ -1,19 +1,19 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module JoinTree
+module Inference.JoinTree
     ( Node
     , collect, getValuation, getDomain, create, nodeId
     , baseJoinTree
     )
 where
 
-import           Algebra.Graph       hiding (clique)
-import           Data.List           (union)
-import           Data.Set            (fromList, toList)
-import qualified Data.Set            as S
-import qualified EliminationSequence as E
+import           Algebra.Graph                 hiding (clique)
+import           Data.List                     (union)
+import           Data.Set                      (fromList, toList)
+import qualified Data.Set                      as S
+import qualified Inference.EliminationSequence as E
 
-import           Data.Maybe          (fromJust)
+import           Data.Maybe                    (fromJust)
 import           ValuationAlgebra
 
 class Node n where

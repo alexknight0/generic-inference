@@ -37,12 +37,12 @@ import           GHC.Generics                                (Generic)
 import           Data.Complex                                (Complex ((:+)))
 import           Numeric.Natural
 
-import           Bayesian
-import qualified FastFourierTransform                        as F
+import           Instances.Bayesian
+import qualified Instances.FastFourierTransform              as F
 import           ValuationAlgebra.QuasiRegular.SemiringValue
 
+import           Instances.ShortestPath.SingleTarget         (DistanceMap)
 import qualified LabelledMatrix                              as M
-import           ShortestPath.SingleTarget                   (DistanceMap)
 
 dataDirectory :: String
 dataDirectory = "data/"

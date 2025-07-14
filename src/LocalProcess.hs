@@ -4,12 +4,7 @@ module LocalProcess (runProcessLocal) where
 import qualified Data.Map                         as M
 
 -- LocalComputation library files
-import           Bayesian
-import           Collect
-import           JoinTree
-import           ShenoyShafer
 import           Utils
-import           ValuationAlgebra
 
 
 ---- We will need these someday (probably)

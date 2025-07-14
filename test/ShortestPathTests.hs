@@ -7,7 +7,7 @@ where
 
 import           Data
 import           LocalProcess
-import qualified ShortestPath.SingleTarget                as ST
+import qualified Instances.ShortestPath.SingleTarget                as ST
 import           Utils
 import           ValuationAlgebra.QuasiRegular
 

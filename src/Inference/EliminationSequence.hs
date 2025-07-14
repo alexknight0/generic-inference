@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module EliminationSequence
+module Inference.EliminationSequence
     ( create
     , eliminateNext
     , isEmpty

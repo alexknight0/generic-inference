@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-module ShortestPath.SingleTarget
+module Instances.ShortestPath.SingleTarget
     ( answerQuery
     , answerQueries
     , DistanceMap
@@ -10,8 +10,8 @@ import           Control.Distributed.Process                 (Process)
 import           Data.Maybe                                  (fromJust)
 import qualified Data.Set                                    as S
 
+import           Inference.ShenoyShafer                      (answerQueriesM)
 import qualified LabelledMatrix                              as M
-import           ShenoyShafer                                (answerQueriesM)
 import           ValuationAlgebra.QuasiRegular               (QuasiRegularValuation,
                                                               create, solution)
 import           ValuationAlgebra.QuasiRegular.SemiringValue

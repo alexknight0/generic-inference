@@ -18,11 +18,11 @@ import           Data.Time                        (getCurrentTime)
 import           GHC.Generics
 
 -- LocalComputation library files
-import           Bayesian
-import           Collect
-import           JoinTree
+import           Inference.Collect
+import           Inference.ShenoyShafer
+import           Instances.Bayesian
+import           Inference.JoinTree
 import           LocalProcess
-import           ShenoyShafer
 import           Utils
 import           ValuationAlgebra
 import           ValuationAlgebra.Semiring

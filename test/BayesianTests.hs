@@ -5,9 +5,9 @@ module BayesianTests
     ( tests )
 where
 
-import           Bayesian
-import           Bayesian.HackageVersion
-import           Bayesian.Parser
+import           Instances.Bayesian
+import           Instances.Bayesian.HackageVersion
+import           Instances.Bayesian.Parser
 import           Data
 import           LocalProcess
 import           Utils
