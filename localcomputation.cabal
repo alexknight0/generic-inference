@@ -25,7 +25,6 @@ source-repository head
 
 library
   exposed-modules:
-      Data
       Inference.Collect
       Inference.EliminationSequence
       Inference.JoinTree
@@ -109,6 +108,7 @@ test-suite localcomputation-test
   main-is: Spec.hs
   other-modules:
       BayesianTests
+      Data
       FourierTests
       MatrixTests
       ShortestPathTests
