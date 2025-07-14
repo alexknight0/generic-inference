@@ -7,10 +7,13 @@ module JoinTree
     )
 where
 
-import           Algebra.Graph
+import           Algebra.Graph    hiding (clique)
+import qualified Data.Heap        as H
 import           Data.List        (union)
+import qualified Data.Map         as M
 import           Data.Set         (fromList, toList)
 import qualified Data.Set         (empty, union)
+import qualified Data.Set         as S
 
 import           ValuationAlgebra
 
@@ -100,7 +103,7 @@ baseJoinTree' nextNodeId r (x : d')
         phiX = filter xIsInNodeDomain r
 
         domainOfPhiX :: Domain a
-        domainOfPhiX = foldr (Data.Set.union) (Data.Set.empty) $ map getDomain phiX
+        domainOfPhiX = foldr (S.union) (S.empty) $ map getDomain phiX
 
         nUnion :: n v a b
         nUnion = create nextNodeId domainOfPhiX (identity domainOfPhiX)
@@ -116,4 +119,3 @@ baseJoinTree' nextNodeId r (x : d')
             where
                 nPDomain = (fromList $ setDifference (toList domainOfPhiX) [x])
 
-data LowestCost
