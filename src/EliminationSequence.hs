@@ -3,6 +3,8 @@
 module EliminationSequence
     ( create
     , eliminateNext
+    , isEmpty
+    , EliminationSequence
     )
 where
 
@@ -12,7 +14,6 @@ import qualified Data.Map          as M
 import qualified Data.Set          as S
 
 import           Control.Exception (assert)
-import           Utils
 
 {- | An elimination sequence. Each call to eliminateNext will return the current lowest cost variable to eliminate.
 
@@ -31,15 +32,20 @@ isWellFormed (EliminationSequence xs)
     | otherwise = Right ()
     where
         xs' = H.toList xs
-        p (clique, x) = x `elem` clique
+        p (clique, x) = x `notElem` clique
 
 -- | Creates an elimination sequence from a given set of domains.
 create :: (Ord a) => [S.Set a] -> EliminationSequence a
 create xs = EliminationSequence $ H.fromList $ map (\(var, clique) -> (OrderByLength clique, var)) (M.toList (getCliques xs))
 
+-- | Returns true if there are no variables left to eliminate.
+isEmpty :: EliminationSequence a -> Bool
+isEmpty (EliminationSequence xs) = H.isEmpty xs
+
 getCliques :: (Ord a) => [S.Set a] -> M.Map a (S.Set a)
 getCliques xs = M.unionsWith S.union $ map f xs
     where
+        f :: (Ord a) => S.Set a -> M.Map a (S.Set a)
         f ys = foldr g (M.empty) ys
             where
                 g y acc = M.insert y ys acc

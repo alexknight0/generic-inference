@@ -7,14 +7,13 @@ module JoinTree
     )
 where
 
-import           Algebra.Graph    hiding (clique)
-import qualified Data.Heap        as H
-import           Data.List        (union)
-import qualified Data.Map         as M
-import           Data.Set         (fromList, toList)
-import qualified Data.Set         (empty, union)
-import qualified Data.Set         as S
+import           Algebra.Graph       hiding (clique)
+import           Data.List           (union)
+import           Data.Set            (fromList, toList)
+import qualified Data.Set            as S
+import qualified EliminationSequence as E
 
+import           Data.Maybe          (fromJust)
 import           ValuationAlgebra
 
 class Node n where
@@ -68,8 +67,8 @@ baseJoinTree :: forall n v a b. (Show a, Show b, Node n, Valuation v, Ord a, Ord
     -> Graph (n v a b)
 baseJoinTree vs queries = edges $ baseJoinTree' nextNodeId r d
     where
-        d :: [a]
-        d = foldr (union . toList) [] $ map label vs
+        d :: E.EliminationSequence a
+        d = E.create $ map label vs
 
         r :: [n v a b]
         r = zipWith (\nid v -> create nid (label v) v) [0 ..] vs
@@ -88,14 +87,16 @@ create up to 2 nodes on each iteration, we make the recursive call with 'nextNod
 baseJoinTree' :: forall n v a b. (Node n, Valuation v, Eq (n v a b), Ord a)
     => Integer
     -> [n v a b]
-    -> [a]
+    -> E.EliminationSequence a
     -> [(n v a b, n v a b)]
-baseJoinTree' _ _ [] = []
-baseJoinTree' nextNodeId r (x : d')
+baseJoinTree' nextNodeId r d
+    | E.isEmpty d = []
     | length r <= 1 = []
     | length r' > 0 = union (union [(nUnion, nP)] e) (baseJoinTree' (nextNodeId + 2) (union [nP] r') d')
     | otherwise = union e (baseJoinTree' (nextNodeId + 2) r' d')
     where
+        (x, d') = fromJust $ E.eliminateNext d
+
         xIsInNodeDomain :: n v a b -> Bool
         xIsInNodeDomain n = x `elem` (getDomain n)
 
