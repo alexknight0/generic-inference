@@ -28,22 +28,28 @@ module LocalComputation.Utils
     , listOfPowersOfTwo
     , safeHead
     , fromListAssertDisjoint'
+    , parseFile
     )
 where
 
-import           Data.List         (find)
-import           Data.Map          (Map, adjust, elems, insert, member)
-import qualified Data.Map          as M
-import           Data.Set          (Set)
-import qualified Data.Set          as S
 
-import           Data.Functor      (void)
-import           Hedgehog          (Property, PropertyT, diff, property,
-                                    withTests)
+import           Data.List                     (find)
+import           Data.Map                      (Map, adjust, elems, insert,
+                                                member)
+import qualified Data.Map                      as M
+import           Data.Set                      (Set)
+import qualified Data.Set                      as S
 
-import           Control.Exception (assert)
-import           GHC.Stack         (HasCallStack)
+import           Data.Functor                  (void)
+import           Hedgehog                      (Property, PropertyT, diff,
+                                                property, withTests)
+import qualified Text.ParserCombinators.Parsec as P
+
+import           Control.Exception             (assert)
+import           GHC.Stack                     (HasCallStack)
 import           Numeric.Natural
+import           System.IO                     (IOMode (ReadMode),
+                                                hGetContents', openFile)
 
 divAssert :: (Integral a) => a -> a -> a
 divAssert x y
@@ -152,3 +158,9 @@ listOfPowersOfTwo = 1 : (map (*2) listOfPowersOfTwo)
 safeHead :: [a] -> Maybe a
 safeHead []    = Nothing
 safeHead (x:_) = Just x
+
+parseFile :: P.GenParser Char () a -> FilePath -> IO (Either P.ParseError a)
+parseFile p filename = do
+    handle <- openFile filename ReadMode
+    contents <- hGetContents' handle
+    pure $ P.parse p filename contents

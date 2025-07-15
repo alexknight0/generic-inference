@@ -1,6 +1,5 @@
 module LocalComputation.Instances.BayesianNetwork.Parser
-    (
-        parseNetwork, parseNetwork'
+    ( network
     )
 where
 
@@ -18,15 +17,6 @@ import           Text.Parsec.Token                          (GenTokenParser,
                                                              makeTokenParser)
 import           Text.ParserCombinators.Parsec
 
-
-parseNetwork' :: String -> String -> Either ParseError (Network String Bool)
-parseNetwork' xs filename = parse network filename xs
-
-parseNetwork :: FilePath -> IO (Either ParseError (Network String Bool))
-parseNetwork filename = do
-    handle <- openFile filename ReadMode
-    contents <- hGetContents' handle
-    pure $ parseNetwork' contents filename
 
 network :: GenParser Char st (Network String Bool)
 network = do

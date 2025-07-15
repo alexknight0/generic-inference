@@ -7,7 +7,7 @@ where
 
 import           Benchmark.Baseline.Probability
 import           LocalComputation.Instances.BayesianNetwork
-import           LocalComputation.Instances.BayesianNetwork.Parser
+import qualified LocalComputation.Instances.BayesianNetwork.Parser as P
 import           LocalComputation.LocalProcess
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra.Semiring
@@ -48,7 +48,7 @@ checkQueries qs ps getNetwork = do
 
 parseNetwork'' :: FilePath -> PropertyT IO (Network String Bool)
 parseNetwork'' filename = do
-    parsed <- liftIO $ parseNetwork filename
+    parsed <- liftIO $ parseFile P.network filename
     case parsed of
         Left e        -> do annotateShow e; failure
         Right network -> pure (network)

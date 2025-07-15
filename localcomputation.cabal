@@ -35,6 +35,7 @@ library
       LocalComputation.Instances.BayesianNetwork
       LocalComputation.Instances.BayesianNetwork.Parser
       LocalComputation.Instances.FastFourierTransform
+      LocalComputation.Instances.ShortestPath.Parser
       LocalComputation.Instances.ShortestPath.SingleTarget
       LocalComputation.LabelledMatrix
       LocalComputation.LocalProcess
