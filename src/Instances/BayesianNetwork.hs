@@ -9,7 +9,7 @@ module Instances.BayesianNetwork
     , ProbabilityQuery
     , Probability (P)
     , Network
-    , BayesValuation
+    , BayesianNetworkValuation
     )
 where
 
@@ -48,7 +48,7 @@ valuations have looser meaning as simply unnormalized probability distributions.
      .    .   .        .                      .
      .    .   .        .                      .
 -}
-type BayesValuation a b = SemiringValuation Probability a b
+type BayesianNetworkValuation a b = SemiringValuation Probability a b
 
 newtype Probability = P Double deriving (Num, Fractional, Binary, Show, NFData, Ord, Eq, Generic)
 
@@ -58,7 +58,7 @@ instance SemiringValue Probability where
     zero = 0
     one = 1
 
-type Network a b = [BayesValuation a b]
+type Network a b = [BayesianNetworkValuation a b]
 -- | (conditionedVariables, conditionalVariables)
 type ProbabilityQuery a b = (VariableArrangement a b, VariableArrangement a b)
 

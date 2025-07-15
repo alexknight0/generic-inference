@@ -90,7 +90,7 @@ node = do
     <?> "node"
 
 -- todo may not have conditional vars. i.e. terminators and initials.
-potential :: GenParser Char st (BayesValuation String Bool)
+potential :: GenParser Char st (BayesianNetworkValuation String Bool)
 potential = do
         skipMany spacesAndNewLine
 
