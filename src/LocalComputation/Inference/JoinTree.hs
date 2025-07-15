@@ -1,20 +1,21 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Inference.JoinTree
+module LocalComputation.Inference.JoinTree
     ( Node
     , collect, getValuation, getDomain, create, nodeId
     , baseJoinTree
     )
 where
 
-import           Algebra.Graph                 hiding (clique)
-import           Data.List                     (union)
-import           Data.Set                      (fromList, toList)
-import qualified Data.Set                      as S
-import qualified Inference.EliminationSequence as E
+import           Algebra.Graph                                  hiding (clique)
+import           Data.List                                      (union)
+import           Data.Set                                       (fromList,
+                                                                 toList)
+import qualified Data.Set                                       as S
+import qualified LocalComputation.Inference.EliminationSequence as E
 
-import           Data.Maybe                    (fromJust)
-import           ValuationAlgebra
+import           Data.Maybe                                     (fromJust)
+import           LocalComputation.ValuationAlgebra
 
 class Node n where
     collect         :: (Valuation v) => n v a b -> n v a b

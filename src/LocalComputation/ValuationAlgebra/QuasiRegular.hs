@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric  #-}
 
-module ValuationAlgebra.QuasiRegular
+module LocalComputation.ValuationAlgebra.QuasiRegular
     ( QuasiRegularSemiringValue (quasiInverse)
     , SemiringValue (add, multiply, zero, one)
     , QuasiRegularValuation
@@ -11,17 +11,17 @@ module ValuationAlgebra.QuasiRegular
     )
 where
 
-import           Control.Exception                           (assert)
-import           Data.Maybe                                  (fromJust)
-import qualified Data.Set                                    as S
-import qualified LabelledMatrix                              as M
-import           ValuationAlgebra
-import           ValuationAlgebra.QuasiRegular.SemiringValue
+import           Control.Exception                                            (assert)
+import           Data.Maybe                                                   (fromJust)
+import qualified Data.Set                                                     as S
+import qualified LocalComputation.LabelledMatrix                              as M
+import           LocalComputation.ValuationAlgebra
+import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
 
 -- Typeclasses
-import           Control.DeepSeq                             (NFData)
-import           Data.Binary                                 (Binary)
-import           GHC.Generics                                (Generic)
+import           Control.DeepSeq                                              (NFData)
+import           Data.Binary                                                  (Binary)
+import           GHC.Generics                                                 (Generic)
 
 data QuasiRegularValuation c a b = Valuation (M.LabelledMatrix a a c) (M.LabelledMatrix a () c) | Identity (Domain a) deriving (Binary, NFData, Ord, Eq, Generic, Read, Show)
 

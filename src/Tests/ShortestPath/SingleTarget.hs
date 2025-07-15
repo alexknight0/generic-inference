@@ -5,26 +5,28 @@ module Tests.ShortestPath.SingleTarget
     ( tests )
 where
 
-import qualified Instances.ShortestPath.HackageVersion    as H
-import qualified Instances.ShortestPath.SingleTarget      as ST
-import qualified LabelledMatrix                           as M
-import           LocalProcess
+import qualified LocalComputation.Instances.ShortestPath.HackageVersion as H
+import qualified LocalComputation.Instances.ShortestPath.SingleTarget   as ST
+import qualified LocalComputation.LabelledMatrix                        as M
+import           LocalComputation.LocalProcess
+import           LocalComputation.Utils
+import           LocalComputation.ValuationAlgebra.QuasiRegular
 import           Tests.Data
-import           Utils
-import           ValuationAlgebra.QuasiRegular
 
 import           Hedgehog
-import qualified Hedgehog.Gen                             as Gen
-import qualified Hedgehog.Range                           as Range
+import qualified Hedgehog.Gen                                           as Gen
+import qualified Hedgehog.Range                                         as Range
 
-import           Control.Concurrent                       (threadDelay)
-import           Control.Distributed.Process              (Process, liftIO)
-import           Control.Distributed.Process.Serializable (Serializable)
-import           Control.Monad                            (forM, forM_)
-import           Data.Functor                             (void)
-import qualified Data.Map                                 as M'
-import qualified Data.Set                                 as S
-import           System.IO.Silently                       (capture)
+import           Control.Concurrent                                     (threadDelay)
+import           Control.Distributed.Process                            (Process,
+                                                                         liftIO)
+import           Control.Distributed.Process.Serializable               (Serializable)
+import           Control.Monad                                          (forM,
+                                                                         forM_)
+import           Data.Functor                                           (void)
+import qualified Data.Map                                               as M'
+import qualified Data.Set                                               as S
+import           System.IO.Silently                                     (capture)
 
 tests :: IO Bool
 tests = checkSequential $$(discover)

@@ -1,10 +1,10 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
-module LocalProcess (runProcessLocal) where
+module LocalComputation.LocalProcess (runProcessLocal) where
 
 import qualified Data.Map                         as M
 
 -- LocalComputation library files
-import           Utils
+import           LocalComputation.Utils
 
 
 ---- We will need these someday (probably)

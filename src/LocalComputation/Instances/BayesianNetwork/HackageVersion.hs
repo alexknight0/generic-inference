@@ -1,18 +1,19 @@
-module Instances.BayesianNetwork.HackageVersion
+module LocalComputation.Instances.BayesianNetwork.HackageVersion
     ( runQuery, createNetwork, runQueries )
 where
 
-import qualified Data.Map                             as M
-import qualified Instances.BayesianNetwork            as B
-import           Numeric.Probability.Distribution     ((?=<<), (??))
-import           Numeric.Probability.Example.Bayesian (PState, SPred, STrans,
-                                                       State, event, happens,
-                                                       network)
-import qualified Numeric.Probability.Example.Bayesian as P (Probability)
+import qualified Data.Map                                   as M
+import qualified LocalComputation.Instances.BayesianNetwork as B
+import           Numeric.Probability.Distribution           ((?=<<), (??))
+import           Numeric.Probability.Example.Bayesian       (PState, SPred,
+                                                             STrans, State,
+                                                             event, happens,
+                                                             network)
+import qualified Numeric.Probability.Example.Bayesian       as P (Probability)
 
-import           Utils                                (divAssert,
-                                                       findAssertSingleMatch,
-                                                       zipAssert)
+import           LocalComputation.Utils                     (divAssert,
+                                                             findAssertSingleMatch,
+                                                             zipAssert)
 
 type Network a = PState a
 type Potential a = STrans a

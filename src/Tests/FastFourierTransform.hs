@@ -5,29 +5,30 @@ module Tests.FastFourierTransform
     ( tests )
 where
 
-import           Instances.FastFourierTransform
-import           LocalProcess
+import           LocalComputation.Instances.FastFourierTransform
+import           LocalComputation.LocalProcess
+import           LocalComputation.ValuationAlgebra.Semiring
 import           Tests.Data
-import           ValuationAlgebra.Semiring
 
 import           Hedgehog
-import qualified Hedgehog.Gen                             as Gen
-import qualified Hedgehog.Range                           as Range
+import qualified Hedgehog.Gen                                    as Gen
+import qualified Hedgehog.Range                                  as Range
 
-import           Control.Concurrent                       (threadDelay)
+import           Control.Concurrent                              (threadDelay)
 import           Control.Distributed.Process
 import           Control.Distributed.Process.Node
-import           Control.Distributed.Process.Serializable (Serializable)
-import           Data.Functor                             (void)
-import           System.IO.Silently                       (capture)
-import           Utils
+import           Control.Distributed.Process.Serializable        (Serializable)
+import           Data.Functor                                    (void)
+import           LocalComputation.Utils
+import           System.IO.Silently                              (capture)
 
-import           Data.Array.CArray                        (createCArray)
-import           Data.Array.CArray.Base                   (CArray)
-import qualified Data.Array.IArray                        as I
-import           Data.Complex                             (Complex ((:+)),
-                                                           imagPart, realPart)
-import           Math.FFT                                 (dft)
+import           Data.Array.CArray                               (createCArray)
+import           Data.Array.CArray.Base                          (CArray)
+import qualified Data.Array.IArray                               as I
+import           Data.Complex                                    (Complex ((:+)),
+                                                                  imagPart,
+                                                                  realPart)
+import           Math.FFT                                        (dft)
 
 tests :: IO Bool
 tests = checkSequential $$(discover)

@@ -1,19 +1,21 @@
-module Instances.BayesianNetwork.Parser
+module LocalComputation.Instances.BayesianNetwork.Parser
     (
         parseNetwork, parseNetwork'
     )
 where
 
-import           Instances.BayesianNetwork
-import           ValuationAlgebra.Semiring
+import           LocalComputation.Instances.BayesianNetwork
+import           LocalComputation.ValuationAlgebra.Semiring
 
-import           Data.Functor.Identity         (Identity)
-import           System.IO                     (IOMode (ReadMode),
-                                                hGetContents', openFile)
-import           Text.Parsec.Char              (endOfLine)
-import           Text.Parsec.Language          (haskellDef)
-import           Text.Parsec.Token             (GenTokenParser, float,
-                                                makeTokenParser)
+import           Data.Functor.Identity                      (Identity)
+import           System.IO                                  (IOMode (ReadMode),
+                                                             hGetContents',
+                                                             openFile)
+import           Text.Parsec.Char                           (endOfLine)
+import           Text.Parsec.Language                       (haskellDef)
+import           Text.Parsec.Token                          (GenTokenParser,
+                                                             float,
+                                                             makeTokenParser)
 import           Text.ParserCombinators.Parsec
 
 

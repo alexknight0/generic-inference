@@ -31,18 +31,18 @@ module Tests.Data
 where
 
 -- Typeclasses
-import           Data.Binary                                 (Binary)
-import           GHC.Generics                                (Generic)
+import           Data.Binary                                                  (Binary)
+import           GHC.Generics                                                 (Generic)
 
-import           Data.Complex                                (Complex ((:+)))
+import           Data.Complex                                                 (Complex ((:+)))
 import           Numeric.Natural
 
-import           Instances.BayesianNetwork
-import qualified Instances.FastFourierTransform              as F
-import           ValuationAlgebra.QuasiRegular.SemiringValue
+import           LocalComputation.Instances.BayesianNetwork
+import qualified LocalComputation.Instances.FastFourierTransform              as F
+import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
 
-import           Instances.ShortestPath.HackageVersion       (DistanceGraph)
-import           Utils
+import           LocalComputation.Instances.ShortestPath.HackageVersion       (DistanceGraph)
+import           LocalComputation.Utils
 
 dataDirectory :: String
 dataDirectory = "data/"

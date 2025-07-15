@@ -1,24 +1,25 @@
 {-# LANGUAGE FlexibleContexts #-}
-module Instances.ShortestPath.SingleTarget
+module LocalComputation.Instances.ShortestPath.SingleTarget
     ( answerQuery
     , answerQueries
     , DistanceMap
     )
 where
 
-import           Control.Distributed.Process                 (Process)
-import           Data.Maybe                                  (fromJust)
-import qualified Data.Set                                    as S
+import           Control.Distributed.Process                                  (Process)
+import           Data.Maybe                                                   (fromJust)
+import qualified Data.Set                                                     as S
 
-import           Inference.ShenoyShafer                      (answerQueriesM)
-import qualified LabelledMatrix                              as M
-import           ValuationAlgebra.QuasiRegular               (QuasiRegularValuation,
-                                                              create, solution)
-import           ValuationAlgebra.QuasiRegular.SemiringValue
+import           LocalComputation.Inference.ShenoyShafer                      (answerQueriesM)
+import qualified LocalComputation.LabelledMatrix                              as M
+import           LocalComputation.ValuationAlgebra.QuasiRegular               (QuasiRegularValuation,
+                                                                               create,
+                                                                               solution)
+import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
 
 -- Typeclasses
-import           Data.Binary                                 (Binary)
-import           Type.Reflection                             (Typeable)
+import           Data.Binary                                                  (Binary)
+import           Type.Reflection                                              (Typeable)
 
 type DistanceMap a = M.LabelledMatrix a a TropicalSemiringValue
 type DistanceVector a = M.LabelledMatrix a () TropicalSemiringValue

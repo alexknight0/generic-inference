@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module ValuationAlgebra.Semiring
+module LocalComputation.ValuationAlgebra.Semiring
     ( SemiringValue (add, multiply, zero, one)
     , SemiringValuation
     , create
@@ -16,15 +16,15 @@ module ValuationAlgebra.Semiring
     )
 where
 
-import           Utils
-import           ValuationAlgebra
+import           LocalComputation.Utils
+import           LocalComputation.ValuationAlgebra
 
-import           Control.Exception              (assert)
-import           Data.Binary                    (Binary)
-import qualified Data.Map                       as M
-import qualified Data.Set                       as S
+import           Control.Exception                               (assert)
+import           Data.Binary                                     (Binary)
+import qualified Data.Map                                        as M
+import qualified Data.Set                                        as S
 import           GHC.Generics
-import           ValuationAlgebra.SemiringValue
+import           LocalComputation.ValuationAlgebra.SemiringValue
 
 {- | Valuation for a semiring valuation algebra.
 

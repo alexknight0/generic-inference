@@ -1,4 +1,4 @@
-module Instances.ShortestPath.HackageVersion
+module LocalComputation.Instances.ShortestPath.HackageVersion
     ( DistanceGraph
     , create
     , shortestPaths

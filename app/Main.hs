@@ -18,13 +18,13 @@ import           Data.Time                        (getCurrentTime)
 import           GHC.Generics
 
 -- LocalComputation library files
-import           Inference.Collect
-import           Inference.JoinTree
-import           Inference.ShenoyShafer
-import           LocalProcess
-import           Utils
-import           ValuationAlgebra
-import           ValuationAlgebra.Semiring
+import           LocalComputation.Inference.Collect
+import           LocalComputation.Inference.JoinTree
+import           LocalComputation.Inference.ShenoyShafer
+import           LocalComputation.LocalProcess
+import           LocalComputation.Utils
+import           LocalComputation.ValuationAlgebra
+import           LocalComputation.ValuationAlgebra.Semiring
 
 
 ---- We will need these someday (probably)

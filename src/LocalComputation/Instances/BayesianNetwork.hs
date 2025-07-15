@@ -4,7 +4,7 @@
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
-module Instances.BayesianNetwork
+module LocalComputation.Instances.BayesianNetwork
     ( queryNetwork, toProbabilityQuery
     , ProbabilityQuery
     , Probability (P)
@@ -13,18 +13,18 @@ module Instances.BayesianNetwork
     )
 where
 
-import           Inference.ShenoyShafer
-import           Utils
-import           ValuationAlgebra
-import           ValuationAlgebra.Semiring
+import           LocalComputation.Inference.ShenoyShafer
+import           LocalComputation.Utils
+import           LocalComputation.ValuationAlgebra
+import           LocalComputation.ValuationAlgebra.Semiring
 
-import           Control.DeepSeq                          (NFData)
-import           Control.Exception                        (assert)
-import           Data.Binary                              (Binary)
-import qualified Data.Map                                 as M
-import           Data.Set                                 (union)
-import qualified Data.Set                                 as S
-import           GHC.Generics                             (Generic)
+import           Control.DeepSeq                            (NFData)
+import           Control.Exception                          (assert)
+import           Data.Binary                                (Binary)
+import qualified Data.Map                                   as M
+import           Data.Set                                   (union)
+import qualified Data.Set                                   as S
+import           GHC.Generics                               (Generic)
 
 
 import           Control.Distributed.Process

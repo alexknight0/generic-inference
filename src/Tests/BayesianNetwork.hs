@@ -5,27 +5,27 @@ module Tests.BayesianNetwork
     ( tests )
 where
 
-import           Instances.BayesianNetwork
-import           Instances.BayesianNetwork.HackageVersion
-import           Instances.BayesianNetwork.Parser
-import           LocalProcess
+import           LocalComputation.Instances.BayesianNetwork
+import           LocalComputation.Instances.BayesianNetwork.HackageVersion
+import           LocalComputation.Instances.BayesianNetwork.Parser
+import           LocalComputation.LocalProcess
+import           LocalComputation.Utils
+import           LocalComputation.ValuationAlgebra.Semiring
 import           Tests.Data
-import           Utils
-import           ValuationAlgebra.Semiring
 
 import           Hedgehog
-import qualified Hedgehog.Gen                             as Gen
-import qualified Hedgehog.Range                           as Range
+import qualified Hedgehog.Gen                                              as Gen
+import qualified Hedgehog.Range                                            as Range
 
-import           Control.Concurrent                       (threadDelay)
-import           Control.DeepSeq                          (force)
+import           Control.Concurrent                                        (threadDelay)
+import           Control.DeepSeq                                           (force)
 import           Control.Distributed.Process
 import           Control.Distributed.Process.Node
-import           Control.Distributed.Process.Serializable (Serializable)
-import qualified Control.Exception                        as E
-import           Control.Monad                            (forM)
-import           Data.Functor                             (void)
-import qualified Data.Set                                 as S
+import           Control.Distributed.Process.Serializable                  (Serializable)
+import qualified Control.Exception                                         as E
+import           Control.Monad                                             (forM)
+import           Data.Functor                                              (void)
+import qualified Data.Set                                                  as S
 
 tests :: IO Bool
 tests = checkParallel $$(discover)

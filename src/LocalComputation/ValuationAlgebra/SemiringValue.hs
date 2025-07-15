@@ -1,4 +1,4 @@
-module ValuationAlgebra.SemiringValue
+module LocalComputation.ValuationAlgebra.SemiringValue
     ( SemiringValue (add, multiply, zero, one)
     )
 where

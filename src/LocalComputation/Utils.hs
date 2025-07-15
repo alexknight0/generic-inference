@@ -3,7 +3,7 @@
 -- GHC thinks HasCallStack constraints are redundant.
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
-module Utils
+module LocalComputation.Utils
     ( setMap
     , nubWithBy
     , snd4

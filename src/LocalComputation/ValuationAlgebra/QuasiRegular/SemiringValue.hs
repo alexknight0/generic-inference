@@ -1,19 +1,19 @@
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module ValuationAlgebra.QuasiRegular.SemiringValue
+module LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
     ( QuasiRegularSemiringValue (quasiInverse)
     , SemiringValue (add, multiply, zero, one)
     , TropicalSemiringValue (T)
     )
 where
 
-import           ValuationAlgebra.Semiring
+import           LocalComputation.ValuationAlgebra.Semiring
 
 -- Typeclasses
-import           Control.DeepSeq           (NFData)
-import           Data.Binary               (Binary)
-import           GHC.Generics              (Generic)
+import           Control.DeepSeq                            (NFData)
+import           Data.Binary                                (Binary)
+import           GHC.Generics                               (Generic)
 
 -- | A Quasi-regular semiring is also known as a 'closed' semiring
 class (SemiringValue a) => QuasiRegularSemiringValue a where

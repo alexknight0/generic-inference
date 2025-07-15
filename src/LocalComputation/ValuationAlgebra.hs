@@ -5,7 +5,7 @@
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
 
-module ValuationAlgebra
+module LocalComputation.ValuationAlgebra
     ( Valuation (label, combine, project, identity)
     , Domain
     , combines

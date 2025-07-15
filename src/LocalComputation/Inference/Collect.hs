@@ -1,12 +1,12 @@
 {-# LANGUAGE InstanceSigs #-}
 
-module Inference.Collect
+module LocalComputation.Inference.Collect
     (CollectNode
     )
 where
 
-import           Inference.JoinTree
-import           ValuationAlgebra
+import           LocalComputation.Inference.JoinTree
+import           LocalComputation.ValuationAlgebra
 
 data CollectNode v a b = CollectNode Integer (Domain a) (v a b)
 

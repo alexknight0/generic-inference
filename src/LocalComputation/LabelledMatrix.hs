@@ -3,7 +3,7 @@
 {-# LANGUAGE InstanceSigs        #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module LabelledMatrix
+module LocalComputation.LabelledMatrix
     ( LabelledMatrix
     , fromMatrix
     , fromList
@@ -24,20 +24,21 @@ module LabelledMatrix
     )
 where
 
-import           Control.Exception                           (assert)
-import qualified Control.Monad                               as Monad
-import qualified Data.Map                                    as M
-import qualified Data.Matrix                                 as M'
-import           Data.Maybe                                  (fromJust, isJust)
-import qualified Data.Set                                    as S
-import           Utils
-import qualified ValuationAlgebra.QuasiRegular.SemiringValue as Q
+import           Control.Exception                                            (assert)
+import qualified Control.Monad                                                as Monad
+import qualified Data.Map                                                     as M
+import qualified Data.Matrix                                                  as M'
+import           Data.Maybe                                                   (fromJust,
+                                                                               isJust)
+import qualified Data.Set                                                     as S
+import           LocalComputation.Utils
+import qualified LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue as Q
 
 -- Typeclasses
-import           Control.DeepSeq                             (NFData)
-import           Data.Binary                                 (Binary)
-import           Debug.Trace                                 (trace)
-import           GHC.Generics                                (Generic)
+import           Control.DeepSeq                                              (NFData)
+import           Data.Binary                                                  (Binary)
+import           Debug.Trace                                                  (trace)
+import           GHC.Generics                                                 (Generic)
 
 {- | A labelled matrix.
 

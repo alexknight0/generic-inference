@@ -20,10 +20,10 @@ import           Debug.Trace                              (traceShow,
                                                            traceShowId)
 import           GHC.Float                                (properFractionDouble)
 import           System.IO.Silently                       (capture)
-import           Utils
+import           LocalComputation.Utils
 
 import qualified Data.Matrix                              as M
-import qualified LabelledMatrix                           as L
+import qualified LocalComputation.LabelledMatrix                           as L
 
 tests :: IO Bool
 tests = checkParallel $$(discover)

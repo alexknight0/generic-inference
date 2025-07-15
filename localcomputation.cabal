@@ -25,18 +25,24 @@ source-repository head
 
 library
   exposed-modules:
-      Inference.Collect
-      Inference.EliminationSequence
-      Inference.JoinTree
-      Inference.ShenoyShafer
-      Instances.BayesianNetwork
-      Instances.BayesianNetwork.HackageVersion
-      Instances.BayesianNetwork.Parser
-      Instances.FastFourierTransform
-      Instances.ShortestPath.HackageVersion
-      Instances.ShortestPath.SingleTarget
-      LabelledMatrix
-      LocalProcess
+      LocalComputation.Inference.Collect
+      LocalComputation.Inference.EliminationSequence
+      LocalComputation.Inference.JoinTree
+      LocalComputation.Inference.ShenoyShafer
+      LocalComputation.Instances.BayesianNetwork
+      LocalComputation.Instances.BayesianNetwork.HackageVersion
+      LocalComputation.Instances.BayesianNetwork.Parser
+      LocalComputation.Instances.FastFourierTransform
+      LocalComputation.Instances.ShortestPath.HackageVersion
+      LocalComputation.Instances.ShortestPath.SingleTarget
+      LocalComputation.LabelledMatrix
+      LocalComputation.LocalProcess
+      LocalComputation.Utils
+      LocalComputation.ValuationAlgebra
+      LocalComputation.ValuationAlgebra.QuasiRegular
+      LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
+      LocalComputation.ValuationAlgebra.Semiring
+      LocalComputation.ValuationAlgebra.SemiringValue
       Tests
       Tests.BayesianNetwork
       Tests.Data
@@ -44,12 +50,6 @@ library
       Tests.LabelledMatrix
       Tests.ShortestPath.SingleTarget
       Tests.Utils
-      Utils
-      ValuationAlgebra
-      ValuationAlgebra.QuasiRegular
-      ValuationAlgebra.QuasiRegular.SemiringValue
-      ValuationAlgebra.Semiring
-      ValuationAlgebra.SemiringValue
   other-modules:
       Paths_localcomputation
   autogen-modules:

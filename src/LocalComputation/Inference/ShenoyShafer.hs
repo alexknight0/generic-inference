@@ -3,7 +3,7 @@
 {-# LANGUAGE MonoLocalBinds      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Inference.ShenoyShafer
+module LocalComputation.Inference.ShenoyShafer
     (
         initializeNodes
         , shenoyJoinTree
@@ -39,9 +39,9 @@ import           Text.Printf                              (printf)
 import           Type.Reflection                          (Typeable)
 
 
-import           Inference.JoinTree
-import           Utils
-import           ValuationAlgebra
+import           LocalComputation.Inference.JoinTree
+import           LocalComputation.Utils
+import           LocalComputation.ValuationAlgebra
 
 
 

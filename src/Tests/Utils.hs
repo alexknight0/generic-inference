@@ -21,11 +21,11 @@ import           Data.Maybe                               (isNothing)
 import           Debug.Trace                              (traceShow,
                                                            traceShowId)
 import           GHC.Float                                (properFractionDouble)
+import           LocalComputation.Utils
 import           System.IO.Silently                       (capture)
-import           Utils
 
 import qualified Data.Matrix                              as M
-import qualified LabelledMatrix                           as L
+import qualified LocalComputation.LabelledMatrix          as L
 
 tests :: IO Bool
 tests = checkParallel $$(discover)

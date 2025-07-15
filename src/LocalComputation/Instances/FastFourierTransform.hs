@@ -5,7 +5,7 @@
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
-module Instances.FastFourierTransform
+module LocalComputation.Instances.FastFourierTransform
     ( query
     , FourierComplex (FourierComplex)
     , createComplexArray
@@ -14,27 +14,27 @@ module Instances.FastFourierTransform
     )
 where
 
-import           Inference.ShenoyShafer
-import           Utils
-import           ValuationAlgebra.Semiring
+import           LocalComputation.Inference.ShenoyShafer
+import           LocalComputation.Utils
+import           LocalComputation.ValuationAlgebra.Semiring
 
-import           Data.Complex                (Complex ((:+)))
-import qualified Data.Complex                as C
-import qualified Data.Map                    as M
-import qualified Data.Set                    as S
+import           Data.Complex                               (Complex ((:+)))
+import qualified Data.Complex                               as C
+import qualified Data.Map                                   as M
+import qualified Data.Set                                   as S
 import           Numeric.Natural
 
-import           Control.Distributed.Process (Process)
+import           Control.Distributed.Process                (Process)
 
 -- Typeclasses
-import           Control.DeepSeq             (NFData)
-import           Data.Binary                 (Binary)
-import           GHC.Generics                (Generic)
+import           Control.DeepSeq                            (NFData)
+import           Data.Binary                                (Binary)
+import           GHC.Generics                               (Generic)
 
-import           Data.Array.CArray           (createCArray)
-import           Data.Array.CArray.Base      (CArray)
-import           Data.Maybe                  (fromJust)
-import           Foreign.Marshal             (pokeArray)
+import           Data.Array.CArray                          (createCArray)
+import           Data.Array.CArray.Base                     (CArray)
+import           Data.Maybe                                 (fromJust)
+import           Foreign.Marshal                            (pokeArray)
 
 newtype FourierComplex = FourierComplex (C.Complex Double) deriving newtype (Num, Fractional, Binary, Show, NFData, Eq, Generic)
 
