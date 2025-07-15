@@ -8,14 +8,13 @@ module LocalComputation.Instances.ShortestPath.Parser
     )
 where
 
-import           Data.Functor.Identity         (Identity)
-import           Numeric.Natural               (Natural)
-
 import           Control.Applicative           ((<|>))
 import           Control.Monad                 (void)
 import           Data.Either                   (isRight)
+import           Data.Functor.Identity         (Identity)
 import qualified Data.Map                      as M
 import qualified Data.Set                      as S
+import           Numeric.Natural               (Natural)
 import qualified Text.Parsec.Char              as P (endOfLine)
 import qualified Text.Parsec.Language          as P (haskellDef)
 import qualified Text.Parsec.Token             as P
@@ -51,7 +50,6 @@ graph = do
 
         fromRight (Right x) = x
         fromRight _         = error "Call to fromRight on a Left element"
-
 
 spaces :: P.GenParser Char st ()
 spaces = P.skipMany (P.oneOf " \t")
@@ -103,10 +101,4 @@ arc = do
 -- we say we want to parse a 'integer'.
 lexer :: P.GenTokenParser String u Identity
 lexer = P.makeTokenParser P.haskellDef
-
-
-
-
-
-
 
