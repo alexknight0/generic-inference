@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module MatrixTests
+module Tests.MatrixTests
     ( tests )
 where
 

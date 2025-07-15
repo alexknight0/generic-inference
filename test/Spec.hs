@@ -1,8 +1,8 @@
-import qualified BayesianTests     as B
-import qualified FourierTests      as F
-import qualified MatrixTests       as M
-import qualified ShortestPathTests as S
-import qualified UtilsTests        as U
+import qualified Tests.FourierTests       as F
+import qualified Tests.MatrixTests        as M
+import qualified Tests.ShortestPathTests  as S
+import qualified Tests.BayesianTests as B
+import qualified Tests.UtilsTests         as U
 
 {- | Hedgehog console output uses display regions rather than regular stdout logging, so may overwrite your stdout messages.
 

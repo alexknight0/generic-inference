@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 
-module ShortestPathTests
+module Tests.ShortestPathTests
     ( tests )
 where
 
@@ -9,7 +9,7 @@ import qualified Instances.ShortestPath.HackageVersion    as H
 import qualified Instances.ShortestPath.SingleTarget      as ST
 import qualified LabelledMatrix                           as M
 import           LocalProcess
-import           TestData
+import           Tests.TestData
 import           Utils
 import           ValuationAlgebra.QuasiRegular
 

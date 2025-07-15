@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module UtilsTests
+module Tests.UtilsTests
     ( tests )
 where
 

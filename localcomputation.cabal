@@ -37,6 +37,12 @@ library
       Instances.ShortestPath.SingleTarget
       LabelledMatrix
       LocalProcess
+      Tests.BayesianTests
+      Tests.FourierTests
+      Tests.MatrixTests
+      Tests.ShortestPathTests
+      Tests.TestData
+      Tests.UtilsTests
       Utils
       ValuationAlgebra
       ValuationAlgebra.QuasiRegular
@@ -108,12 +114,6 @@ test-suite localcomputation-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      BayesianTests
-      FourierTests
-      MatrixTests
-      ShortestPathTests
-      TestData
-      UtilsTests
       Paths_localcomputation
   autogen-modules:
       Paths_localcomputation
