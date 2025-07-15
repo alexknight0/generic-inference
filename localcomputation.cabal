@@ -33,6 +33,7 @@ library
       Instances.Bayesian.HackageVersion
       Instances.Bayesian.Parser
       Instances.FastFourierTransform
+      Instances.ShortestPath.HackageVersion
       Instances.ShortestPath.SingleTarget
       LabelledMatrix
       LocalProcess
@@ -108,10 +109,10 @@ test-suite localcomputation-test
   main-is: Spec.hs
   other-modules:
       BayesianTests
-      Data
       FourierTests
       MatrixTests
       ShortestPathTests
+      TestData
       UtilsTests
       Paths_localcomputation
   autogen-modules:

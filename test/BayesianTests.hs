@@ -8,7 +8,7 @@ where
 import           Instances.Bayesian
 import           Instances.Bayesian.HackageVersion
 import           Instances.Bayesian.Parser
-import           Data
+import           TestData
 import           LocalProcess
 import           Utils
 import           ValuationAlgebra.Semiring

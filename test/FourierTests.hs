@@ -5,7 +5,7 @@ module FourierTests
     ( tests )
 where
 
-import           Data
+import           TestData
 import           Instances.FastFourierTransform
 import           LocalProcess
 import           ValuationAlgebra.Semiring

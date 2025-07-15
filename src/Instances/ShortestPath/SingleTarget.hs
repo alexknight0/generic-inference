@@ -26,8 +26,8 @@ type Knowledgebase a = [QuasiRegularValuation TropicalSemiringValue a ()]
 type Query a = (a, a)
 
 -- If distance of a location to itself is not recorded, it will be recorded as the 'zero'
--- element of the tropical semiring (i.e. infinity). However, this does not appear to negatively
--- impact reasoning.
+-- element of the tropical semiring (i.e. infinity). However, it still seems to determine
+-- that each vertex has a 0 cost edge to itself.
 makeMapSquare :: (Ord a, Show a) => DistanceMap a -> DistanceMap a
 makeMapSquare m = fromJust $ M.extension m newD newD zero
     where

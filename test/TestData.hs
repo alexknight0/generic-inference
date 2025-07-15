@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric   #-}
 {-# LANGUAGE OverloadedLists #-}
 
-module Data
+module TestData
     ( asiaValuationsP1
     , asiaValuationsP2
     , asiaValuationsP3
@@ -41,8 +41,8 @@ import           Instances.Bayesian
 import qualified Instances.FastFourierTransform              as F
 import           ValuationAlgebra.QuasiRegular.SemiringValue
 
-import           Instances.ShortestPath.SingleTarget         (DistanceMap)
-import qualified LabelledMatrix                              as M
+import           Instances.ShortestPath.HackageVersion       (DistanceGraph)
+import           Utils
 
 dataDirectory :: String
 dataDirectory = "data/"
@@ -173,29 +173,26 @@ fourierP2Samples = map F.FourierComplex [1 :+ 0, 4 :+ 0]
 fourierP2Answers :: [F.FourierComplex]
 fourierP2Answers = map F.FourierComplex [5 :+ 0, (negate 3) :+ 0]
 
--- test'' :: IO ()
--- test'' = do
---     xs <- createComplexArray [1 :+ 0, 2 :+ 0, 3 :+ 0, 4 :+ 0]
---     print $ dft xs
---     ys <- createComplexArray [4 :+ 0, 4 :+ 0, 4 :+ 0, 4 :+ 0]
---     print $ dft ys
---     pure ()
-
 {- | Example graph used for a shortest path problem.
 
 Source: https://www.geeksforgeeks.org/dsa/dijkstras-algorithm-for-adjacency-list-representation-greedy-algo-8/
 -}
-graphP1 :: [DistanceMap Integer]
-graphP1 = map M.fromList [ [((0, 1), 4), ((0, 7), 8)]
-                      , [((1, 0), 4), ((1, 2), 8), ((1, 7), 11)]
-                      , [((2, 1), 8), ((2, 3), 7), ((2, 8), 2)]
-                      , [((3, 2), 7), ((3, 4), 9), ((3, 5), 14)]
-                      , [((4, 3), 9), ((4, 5), 10)]
-                      , [((5, 2), 4), ((5, 3), 14), ((5, 4), 10), ((5, 6), 2)]
-                      , [((6, 5), 2), ((6, 7), 1), ((6, 8), 6)]
-                      , [((7, 0), 8), ((7, 6), 1), ((7, 8), 7)]
-                      , [((8, 2), 2), ((8, 6), 6), ((8, 7), 7)]
-                    ]
+graphP1 :: (Eq a, Num a) => DistanceGraph Integer a
+graphP1 = assert' isValidGraph [ [((0, 0), 0), ((0, 1), 4), ((0, 7), 8)]
+          , [((1, 1), 0), ((1, 0), 4), ((1, 2), 8), ((1, 7), 11)]
+          , [((2, 2), 0), ((2, 1), 8), ((2, 3), 7), ((2, 5), 4), ((2, 8), 2)]
+          , [((3, 3), 0), ((3, 2), 7), ((3, 4), 9), ((3, 5), 14)]
+          , [((4, 4), 0), ((4, 3), 9), ((4, 5), 10)]
+          , [((5, 5), 0), ((5, 2), 4), ((5, 3), 14), ((5, 4), 10), ((5, 6), 2)]
+          , [((6, 6), 0), ((6, 5), 2), ((6, 7), 1), ((6, 8), 6)]
+          , [((7, 7), 0), ((7, 0), 8), ((7, 1), 11), ((7, 6), 1), ((7, 8), 7)]
+          , [((8, 8), 0), ((8, 2), 2), ((8, 6), 6), ((8, 7), 7)]
+        ]
+
+isValidGraph :: (Eq a, Eq b) => DistanceGraph a b -> Bool
+isValidGraph xs = all (\((x, y), c) -> ((y, x), c) `elem` xs') xs'
+    where
+        xs' = concat xs
 
 graphQueriesP1 :: ([Integer], Integer)
 graphQueriesP1 = ([1

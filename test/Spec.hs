@@ -4,8 +4,6 @@ import qualified MatrixTests       as M
 import qualified ShortestPathTests as S
 import qualified UtilsTests        as U
 
-
-
 {- | Hedgehog console output uses display regions rather than regular stdout logging, so may overwrite your stdout messages.
 
 To ensure consistent logging while displaying stdout, follow the following template:
@@ -23,12 +21,10 @@ To ensure consistent logging while displaying stdout, follow the following templ
 Source: https://github.com/hedgehogqa/haskell-hedgehog/issues/236
 
 However, this may not work if your code spawns another process that does the logging. In this case, consider redirecting the
-hedgehog output to a file. This can be done with `stack test > foo.txt`.
+hedgehog output to a file, so only the logging output remains. This can be done with `stack test > /dev/null`.
 -}
-
 main :: IO ()
 main = B.tests >> F.tests >> M.tests >> S.tests >> U.tests >> pure ()
--- S.tests >> pure ()
 
 
 
