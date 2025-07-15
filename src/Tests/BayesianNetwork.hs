@@ -11,7 +11,7 @@ import           LocalComputation.Instances.BayesianNetwork.Parser
 import           LocalComputation.LocalProcess
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra.Semiring
-import           Tests.Data
+import           Tests.BayesianNetwork.Data
 
 import           Hedgehog
 import qualified Hedgehog.Gen                                              as Gen

@@ -8,7 +8,7 @@ where
 import           LocalComputation.Instances.FastFourierTransform
 import           LocalComputation.LocalProcess
 import           LocalComputation.ValuationAlgebra.Semiring
-import           Tests.Data
+import           Tests.FastFourierTransform.Data
 
 import           Hedgehog
 import qualified Hedgehog.Gen                                    as Gen

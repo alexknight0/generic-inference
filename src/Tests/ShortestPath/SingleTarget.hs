@@ -11,7 +11,7 @@ import qualified LocalComputation.LabelledMatrix                        as M
 import           LocalComputation.LocalProcess
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra.QuasiRegular
-import           Tests.Data
+import           Tests.ShortestPath.SingleTarget.Data
 
 import           Hedgehog
 import qualified Hedgehog.Gen                                           as Gen
