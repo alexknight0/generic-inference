@@ -38,12 +38,12 @@ library
       LabelledMatrix
       LocalProcess
       Tests
-      Tests.BayesianTests
-      Tests.FourierTests
-      Tests.MatrixTests
-      Tests.ShortestPathTests
-      Tests.TestData
-      Tests.UtilsTests
+      Tests.BayesianNetwork
+      Tests.Data
+      Tests.FastFourierTransform
+      Tests.LabelledMatrix
+      Tests.ShortestPath.SingleTarget
+      Tests.Utils
       Utils
       ValuationAlgebra
       ValuationAlgebra.QuasiRegular

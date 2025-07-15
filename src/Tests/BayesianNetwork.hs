@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 
-module Tests.BayesianTests
+module Tests.BayesianNetwork
     ( tests )
 where
 
@@ -9,7 +9,7 @@ import           Instances.BayesianNetwork
 import           Instances.BayesianNetwork.HackageVersion
 import           Instances.BayesianNetwork.Parser
 import           LocalProcess
-import           Tests.TestData
+import           Tests.Data
 import           Utils
 import           ValuationAlgebra.Semiring
 

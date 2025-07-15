@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric   #-}
 {-# LANGUAGE OverloadedLists #-}
 
-module Tests.TestData
+module Tests.Data
     ( asiaValuationsP1
     , asiaValuationsP2
     , asiaValuationsP3

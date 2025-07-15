@@ -1,13 +1,13 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 
-module Tests.FourierTests
+module Tests.FastFourierTransform
     ( tests )
 where
 
-import           Tests.TestData
 import           Instances.FastFourierTransform
 import           LocalProcess
+import           Tests.Data
 import           ValuationAlgebra.Semiring
 
 import           Hedgehog

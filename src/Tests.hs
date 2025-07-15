@@ -8,11 +8,11 @@ module Tests
     )
 where
 
-import qualified Tests.BayesianTests     as B
-import qualified Tests.FourierTests      as F
-import qualified Tests.MatrixTests       as M
-import qualified Tests.ShortestPathTests as S
-import qualified Tests.UtilsTests        as U
+import qualified Tests.BayesianNetwork           as B
+import qualified Tests.FastFourierTransform      as F
+import qualified Tests.LabelledMatrix            as M
+import qualified Tests.ShortestPath.SingleTarget as S
+import qualified Tests.Utils                     as U
 
 {- | Hedgehog console output uses display regions rather than regular stdout logging, so may overwrite your stdout messages.
 

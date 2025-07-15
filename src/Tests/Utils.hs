@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Tests.UtilsTests
+module Tests.Utils
     ( tests )
 where
 
@@ -29,16 +29,6 @@ import qualified LabelledMatrix                           as L
 
 tests :: IO Bool
 tests = checkParallel $$(discover)
-
-genMatrix :: forall a. Int -> Int -> Gen a -> Gen (M.Matrix a)
-genMatrix numRows numColumns genA = fmap M.fromLists $ genListOfRows
-    where
-        genListOfRows :: Gen [[a]]
-        genListOfRows = Gen.list (Range.singleton numRows) genRow
-
-        -- A row has numColumns entries.
-        genRow :: Gen [a]
-        genRow = Gen.list (Range.singleton numColumns) genA
 
 prop_assertsAreStillPresent :: Property
 prop_assertsAreStillPresent = withTests 100 . property $ do
