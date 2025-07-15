@@ -5,7 +5,7 @@ module Tests.ShortestPath.SingleTarget.Data
     )
 where
 
-import           LocalComputation.Instances.ShortestPath.HackageVersion       (DistanceGraph)
+import           Benchmark.Baseline.DjikstraSimple                            (DistanceGraph)
 import           LocalComputation.Utils                                       (assert')
 import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
 

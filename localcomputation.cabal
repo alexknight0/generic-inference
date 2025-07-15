@@ -25,15 +25,16 @@ source-repository head
 
 library
   exposed-modules:
+      Benchmark.Baseline.DjikstraSimple
+      Benchmark.Baseline.FFT
+      Benchmark.Baseline.Probability
       LocalComputation.Inference.Collect
       LocalComputation.Inference.EliminationSequence
       LocalComputation.Inference.JoinTree
       LocalComputation.Inference.ShenoyShafer
       LocalComputation.Instances.BayesianNetwork
-      LocalComputation.Instances.BayesianNetwork.HackageVersion
       LocalComputation.Instances.BayesianNetwork.Parser
       LocalComputation.Instances.FastFourierTransform
-      LocalComputation.Instances.ShortestPath.HackageVersion
       LocalComputation.Instances.ShortestPath.SingleTarget
       LocalComputation.LabelledMatrix
       LocalComputation.LocalProcess

@@ -8,8 +8,6 @@
 module LocalComputation.Instances.FastFourierTransform
     ( query
     , FourierComplex (FourierComplex)
-    , createComplexArray
-    , createComplexArray'
     , toBinaryVariableSet
     )
 where
@@ -31,10 +29,7 @@ import           Control.DeepSeq                            (NFData)
 import           Data.Binary                                (Binary)
 import           GHC.Generics                               (Generic)
 
-import           Data.Array.CArray                          (createCArray)
-import           Data.Array.CArray.Base                     (CArray)
 import           Data.Maybe                                 (fromJust)
-import           Foreign.Marshal                            (pokeArray)
 
 newtype FourierComplex = FourierComplex (C.Complex Double) deriving newtype (Num, Fractional, Binary, Show, NFData, Eq, Generic)
 
@@ -111,13 +106,4 @@ findBinaryValue table numDigits x = findValue (toBinaryVariableSet numDigits x Y
 
 toBinaryVariableSet :: Natural -> Natural -> (Natural -> FastFourierVariable) -> M.Map FastFourierVariable Natural
 toBinaryVariableSet numDigits x f = fromListAssertDisjoint $ zipWith (\i y -> (f i, fromIntegral $ fromEnum y)) [0..] (reverse $ toBinaryLeadingZeroes numDigits x)
-
--- todo can replace with listArray?
-createComplexArray :: [FourierComplex] -> IO (CArray Int (Complex Double))
-createComplexArray xs = createCArray (0, length xs' - 1) (\ptr -> pokeArray ptr xs')
-    where
-        xs' = fmap (\(FourierComplex x) -> x) xs
-
-createComplexArray' :: [Complex Double] -> IO (CArray Int (Complex Double))
-createComplexArray' xs = createCArray (0, length xs - 1) (\ptr -> pokeArray ptr xs)
 

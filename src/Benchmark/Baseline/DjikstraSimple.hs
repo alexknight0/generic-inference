@@ -1,4 +1,4 @@
-module LocalComputation.Instances.ShortestPath.HackageVersion
+module Benchmark.Baseline.DjikstraSimple
     ( DistanceGraph
     , create
     , shortestPaths

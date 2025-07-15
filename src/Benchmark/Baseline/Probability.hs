@@ -1,4 +1,4 @@
-module LocalComputation.Instances.BayesianNetwork.HackageVersion
+module Benchmark.Baseline.Probability
     ( runQuery, createNetwork, runQueries )
 where
 
@@ -43,30 +43,6 @@ runQuery n (conditioned, conditional)
 
 runQuery' :: (Eq a) => Network a -> ((a, Bool), [(a, Bool)]) -> P.Probability
 runQuery' n ((x, xVal), ys) = happens' xVal x ?? foldr (\(y, yVal) acc -> happens' yVal y ?=<< acc) n ys
-
--- asiaQuery :: [Double]
--- asiaQuery = map fromRational [
---           happens VisitToAsia ?? asiaNet
---         , happens HasTuberculosis ?? asiaNet
---         , happens HasTuberculosis ?? doesNotHappen VisitToAsia ?=<< asiaNet
---         , happens HasTuberculosis ?? happens VisitToAsia ?=<< asiaNet
---         , happens HasTuberculosis ?? happens VisitToAsia ?=<< happens Smoker ?=<< asiaNet
---         , happens TuberculosisOrCancer ?? asiaNet
---         , happens TuberculosisOrCancer ?? happens VisitToAsia ?=<< asiaNet
---         , happens TuberculosisOrCancer ?? happens VisitToAsia ?=<< happens Smoker ?=<< happens XRayResult ?=<< asiaNet
---     ]
---
--- asiaNet :: PState AsiaVar
--- asiaNet = network [
---         source 0.01 VisitToAsia,
---         potential HasTuberculosis [VisitToAsia] [0.01, 0.05],
---         source 0.5 Smoker,
---         potential HasLungCancer [Smoker] [0.01, 0.1],
---         potential HasBronchitis [Smoker] [0.3, 0.6],
---         potential TuberculosisOrCancer [HasTuberculosis, HasLungCancer] [0, 1, 1, 1],
---         potential XRayResult [TuberculosisOrCancer] [0.05, 0.98],
---         potential Dyspnea [TuberculosisOrCancer, HasBronchitis] [0.1, 0.8, 0.7, 0.9]
---     ]
 
 {- | A probability potential.
 
