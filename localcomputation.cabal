@@ -37,6 +37,7 @@ library
       Instances.ShortestPath.SingleTarget
       LabelledMatrix
       LocalProcess
+      Tests
       Tests.BayesianTests
       Tests.FourierTests
       Tests.MatrixTests
