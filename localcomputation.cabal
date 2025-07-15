@@ -29,9 +29,9 @@ library
       Inference.EliminationSequence
       Inference.JoinTree
       Inference.ShenoyShafer
-      Instances.Bayesian
-      Instances.Bayesian.HackageVersion
-      Instances.Bayesian.Parser
+      Instances.BayesianNetwork
+      Instances.BayesianNetwork.HackageVersion
+      Instances.BayesianNetwork.Parser
       Instances.FastFourierTransform
       Instances.ShortestPath.HackageVersion
       Instances.ShortestPath.SingleTarget

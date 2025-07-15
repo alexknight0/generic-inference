@@ -19,9 +19,8 @@ import           GHC.Generics
 
 -- LocalComputation library files
 import           Inference.Collect
-import           Inference.ShenoyShafer
-import           Instances.Bayesian
 import           Inference.JoinTree
+import           Inference.ShenoyShafer
 import           LocalProcess
 import           Utils
 import           ValuationAlgebra

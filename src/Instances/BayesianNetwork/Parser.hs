@@ -1,10 +1,10 @@
-module Instances.Bayesian.Parser
+module Instances.BayesianNetwork.Parser
     (
         parseNetwork, parseNetwork'
     )
 where
 
-import           Instances.Bayesian
+import           Instances.BayesianNetwork
 import           ValuationAlgebra.Semiring
 
 import           Data.Functor.Identity         (Identity)

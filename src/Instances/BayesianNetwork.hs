@@ -4,7 +4,7 @@
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
-module Instances.Bayesian
+module Instances.BayesianNetwork
     ( queryNetwork, toProbabilityQuery
     , ProbabilityQuery
     , Probability (P)

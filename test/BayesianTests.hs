@@ -5,11 +5,11 @@ module BayesianTests
     ( tests )
 where
 
-import           Instances.Bayesian
-import           Instances.Bayesian.HackageVersion
-import           Instances.Bayesian.Parser
-import           TestData
+import           Instances.BayesianNetwork
+import           Instances.BayesianNetwork.HackageVersion
+import           Instances.BayesianNetwork.Parser
 import           LocalProcess
+import           TestData
 import           Utils
 import           ValuationAlgebra.Semiring
 

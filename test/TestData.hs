@@ -37,7 +37,7 @@ import           GHC.Generics                                (Generic)
 import           Data.Complex                                (Complex ((:+)))
 import           Numeric.Natural
 
-import           Instances.Bayesian
+import           Instances.BayesianNetwork
 import qualified Instances.FastFourierTransform              as F
 import           ValuationAlgebra.QuasiRegular.SemiringValue
 

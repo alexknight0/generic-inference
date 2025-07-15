@@ -1,10 +1,10 @@
 cradle:
-  cabal:
-    - path: "src"
-      component: "lib:localcomputation"
+  stack:
+    - path: "./src"
+      component: "localcomputation:lib"
 
-    - path: "app/Main.hs"
+    - path: "./app/Main.hs"
       component: "localcomputation:exe:localcomputation-exe"
 
-    - path: "test"
+    - path: "./test"
       component: "localcomputation:test:localcomputation-test"
