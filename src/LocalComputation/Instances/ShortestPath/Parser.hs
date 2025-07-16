@@ -20,9 +20,7 @@ import           Data.List                     (genericLength)
 import qualified Data.Map                      as M
 import qualified Data.Set                      as S
 import           Numeric.Natural               (Natural)
-import qualified Text.Parsec                   as P'
 import qualified Text.Parsec.Char              as P (endOfLine)
-import qualified Text.Parsec.Error             as PE
 import qualified Text.Parsec.Language          as P (haskellDef)
 import qualified Text.Parsec.Token             as P
 import qualified Text.ParserCombinators.Parsec as P
@@ -70,11 +68,6 @@ blankLine = do
         spaces
         void $ P.endOfLine
     <?> "blank line"
-
-parseAssert :: MonadFail f => Bool -> String -> f ()
-parseAssert b msg
-    | b = pure ()
-    | otherwise = fail msg
 
 comment :: P.GenParser Char st ()
 comment = do
