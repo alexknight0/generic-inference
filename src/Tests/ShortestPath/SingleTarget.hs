@@ -39,32 +39,18 @@ approx x y = abs (x - y) < tolerableError
 
 prop_p1 :: Property
 prop_p1 = withTests 1 . property $ do
-    results <- liftIO $ runProcessLocal $ ST.answerQueries (map M.fromList graphP1) (fst graphQueriesP1) (snd graphQueriesP1)
-    checkAnswers approx results graphAnswersP1
+    results <- liftIO $ runProcessLocal $ ST.answerQueries (map M.fromList p1Graph) (fst p1Queries) (snd p1Queries)
+    checkAnswers approx results p1Answers
 
 -- The hackage version is single source, while our implemented version is single target. Here, we will
 -- act like the hackage version is performing single target, but only test on graphs where the path weights
 -- are undirected, because otherwise they will not be equivalent.
 prop_prebuilt :: Property
 prop_prebuilt = withTests 1 . property $ do
-    checkAnswers approx answers graphAnswersP1
+    checkAnswers approx answers p1Answers
 
     where
-        answers = H.answerQueries (H.create graphP1) (snd graphQueriesP1) (fst graphQueriesP1)
-
-prop_inferenceMatchesPrebuilt :: Property
-prop_inferenceMatchesPrebuilt = withTests 100 . property $ do
-    query <- forAll $ genQuery graphP1Vertices
-    inferenceResults <- liftIO $ runProcessLocal $ ST.answerQueries (map M.fromList graphP1) (fst query) (snd query)
-    annotate $ show inferenceResults
-    let prebuiltResults = H.answerQueries (H.create graphP1) (snd query) (fst query)
-
-    checkAnswers approx inferenceResults prebuiltResults
-    where
-        graphP1Vertices = S.fromList $ map f (concat graphP1)
-            where
-                f :: ((Integer, Integer), Integer) -> Integer
-                f ((x, _), _) = x
+        answers = H.answerQueries (H.create p1Graph) (snd p1Queries) (fst p1Queries)
 
 genQuery :: (Ord a) => S.Set a -> Gen ([a], a)
 genQuery vertices
@@ -74,3 +60,23 @@ genQuery vertices
     sources <- Gen.set (Range.linear 1 (length vertices - 1)) (Gen.element vertices)
     pure $ (S.toList sources, target)
 
+prop_inferenceMatchesPrebuilt :: Property
+prop_inferenceMatchesPrebuilt = withTests 100 . property $ do
+    query <- forAll $ genQuery p1GraphVertices
+    inferenceResults <- liftIO $ runProcessLocal $ ST.answerQueries (map M.fromList p1Graph) (fst query) (snd query)
+    annotate $ show inferenceResults
+    let prebuiltResults = H.answerQueries (H.create p1Graph) (snd query) (fst query)
+
+    checkAnswers approx inferenceResults prebuiltResults
+    where
+        p1GraphVertices = S.fromList $ map f (concat p1Graph)
+            where
+                f :: ((Integer, Integer), Integer) -> Integer
+                f ((x, _), _) = x
+
+-- prop_parser :: Property
+-- prop_parser = withTests 1 . property $ do
+--     checkAnswers approx answers p1Answers
+--
+--     where
+--         answers = H.answerQueries (H.create p1Graph) (snd p1Queries) (fst p1Queries)
