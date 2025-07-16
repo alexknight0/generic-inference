@@ -26,7 +26,10 @@ import           Control.Monad                                        (forM,
 import           Data.Functor                                         (void)
 import qualified Data.Map                                             as M'
 import qualified Data.Set                                             as S
+import qualified LocalComputation.Instances.ShortestPath.Parser       as P
+import           Numeric.Natural                                      (Natural)
 import           System.IO.Silently                                   (capture)
+import qualified Text.Parsec                                          as P
 
 tests :: IO Bool
 tests = checkSequential $$(discover)
@@ -74,9 +77,16 @@ prop_inferenceMatchesPrebuilt = withTests 100 . property $ do
                 f :: ((Integer, Integer), Integer) -> Integer
                 f ((x, _), _) = x
 
--- prop_parser :: Property
--- prop_parser = withTests 1 . property $ do
---     checkAnswers approx answers p1Answers
---
---     where
---         answers = H.answerQueries (H.create p1Graph) (snd p1Queries) (fst p1Queries)
+parseGraph :: IO (Either P.ParseError a) -> PropertyT IO a
+parseGraph g = do
+    parsed <- liftIO g
+    case parsed of
+        Left e  -> do annotateShow e; failure
+        Right x -> pure x
+
+prop_parser :: Property
+prop_parser = withTests 1 . property $ do
+    g <- parseGraph p2Graph
+    case g of
+        Left x  -> do annotateShow x; failure
+        Right _ -> success

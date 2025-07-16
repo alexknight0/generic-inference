@@ -2,12 +2,17 @@ module Tests.ShortestPath.SingleTarget.Data
     ( p1Graph
     , p1Queries
     , p1Answers
+    , p2Graph
     )
 where
 
 import           Benchmark.Baseline.DjikstraSimple                            (DistanceGraph)
-import           LocalComputation.Utils                                       (assert')
+import qualified LocalComputation.Instances.ShortestPath.Parser               as P
+import           LocalComputation.Utils                                       (assert',
+                                                                               parseFile)
 import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
+import           Numeric.Natural                                              (Natural)
+import qualified Text.Parsec                                                  as P (ParseError)
 
 {- | Example graph used for a shortest path problem.
 
@@ -48,9 +53,11 @@ p1Answers = [ 4
             , 14
            ]
 
-
+p2Graph :: IO (Either P.ParseError (Either P.InvalidGraphFile (P.Graph Natural Integer)))
+p2Graph = parseFile P.graph "src/Benchmark/Data/ShortestPath/USA-road-d.NY.gr"
 
 isValidGraph :: (Eq a, Eq b) => DistanceGraph a b -> Bool
 isValidGraph xs = all (\((x, y), c) -> ((y, x), c) `elem` xs') xs'
     where
         xs' = concat xs
+

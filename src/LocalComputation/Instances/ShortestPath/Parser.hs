@@ -1,3 +1,7 @@
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE NoFieldSelectors      #-}
+{-# LANGUAGE OverloadedRecordDot   #-}
+
 {- | Parser to parse .gr files into a graph suitable for use in the library.
 
 For information on the .gr file format see: https://www.diag.uniroma1.it/challenge9/format.shtml#graph
@@ -5,45 +9,52 @@ For information on the .gr file format see: https://www.diag.uniroma1.it/challen
 module LocalComputation.Instances.ShortestPath.Parser
     ( graph
     , Graph
+    , InvalidGraphFile
     )
 where
 
-import           Control.Applicative           ((<|>))
 import           Control.Monad                 (void)
 import           Data.Either                   (isRight)
 import           Data.Functor.Identity         (Identity)
+import           Data.List                     (genericLength)
 import qualified Data.Map                      as M
 import qualified Data.Set                      as S
 import           Numeric.Natural               (Natural)
+import qualified Text.Parsec                   as P'
 import qualified Text.Parsec.Char              as P (endOfLine)
+import qualified Text.Parsec.Error             as PE
 import qualified Text.Parsec.Language          as P (haskellDef)
 import qualified Text.Parsec.Token             as P
 import qualified Text.ParserCombinators.Parsec as P
+import           Text.ParserCombinators.Parsec ((<?>))
 
 type Graph a b = M.Map a [(a, b)]
 
-graph :: P.GenParser Char st (Graph Natural Integer)
+data InvalidGraphFile =
+      NumNodesMismatch { problemDeclaration :: Natural, numRead :: Natural }
+    | NumArcsMismatch  { problemDeclaration :: Natural, numRead :: Natural } deriving Show
+
+graph :: P.GenParser Char st (Either InvalidGraphFile (Graph Natural Integer))
 graph = do
-    P.skipMany $ P.try comment
+    P.skipMany $ P.choice [P.try comment, P.try blankLine]
     (numNodes, numArcs) <- problem
-    arcs <- fmap getRight $ P.many $ (Left <$> P.try comment) <|> (Right <$> P.try arc)
+    arcs <- fmap getRight $ P.many $ P.choice [Right <$> P.try arc, Left <$> P.try comment, Left <$> P.try blankLine]
+    void $ P.manyTill P.space (P.try P.eof)
 
-    -- Create graph
     let g = foldr f M.empty arcs
-        actualNumNodes = fromIntegral $ length $ S.union (M.keysSet g)
-                                                         (S.fromList $ concat $ map (map fst) (M.elems g))
-        actualNumArcs = fromIntegral $ length arcs
+        gNumNodes = nodesInGraph g
+        gNumArcs = genericLength arcs
 
-    -- Check graph matches problem statement at top of file
-    parseAssert (actualNumArcs == numArcs) $
-        "Found " ++ show actualNumArcs ++ " arcs, from problem statement expected " ++ show numArcs ++ " arcs."
-    parseAssert (actualNumNodes == numNodes) $
-        "Found " ++ show actualNumNodes ++ " nodes, from problem statement expected " ++ show numNodes ++ " nodes."
-
-    pure g
+    case () of
+        _ | numNodes /= gNumNodes -> pure $ Left $ NumNodesMismatch numNodes gNumNodes
+          | numArcs /= gNumArcs   -> pure $ Left $ NumArcsMismatch numArcs gNumArcs
+          | otherwise             -> pure $ Right g
 
     where
         f (arcTail, arcHead, weight) acc = M.insertWith (++) arcTail [(arcHead, weight)] acc
+
+        nodesInGraph g = fromIntegral $ length $ S.union (M.keysSet g)
+                                                         (S.fromList $ concat $ map (map fst) (M.elems g))
 
         getRight :: [Either a b] -> [b]
         getRight xs = map fromRight $ filter isRight xs
@@ -54,48 +65,56 @@ graph = do
 spaces :: P.GenParser Char st ()
 spaces = P.skipMany (P.oneOf " \t")
 
-parseAssert :: Bool -> String -> P.GenParser Char st ()
+blankLine :: P.GenParser Char st ()
+blankLine = do
+        spaces
+        void $ P.endOfLine
+    <?> "blank line"
+
+parseAssert :: MonadFail f => Bool -> String -> f ()
 parseAssert b msg
     | b = pure ()
     | otherwise = fail msg
 
 comment :: P.GenParser Char st ()
 comment = do
-    spaces
-    void $ P.char 'c'
-    spaces
-    void $ P.endOfLine
+        spaces
+        void $ P.char 'c'
+        -- Eat as many non-newline chars as possible
+        void $ P.manyTill P.anyChar (P.try P.endOfLine)
+    <?> "comment"
 
 problem :: P.GenParser Char st (Natural, Natural)
 problem = do
-    spaces
-    void $ P.char 'p'
-    spaces
-    void $ P.char 's'
-    void $ P.char 'p'
-    spaces
-    nodes <- P.natural lexer
-    spaces
-    arcs <- P.natural lexer
-    spaces
-    void $ P.endOfLine
+        spaces
+        void $ P.char 'p'
+        spaces
+        void $ P.char 's'
+        void $ P.char 'p'
+        spaces
+        nodes <- P.natural lexer
+        spaces
+        arcs <- P.natural lexer
+        -- The above natural lexer may consume the newline.
 
-    pure (fromIntegral nodes, fromIntegral arcs)
+        pure (fromIntegral nodes, fromIntegral arcs)
+    <?> "problem"
+
 
 arc :: P.GenParser Char st (Natural, Natural, Integer)
 arc = do
-    spaces
-    void $ P.char 'a'
-    spaces
-    arcTail <- P.natural lexer
-    spaces
-    arcHead <- P.natural lexer
-    spaces
-    weight <- P.integer lexer
-    spaces
-    void $ P.endOfLine
+        spaces
+        void $ P.char 'a'
+        spaces
+        arcTail <- P.natural lexer
+        spaces
+        arcHead <- P.natural lexer
+        spaces
+        weight <- P.integer lexer
+        -- The above natural lexer may consume the newline.
 
-    pure (fromIntegral arcTail, fromIntegral arcHead, weight)
+        pure (fromIntegral arcTail, fromIntegral arcHead, weight)
+    <?> "arc"
 
 -- Used to tell the parser whose definition of 'integer' we are using when
 -- we say we want to parse a 'integer'.
