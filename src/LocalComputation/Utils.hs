@@ -29,6 +29,7 @@ module LocalComputation.Utils
     , safeHead
     , fromListAssertDisjoint'
     , parseFile
+    , fromRight
     )
 where
 
@@ -66,7 +67,6 @@ nubWithBy toKey f xs = elems $ foldr g M.empty xs
         g x acc
             | toKey x `member` acc = adjust (\y -> f x y) (toKey x) acc
             | otherwise = insert (toKey x) x acc
-
 
 thd4 :: (a, b, c, d) -> c
 thd4 (_, _, x, _) = x
@@ -164,3 +164,8 @@ parseFile p filename = do
     handle <- openFile filename ReadMode
     contents <- hGetContents' handle
     pure $ P.parse p filename contents
+
+fromRight :: Either a b -> b
+fromRight (Right x) = x
+fromRight _         = error "fromRight received a Left"
+

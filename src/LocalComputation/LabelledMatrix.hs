@@ -7,8 +7,10 @@ module LocalComputation.LabelledMatrix
     ( LabelledMatrix
     , fromMatrix
     , fromList
+    , fromListDefault
     , domain
     , isSquare
+    , toSquare
     , squareDomain
     , identity
     , extension
@@ -21,6 +23,7 @@ module LocalComputation.LabelledMatrix
     , decompose
     , joinSquare
     , isWellFormed
+    , isSymmetric
     )
 where
 
@@ -37,8 +40,10 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue as
 -- Typeclasses
 import           Control.DeepSeq                                              (NFData)
 import           Data.Binary                                                  (Binary)
-import           Debug.Trace                                                  (trace)
 import           GHC.Generics                                                 (Generic)
+
+
+data InvalidFormat = DuplicateKeys | NotTotalMapping
 
 {- | A labelled matrix.
 
@@ -58,19 +63,46 @@ instance Functor (LabelledMatrix a b) where
 
 -- | Transforms a regular matrix from Data.Matrix into a matrix labelled by Integers.
 fromMatrix :: M'.Matrix a -> LabelledMatrix Integer Integer a
-fromMatrix m = fromList $ concat $ zipWith (\i row -> zipWith (\j x -> ((i, j), x)) [0..] row) [0..] (M'.toLists m)
+fromMatrix m = fromRight $ fromList $ concat $ zipWith (\i row -> zipWith (\j x -> ((i, j), x)) [0..] row) [0..] (M'.toLists m)
 
--- | Creates a matrix from the given association list. Unsafe - throws errors if the input list is invalid.
+-- | Creates a matrix from the given association list.
 fromList :: forall a b c . (Ord a, Ord b)
     => [((a, b), c)]
-    -> LabelledMatrix a b c
-fromList xs
-    | length as * length bs /= length xs = error "Not a total mapping - some values are missing."
-    | otherwise = Matrix (fromListDisjoint xs) as bs
+    -> Either InvalidFormat (LabelledMatrix a b c)
+fromList xs = fromList' xs Nothing
+
+-- | Creates a matrix from the given association list. Doesn't require the input list to be a total mapping - will
+-- fill unset values with the given default element.
+fromListDefault :: forall a b c . (Ord a, Ord b)
+    => [((a, b), c)]
+    -> c
+    -> Either InvalidFormat (LabelledMatrix a b c)
+fromListDefault xs default' = fromList' xs (Just default')
+
+-- | Internal function used to create a list with an optional default element.
+fromList' :: forall a b c . (Ord a, Ord b)
+    => [((a, b), c)]
+    -> Maybe c
+    -> Either InvalidFormat (LabelledMatrix a b c)
+fromList' xs defaultElem
+    | length xs /= (length (nubWithBy fst const xs))             = Left DuplicateKeys
+    | Nothing <- defaultElem, length as * length bs /= length xs = Left NotTotalMapping
+    | otherwise                                                  = Right $ Matrix (M.union (mapFromList xs) mapWithAllDefault) as bs
     where
+        defaultElem'
+            | Just x <- defaultElem = x
+            | otherwise = error "Internal error: should never evaluate as \
+                                \default element should never be used."
+        mapFromList = M.fromListWith (\_ _ -> error "Internal error: duplicate key in matrix creation \
+                                                    \association list despite earlier check.")
+
         as = S.fromList $ map (\((x, _), _) -> x) xs
         bs = S.fromList $ map (\((_, x), _) -> x) xs
-        fromListDisjoint = M.fromListWith (\_ _ -> error "Duplicate key in matrix creation assoc list.")
+        mapWithAllDefault = M.fromList [((a, b), defaultElem') | a <- S.toList as, b <- S.toList bs]
+
+isSymmetric :: (Ord a, Eq c) => LabelledMatrix a a c -> Bool
+isSymmetric x | assertIsWellFormed x = undefined
+isSymmetric (Matrix m _ _) = all (\((x, y), v) -> m M.! (y, x) == v) (M.toList m)
 
 isSquare :: LabelledMatrix a b c -> Bool
 isSquare x | assertIsWellFormed x = undefined
@@ -78,6 +110,12 @@ isSquare (Matrix _ dA dB) = length dA == length dB
 
 domain :: LabelledMatrix a b c -> (S.Set a, S.Set b)
 domain (Matrix _ dA dB) = (dA, dB)
+
+toSquare :: (Ord a) => LabelledMatrix a a c -> c -> LabelledMatrix a a c
+toSquare x _ | assertIsWellFormed x = undefined
+toSquare x@(Matrix _ dA1 dA2) zero = fromJust $ extension x d d zero
+    where
+        d = S.union dA1 dA2
 
 -- | Returns the simplified domain of a square matrix that has the same domain for both labels. Returns Nothing if the given matrix is not square.
 squareDomain :: (Eq a) => LabelledMatrix a a c -> Maybe (S.Set a)
@@ -88,25 +126,25 @@ squareDomain (Matrix _ dA1 dA2)
 
 -- | Returns the identity matrix created with the given zero and one elements.
 identity :: (Ord a) => S.Set a -> c -> c -> LabelledMatrix a a c
-identity dA zero one = fromList [((x, y), if x == y then one else zero) | x <- as, y <- as]
+identity dA zero one = fromRight $ fromList [((x, y), if x == y then one else zero) | x <- as, y <- as]
     where
         as = S.toList dA
 
 -- | Extend a matrix to a larger domain, filling spots with the given zero element. Returns Nothing if the domain to extend to is not a superset.
-extension :: (Show a, Show b, Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> c -> Maybe (LabelledMatrix a b c)
+extension :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> c -> Maybe (LabelledMatrix a b c)
 extension x _ _ _ | assertIsWellFormed x = undefined
 extension (Matrix m dA dB) newDA newDB zero
     | dA `S.isSubsetOf` newDA && dB `S.isSubsetOf` newDB = Just $ Matrix (m `M.union` mapOfZeroes) newDA newDB
-    | otherwise = trace ("Extension failed: tried to extend from " ++ show (dA, dB) ++ " -> " ++ show (newDA, newDB) ++ ".") Nothing
+    | otherwise                                          = Nothing
     where
         mapOfZeroes = M.fromList [((a, b), zero) | a <- S.toList newDA, b <- S.toList newDB]
 
 -- | Project the domain of a matrix down to a new domain. Returns nothing if the given domain is not a subset of the old domain.
-project :: (Show a, Show b, Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> Maybe (LabelledMatrix a b c)
+project :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> Maybe (LabelledMatrix a b c)
 project x _ _ | assertIsWellFormed x = undefined
 project (Matrix m dA dB) newDA newDB
     | newDA `S.isSubsetOf` dA && newDB `S.isSubsetOf` dB = Just $ Matrix (M.filterWithKey (\(a, b) _ -> a `elem` newDA && b `elem` newDB) m) newDA newDB
-    | otherwise = trace ("Project failed: tried to project from " ++ show (dA, dB) ++ " -> " ++ show (newDA, newDB) ++ ".") Nothing
+    | otherwise = Nothing
 
 -- | Returns an element from the matrix. Returns Nothing if the element is not in the domain of the matrix.
 find :: (Ord a, Ord b) => (a, b) -> LabelledMatrix a b c -> Maybe c
@@ -153,7 +191,6 @@ quasiInverse m@(Matrix _ dA dB)
     | length dA /= length dB = Nothing
     | length dA == 0 = Just $ m
     | length dA == 1 = Just $ fmap Q.quasiInverse m
-    | Nothing <- joinSquare newB newC newD newE = trace ("Attempted joinSquare:\n    newB: " ++ show newB ++ "\n    newC" ++ show newC ++ "\n    newD" ++ show newD ++ "\n    newE" ++ show newE ++ ".") Nothing
     | otherwise = assert' isJust $ joinSquare newB newC newD newE
     where
         (b, c, d, e) = fromJust $ decompose m
@@ -181,7 +218,7 @@ Returns a tuple (A, B, C, D) defined through the following shape:
 
 Where A is a 1x1 matrix. Returns Nothing if the matrix is empty.
 -}
-decompose :: (Show a, Show b, Ord a, Ord b) => LabelledMatrix a b c -> Maybe (LabelledMatrix a b c, LabelledMatrix a b c, LabelledMatrix a b c, LabelledMatrix a b c)
+decompose :: (Ord a, Ord b) => LabelledMatrix a b c -> Maybe (LabelledMatrix a b c, LabelledMatrix a b c, LabelledMatrix a b c, LabelledMatrix a b c)
 decompose x | assertIsWellFormed x = undefined
 decompose m@(Matrix _ dA dB) = do
     aDA <- takeOne dA

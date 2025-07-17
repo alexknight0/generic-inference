@@ -5,31 +5,32 @@ module Tests.ShortestPath.SingleTarget
     ( tests )
 where
 
-import qualified Benchmark.Baseline.DjikstraSimple                    as H
-import qualified LocalComputation.Instances.ShortestPath.SingleTarget as ST
-import qualified LocalComputation.LabelledMatrix                      as M
+import qualified Benchmark.Baseline.DjikstraSimple                            as H
+import qualified LocalComputation.Instances.ShortestPath.SingleTarget         as ST
+import qualified LocalComputation.LabelledMatrix                              as M
 import           LocalComputation.LocalProcess
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra.QuasiRegular
 import           Tests.ShortestPath.SingleTarget.Data
 
 import           Hedgehog
-import qualified Hedgehog.Gen                                         as Gen
-import qualified Hedgehog.Range                                       as Range
+import qualified Hedgehog.Gen                                                 as Gen
+import qualified Hedgehog.Range                                               as Range
 
-import           Control.Concurrent                                   (threadDelay)
-import           Control.Distributed.Process                          (Process,
-                                                                       liftIO)
-import           Control.Distributed.Process.Serializable             (Serializable)
-import           Control.Monad                                        (forM,
-                                                                       forM_)
-import           Data.Functor                                         (void)
-import qualified Data.Map                                             as M'
-import qualified Data.Set                                             as S
-import qualified LocalComputation.Instances.ShortestPath.Parser       as P
-import           Numeric.Natural                                      (Natural)
-import           System.IO.Silently                                   (capture)
-import qualified Text.Parsec                                          as P
+import           Control.Concurrent                                           (threadDelay)
+import           Control.Distributed.Process                                  (Process,
+                                                                               liftIO)
+import           Control.Distributed.Process.Serializable                     (Serializable)
+import           Control.Monad                                                (forM,
+                                                                               forM_)
+import           Data.Functor                                                 (void)
+import qualified Data.Map                                                     as M'
+import qualified Data.Set                                                     as S
+import qualified LocalComputation.Instances.ShortestPath.Parser               as P
+import qualified LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue as Q
+import           Numeric.Natural                                              (Natural)
+import           System.IO.Silently                                           (capture)
+import qualified Text.Parsec                                                  as P
 
 tests :: IO Bool
 tests = checkSequential $$(discover)
@@ -42,7 +43,7 @@ approx x y = abs (x - y) < tolerableError
 
 prop_p1 :: Property
 prop_p1 = withTests 1 . property $ do
-    results <- liftIO $ runProcessLocal $ ST.answerQueries (map M.fromList p1Graph) (fst p1Queries) (snd p1Queries)
+    results <- liftIO $ runProcessLocal $ ST.answerQueries [p1Graph] (fst p1Queries) (snd p1Queries)
     checkAnswers approx results p1Answers
 
 -- The hackage version is single source, while our implemented version is single target. Here, we will
@@ -66,16 +67,13 @@ genQuery vertices
 prop_inferenceMatchesPrebuilt :: Property
 prop_inferenceMatchesPrebuilt = withTests 100 . property $ do
     query <- forAll $ genQuery p1GraphVertices
-    inferenceResults <- liftIO $ runProcessLocal $ ST.answerQueries (map M.fromList p1Graph) (fst query) (snd query)
+    inferenceResults <- liftIO $ runProcessLocal $ ST.answerQueries [p1Graph] (fst query) (snd query)
     annotate $ show inferenceResults
     let prebuiltResults = H.answerQueries (H.create p1Graph) (snd query) (fst query)
 
     checkAnswers approx inferenceResults prebuiltResults
     where
-        p1GraphVertices = S.fromList $ map f (concat p1Graph)
-            where
-                f :: ((Integer, Integer), Integer) -> Integer
-                f ((x, _), _) = x
+        p1GraphVertices = M'.keysSet (p1Graph :: ST.Graph Integer TropicalSemiringValue)
 
 parseGraph :: IO (Either P.ParseError a) -> PropertyT IO a
 parseGraph g = do

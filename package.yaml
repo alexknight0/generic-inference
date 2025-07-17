@@ -41,6 +41,8 @@ dependencies:
 - array
 - matrix
 - heap
+- pretty-simple
+- text
 
 ghc-options:
 - -Wall

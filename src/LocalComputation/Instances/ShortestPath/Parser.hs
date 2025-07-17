@@ -13,20 +13,20 @@ module LocalComputation.Instances.ShortestPath.Parser
     )
 where
 
-import           Control.Monad                 (void)
-import           Data.Either                   (isRight)
-import           Data.Functor.Identity         (Identity)
-import           Data.List                     (genericLength)
-import qualified Data.Map                      as M
-import qualified Data.Set                      as S
-import           Numeric.Natural               (Natural)
-import qualified Text.Parsec.Char              as P (endOfLine)
-import qualified Text.Parsec.Language          as P (haskellDef)
-import qualified Text.Parsec.Token             as P
-import qualified Text.ParserCombinators.Parsec as P
-import           Text.ParserCombinators.Parsec ((<?>))
+import           LocalComputation.Instances.ShortestPath.SingleTarget (Graph)
 
-type Graph a b = M.Map a [(a, b)]
+import           Control.Monad                                        (void)
+import           Data.Either                                          (isRight)
+import           Data.Functor.Identity                                (Identity)
+import           Data.List                                            (genericLength)
+import qualified Data.Map                                             as M
+import qualified Data.Set                                             as S
+import           Numeric.Natural                                      (Natural)
+import qualified Text.Parsec.Char                                     as P (endOfLine)
+import qualified Text.Parsec.Language                                 as P (haskellDef)
+import qualified Text.Parsec.Token                                    as P
+import qualified Text.ParserCombinators.Parsec                        as P
+import           Text.ParserCombinators.Parsec                        ((<?>))
 
 data InvalidGraphFile =
       NumNodesMismatch { problemDeclaration :: Natural, numRead :: Natural }
