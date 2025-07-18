@@ -43,6 +43,7 @@ dependencies:
 - heap
 - pretty-simple
 - text
+- cached-io
 
 ghc-options:
 - -Wall

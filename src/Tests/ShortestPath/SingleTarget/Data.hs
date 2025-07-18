@@ -3,15 +3,15 @@ module Tests.ShortestPath.SingleTarget.Data
     , p1Queries
     , p1Answers
     , p2Graph
+    , p2Queries
+    , p2Answers
+    , p3Graph
     )
 where
 
-import           Benchmark.Baseline.DjikstraSimple                            (DistanceGraph)
-import qualified Data.Map                                                     as M
+import qualified LocalComputation.Graph                                       as G
 import qualified LocalComputation.Instances.ShortestPath.Parser               as P
-import qualified LocalComputation.Instances.ShortestPath.SingleTarget         as S (Graph)
-import           LocalComputation.Utils                                       (assert',
-                                                                               parseFile)
+import           LocalComputation.Utils                                       (parseFile)
 import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
 import           Numeric.Natural                                              (Natural)
 import qualified Text.Parsec                                                  as P (ParseError)
@@ -22,26 +22,23 @@ Source: https://www.geeksforgeeks.org/dsa/dijkstras-algorithm-for-adjacency-list
 -}
 p1AndP2Basis :: (Num a) => [(Integer, [(Integer, a)])]
 p1AndP2Basis = [
-            (0, [(0, 0), (1, 4), (7, 8)])
-          , (1, [(1, 0), (0, 4), (2, 8), (7, 11)])
-          , (2, [(2, 0), (1, 8), (3, 7), (5, 4), (8, 2)])
-          , (3, [(3, 0), (2, 7), (4, 9), (5, 14)])
-          , (4, [(4, 0), (3, 9), (5, 10)])
-          , (5, [(5, 0), (2, 4), (3, 14), (4, 10), (6, 2)])
-          , (6, [(6, 0), (5, 2), (7, 1), (8, 6)])
-          , (7, [(7, 0), (0, 8), (1, 11), (6, 1), (8, 7)])
-          , (8, [(8, 0), (2, 2), (6, 6), (7, 7)])
+            (0, [(0, 1), (1, 4), (7, 8)])
+          , (1, [(1, 1), (0, 4), (2, 8), (7, 11)])
+          , (2, [(2, 1), (1, 8), (3, 7), (5, 4), (8, 2)])
+          , (3, [(3, 1), (2, 7), (4, 9), (5, 14)])
+          , (4, [(4, 1), (3, 9), (5, 10)])
+          , (5, [(5, 1), (2, 4), (3, 14), (4, 10), (6, 2)])
+          , (6, [(6, 1), (5, 2), (7, 1), (8, 6)])
+          , (7, [(7, 1), (0, 8), (1, 11), (6, 1), (8, 7)])
+          , (8, [(8, 1), (2, 2), (6, 6), (7, 7)])
       ]
 
-p1Graph :: (Num a) => S.Graph Integer a
-p1Graph = M.fromList p1AndP2Basis
-
--- P1 but with the information split across 8 individual graphs that must be combined together.
-p2Graph' :: (Num a) => [S.Graph Integer a]
-p2Graph' = map (M.fromList . (:[])) p1AndP2Basis
+p1Graph :: (Num a) => G.Graph Integer a
+p1Graph = G.fromList' p1AndP2Basis
 
 p1Queries :: ([Integer], Integer)
-p1Queries = ([ 1
+p1Queries = ([ 0
+             , 1
              , 2
              , 3
              , 4
@@ -52,7 +49,8 @@ p1Queries = ([ 1
             ], 0)
 
 p1Answers :: [TropicalSemiringValue]
-p1Answers = [ 4
+p1Answers = [ 1
+            , 4
             , 12
             , 19
             , 21
@@ -62,13 +60,19 @@ p1Answers = [ 4
             , 14
            ]
 
-p2Graph = p3Graph
+-- P1 but with the information split across 8 individual graphs that must be combined together.
+p2Graph :: (Num a) => [G.Graph Integer a]
+p2Graph = map (G.fromList' . (:[])) p1AndP2Basis
 
-p3Graph :: IO (Either P.ParseError (Either P.InvalidGraphFile (P.Graph Natural Integer)))
-p3Graph = parseFile P.graph "src/Benchmark/Data/ShortestPath/ParseTestSmall-USA-road-d.NY.gr"
+p2Queries :: ([Integer], Integer)
+p2Queries = p1Queries
 
-isValidGraph :: (Eq a, Eq b) => DistanceGraph a b -> Bool
-isValidGraph xs = all (\((x, y), c) -> ((y, x), c) `elem` xs') xs'
-    where
-        xs' = concat xs
+p2Answers :: [TropicalSemiringValue]
+p2Answers = p1Answers
+
+parseGraph :: FilePath -> IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural TropicalSemiringValue)))
+parseGraph filepath = fmap (P.mapParseResult (T . fromInteger)) $ parseFile P.graph filepath
+
+p3Graph :: IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural TropicalSemiringValue)))
+p3Graph = parseGraph "src/Benchmark/Data/ShortestPath/Small-USA-road-d.NY.gr"
 

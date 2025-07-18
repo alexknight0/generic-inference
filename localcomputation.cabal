@@ -28,6 +28,7 @@ library
       Benchmark.Baseline.DjikstraSimple
       Benchmark.Baseline.FFT
       Benchmark.Baseline.Probability
+      LocalComputation.Graph
       LocalComputation.Inference.Collect
       LocalComputation.Inference.EliminationSequence
       LocalComputation.Inference.JoinTree
@@ -66,6 +67,7 @@ library
     , array
     , base >=4.7 && <5
     , binary
+    , cached-io
     , carray
     , containers
     , deepseq
@@ -97,6 +99,7 @@ executable localcomputation-exe
     , array
     , base >=4.7 && <5
     , binary
+    , cached-io
     , carray
     , containers
     , deepseq
@@ -134,6 +137,7 @@ test-suite localcomputation-test
     , array
     , base >=4.7 && <5
     , binary
+    , cached-io
     , carray
     , containers
     , deepseq

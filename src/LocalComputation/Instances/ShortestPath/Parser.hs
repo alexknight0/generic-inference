@@ -8,39 +8,39 @@ For information on the .gr file format see: https://www.diag.uniroma1.it/challen
 -}
 module LocalComputation.Instances.ShortestPath.Parser
     ( graph
-    , Graph
     , InvalidGraphFile
+    , mapParseResult
     )
 where
 
-import           LocalComputation.Instances.ShortestPath.SingleTarget (Graph)
+import qualified LocalComputation.Graph        as G
 
-import           Control.Monad                                        (void)
-import           Data.Either                                          (isRight)
-import           Data.Functor.Identity                                (Identity)
-import           Data.List                                            (genericLength)
-import qualified Data.Map                                             as M
-import qualified Data.Set                                             as S
-import           Numeric.Natural                                      (Natural)
-import qualified Text.Parsec.Char                                     as P (endOfLine)
-import qualified Text.Parsec.Language                                 as P (haskellDef)
-import qualified Text.Parsec.Token                                    as P
-import qualified Text.ParserCombinators.Parsec                        as P
-import           Text.ParserCombinators.Parsec                        ((<?>))
+import           Control.Monad                 (void)
+import           Data.Either                   (isRight)
+import           Data.Functor.Identity         (Identity)
+import           Data.List                     (genericLength)
+import           Data.Tuple.Extra              (uncurry3)
+import           LocalComputation.Utils
+import           Numeric.Natural               (Natural)
+import qualified Text.Parsec.Char              as P (endOfLine)
+import qualified Text.Parsec.Language          as P (haskellDef)
+import qualified Text.Parsec.Token             as P
+import qualified Text.ParserCombinators.Parsec as P
+import           Text.ParserCombinators.Parsec ((<?>))
 
 data InvalidGraphFile =
       NumNodesMismatch { problemDeclaration :: Natural, numRead :: Natural }
     | NumArcsMismatch  { problemDeclaration :: Natural, numRead :: Natural } deriving Show
 
-graph :: P.GenParser Char st (Either InvalidGraphFile (Graph Natural Integer))
+graph :: P.GenParser Char st (Either InvalidGraphFile (G.Graph Natural Integer))
 graph = do
     P.skipMany $ P.choice [P.try comment, P.try blankLine]
     (numNodes, numArcs) <- problem
     arcs <- fmap getRight $ P.many $ P.choice [Right <$> P.try arc, Left <$> P.try comment, Left <$> P.try blankLine]
     void $ P.manyTill P.space (P.try P.eof)
 
-    let g = foldr f M.empty arcs
-        gNumNodes = nodesInGraph g
+    let g = G.fromList (map (uncurry3 G.Edge) arcs)
+        gNumNodes = fromIntegral $ length $ G.nodes g
         gNumArcs = genericLength arcs
 
     case () of
@@ -49,16 +49,8 @@ graph = do
           | otherwise             -> pure $ Right g
 
     where
-        f (arcTail, arcHead, weight) acc = M.insertWith (++) arcTail [(arcHead, weight)] acc
-
-        nodesInGraph g = fromIntegral $ length $ S.union (M.keysSet g)
-                                                         (S.fromList $ concat $ map (map fst) (M.elems g))
-
         getRight :: [Either a b] -> [b]
         getRight xs = map fromRight $ filter isRight xs
-
-        fromRight (Right x) = x
-        fromRight _         = error "Call to fromRight on a Left element"
 
 spaces :: P.GenParser Char st ()
 spaces = P.skipMany (P.oneOf " \t")
@@ -113,4 +105,9 @@ arc = do
 -- we say we want to parse a 'integer'.
 lexer :: P.GenTokenParser String u Identity
 lexer = P.makeTokenParser P.haskellDef
+
+mapParseResult :: (a -> b)
+               -> Either P.ParseError (Either InvalidGraphFile (G.Graph Natural a))
+               -> Either P.ParseError (Either InvalidGraphFile (G.Graph Natural b))
+mapParseResult f = fmap (fmap (G.mapGraph f))
 

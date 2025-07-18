@@ -6,7 +6,6 @@
 module LocalComputation.Instances.ShortestPath.SingleTarget
     ( answerQuery
     , answerQueries
-    , Graph
     )
 where
 
@@ -24,10 +23,9 @@ import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
 
 -- Typeclasses
 import           Data.Binary                                                  (Binary)
+import           LocalComputation.Graph                                       as G
 import           LocalComputation.Utils                                       (fromRight)
 import           Type.Reflection                                              (Typeable)
-
-type Graph a b = MP.Map a [(a, b)]
 
 type Knowledgebase a = [Q.QuasiRegularValuation TropicalSemiringValue a ()]
 type Query a = (a, a)
@@ -54,7 +52,7 @@ knowledgeBase gs target = map f gs
         -- Rearranges the graph into an associative list of ((arcHead, arcTail), cost)
         -- May contain duplicate entries if there may exist multiple arcs between a set of nodes.
         assocList :: Graph a b -> [((a, a), b)]
-        assocList g = [((arcHead, arcTail), cost) | (arcHead, arcTails) <- MP.toList g, (arcTail, cost) <- arcTails]
+        assocList g = map (\e -> ((e.arcHead, e.arcTail), e.weight)) (G.toList g)
 
 -- | Retuns a distance entry from the resulting valuation after inference. Unsafe.
 getDistance :: (Show a, Ord a) => Q.QuasiRegularValuation TropicalSemiringValue a () -> Query a -> TropicalSemiringValue
