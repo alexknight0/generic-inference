@@ -65,9 +65,6 @@ knowledgeBase gs target = map f gs
 getDistance :: (Show a, Ord a) => Q.QuasiRegularValuation TropicalSemiringValue a () -> Query a -> TropicalSemiringValue
 getDistance x (source, _) = fromJust $ M.find (source, ()) (Q.solution x)
 
--- answerQuery :: (Show a, Typeable a, Binary a, Ord a) => [Graph a TropicalSemiringValue] -> Query a -> Process TropicalSemiringValue
--- answerQuery vs (source, target) = fmap head $ answerQueries vs [source] target
-
 -- TODO: Can this handle negative weights?
 {- | Returns the shortest distance between a single target and multiple sources.
 
