@@ -47,6 +47,7 @@ import           Hedgehog                      (Property, PropertyT, diff,
 import qualified Text.ParserCombinators.Parsec as P
 
 import           Control.Exception             (assert)
+import           Debug.Pretty.Simple           (pTraceShow)
 import           GHC.Stack                     (HasCallStack)
 import           Numeric.Natural
 import           System.IO                     (IOMode (ReadMode),
@@ -140,7 +141,11 @@ unitTest :: PropertyT IO a -> Property
 unitTest = withTests 1 . property . void
 
 checkAnswers :: (Show a) => (a -> a -> Bool) -> [a] -> [a] -> PropertyT IO ()
-checkAnswers f results answers = diff results (\rs as -> and (zipWithAssert f rs as)) answers
+checkAnswers f results answers = diff results (\rs as -> foobar rs as) answers
+    where
+        foobar rs as
+            | and (zipWithAssert f rs as) == False = pTraceShow (rs, as) False
+            | otherwise = True
 
 integerLogBase2 :: Natural -> Maybe Natural
 integerLogBase2 x = integerLogBase2' 0 x

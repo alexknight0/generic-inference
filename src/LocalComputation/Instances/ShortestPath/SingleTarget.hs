@@ -1,11 +1,14 @@
+{-# LANGUAGE DeriveAnyClass        #-}
+{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NoFieldSelectors      #-}
 {-# LANGUAGE OverloadedRecordDot   #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 
 module LocalComputation.Instances.ShortestPath.SingleTarget
-    ( answerQuery
-    , answerQueries
+    (
+      singleTarget
+    , InvalidGraph (MissingZeroCostSelfLoops)
     )
 where
 
@@ -22,13 +25,17 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular               as
 import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
 
 -- Typeclasses
+import           Control.DeepSeq                                              (NFData)
 import           Data.Binary                                                  (Binary)
+import           GHC.Generics                                                 (Generic)
 import           LocalComputation.Graph                                       as G
 import           LocalComputation.Utils                                       (fromRight)
 import           Type.Reflection                                              (Typeable)
 
 type Knowledgebase a = [Q.QuasiRegularValuation TropicalSemiringValue a ()]
 type Query a = (a, a)
+
+data InvalidGraph = MissingZeroCostSelfLoops deriving (NFData, Generic)
 
 -- If distance of a location to itself is not recorded, it will be recorded as the 'zero'
 -- element of the tropical semiring (i.e. infinity). However, it still seems to determine
@@ -58,15 +65,26 @@ knowledgeBase gs target = map f gs
 getDistance :: (Show a, Ord a) => Q.QuasiRegularValuation TropicalSemiringValue a () -> Query a -> TropicalSemiringValue
 getDistance x (source, _) = fromJust $ M.find (source, ()) (Q.solution x)
 
-answerQuery :: (Show a, Typeable a, Binary a, Ord a) => [Graph a TropicalSemiringValue] -> Query a -> Process TropicalSemiringValue
-answerQuery vs (source, target) = fmap head $ answerQueries vs [source] target
+-- answerQuery :: (Show a, Typeable a, Binary a, Ord a) => [Graph a TropicalSemiringValue] -> Query a -> Process TropicalSemiringValue
+-- answerQuery vs (source, target) = fmap head $ answerQueries vs [source] target
 
-answerQueries :: (Binary a, Typeable a, Ord a, Show a) => [Graph a TropicalSemiringValue] -> [a] -> a -> Process ([TropicalSemiringValue])
-answerQueries vs sources target = do
-    results <- answerQueriesM k domains
-    pure $ map (\(s, r) -> getDistance r (s, target)) $ zip sources results
+-- TODO: Can this handle negative weights?
+{- | Returns the shortest distance between a single target and multiple sources.
 
-    where
-        k = knowledgeBase vs target
-        domains = map (\s -> S.fromList [s, target]) sources
+Assumes that every graph node can reach itself with 0 cost. This is a limitation of the inference process using quasi regular valuations;
+consider the result of `Q.solution` on a `Q.LabelledMatrix (fromList [(0, 0), T 1]) (fromList [(0, ()), 0)`. Here, following the formula
+for `Q.solution` and the quasi-inverse definition of a `TropicalSemiringValue` the edge cost `T 1` becomes `T 0`.
+
+To make this assumption explicit, returns `Left InvalidGraph` if a graph that does not have 0 cost self loops is given.
+-}
+singleTarget :: (Binary a, Typeable a, Ord a, Show a) => [Graph a TropicalSemiringValue] -> [a] -> a -> Process (Either InvalidGraph [TropicalSemiringValue])
+singleTarget vs sources target
+    | any (not . G.hasZeroCostSelfLoops) vs = pure $ Left MissingZeroCostSelfLoops
+    | otherwise = do
+        results <- answerQueriesM k domains
+        pure $ Right $ map (\(s, r) -> getDistance r (s, target)) $ zip sources results
+
+        where
+            k = knowledgeBase vs target
+            domains = map (\s -> S.fromList [s, target]) sources
 

@@ -21,7 +21,12 @@ import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
 -- Typeclasses
 import           Control.DeepSeq                                              (NFData)
 import           Data.Binary                                                  (Binary)
+import           Data.Text.Lazy                                               (unpack)
+import           Debug.Pretty.Simple                                          (pTrace,
+                                                                               pTraceNoColor)
+import           Debug.Trace                                                  (trace)
 import           GHC.Generics                                                 (Generic)
+import           Text.Pretty.Simple                                           (pString)
 
 data QuasiRegularValuation c a b = Valuation (M.LabelledMatrix a a c) (M.LabelledMatrix a () c) | Identity (Domain a) deriving (Binary, NFData, Ord, Eq, Generic, Read, Show)
 

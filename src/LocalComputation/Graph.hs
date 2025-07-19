@@ -15,6 +15,9 @@ module LocalComputation.Graph
     , Edge (Edge, arcHead, arcTail, weight)
     , nodes
     , flipArcDirections
+    , nodeList
+    , addSelfLoops
+    , hasZeroCostSelfLoops
     )
 where
 
@@ -60,13 +63,26 @@ fromMap m = Graph m
 toMap :: Graph a b -> M.Map a [(a, b)]
 toMap (Graph g) = g
 
+-- TODO: The performance of this operation could be improved by adding an invariant that the underlying map contains
+-- every node in it's keySet, regardless of whether the key has an arc leaving from it.
 nodes :: (Ord a) => Graph a b -> S.Set a
 nodes (Graph g) = S.union (M.keysSet g) (S.fromList $ concat $ map (map fst) (M.elems g))
+
+nodeList :: (Ord a) => Graph a b -> [a]
+nodeList g = S.toList $ nodes g
 
 flipArcDirections :: (Ord a) => Graph a b -> Graph a b
 flipArcDirections g = fromList [Edge x.arcTail x.arcHead x.weight | x <- toList g]
 
+{- | Adds self loops of the given weight to each node of a graph. -}
+addSelfLoops :: (Ord a) => b -> Graph a b -> Graph a b
+addSelfLoops b (Graph g) = Graph $ M.unionWith (++) g (M.fromList [(node, [(node, b)]) | node <- nodeList (Graph g)])
 
-
+hasZeroCostSelfLoops :: (Ord a, Eq b, Num b) => Graph a b -> Bool
+hasZeroCostSelfLoops (Graph g) = all p (nodeList $ Graph g)
+    where
+        p arcHead
+            | Just arcTails <- M.lookup arcHead g, (arcHead, 0) `elem` arcTails = True
+            | otherwise = False
 
 
