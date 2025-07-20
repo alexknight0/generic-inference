@@ -207,7 +207,7 @@ initializeNode node ports resultPort = spawnLocal $ do
     -- COLLECT PHASE
 
     -- Wait for messages from (length ports - 1) ports
-    (initialMessages, unusedPortId) <- receivePhaseOne (map (\x -> (x.id, x.port.receive)) ports')
+    (initialMessages, unusedPortId) <- receivePhaseOne ports'
 
     -- Combine messages into new message, and send to the only port we didn't receive a message from.
     let unusedPort = idToPort unusedPortId
@@ -245,6 +245,11 @@ initializeNode node ports resultPort = spawnLocal $ do
             -> Process ()
         sendPhaseTwo allMessages p = sendMessage (getValuation node : (map snd $ filter (\(i', _) -> i' /= p.id) allMessages)) (getDomain node) p.port.domain p.port.send
 
+data Message v a b = Message {
+          sender :: PortIdentifier
+        , msg    :: v a b
+    }
+
 -- TODO: rename combines combines1
 sendMessage :: (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
     => [v a b]
@@ -257,11 +262,11 @@ sendMessage msgsToCombine nodeDomain recipientDomain sendPort = sendChan sendPor
 
 -- Receives messages from all ports but one, returning the port that it never
 -- received a message from.
-receivePhaseOne :: Serializable a
-    => [(PortIdentifier, ReceivePort a)]
-    -> Process ([(PortIdentifier, a)], PortIdentifier)
+receivePhaseOne :: Serializable (v a b)
+    => [PortWithId v a b]
+    -> Process ([(PortIdentifier, v a b)], PortIdentifier)
 receivePhaseOne [] = error "receivePhaseOne: Attempted to receive from no port."
-receivePhaseOne [p] = return ([], fst p)
+receivePhaseOne [p] = return ([], p.id)
 receivePhaseOne ps = do
     (message, ps') <- receiveOnce ps
     (messages, unusedPort) <- receivePhaseOne ps'
@@ -272,15 +277,15 @@ receivePhaseOne ps = do
 -- use the merged ports as we don't know which port returned the value.
 -- One way to get around this could be to send an indentifier with
 -- the value through the port.
-receiveOnce :: Serializable a
-    => [(PortIdentifier, ReceivePort a)]
-    -> Process ((PortIdentifier, a), [(PortIdentifier, ReceivePort a)])
+receiveOnce :: Serializable (v a b)
+    => [PortWithId v a b]
+    -> Process ((PortIdentifier, v a b), [PortWithId v a b])
 receiveOnce [] = error "receiveOnce: Attempted to receive from no port."
-receiveOnce ((pIndex, p):ps) = do
-    x <- receiveChanTimeout 0 p
+receiveOnce (p:ps) = do
+    x <- receiveChanTimeout 0 p.port.receive
     case x of
-         (Just message) -> return ((pIndex, message), ps)
-         Nothing        -> receiveOnce (ps ++ [(pIndex, p)])
+         (Just message) -> return ((p.id, message), ps)
+         Nothing        -> receiveOnce (ps ++ [p])
 
 
 
