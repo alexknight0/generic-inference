@@ -207,7 +207,7 @@ initializeNode node ports resultPort = spawnLocal $ do
     -- COLLECT PHASE
 
     -- Wait for messages from (length ports - 1) ports
-    (initialMessages, unusedPortId) <- receivePhaseOne ports'
+    (initialMessages, unusedPortId) <- receivePhaseOne portsWithId
 
     -- Combine messages into new message, and send to the only port we didn't receive a message from.
     let unusedPort = idToPort unusedPortId
@@ -230,14 +230,14 @@ initializeNode node ports resultPort = spawnLocal $ do
     sendChan resultPort (getDomain node, combines (getValuation node : map snd allMessages))
 
     where
-        ports' :: [PortWithId v a b]
-        ports' = zipWith (\x p -> PortWithId x p) [0..] ports
+        portsWithId :: [PortWithId v a b]
+        portsWithId = zipWith (\x p -> PortWithId x p) [0..] ports
 
         idToPort :: PortIdentifier -> PortWithId v a b
-        idToPort x = findAssertSingleMatch (\y -> y.id == x) ports'
+        idToPort x = findAssertSingleMatch (\y -> y.id == x) portsWithId
 
         allPortsExcept :: PortIdentifier -> [PortWithId v a b]
-        allPortsExcept used = filter (\x -> x.id /= used) ports'
+        allPortsExcept used = filter (\x -> x.id /= used) portsWithId
 
         sendPhaseTwo :: (Serializable (v a b))
             => [(PortIdentifier, v a b)]
