@@ -3,46 +3,32 @@
 {-# LANGUAGE OverloadedRecordDot   #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE TemplateHaskell       #-}
-{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module Tests.ShortestPath.SingleTarget
     ( tests )
 where
 
-import qualified Benchmark.Baseline.DjikstraSimple                            as H
-import qualified LocalComputation.Graph                                       as G
-import qualified LocalComputation.Instances.ShortestPath.SingleTarget         as ST
-import qualified LocalComputation.LabelledMatrix                              as M
+import qualified Benchmark.Baseline.DjikstraSimple                    as H
+import qualified LocalComputation.Graph                               as G
+import qualified LocalComputation.Instances.ShortestPath.SingleTarget as ST
 import           LocalComputation.LocalProcess
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra.QuasiRegular
 import           Tests.ShortestPath.SingleTarget.Data
 
 import           Hedgehog
-import qualified Hedgehog.Gen                                                 as Gen
-import qualified Hedgehog.Range                                               as Range
+import qualified Hedgehog.Gen                                         as Gen
+import qualified Hedgehog.Range                                       as Range
 
-import           Control.Concurrent                                           (threadDelay)
-import qualified Control.Concurrent.CachedIO                                  as C
-import           Control.Distributed.Process                                  (Process,
-                                                                               liftIO)
-import           Control.Distributed.Process.Serializable                     (Serializable)
-import qualified Control.Exception                                            as E (assert)
-import           Control.Monad                                                (forM,
-                                                                               forM_,
-                                                                               mzero)
-import           Data.Functor                                                 (void)
-import qualified Data.Map                                                     as M'
-import qualified Data.Set                                                     as S
-import qualified LocalComputation.Instances.ShortestPath.Parser               as P
-import qualified LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue as Q
-import           Numeric.Natural                                              (Natural)
-import           System.IO.Silently                                           (capture)
-import qualified Text.Parsec                                                  as P
+import           Control.Distributed.Process                          (liftIO)
+import           Control.Monad                                        (forM_)
+import qualified Data.Set                                             as S
+import qualified LocalComputation.Instances.ShortestPath.Parser       as P
+import qualified Text.Parsec                                          as P
 
 -- Typeclasses
-import           Data.Binary                                                  (Binary)
-import           Type.Reflection                                              (Typeable)
+import           Data.Binary                                          (Binary)
+import           Type.Reflection                                      (Typeable)
 
 tests :: IO Bool
 tests = fmap and $ sequence [
@@ -117,7 +103,6 @@ matchesPrebuilt g = withTests 4 . property $ do
     let prebuiltResults =                                            H.singleTarget g query.sources query.target (T $ read "Infinity")
 
     checkAnswers approx inferenceResults prebuiltResults
-
 
 -- | Parses the graph and adds self loops of cost 0.
 -- For more information on why 0 cost self loops are necessary see `ST.singleTarget`.

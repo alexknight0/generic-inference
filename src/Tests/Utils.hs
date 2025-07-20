@@ -1,31 +1,18 @@
-{-# LANGUAGE TemplateHaskell     #-}
-{-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell     #-}
 
 module Tests.Utils
     ( tests )
 where
 
 import           Hedgehog
-import qualified Hedgehog.Gen                             as Gen
-import qualified Hedgehog.Range                           as Range
+import qualified Hedgehog.Gen                as Gen
+import qualified Hedgehog.Range              as Range
 
-import           Control.Concurrent                       (threadDelay)
-import           Control.DeepSeq                          (force)
+import           Control.DeepSeq             (force)
 import           Control.Distributed.Process
-import           Control.Distributed.Process.Node
-import           Control.Distributed.Process.Serializable (Serializable)
-import qualified Control.Exception                        as E
-import           Data.Functor                             (void)
-import           Data.Maybe                               (isNothing)
-import           Debug.Trace                              (traceShow,
-                                                           traceShowId)
-import           GHC.Float                                (properFractionDouble)
-import           LocalComputation.Utils
-import           System.IO.Silently                       (capture)
+import qualified Control.Exception           as E
 
-import qualified Data.Matrix                              as M
-import qualified LocalComputation.LabelledMatrix          as L
 
 tests :: IO Bool
 tests = checkParallel $$(discover)

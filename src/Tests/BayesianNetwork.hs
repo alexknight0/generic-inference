@@ -1,5 +1,4 @@
 {-# LANGUAGE TemplateHaskell #-}
-{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module Tests.BayesianNetwork
     ( tests )
@@ -17,14 +16,11 @@ import           Hedgehog
 import qualified Hedgehog.Gen                                      as Gen
 import qualified Hedgehog.Range                                    as Range
 
-import           Control.Concurrent                                (threadDelay)
 import           Control.DeepSeq                                   (force)
 import           Control.Distributed.Process
-import           Control.Distributed.Process.Node
 import           Control.Distributed.Process.Serializable          (Serializable)
 import qualified Control.Exception                                 as E
 import           Control.Monad                                     (forM)
-import           Data.Functor                                      (void)
 import qualified Data.Set                                          as S
 
 tests :: IO Bool

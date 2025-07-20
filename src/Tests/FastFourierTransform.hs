@@ -1,5 +1,4 @@
 {-# LANGUAGE TemplateHaskell #-}
-{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module Tests.FastFourierTransform
     ( tests )
@@ -9,18 +8,13 @@ import           Benchmark.Baseline.FFT
 import           LocalComputation.Instances.FastFourierTransform
 import           LocalComputation.LocalProcess
 import           LocalComputation.Utils
-import           LocalComputation.ValuationAlgebra.Semiring
 import           Tests.FastFourierTransform.Data
 
 import           Hedgehog
 import qualified Hedgehog.Gen                                    as Gen
 import qualified Hedgehog.Range                                  as Range
 
-import           Control.Concurrent                              (threadDelay)
 import           Control.Distributed.Process                     (liftIO)
-import           Control.Distributed.Process.Serializable        (Serializable)
-import           Data.Functor                                    (void)
-import           System.IO.Silently                              (capture)
 
 import qualified Data.Array.IArray                               as I
 import           Data.Complex                                    (Complex ((:+)),
