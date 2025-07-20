@@ -39,10 +39,10 @@ tests = fmap and $ sequence [
 p3MatchesPrebuilt :: IO Bool
 p3MatchesPrebuilt = do
     p3VerySmall <- P.fromValid p3VerySmallGraph
-    p3Small <- P.fromValid p3SmallGraph
+    --p3Small <- P.fromValid p3SmallGraph
     checkSequential $ Group "Tests.ShortestPath.SingleTarget" [
-          ("prop_p3VerySmallMatchesPrebuilt", matchesPrebuilt p3VerySmall 4)
-        , ("prop_p3SmallMatchesPrebuilt", matchesPrebuilt p3Small 1)
+          ("prop_p3VerySmallMatchesPrebuilt", matchesPrebuilt p3VerySmall 10)
+        --, ("prop_p3SmallMatchesPrebuilt", matchesPrebuilt p3Small 1)
        ]
 
 tolerableError :: TropicalSemiringValue

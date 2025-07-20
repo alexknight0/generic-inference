@@ -1,2 +1,5 @@
 .stack-work/
 *~
+*.prof
+report.html
+src/Benchmark/Data/*

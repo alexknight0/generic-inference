@@ -231,7 +231,7 @@ initializeNode node ports resultPort = spawnLocal $ do
             -> Process ()
         sendPhaseTwo allMessages (i, d, s) = sendMessage (getValuation node : (map snd $ filter (\(i', _) -> i' /= i) allMessages)) (getDomain node) d s
 
--- | TODO: rename combines combines1
+-- TODO: rename combines combines1
 sendMessage :: (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
     => [v a b]
     -> Domain a
