@@ -59,6 +59,10 @@ ghc-options:
 
 library:
   source-dirs: src
+  default-extensions:
+  - DuplicateRecordFields
+  - NoFieldSelectors
+  - OverloadedRecordDot
 
 executables:
   localcomputation-exe:
@@ -73,6 +77,10 @@ executables:
     when:
       - condition: false
         other-modules: Paths_localcomputation
+    default-extensions:
+    - DuplicateRecordFields
+    - NoFieldSelectors
+    - OverloadedRecordDot
 
 tests:
   localcomputation-test:
@@ -84,6 +92,10 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - localcomputation
+    default-extensions:
+    - DuplicateRecordFields
+    - NoFieldSelectors
+    - OverloadedRecordDot
 
 benchmarks:
   localcomputation-benchmark:
@@ -96,3 +108,7 @@ benchmarks:
     - -O2
     dependencies:
     - localcomputation
+    default-extensions:
+    - DuplicateRecordFields
+    - NoFieldSelectors
+    - OverloadedRecordDot

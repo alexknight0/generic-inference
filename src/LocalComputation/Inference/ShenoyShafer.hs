@@ -180,6 +180,10 @@ assertHasMessage Nothing = error "Error - a node terminated without sending a me
 
 type PortIdentifier = Integer
 
+-- data Port v a b = Port {
+--
+-- }
+
 initializeNode :: forall n v a b. (Show a, Show b, Node n, Binary (v a b), Binary a, Typeable (v a b), Typeable a, Valuation v, Ord a, Ord b)
     => n v a b
     -> [(Domain a, SendPort (v a b), ReceivePort (v a b))]

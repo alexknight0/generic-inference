@@ -1,7 +1,3 @@
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE NoFieldSelectors      #-}
-{-# LANGUAGE OverloadedRecordDot   #-}
-
 {- | Parser to parse .gr files into a graph suitable for use in the library.
 
 For information on the .gr file format see: https://www.diag.uniroma1.it/challenge9/format.shtml#graph

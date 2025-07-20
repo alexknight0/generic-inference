@@ -63,6 +63,10 @@ library
       Paths_localcomputation
   hs-source-dirs:
       src
+  default-extensions:
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedRecordDot
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       algebraic-graphs ==0.7
@@ -96,6 +100,10 @@ executable localcomputation-exe
   main-is: Main.hs
   hs-source-dirs:
       app
+  default-extensions:
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedRecordDot
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       algebraic-graphs ==0.7
@@ -135,6 +143,10 @@ test-suite localcomputation-test
       Paths_localcomputation
   hs-source-dirs:
       test
+  default-extensions:
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedRecordDot
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       algebraic-graphs ==0.7
@@ -174,6 +186,10 @@ benchmark localcomputation-benchmark
       Paths_localcomputation
   hs-source-dirs:
       bench
+  default-extensions:
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedRecordDot
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N -O2
   build-depends:
       algebraic-graphs ==0.7

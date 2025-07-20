@@ -1,6 +1,3 @@
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE NoFieldSelectors      #-}
-{-# LANGUAGE OverloadedRecordDot   #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 
 module LocalComputation.Graph

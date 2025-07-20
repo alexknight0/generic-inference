@@ -1,7 +1,3 @@
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE NoFieldSelectors      #-}
-{-# LANGUAGE OverloadedRecordDot   #-}
-
 module Tests.ShortestPath.SingleTarget.Data (
       Query (..)
     , p0Graphs
