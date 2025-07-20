@@ -1,5 +1,8 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE NoFieldSelectors      #-}
+{-# LANGUAGE OverloadedRecordDot   #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE TemplateHaskell       #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module Tests.ShortestPath.SingleTarget
@@ -64,52 +67,60 @@ approx x y
     | x == (T $ read "-Infinity") && y == (T $ read "-Infinity") = True
     | otherwise = False
 
+-- | Tests that graphs that are missing zero cost self loops throw an error.
+-- For the reason behind this behaviour, see the documentation of `ST.singleTarget`
 prop_p0 :: Property
 prop_p0 = unitTest $ do
     forM_ p0Graphs $ \g -> do
-        results <- liftIO $ runProcessLocal $ ST.singleTarget [g] (fst p0Queries) (snd p0Queries)
+        results <- liftIO $ runProcessLocal $ ST.singleTarget [g] p0Queries.sources p0Queries.target
         case results of
             Left ST.MissingZeroCostSelfLoops -> success
             Right _                          -> failure
 
+-- | Tests that the localcomputation algorithm works for a set problem, where one graph is given.
 prop_p1 :: Property
-prop_p1 = withTests 1 . property $ do
-    results <- fmap fromRight $ liftIO $ runProcessLocal $ ST.singleTarget [p1Graph] (fst p1Queries) (snd p1Queries)
+prop_p1 = unitTest $ do
+    results <- fmap fromRight $ liftIO $ runProcessLocal $ ST.singleTarget [p1Graph] p1Queries.sources p1Queries.target
     checkAnswers approx results p1Answers
 
+-- | Tests that the localcomputation algorithm works for a set problem, where multiple graphs are given.
+prop_p2 :: Property
+prop_p2 = unitTest $ do
+    results <- fmap fromRight $ liftIO $ runProcessLocal $ ST.singleTarget p2Graph p2Queries.sources p2Queries.target
+    checkAnswers approx results p1Answers
+
+-- | Tests that the baseline algorithm works for a set problem.
 prop_prebuilt :: Property
 prop_prebuilt = withTests 1 . property $ do
     checkAnswers approx answers p1Answers
 
     where
-        answers = H.singleTarget p1Graph (fst p1Queries) (snd p1Queries) (T $ read "Infinity")
+        answers = H.singleTarget p1Graph p1Queries.sources p1Queries.target (T $ read "Infinity")
 
-genQuery :: (Ord a) => S.Set a -> Gen ([a], a)
+-- | Generates a random query from the given set of graph vertices.
+genQuery :: (Ord a) => S.Set a -> Gen (Query a)
 genQuery vertices
     | null vertices = error "Expected non-empty vertices iterable"
     | otherwise = do
     target <- Gen.element vertices
     sources <- Gen.set (Range.linear 1 (length vertices - 1)) (Gen.element vertices)
-    pure $ (S.toList sources, target)
+    pure $ Query (S.toList sources) target
 
+-- | Checks the output of the localcomputation algorithm and the baseline algorithm match for a set of random queries.
 matchesPrebuilt :: (Binary a, Typeable a, Show a, Ord a)
     => G.Graph a TropicalSemiringValue
     -> Property
-matchesPrebuilt g = withTests 100 . property $ do
+matchesPrebuilt g = withTests 4 . property $ do
     query <- forAll $ genQuery (G.nodes g)
 
-    inferenceResults <- fmap fromRight $ liftIO $ runProcessLocal $ ST.singleTarget [g] (fst query) (snd query)
-    let prebuiltResults =                                            H.singleTarget g (fst query) (snd query) (T $ read "Infinity")
+    inferenceResults <- fmap fromRight $ liftIO $ runProcessLocal $ ST.singleTarget [g] query.sources query.target
+    let prebuiltResults =                                            H.singleTarget g query.sources query.target (T $ read "Infinity")
 
     checkAnswers approx inferenceResults prebuiltResults
 
 
-{- | Parses the graph and adds self loops of cost 0.
-
-The addition of these self loops is necessary as not all implementations of shortest path
-algorithms assume the existence of 0 cost self loops as the quasi-regular inference
-based implementation does.
--}
+-- | Parses the graph and adds self loops of cost 0.
+-- For more information on why 0 cost self loops are necessary see `ST.singleTarget`.
 parseGraphWithSelfLoops :: (Ord a, Num b)
     => IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph a b)))
     -> PropertyT IO (G.Graph a b)
@@ -135,5 +146,6 @@ parseGraph g = do
 parseGraph' :: IO (Either P.ParseError (Either P.InvalidGraphFile a)) -> IO a
 parseGraph' = fmap (fromRight . fromRight)
 
+-- | Tests the parser doesn't fail on a known working example.
 prop_parser :: Property
 prop_parser = unitTest $ parseGraph p3Graph

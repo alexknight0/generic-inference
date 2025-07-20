@@ -1,12 +1,30 @@
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE NoFieldSelectors      #-}
+{-# LANGUAGE OverloadedRecordDot   #-}
+
 module Benchmark.ShortestPath.SingleTarget
     (
         benchmarks
     )
 where
 
-import qualified Criterion.Main as B
+import qualified Benchmark.Baseline.DjikstraSimple                    as H
+import           Criterion.Main
+import qualified LocalComputation.Instances.ShortestPath.SingleTarget as ST
+import           LocalComputation.LocalProcess                        (runProcessLocal)
+import           LocalComputation.ValuationAlgebra.QuasiRegular       (TropicalSemiringValue (T))
 
-benchmarks = putStrLn "TESTING BIG TIME!"
+-- TODO: don't want a dependency of benchmark on test.
+import qualified Tests.ShortestPath.SingleTarget.Data                 as D
+
+benchmarks :: IO ()
+benchmarks = defaultMain [
+        bgroup "singleTarget" [
+                  bench "localcomputation" $ nfIO (runProcessLocal $ ST.singleTarget [D.p1Graph] D.p1Queries.sources D.p1Queries.target)
+                , bench "djikstra" $ nf (H.singleTarget D.p1Graph D.p1Queries.sources D.p1Queries.target) (T $ read "Infinity")
+            ]
+
+    ]
 
 
 

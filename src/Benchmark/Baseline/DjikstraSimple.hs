@@ -21,13 +21,10 @@ shortestPaths xs source = M.map (\(G.Path _ cost) -> cost) paths
         (G.Paths paths) = G.lightestPaths xs source G.cumulativeWeighter
 
 singleSource :: (Ord a, Ord b, Num b) => G.Graph a b -> a -> [a] -> b -> [b]
-singleSource graph source targets infinity = map (\t -> M.findWithDefault infinity t shortest) targets
+singleSource graph source targets unreachable = map (\t -> M.findWithDefault unreachable t shortest) targets
     where
         shortest = shortestPaths graph source
--- singleSource graph source targets = map (\t -> shortest M.! t) targets
---     where
---         shortest = shortestPaths graph source
 
 singleTarget :: (Ord a, Ord b, Num b) => LG.Graph a b -> [a] -> a -> b -> [b]
-singleTarget graph sources target infinity = singleSource (create $ LG.flipArcDirections graph) target sources infinity
+singleTarget graph sources target unreachable = singleSource (create $ LG.flipArcDirections graph) target sources unreachable
 
