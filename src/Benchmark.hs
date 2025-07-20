@@ -4,6 +4,7 @@ module Benchmark (
 
 import qualified Benchmark.ShortestPath.SingleTarget as ST
 
+allBenchmarks :: IO ()
 allBenchmarks = ST.benchmarks
 
 

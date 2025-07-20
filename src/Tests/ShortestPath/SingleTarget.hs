@@ -38,9 +38,11 @@ tests = fmap and $ sequence [
 
 p3MatchesPrebuilt :: IO Bool
 p3MatchesPrebuilt = do
-    g <- parseGraphWithSelfLoops' p3Graph
+    p3VerySmall <- P.fromValid p3VerySmallGraph
+    p3Small <- P.fromValid p3SmallGraph
     checkSequential $ Group "Tests.ShortestPath.SingleTarget" [
-        ("prop_p3matchesPrebuilt", matchesPrebuilt g)
+          ("prop_p3VerySmallMatchesPrebuilt", matchesPrebuilt p3VerySmall 4)
+        , ("prop_p3SmallMatchesPrebuilt", matchesPrebuilt p3Small 1)
        ]
 
 tolerableError :: TropicalSemiringValue
@@ -95,27 +97,15 @@ genQuery vertices
 -- | Checks the output of the localcomputation algorithm and the baseline algorithm match for a set of random queries.
 matchesPrebuilt :: (Binary a, Typeable a, Show a, Ord a)
     => G.Graph a TropicalSemiringValue
+    -> TestLimit
     -> Property
-matchesPrebuilt g = withTests 4 . property $ do
+matchesPrebuilt g numTests = withTests numTests . property $ do
     query <- forAll $ genQuery (G.nodes g)
 
     inferenceResults <- fmap fromRight $ liftIO $ runProcessLocal $ ST.singleTarget [g] query.sources query.target
     let prebuiltResults =                                            H.singleTarget g query.sources query.target (T $ read "Infinity")
 
     checkAnswers approx inferenceResults prebuiltResults
-
--- | Parses the graph and adds self loops of cost 0.
--- For more information on why 0 cost self loops are necessary see `ST.singleTarget`.
-parseGraphWithSelfLoops :: (Ord a, Num b)
-    => IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph a b)))
-    -> PropertyT IO (G.Graph a b)
-parseGraphWithSelfLoops = fmap (G.addSelfLoops 0) . parseGraph
-
--- | Unsafe version of `parseGraphWithSelfLoops`.
-parseGraphWithSelfLoops' :: (Ord a, Num b)
-    => IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph a b)))
-    -> IO (G.Graph a b)
-parseGraphWithSelfLoops' = fmap (G.addSelfLoops 0) . parseGraph'
 
 -- | Parses the given graph. Fails if a parse error occurs.
 parseGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile a)) -> PropertyT IO a
@@ -127,10 +117,6 @@ parseGraph g = do
             Left e  -> do annotateShow e; failure
             Right x -> pure x
 
--- | Unsafe version of `parseGraph`
-parseGraph' :: IO (Either P.ParseError (Either P.InvalidGraphFile a)) -> IO a
-parseGraph' = fmap (fromRight . fromRight)
-
 -- | Tests the parser doesn't fail on a known working example.
 prop_parser :: Property
-prop_parser = unitTest $ parseGraph p3Graph
+prop_parser = unitTest $ parseGraph p3SmallGraph

@@ -10,6 +10,7 @@ module LocalComputation.Instances.ShortestPath.Parser
     ( graph
     , InvalidGraphFile
     , mapParseResult
+    , fromValid
     )
 where
 
@@ -31,6 +32,10 @@ import           Text.ParserCombinators.Parsec ((<?>))
 data InvalidGraphFile =
       NumNodesMismatch { problemDeclaration :: Natural, numRead :: Natural }
     | NumArcsMismatch  { problemDeclaration :: Natural, numRead :: Natural } deriving Show
+
+-- | An unsafe convenience function for getting the result of a parse.
+fromValid :: IO (Either P.ParseError (Either InvalidGraphFile a)) -> IO a
+fromValid = fmap (fromRight . fromRight)
 
 graph :: P.GenParser Char st (Either InvalidGraphFile (G.Graph Natural Integer))
 graph = do

@@ -12,8 +12,12 @@ module Tests.ShortestPath.SingleTarget.Data (
     , p2Graph
     , p2Queries
     , p2Answers
-    , p3Graph
-    , p4Graph
+    , p3VerySmallGraph
+    , p3SmallGraph
+    , p3SmallGraph'
+    , p3MediumGraph
+    , p3MediumGraph'
+    , p3VeryLargeGraph
 ) where
 
 import qualified LocalComputation.Graph                                       as G
@@ -115,9 +119,21 @@ p2Answers = p1Answers
 parseGraph :: FilePath -> IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural TropicalSemiringValue)))
 parseGraph filepath = fmap (P.mapParseResult (T . fromInteger)) $ parseFile P.graph filepath
 
-p3Graph :: IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural TropicalSemiringValue)))
-p3Graph = parseGraph "src/Benchmark/Data/ShortestPath/Small-USA-road-d.NY.gr"
+p3VerySmallGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural TropicalSemiringValue)))
+p3VerySmallGraph = fmap (fmap (fmap (G.addSelfLoops 0))) $ parseGraph "src/Benchmark/Data/ShortestPath/VerySmall-USA-road-d.NY.gr"
 
-p4Graph :: IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural TropicalSemiringValue)))
-p4Graph = parseGraph "src/Benchmark/Data/ShortestPath/USA-road-d.NY.gr"
+p3SmallGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural TropicalSemiringValue)))
+p3SmallGraph = fmap (fmap (fmap (G.addSelfLoops 0))) $ parseGraph "src/Benchmark/Data/ShortestPath/Small-USA-road-d.NY.gr"
+
+p3SmallGraph' :: IO (G.Graph Natural TropicalSemiringValue)
+p3SmallGraph' = P.fromValid $ p3SmallGraph
+
+p3MediumGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural TropicalSemiringValue)))
+p3MediumGraph = fmap (fmap (fmap (G.addSelfLoops 0))) $ parseGraph "src/Benchmark/Data/ShortestPath/Medium-USA-road-d.NY.gr"
+
+p3MediumGraph' :: IO (G.Graph Natural TropicalSemiringValue)
+p3MediumGraph' = P.fromValid $ p3MediumGraph
+
+p3VeryLargeGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural TropicalSemiringValue)))
+p3VeryLargeGraph = fmap (fmap (fmap (G.addSelfLoops 0))) $ parseGraph "src/Benchmark/Data/ShortestPath/VeryLarge-USA-road-d.NY.gr"
 
