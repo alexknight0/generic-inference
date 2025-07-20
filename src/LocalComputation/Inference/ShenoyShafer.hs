@@ -148,22 +148,23 @@ initializeNodes graph = do
 
     where
         portsForEdge :: (n v a b, n v a b)
-                    -> Process [(n v a b, Domain a, SendPort (v a b), ReceivePort (v a b))]
+                    -> Process [PortWithNode n v a b]
         portsForEdge (x, y) = do
             (xSendPort, yReceivePort) <- newChan
             (ySendPort, xReceivePort) <- newChan
 
-            return [(x, getDomain y, xSendPort, xReceivePort), (y, getDomain x, ySendPort, yReceivePort)]
+            return [PortWithNode x (Port (getDomain y) xSendPort xReceivePort),
+                    PortWithNode y (Port (getDomain x) ySendPort yReceivePort)]
 
-        portsM :: Process [(n v a b, Domain a, SendPort (v a b), ReceivePort (v a b))]
+        portsM :: Process [PortWithNode n v a b]
         portsM = concatMapM portsForEdge (edgeList graph)
 
         portsForVertex :: n v a b
-            -> [(n v a b, Domain a, SendPort (v a b), ReceivePort (v a b))]
-            -> [(Domain a, SendPort (v a b), ReceivePort (v a b))]
-        portsForVertex node mapping = map (\(_, d, s, r) -> (d, s, r)) $ filter (\(n, _, _, _) -> n == node) mapping
+            -> [PortWithNode n v a b]
+            -> [Port v a b]
+        portsForVertex node mapping = map (.port) $ filter (\n -> n.node == node) mapping
 
-        initializeNodeAndMonitor :: [(n v a b, Domain a, SendPort (v a b), ReceivePort (v a b))]
+        initializeNodeAndMonitor :: [PortWithNode n v a b]
             -> n v a b
             -> Process (ReceivePort (Domain a, v a b))
         initializeNodeAndMonitor ports node = do
@@ -180,13 +181,25 @@ assertHasMessage Nothing = error "Error - a node terminated without sending a me
 
 type PortIdentifier = Integer
 
--- data Port v a b = Port {
---
--- }
+data PortWithNode n v a b = PortWithNode {
+          node :: n v a b
+        , port :: Port v a b
+    }
+
+data PortWithId v a b = PortWithId {
+          id   :: PortIdentifier
+        , port :: Port v a b
+    }
+
+data Port v a b = Port {
+          domain  :: Domain a
+        , send    :: SendPort (v a b)
+        , receive :: ReceivePort (v a b)
+    }
 
 initializeNode :: forall n v a b. (Show a, Show b, Node n, Binary (v a b), Binary a, Typeable (v a b), Typeable a, Valuation v, Ord a, Ord b)
     => n v a b
-    -> [(Domain a, SendPort (v a b), ReceivePort (v a b))]
+    -> [Port v a b]
     -> SendPort (Domain a, v a b)
     -> Process ProcessId
 initializeNode node ports resultPort = spawnLocal $ do
@@ -194,16 +207,16 @@ initializeNode node ports resultPort = spawnLocal $ do
     -- COLLECT PHASE
 
     -- Wait for messages from (length ports - 1) ports
-    (initialMessages, unusedPortId) <- receivePhaseOne receivePorts
+    (initialMessages, unusedPortId) <- receivePhaseOne (map (\x -> (x.id, x.port.receive)) ports')
 
     -- Combine messages into new message, and send to the only port we didn't receive a message from.
     let unusedPort = idToPort unusedPortId
-    sendMessage (getValuation node : map snd initialMessages) (getDomain node) (snd4 unusedPort) (thd4 unusedPort)
+    sendMessage (getValuation node : map snd initialMessages) (getDomain node) unusedPort.port.domain unusedPort.port.send
 
     -- DISTRIBUTE PHASE
 
     -- Wait for response from port we just sent a message to
-    message <- receiveChan (fth4 unusedPort)
+    message <- receiveChan unusedPort.port.receive
 
     -- Combine this message with the old ones
     let allMessages = (unusedPortId, message) : initialMessages
@@ -217,23 +230,20 @@ initializeNode node ports resultPort = spawnLocal $ do
     sendChan resultPort (getDomain node, combines (getValuation node : map snd allMessages))
 
     where
-        ports' :: [(PortIdentifier, Domain a, SendPort (v a b), ReceivePort (v a b))]
-        ports' = zipWith (\x (d, s, r) -> (x, d, s, r)) [0..] ports
+        ports' :: [PortWithId v a b]
+        ports' = zipWith (\x p -> PortWithId x p) [0..] ports
 
-        receivePorts :: [(PortIdentifier, ReceivePort (v a b))]
-        receivePorts = map (\(x, _, _, r) -> (x, r)) ports'
+        idToPort :: PortIdentifier -> PortWithId v a b
+        idToPort x = findAssertSingleMatch (\y -> y.id == x) ports'
 
-        idToPort :: PortIdentifier -> (PortIdentifier, Domain a, SendPort (v a b), ReceivePort (v a b))
-        idToPort p = findAssertSingleMatch (\(x, _, _, _) -> x == p) ports'
-
-        allPortsExcept :: PortIdentifier -> [(PortIdentifier, Domain a, SendPort (v a b))]
-        allPortsExcept used = map (\(i, d, s, _) -> (i, d, s)) $ filter (\(x, _, _, _) -> x /= used) ports'
+        allPortsExcept :: PortIdentifier -> [PortWithId v a b]
+        allPortsExcept used = filter (\x -> x.id /= used) ports'
 
         sendPhaseTwo :: (Serializable (v a b))
             => [(PortIdentifier, v a b)]
-            -> (PortIdentifier, Domain a, SendPort (v a b))
+            -> PortWithId v a b
             -> Process ()
-        sendPhaseTwo allMessages (i, d, s) = sendMessage (getValuation node : (map snd $ filter (\(i', _) -> i' /= i) allMessages)) (getDomain node) d s
+        sendPhaseTwo allMessages p = sendMessage (getValuation node : (map snd $ filter (\(i', _) -> i' /= p.id) allMessages)) (getDomain node) p.port.domain p.port.send
 
 -- TODO: rename combines combines1
 sendMessage :: (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
