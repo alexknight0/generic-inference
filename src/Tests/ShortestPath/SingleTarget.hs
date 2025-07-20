@@ -1,5 +1,5 @@
-{-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell   #-}
 
 module Tests.ShortestPath.SingleTarget
     ( tests )
@@ -29,7 +29,7 @@ import           Type.Reflection                                      (Typeable)
 
 tests :: IO Bool
 tests = fmap and $ sequence [
-        checkSequential $$(discover)
+        checkParallel $$(discover)
       , p3MatchesPrebuilt
    ]
 

@@ -22,7 +22,7 @@ import           Data.Complex                                    (Complex ((:+))
                                                                   realPart)
 
 tests :: IO Bool
-tests = checkSequential $$(discover)
+tests = checkParallel $$(discover)
 
 tolerableError :: Double
 tolerableError = 0.00000001
