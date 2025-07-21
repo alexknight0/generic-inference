@@ -221,7 +221,7 @@ quasiInverse m@(Matrix _ dA dB)
         multiplys' xs = fromJust $ multiplys Q.add Q.multiply Q.zero xs
         quasiInverse' x = fromJust $ quasiInverse x
 
-{- Decomposes a matrix into four matrices.
+{- Decomposes a square matrix with matching labels on each side into four matrices.
 
 Returns a tuple (A, B, C, D) defined through the following shape:
 
@@ -230,25 +230,27 @@ Returns a tuple (A, B, C, D) defined through the following shape:
  │ C D │
  └─   ─┘
 
-Where A is a 1x1 matrix. Returns Nothing if the matrix is empty.
+Where D is `div n 2` x `div n 2` where `n` is the length of the side of the square matrix. Returns Nothing if the matrix is empty.
 -}
-decompose :: (Ord a, Ord b) => LabelledMatrix a b c -> Maybe (LabelledMatrix a b c, LabelledMatrix a b c, LabelledMatrix a b c, LabelledMatrix a b c)
+decompose :: (Ord a) => LabelledMatrix a a c -> Maybe (LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c)
 decompose x | assertIsWellFormed x = undefined
-decompose m@(Matrix _ dA dB) = do
-    aDA <- takeOne dA
-    aDB <- takeOne dB
+decompose m@(Matrix _ dA dB)
+    | dA /= dB = Nothing
+    | otherwise = do
+        aDA <- takeOne dA
 
-    let dA' = dA `S.difference` aDA
-        dB' = dB `S.difference` aDB
+        let aDB = aDA
+            dA' = dA `S.difference` aDA
+            dB' = dB `S.difference` aDB
 
-    pure (project' m aDA aDB, project' m aDA dB',
-          project' m dA' aDB, project' m dA' dB')
+        pure (project' m aDA aDB, project' m aDA dB',
+              project' m dA' aDB, project' m dA' dB')
 
-    where
-        takeOne :: S.Set a -> Maybe (S.Set a)
-        takeOne xs = fmap S.singleton $ safeHead $ S.toList xs
+        where
+            takeOne :: S.Set a -> Maybe (S.Set a)
+            takeOne xs = fmap S.singleton $ safeHead $ S.toList xs
 
-        project' x y z = fromJust $ project x y z
+            project' x y z = fromJust $ project x y z
 
 -- | Internal. Joins two disjoint matrices. Input may not be well formed, but the key sets of the maps must be disjoint otherwise an assertion will be thrown. Result may not be well-formed.
 join :: (Ord a, Ord b) => LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
