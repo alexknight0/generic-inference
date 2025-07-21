@@ -45,6 +45,8 @@ dependencies:
 - text
 - cached-io
 - criterion
+- unordered-containers
+- hashable
 
 ghc-options:
 - -Wall

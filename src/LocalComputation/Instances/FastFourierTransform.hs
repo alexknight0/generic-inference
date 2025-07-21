@@ -27,6 +27,7 @@ import           Control.Distributed.Process                (Process)
 -- Typeclasses
 import           Control.DeepSeq                            (NFData)
 import           Data.Binary                                (Binary)
+import qualified Data.Hashable                              as H
 import           GHC.Generics                               (Generic)
 
 import           Data.Maybe                                 (fromJust)
@@ -40,7 +41,7 @@ newtype FourierComplex = FourierComplex (C.Complex Double) deriving newtype (Num
 (X i) and (Y j) are variables indicating the i_th and j_th bits in the binary number representation of x and y respectively.
 (F i) is a variable representing the i_th sample of a function representing the sampled signal.
 -}
-data FastFourierVariable = X Natural | Y Natural deriving (Eq, Ord, Binary, Generic, Show)
+data FastFourierVariable = X Natural | Y Natural deriving (Eq, Ord, Binary, Generic, Show, H.Hashable)
 
 type FastFourierValuation = SemiringValuation FourierComplex FastFourierVariable Natural
 

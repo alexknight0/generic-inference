@@ -24,6 +24,7 @@ import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
 -- Typeclasses
 import           Control.DeepSeq                                              (NFData)
 import           Data.Binary                                                  (Binary)
+import qualified Data.Hashable                                                as H
 import           GHC.Generics                                                 (Generic)
 import           LocalComputation.Graph                                       as G
 import           LocalComputation.Utils                                       (fromRight)
@@ -37,7 +38,7 @@ data InvalidGraph = MissingZeroCostSelfLoops deriving (NFData, Generic)
 -- If distance of a location to itself is not recorded, it will be recorded as the 'zero'
 -- element of the tropical semiring (i.e. infinity). However, it still seems to determine
 -- that each vertex has a 0 cost edge to itself.
-knowledgeBase :: forall a . (Ord a) => [Graph a TropicalSemiringValue] -> a -> Knowledgebase a
+knowledgeBase :: forall a . (H.Hashable a, Ord a) => [Graph a TropicalSemiringValue] -> a -> Knowledgebase a
 knowledgeBase gs target = map f gs
     where
         f g = fromJust $ Q.create m b
@@ -59,7 +60,7 @@ knowledgeBase gs target = map f gs
         assocList g = map (\e -> ((e.arcHead, e.arcTail), e.weight)) (G.toList g)
 
 -- | Retuns a distance entry from the resulting valuation after inference. Unsafe.
-getDistance :: (Show a, Ord a) => Q.QuasiRegularValuation TropicalSemiringValue a () -> Query a -> TropicalSemiringValue
+getDistance :: (H.Hashable a, Show a, Ord a) => Q.QuasiRegularValuation TropicalSemiringValue a () -> Query a -> TropicalSemiringValue
 getDistance x (source, _) = fromJust $ M.find (source, ()) (Q.solution x)
 
 -- TODO: Can this handle negative weights?
@@ -71,7 +72,7 @@ for `Q.solution` and the quasi-inverse definition of a `TropicalSemiringValue` t
 
 To make this assumption explicit, returns `Left InvalidGraph` if a graph that does not have 0 cost self loops is given.
 -}
-singleTarget :: (Binary a, Typeable a, Ord a, Show a) => [Graph a TropicalSemiringValue] -> [a] -> a -> Process (Either InvalidGraph [TropicalSemiringValue])
+singleTarget :: (H.Hashable a, Binary a, Typeable a, Ord a, Show a) => [Graph a TropicalSemiringValue] -> [a] -> a -> Process (Either InvalidGraph [TropicalSemiringValue])
 singleTarget vs sources target
     | any (not . G.hasZeroCostSelfLoops) vs = pure $ Left MissingZeroCostSelfLoops
     | otherwise = do

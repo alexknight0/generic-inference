@@ -25,6 +25,7 @@ import           LocalComputation.Instances.BayesianNetwork
 
 -- Typeclasses
 import           Data.Binary                                (Binary)
+import qualified Data.Hashable                              as H
 import           GHC.Generics                               (Generic)
 
 
@@ -43,7 +44,7 @@ andesFilepath = dataDirectory ++ "andes.net"
 -- that a random value should be generated between.
 data AsiaVar = VisitToAsia | HasTuberculosis | Smoker | HasLungCancer
            | HasBronchitis | TuberculosisOrCancer | XRayResult | Dyspnea | XRayResultAndDyspnea
-           deriving (Eq, Ord, Show, Generic, Binary, Enum)
+           deriving (Eq, Ord, Show, Generic, Binary, Enum, H.Hashable)
 
 minAsiaP1 :: AsiaVar
 minAsiaP1 = VisitToAsia

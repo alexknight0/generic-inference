@@ -2,6 +2,8 @@
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE InstanceSigs        #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving  #-}
+--{-# LANGUAGE DefaultSignatures  #-}
 
 module LocalComputation.LabelledMatrix
     ( LabelledMatrix
@@ -29,7 +31,8 @@ where
 
 import           Control.Exception                                            (assert)
 import qualified Control.Monad                                                as Monad
-import qualified Data.Map                                                     as M
+import qualified Data.HashMap.Lazy                                            as M
+import qualified Data.HashSet                                                 as HS
 import qualified Data.Matrix                                                  as M'
 import           Data.Maybe                                                   (fromJust,
                                                                                isJust)
@@ -39,7 +42,10 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue as
 
 -- Typeclasses
 import           Control.DeepSeq                                              (NFData)
+import           Control.Monad                                                (liftM)
 import           Data.Binary                                                  (Binary)
+import qualified Data.Binary                                                  as B
+import qualified Data.Hashable                                                as H
 import           GHC.Generics                                                 (Generic)
 
 
@@ -49,7 +55,15 @@ data InvalidFormat = DuplicateKeys | NotTotalMapping
 
 A column or row matrix can be created by specifying `LabelledMatrix () b c` or `LabelledMatrix a () c`
 -}
-data LabelledMatrix a b c = Matrix (M.Map (a, b) c) (S.Set a) (S.Set b) deriving (Binary, NFData, Ord, Generic, Read)
+data LabelledMatrix a b c = Matrix (M.HashMap (a, b) c) (S.Set a) (S.Set b) deriving (Binary, NFData, Ord, Generic, Read)
+
+-- TODO: Is Data.HashMap suitable for being serialized? On it's webpage it says it is only suitable for 'in memory' data structures.
+
+-- TODO: Fix orphan instance (just make labelledmatrix an instance of binary directly instead)
+instance (H.Hashable k, Binary k, Binary e) => Binary (M.HashMap k e) where
+    put :: M.HashMap k e -> B.Put
+    put m = B.put (M.size m) <> mapM_ B.put (M.toList m)
+    get   = liftM M.fromList B.get
 
 instance (Eq a, Eq b, Eq c) => Eq (LabelledMatrix a b c) where
     (Matrix m1 _ _) == (Matrix m2 _ _) = m1 == m2
@@ -66,21 +80,21 @@ fromMatrix :: M'.Matrix a -> LabelledMatrix Integer Integer a
 fromMatrix m = fromRight $ fromList $ concat $ zipWith (\i row -> zipWith (\j x -> ((i, j), x)) [0..] row) [0..] (M'.toLists m)
 
 -- | Creates a matrix from the given association list.
-fromList :: forall a b c . (Ord a, Ord b)
+fromList :: forall a b c . (H.Hashable a, H.Hashable b, Ord a, Ord b)
     => [((a, b), c)]
     -> Either InvalidFormat (LabelledMatrix a b c)
 fromList xs = fromList' xs Nothing
 
 -- | Creates a matrix from the given association list. Doesn't require the input list to be a total mapping - will
 -- fill unset values with the given default element.
-fromListDefault :: forall a b c . (Ord a, Ord b)
+fromListDefault :: forall a b c . (H.Hashable a, H.Hashable b, Ord a, Ord b)
     => [((a, b), c)]
     -> c
     -> Either InvalidFormat (LabelledMatrix a b c)
 fromListDefault xs default' = fromList' xs (Just default')
 
 -- | Internal function used to create a list with an optional default element.
-fromList' :: forall a b c . (Ord a, Ord b)
+fromList' :: forall a b c . (H.Hashable a, H.Hashable b, Ord a, Ord b)
     => [((a, b), c)]
     -> Maybe c
     -> Either InvalidFormat (LabelledMatrix a b c)
@@ -100,7 +114,7 @@ fromList' xs defaultElem
         bs = S.fromList $ map (\((_, x), _) -> x) xs
         mapWithAllDefault = M.fromList [((a, b), defaultElem') | a <- S.toList as, b <- S.toList bs]
 
-isSymmetric :: (Ord a, Eq c) => LabelledMatrix a a c -> Bool
+isSymmetric :: (H.Hashable a, Eq c) => LabelledMatrix a a c -> Bool
 isSymmetric x | assertIsWellFormed x = undefined
 isSymmetric (Matrix m _ _) = all (\((x, y), v) -> m M.! (y, x) == v) (M.toList m)
 
@@ -111,7 +125,7 @@ isSquare (Matrix _ dA dB) = length dA == length dB
 domain :: LabelledMatrix a b c -> (S.Set a, S.Set b)
 domain (Matrix _ dA dB) = (dA, dB)
 
-toSquare :: (Ord a) => LabelledMatrix a a c -> c -> LabelledMatrix a a c
+toSquare :: (H.Hashable a, Ord a) => LabelledMatrix a a c -> c -> LabelledMatrix a a c
 toSquare x _ | assertIsWellFormed x = undefined
 toSquare x@(Matrix _ dA1 dA2) zero = fromJust $ extension x d d zero
     where
@@ -125,13 +139,13 @@ squareDomain (Matrix _ dA1 dA2)
     | otherwise = Just dA1
 
 -- | Returns the identity matrix created with the given zero and one elements.
-identity :: (Ord a) => S.Set a -> c -> c -> LabelledMatrix a a c
+identity :: (H.Hashable a, Ord a) => S.Set a -> c -> c -> LabelledMatrix a a c
 identity dA zero one = fromRight $ fromList [((x, y), if x == y then one else zero) | x <- as, y <- as]
     where
         as = S.toList dA
 
 -- | Extend a matrix to a larger domain, filling spots with the given zero element. Returns Nothing if the domain to extend to is not a superset.
-extension :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> c -> Maybe (LabelledMatrix a b c)
+extension :: (H.Hashable a, H.Hashable b, Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> c -> Maybe (LabelledMatrix a b c)
 extension x _ _ _ | assertIsWellFormed x = undefined
 extension (Matrix m dA dB) newDA newDB zero
     | dA `S.isSubsetOf` newDA && dB `S.isSubsetOf` newDB = Just $ Matrix (m `M.union` mapOfZeroes) newDA newDB
@@ -147,7 +161,7 @@ project (Matrix m dA dB) newDA newDB
     | otherwise = Nothing
 
 -- | Returns an element from the matrix. Returns Nothing if the element is not in the domain of the matrix.
-find :: (Ord a, Ord b) => (a, b) -> LabelledMatrix a b c -> Maybe c
+find :: (H.Hashable a, H.Hashable b) => (a, b) -> LabelledMatrix a b c -> Maybe c
 find _ x | assertIsWellFormed x = undefined
 find (a, b) (Matrix m dA dB)
     | a `elem` dA && b `elem` dB = assert' isJust $ M.lookup (a, b) m
@@ -161,11 +175,11 @@ add addElems (Matrix m1 dA1 dB1) (Matrix m2 dA2 dB2)
     | otherwise = Just $ Matrix (M.intersectionWith addElems m1 m2) dA1 dB1
 
 -- | Basic matrix multiplication on two matrices. Returns Nothing if the provided matrices have the wrong shape for matrix multiplication.
-multiply :: (Ord a, Ord b, Ord c) => (d -> d -> d) -> (d -> d -> d) -> d -> LabelledMatrix a b d -> LabelledMatrix b c d -> Maybe (LabelledMatrix a c d)
+multiply :: (H.Hashable a, H.Hashable b, H.Hashable c) => (d -> d -> d) -> (d -> d -> d) -> d -> LabelledMatrix a b d -> LabelledMatrix b c d -> Maybe (LabelledMatrix a c d)
 multiply _ _ _ x y | assertIsWellFormed x || assertIsWellFormed y = undefined
 multiply addElems multiplyElems zero m1@(Matrix _ dA dB1) m2@(Matrix _ dB2 dC)
     | dB1 /= dB2 = Nothing
-    | otherwise = Just $ Matrix (fromListAssertDisjoint newAssocList) dA dC
+    | otherwise = Just $ Matrix (M.fromList newAssocList) dA dC
     where
         (as, bs, cs) = (S.toList dA, S.toList dB1, S.toList dC)
 
@@ -173,7 +187,7 @@ multiply addElems multiplyElems zero m1@(Matrix _ dA dB1) m2@(Matrix _ dB2 dC)
                            foldr addElems zero [fromJust (find (a, b) m1) `multiplyElems` fromJust (find (b, c) m2) | b <- bs]
                         ) | a <- as, c <- cs]
 
-multiplys :: (Functor t, Foldable t, Ord a) => (c -> c -> c) -> (c -> c -> c) -> c -> t (LabelledMatrix a a c) -> Maybe (LabelledMatrix a a c)
+multiplys :: (H.Hashable a, Functor t, Foldable t) => (c -> c -> c) -> (c -> c -> c) -> c -> t (LabelledMatrix a a c) -> Maybe (LabelledMatrix a a c)
 multiplys _ _ _ xs | assertAllWellFormed xs = undefined
 multiplys addElems multiplyElems zero xs
     | null xs = Nothing
@@ -185,7 +199,7 @@ multiplys addElems multiplyElems zero xs
 
 This formula is detailed in "Generic Inference" (Pouly and Kohlas, 2012).
 -}
-quasiInverse :: (Ord a, Q.QuasiRegularSemiringValue c, Show a, Show c) => LabelledMatrix a a c -> Maybe (LabelledMatrix a a c)
+quasiInverse :: (H.Hashable a, Ord a, Q.QuasiRegularSemiringValue c, Show a, Show c) => LabelledMatrix a a c -> Maybe (LabelledMatrix a a c)
 quasiInverse x | assertIsWellFormed x = undefined
 quasiInverse m@(Matrix _ dA dB)
     | length dA /= length dB = Nothing
@@ -236,10 +250,10 @@ decompose m@(Matrix _ dA dB) = do
 
         project' x y z = fromJust $ project x y z
 
--- | Joins two disjoint matrices. Returns Nothing if the matrices are not disjoint. Result may not be well-formed, so should probably not be exposed.
-join :: (Ord a, Ord b) =>LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
+-- | Internal. Joins two disjoint matrices. Input may not be well formed, but the key sets of the maps must be disjoint otherwise an assertion will be thrown. Result may not be well-formed.
+join :: (Ord a, Ord b) => LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
+join (Matrix m1 _ _) (Matrix m2 _ _) | assert (hashMapDisjoint m1 m2) False = Nothing
 join (Matrix m1 dA1 dB1) (Matrix m2 dA2 dB2)
-    | not (M.disjoint m1 m2) = Nothing
     | otherwise = Just $ Matrix (unionDisjoint m1 m2) (S.union dA1 dA2) (S.union dB1 dB2)
     where
         unionDisjoint = M.unionWith (\_ _ -> error "Maps not disjoint despite sets indicating disjoint")
@@ -272,3 +286,6 @@ assertIsWellFormed x = assert (isWellFormed x) False
 assertAllWellFormed :: (Foldable t) => t (LabelledMatrix a b c) -> Bool
 assertAllWellFormed = any (\x -> assert (isWellFormed x) False)
 
+-- | Returns true if the key sets of the given hash maps are disjoint. Current implementation is horribly inefficent, should only be used in asserts.
+hashMapDisjoint :: (Ord a) => M.HashMap a b -> M.HashMap a b -> Bool
+hashMapDisjoint x y = S.disjoint (S.fromList $ HS.toList $ M.keysSet x) (S.fromList $ HS.toList $ M.keysSet y)

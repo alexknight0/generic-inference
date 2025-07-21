@@ -21,6 +21,7 @@ import           Control.Distributed.Process
 import           Control.Distributed.Process.Serializable          (Serializable)
 import qualified Control.Exception                                 as E
 import           Control.Monad                                     (forM)
+import qualified Data.Hashable                                     as H
 import qualified Data.Set                                          as S
 
 tests :: IO Bool
@@ -35,7 +36,7 @@ dataToValuations vs = map (uncurry getRows) withVariableDomains
         withVariableDomains :: [([(AsiaVar, [Bool])], [Probability])]
         withVariableDomains = map (\(xs, ps) -> (map boolify xs, ps)) vs
 
-checkQueries :: (Show a, Show b, Serializable a, Serializable b, Ord a, Ord b) => [ProbabilityQuery a b] -> [Probability] -> PropertyT IO (Network a b) -> PropertyT IO (Network a b)
+checkQueries :: (H.Hashable a, H.Hashable b, Show a, Show b, Serializable a, Serializable b, Ord a, Ord b) => [ProbabilityQuery a b] -> [Probability] -> PropertyT IO (Network a b) -> PropertyT IO (Network a b)
 checkQueries qs ps getNetwork = do
     network <- getNetwork
     results <- liftIO $ runProcessLocal $ queryNetwork qs network

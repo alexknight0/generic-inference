@@ -21,6 +21,7 @@ import           LocalComputation.ValuationAlgebra.Semiring
 import           Control.DeepSeq                            (NFData)
 import           Control.Exception                          (assert)
 import           Data.Binary                                (Binary)
+import qualified Data.Hashable                              as H
 import qualified Data.Map                                   as M
 import           Data.Set                                   (union)
 import qualified Data.Set                                   as S
@@ -65,7 +66,7 @@ type ProbabilityQuery a b = (VariableArrangement a b, VariableArrangement a b)
 conditionalProbability :: (Ord a) => VariableArrangement a b -> VariableArrangement a b -> (VariableArrangement a b -> Probability) -> Probability
 conditionalProbability vs givenVs p = p (unionAssertDisjoint vs givenVs) / p givenVs
 
-queryNetwork :: forall a b. (Show a, Show b, Serializable a, Serializable b, Ord a, Ord b)
+queryNetwork :: forall a b. (H.Hashable a, H.Hashable b, Show a, Show b, Serializable a, Serializable b, Ord a, Ord b)
     => [ProbabilityQuery a b]
     -> Network a b
     -> Process [Probability]
@@ -80,7 +81,7 @@ queryNetwork qs network' = do
                                    union (M.keysSet vs) (M.keysSet givenVs)) qs
 
 {- | Takes a query and returns the resulting probability. Assumes the query is covered by the network. -}
-queryToProbability :: (Show a, Show b, Ord a, Ord b) => VariableArrangement a b -> InferredData (SemiringValuation Probability) a b -> Probability
+queryToProbability :: (H.Hashable a, H.Hashable b, Show a, Show b, Ord a, Ord b) => VariableArrangement a b -> InferredData (SemiringValuation Probability) a b -> Probability
 queryToProbability vs results = findValue vs (normalize $ answerQuery (M.keysSet vs) results)
 
 toProbabilityQuery :: (Ord a) => ([(a, b)], [(a, b)]) -> ProbabilityQuery a b

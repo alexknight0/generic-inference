@@ -25,6 +25,7 @@ import qualified Text.Parsec                                          as P
 
 -- Typeclasses
 import           Data.Binary                                          (Binary)
+import qualified Data.Hashable                                        as H
 import           Type.Reflection                                      (Typeable)
 
 tests :: IO Bool
@@ -92,7 +93,7 @@ genQuery vertices
     pure $ Query (S.toList sources) target
 
 -- | Checks the output of the localcomputation algorithm and the baseline algorithm match for a set of random queries.
-matchesPrebuilt :: (Binary a, Typeable a, Show a, Ord a)
+matchesPrebuilt :: (H.Hashable a, Binary a, Typeable a, Show a, Ord a)
     => G.Graph a TropicalSemiringValue
     -> TestLimit
     -> Property
