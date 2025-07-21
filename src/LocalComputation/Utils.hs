@@ -6,6 +6,7 @@
 module LocalComputation.Utils
     ( setMap
     , nubWithBy
+    , uniqueOn
     , snd4
     , thd4
     , fth4
@@ -68,6 +69,9 @@ nubWithBy toKey f xs = elems $ foldr g M.empty xs
         g x acc
             | toKey x `member` acc = adjust (\y -> f x y) (toKey x) acc
             | otherwise = insert (toKey x) x acc
+
+uniqueOn :: (Ord b) => (a -> b) -> [a] -> Bool
+uniqueOn f xs = length xs == (length $ S.fromList $ map f xs)
 
 thd4 :: (a, b, c, d) -> c
 thd4 (_, _, x, _) = x

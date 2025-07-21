@@ -72,6 +72,7 @@ library
       algebraic-graphs ==0.7
     , array
     , base >=4.7 && <5
+    , bimap
     , binary
     , cached-io
     , carray
@@ -112,6 +113,7 @@ executable localcomputation-exe
       algebraic-graphs ==0.7
     , array
     , base >=4.7 && <5
+    , bimap
     , binary
     , cached-io
     , carray
@@ -158,6 +160,7 @@ test-suite localcomputation-test
       algebraic-graphs ==0.7
     , array
     , base >=4.7 && <5
+    , bimap
     , binary
     , cached-io
     , carray
@@ -204,6 +207,7 @@ benchmark localcomputation-benchmark
       algebraic-graphs ==0.7
     , array
     , base >=4.7 && <5
+    , bimap
     , binary
     , cached-io
     , carray
