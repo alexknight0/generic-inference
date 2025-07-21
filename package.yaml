@@ -47,6 +47,7 @@ dependencies:
 - criterion
 - unordered-containers
 - hashable
+- massiv
 
 ghc-options:
 - -Wall

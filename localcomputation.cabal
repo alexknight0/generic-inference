@@ -85,6 +85,7 @@ library
     , hashable
     , heap
     , hedgehog
+    , massiv
     , matrix
     , network-transport
     , network-transport-tcp
@@ -125,6 +126,7 @@ executable localcomputation-exe
     , heap
     , hedgehog
     , localcomputation
+    , massiv
     , matrix
     , network-transport
     , network-transport-tcp
@@ -170,6 +172,7 @@ test-suite localcomputation-test
     , heap
     , hedgehog
     , localcomputation
+    , massiv
     , matrix
     , network-transport
     , network-transport-tcp
@@ -215,6 +218,7 @@ benchmark localcomputation-benchmark
     , heap
     , hedgehog
     , localcomputation
+    , massiv
     , matrix
     , network-transport
     , network-transport-tcp
