@@ -47,6 +47,7 @@ import           Data.Binary                                                  (B
 import qualified Data.Binary                                                  as B
 import qualified Data.Hashable                                                as H
 import           GHC.Generics                                                 (Generic)
+import           Numeric.Natural                                              (Natural)
 
 
 data InvalidFormat = DuplicateKeys | NotTotalMapping
@@ -230,14 +231,15 @@ Returns a tuple (A, B, C, D) defined through the following shape:
  │ C D │
  └─   ─┘
 
-Where D is `div n 2` x `div n 2` where `n` is the length of the side of the square matrix. Returns Nothing if the matrix is empty.
+Where D is `div n 2` x `div n 2` where `n` is the length of the side of the square matrix. Returns Nothing if the given matrix is empty.
 -}
 decompose :: (Ord a) => LabelledMatrix a a c -> Maybe (LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c)
 decompose x | assertIsWellFormed x = undefined
 decompose m@(Matrix _ dA dB)
     | dA /= dB = Nothing
+    | lengthDA == 0 = Nothing
     | otherwise = do
-        aDA <- takeOne dA
+        aDA <- fmap S.fromList $ takeN (lengthDA `div` 2 + lengthDA `mod` 2) (S.toList dA)
 
         let aDB = aDA
             dA' = dA `S.difference` aDA
@@ -247,10 +249,15 @@ decompose m@(Matrix _ dA dB)
               project' m dA' aDB, project' m dA' dB')
 
         where
-            takeOne :: S.Set a -> Maybe (S.Set a)
-            takeOne xs = fmap S.singleton $ safeHead $ S.toList xs
+            lengthDA = fromIntegral $ length dA
 
             project' x y z = fromJust $ project x y z
+
+            takeN :: Natural -> [d] -> Maybe [d]
+            takeN 0 _      = Just []
+            takeN _ []     = Nothing
+            takeN n (x:xs) = Just (x:) <*> takeN (n-1) xs
+
 
 -- | Internal. Joins two disjoint matrices. Input may not be well formed, but the key sets of the maps must be disjoint otherwise an assertion will be thrown. Result may not be well-formed.
 join :: (Ord a, Ord b) => LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
