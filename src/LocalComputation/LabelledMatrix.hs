@@ -4,10 +4,6 @@
 {-# LANGUAGE InstanceSigs        #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving  #-}
-{-# OPTIONS_GHC -Wno-unused-imports #-}
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
-{-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# OPTIONS_GHC -Wno-unused-matches #-}
 
 module LocalComputation.LabelledMatrix
     ( LabelledMatrix
@@ -17,8 +13,6 @@ module LocalComputation.LabelledMatrix
     , domain
     , isSquare
     , toSquare
-    , squareDomain
-    , identity
     , extension
     , project
     , find
@@ -29,40 +23,30 @@ module LocalComputation.LabelledMatrix
     , decompose
     , joinSquare
     , isWellFormed
-    , isSymmetric
     )
 where
 
 import           Control.Exception                                            (assert)
 import qualified Control.Monad                                                as Monad
-import qualified Data.Map                                                     as Map
-import qualified Data.Set                                                     as S
--- import qualified Data.HashMap.Lazy                                            as HM
--- import qualified Data.HashSet                                                 as HS
 import qualified Data.Bimap                                                   as BM
-import qualified Data.List                                                    as L
+import qualified Data.Map                                                     as Map
 import qualified Data.Matrix                                                  as M'
 import           Data.Maybe                                                   (fromJust,
                                                                                isJust)
+import qualified Data.Set                                                     as S
 import           LocalComputation.Utils                                       (assert',
-                                                                               fromRight,
-                                                                               nubWithBy)
+                                                                               fromRight)
 import qualified LocalComputation.Utils                                       as Map (fromList'')
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue as Q
 
 -- Typeclasses
 import           Control.DeepSeq                                              (NFData)
-import           Control.Monad                                                (liftM)
 import           Data.Binary                                                  (Binary,
                                                                                get,
                                                                                put)
-import qualified Data.Binary.Builder                                          as B
 import qualified Data.Binary.Get                                              as B
-import qualified Data.Binary.Put                                              as B
-import qualified Data.ByteString.Builder                                      as BS
 import qualified Data.Hashable                                                as H
 import           GHC.Generics                                                 (Generic)
-import           Numeric.Natural                                              (Natural)
 
 import           GHC.Records                                                  (HasField,
                                                                                getField)
@@ -102,13 +86,6 @@ instance HasField "rowLabelSet" (LabelledMatrix a b c) (S.Set a) where
 -- | O(n) accessor for column label set where n is the number of column labels.
 instance HasField "colLabelSet" (LabelledMatrix a b c) (S.Set b) where
     getField m = Map.keysSet $ BM.toMapR m.colLabels
-
--- TODO: Is Data.HashMap suitable for being serialized? On it's webpage it says it is only suitable for 'in memory' data structures.
-
--- newtype BimapWrapper a b = BimapWrapper (BM.Bimap a b) deriving (Generic, Binary)
-
--- deriving instance (Binary a, Binary b) => Binary (BM.Bimap a b)
-
 
 -- TODO: Fix orphan instance (just make labelledmatrix an instance of binary directly instead)
 instance (Binary a, Binary b, Binary c, Ord a, Ord b) => Binary (LabelledMatrix a b c) where
@@ -185,10 +162,6 @@ fromList' xs defaultElem
             | Just x <- defaultElem = x
             | otherwise = error "Internal error: should never evaluate."
 
-isSymmetric :: (H.Hashable a, Eq c) => LabelledMatrix a a c -> Bool
-isSymmetric x | assertIsWellFormed x = undefined
-isSymmetric x = undefined
-
 -- TODO: Should be renamed - we use an overloaded term 'square' here to refer to
 -- square matricies, and matrices that have the same labels on rows and columns.
 isSquare :: (Eq a, Eq b) => LabelledMatrix a b c -> Bool
@@ -203,15 +176,6 @@ toSquare x _ | assertIsWellFormed x = undefined
 toSquare m defaultElem = fromJust $ extension m squareLabelSet squareLabelSet defaultElem
     where
         squareLabelSet = S.union m.rowLabelSet m.colLabelSet
-
--- | Returns the simplified domain of a square matrix that has the same domain for both labels. Returns Nothing if the given matrix is not square.
-squareDomain :: (Eq a) => LabelledMatrix a a c -> Maybe (S.Set a)
-squareDomain x | assertIsWellFormed x = undefined
-squareDomain x = undefined
-
--- | Returns the identity matrix created with the given zero and one elements.
-identity :: (H.Hashable a, Ord a) => S.Set a -> c -> c -> LabelledMatrix a a c
-identity dA zero one = undefined
 
 -- | Reshapes a matrix, filling empty spots with the given default element.
 reshape :: (Ord a, Ord b) => c -> LabelledMatrix a b c -> S.Set a -> S.Set b -> LabelledMatrix a b c
@@ -244,7 +208,7 @@ project :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> Maybe
 project x _ _ | assertIsWellFormed x = undefined
 project m newDA newDB = undefined
 
-project' :: (Ord a, Ord b, H.Hashable a, H.Hashable b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> Maybe (LabelledMatrix a b c)
+project' :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> Maybe (LabelledMatrix a b c)
 project' m _ _ | assertIsWellFormed m = undefined
 project' m rowLabelSet colLabelSet
     | not (S.isSubsetOf rowLabelSet m.rowLabelSet) || not (S.isSubsetOf colLabelSet m.colLabelSet) = Nothing
@@ -253,7 +217,7 @@ project' m rowLabelSet colLabelSet
         unusedArg = error "Should never be evaluated"
 
 -- | Returns an element from the matrix. Returns Nothing if the element is not in the domain of the matrix.
-find :: (Ord a, Ord b, H.Hashable a, H.Hashable b) => (a, b) -> LabelledMatrix a b c -> Maybe c
+find :: (Ord a, Ord b) => (a, b) -> LabelledMatrix a b c -> Maybe c
 find _ x | assertIsWellFormed x = undefined
 find (a, b) m = do
     aIndex <- BM.lookupR a m.rowLabels
@@ -312,7 +276,7 @@ x :: Int
 
 -}
 
-multiplys :: (H.Hashable a, Functor t, Foldable t) => (c -> c -> c) -> (c -> c -> c) -> c -> t (LabelledMatrix a a c) -> Maybe (LabelledMatrix a a c)
+multiplys :: (H.Hashable a, Foldable t) => (c -> c -> c) -> (c -> c -> c) -> c -> t (LabelledMatrix a a c) -> Maybe (LabelledMatrix a a c)
 multiplys _ _ _ xs | assertAllWellFormed xs = undefined
 multiplys addElems multiplyElems zero xs = undefined
 
@@ -353,10 +317,6 @@ quasiInverse m
         multiplys' xs = fromJust $ multiplys Q.add Q.multiply Q.zero xs
         quasiInverse' x = fromJust $ quasiInverse x
 
--- TODO: I'm not sure if it matters if the decomposition for quasiinverse has the 'A' component contain a set of row labels
--- and column labels that are the same as it would in the case of a graphical split like below. If we get errors, maybe
--- consider looking closer at this.
-
 -- TODO: This function could probably be made a lot faster by not calling project.
 -- for example we could have a new function that just operates on indices and splits on them.
 
@@ -388,24 +348,6 @@ decompose m
         aNumCols = m.numCols `div` 2 + m.numCols `mod` 2
 
         project' x y z = fromJust $ project x y z
-
-{-
-
->>> True == False
-False
-
--}
-
--- | Internal. Joins two disjoint matrices. Input may not be well formed, but the key sets of the maps must be disjoint otherwise an assertion will be thrown. Result may not be well-formed.
-join :: (Ord a, Ord b) => LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
-join m1 m2 = undefined
-
--- TODO: THIS ASSUMES THE BIMAPS ARE INDENTICAL. This is quite different from just assuming
--- the domains are the same as the function did before - but this new assumption could lead
--- to performance improvements if it is true all the time (which i think it might be!)
--- If we encounter issues, check that this is not the cause of error.
-
--- TODO: I think we probably don't expose this as it seems a bit specific of a function?
 
 {- Joins four matrices, returning Nothing if the matrices are not arranged in a square.
 
