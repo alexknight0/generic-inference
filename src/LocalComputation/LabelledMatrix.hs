@@ -83,7 +83,7 @@ data LabelledMatrix a b c = Matrix {
       matrix    :: M.Matrix M.B c
     , rowLabels :: BM.Bimap M.Ix1 a
     , colLabels :: BM.Bimap M.Ix1 b
-} deriving (NFData, Ord, Generic)
+} deriving (Show, Eq, NFData, Ord, Generic)
 
 -- | O(1) accessor for number of rows
 instance HasField "numRows" (LabelledMatrix a b c) M.Ix1 where
@@ -125,27 +125,8 @@ instance (Binary a, Binary b, Binary c, Ord a, Ord b) => Binary (LabelledMatrix 
 
 -- matrix = B.toLazyByteString $ M.toBuilder (B.fromLazyByteString . B.runPut . put) m.matrix
 
-foobar :: ()
-foobar = undefined
-{-
-
->>> import Control.Monad (liftM3)
->>> :t liftM3
-liftM3 :: Monad m => (a1 -> a2 -> a3 -> r) -> m a1 -> m a2 -> m a3 -> m r
-
--}
-
-instance Read (LabelledMatrix a b c) where
-    readsPrec = undefined
-
-instance (Eq a, Eq b, Eq c) => Eq (LabelledMatrix a b c) where
-    (==) = undefined
-
-instance (Show a, Show b, Show c) => Show (LabelledMatrix a b c) where
-    show = undefined
-
 instance Functor (LabelledMatrix a b) where
-    fmap = undefined
+    fmap f m = Matrix (M.computeAs M.B $ M.map f m.matrix) m.rowLabels m.colLabels
 
 -- | The computational [s]trategy used for this data structure.
 -- This argument is passed to every function that uses the Data.Massiv.Array library. This simply indicates
