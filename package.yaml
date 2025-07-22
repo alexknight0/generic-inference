@@ -49,6 +49,7 @@ dependencies:
 - hashable
 - massiv
 - bimap
+- bytestring
 
 ghc-options:
 - -Wall

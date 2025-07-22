@@ -31,10 +31,14 @@ module LocalComputation.Utils
     , fromListAssertDisjoint'
     , parseFile
     , fromRight
+    , lookupDefault
+    , lookupDefaultR
+    , fromList''
     )
 where
 
 
+import qualified Data.Bimap                    as BM
 import           Data.List                     (find)
 import           Data.Map                      (Map, adjust, elems, insert,
                                                 member)
@@ -178,3 +182,22 @@ fromRight :: Either a b -> b
 fromRight (Right x) = x
 fromRight _         = error "fromRight received a Left"
 
+lookupDefault :: (Ord a, Ord b) => a -> b -> BM.Bimap a b -> b
+lookupDefault x defaultElem m
+    | BM.member x m = (BM.!) m x
+    | otherwise = defaultElem
+
+lookupDefaultR :: (Ord a, Ord b) => b -> a -> BM.Bimap a b -> a
+lookupDefaultR x defaultElem m
+    | BM.memberR x m = (BM.!>) m x
+    | otherwise = defaultElem
+
+-- | \(O(n \log n)\) - Creates a map from the given association list,
+-- returning `Nothing` if there a duplicate keys in the list.
+fromList'' :: (Ord a) => [(a, b)] -> Maybe (M.Map a b)
+fromList'' = foldr f (Just M.empty)
+    where
+        f (k, v) Nothing = Nothing
+        f (k, v) (Just acc)
+            | M.member k acc = Nothing
+            | otherwise = Just $ M.insert k v acc

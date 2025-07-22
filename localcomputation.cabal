@@ -74,6 +74,7 @@ library
     , base >=4.7 && <5
     , bimap
     , binary
+    , bytestring
     , cached-io
     , carray
     , containers
@@ -115,6 +116,7 @@ executable localcomputation-exe
     , base >=4.7 && <5
     , bimap
     , binary
+    , bytestring
     , cached-io
     , carray
     , containers
@@ -162,6 +164,7 @@ test-suite localcomputation-test
     , base >=4.7 && <5
     , bimap
     , binary
+    , bytestring
     , cached-io
     , carray
     , containers
@@ -209,6 +212,7 @@ benchmark localcomputation-benchmark
     , base >=4.7 && <5
     , bimap
     , binary
+    , bytestring
     , cached-io
     , carray
     , containers
