@@ -47,7 +47,7 @@ knowledgeBase gs target = map f gs
                 b = fromRight $ M.fromList [((a, ()), if a == target then one else zero) | a <- S.toList $ fst (M.domain m)]
 
         matrixFromGraph :: (Ord b, SemiringValue b) => Graph a b -> M.LabelledMatrix a a b
-        matrixFromGraph g = fromRight $ M.fromListDefault (MP.toList $ rearrangedGraph g) zero
+        matrixFromGraph g = fromRight $ M.fromListDefault zero (MP.toList $ rearrangedGraph g)
 
         -- Rearranges the graph from `MP.Map a [(a, b)]` to `MP.Map (a, a) b`.
         -- If multiple arcs exist between a node, retains only the minimum cost arc.
@@ -60,7 +60,7 @@ knowledgeBase gs target = map f gs
         assocList g = map (\e -> ((e.arcHead, e.arcTail), e.weight)) (G.toList g)
 
 -- | Retuns a distance entry from the resulting valuation after inference. Unsafe.
-getDistance :: (H.Hashable a, Show a, Ord a) => Q.QuasiRegularValuation TropicalSemiringValue a () -> Query a -> TropicalSemiringValue
+getDistance :: (Show a, Ord a) => Q.QuasiRegularValuation TropicalSemiringValue a () -> Query a -> TropicalSemiringValue
 getDistance x (source, _) = fromJust $ M.find (source, ()) (Q.solution x)
 
 -- TODO: Can this handle negative weights?
@@ -83,3 +83,10 @@ singleTarget vs sources target
             k = knowledgeBase vs target
             domains = map (\s -> S.fromList [s, target]) sources
 
+foobar :: ()
+foobar = undefined
+{-
+
+>>>
+
+-}

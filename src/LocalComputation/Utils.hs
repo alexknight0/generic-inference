@@ -148,11 +148,11 @@ assert' p x = assert (p x) x
 unitTest :: PropertyT IO a -> Property
 unitTest = withTests 1 . property . void
 
-checkAnswers :: (Show a) => (a -> a -> Bool) -> [a] -> [a] -> PropertyT IO ()
+checkAnswers :: (Show a, Show b) => (a -> b -> Bool) -> [a] -> [b] -> PropertyT IO ()
 checkAnswers f results answers = diff results (\rs as -> foobar rs as) answers
     where
         foobar rs as
-            | and (zipWithAssert f rs as) == False = pTraceShow (rs, as) False
+            | and (zipWithAssert f rs as) == False = False
             | otherwise = True
 
 integerLogBase2 :: Natural -> Maybe Natural
@@ -178,7 +178,7 @@ parseFile p filename = do
     contents <- hGetContents' handle
     pure $ P.parse p filename contents
 
-fromRight :: Either a b -> b
+fromRight :: HasCallStack => Either a b -> b
 fromRight (Right x) = x
 fromRight _         = error "fromRight received a Left"
 

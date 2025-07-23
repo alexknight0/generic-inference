@@ -54,8 +54,6 @@ type BayesianNetworkValuation a b = SemiringValuation Probability a b
 newtype Probability = P Double deriving (Num, Fractional, Binary, Show, NFData, Ord, Eq, Generic)
 
 instance SemiringValue Probability where
-    multiply = (*)
-    add = (+)
     zero = 0
     one = 1
 
@@ -81,7 +79,7 @@ queryNetwork qs network' = do
                                    union (M.keysSet vs) (M.keysSet givenVs)) qs
 
 {- | Takes a query and returns the resulting probability. Assumes the query is covered by the network. -}
-queryToProbability :: (H.Hashable a, H.Hashable b, Show a, Show b, Ord a, Ord b) => VariableArrangement a b -> InferredData (SemiringValuation Probability) a b -> Probability
+queryToProbability :: (Show a, Show b, Ord a, Ord b) => VariableArrangement a b -> InferredData (SemiringValuation Probability) a b -> Probability
 queryToProbability vs results = findValue vs (normalize $ answerQuery (M.keysSet vs) results)
 
 toProbabilityQuery :: (Ord a) => ([(a, b)], [(a, b)]) -> ProbabilityQuery a b

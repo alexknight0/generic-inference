@@ -7,9 +7,6 @@ import           LocalComputation.Instances.BayesianNetwork
 import           LocalComputation.ValuationAlgebra.Semiring
 
 import           Data.Functor.Identity                      (Identity)
-import           System.IO                                  (IOMode (ReadMode),
-                                                             hGetContents',
-                                                             openFile)
 import           Text.Parsec.Char                           (endOfLine)
 import           Text.Parsec.Language                       (haskellDef)
 import           Text.Parsec.Token                          (GenTokenParser,

@@ -23,8 +23,8 @@ benchmarks = do
                     , bench "djikstra"         $ nf (H.singleTarget D.p1Graph D.p1Queries.sources D.p1Queries.target) (T $ read "Infinity")
                 ]
             , bgroup "mediumGraph" [
-                      bench "localcomputation" $ nfIO (runProcessLocal $ ST.singleTarget [p3Small] [68] 69)
-                    , bench "djikstra"         $ nf (H.singleTarget p3Small [68] 69) (T $ read "Infinity")
+                      bench "localcomputation" $ nfIO (runProcessLocal $ ST.singleTarget [fmap T p3Small] [68] 69)
+                    , bench "djikstra"         $ nf (H.singleTarget p3Small [68] 69) (read "Infinity")
                 ]
 
         ]

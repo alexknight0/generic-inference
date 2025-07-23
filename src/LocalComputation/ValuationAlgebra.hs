@@ -19,11 +19,11 @@ type Domain a = Set a
 
 class Valuation v where
     label   :: (Show a, Show b, Ord a, Ord b) => v a b -> Domain a
-    combine :: (H.Hashable a, H.Hashable b, Show a, Show b, Ord a, Ord b) => v a b -> v a b -> v a b
-    project :: (H.Hashable a, H.Hashable b, Show a, Show b, Ord a, Ord b) => v a b -> Domain a -> v a b
+    combine :: (Show a, Show b, Ord a, Ord b) => v a b -> v a b -> v a b
+    project :: (Show a, Show b, Ord a, Ord b) => v a b -> Domain a -> v a b
     identity :: Domain a -> v a b
 
-combines :: (H.Hashable a, H.Hashable b, Show a, Show b, Foldable f, Valuation v, Ord a, Ord b) => f (v a b) -> v a b
+combines :: (Show a, Show b, Foldable f, Valuation v, Ord a, Ord b) => f (v a b) -> v a b
 combines = foldr1 combine
 
 

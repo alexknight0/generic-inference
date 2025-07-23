@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module LocalComputation.Graph
     ( Graph
@@ -30,6 +30,9 @@ data Edge a b =
         , arcTail :: a
         , weight  :: b
      }
+
+instance Functor (Graph a) where
+    fmap f (Graph g) = Graph $ M.map (map (fmap f)) g
 
 isUndirected :: (Ord a, Eq b) => Graph a b -> Bool
 isUndirected (Graph g) = all isJust [f (arcHead, arcTail, cost) | (arcHead, arcTails) <- M.toList g, (arcTail, cost) <- arcTails]

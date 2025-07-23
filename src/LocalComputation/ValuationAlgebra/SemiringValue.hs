@@ -1,10 +1,8 @@
 module LocalComputation.ValuationAlgebra.SemiringValue
-    ( SemiringValue (add, multiply, zero, one)
+    ( SemiringValue (zero, one)
     )
 where
 
-class SemiringValue a where
-    add :: a -> a -> a
-    multiply :: a -> a -> a
+class (Num a) => SemiringValue a where
     zero :: a   -- the additive identity
     one :: a    -- the multiplicative identity

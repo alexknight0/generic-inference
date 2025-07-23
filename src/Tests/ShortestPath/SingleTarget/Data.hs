@@ -90,7 +90,7 @@ p1Queries = Query [ 0
              , 8
             ] 0
 
-p1Answers :: [TropicalSemiringValue]
+p1Answers :: [Double]
 p1Answers = [ 0
             , 4
             , 12
@@ -109,27 +109,27 @@ p2Graph = map (G.addSelfLoops 0 . G.fromList' . (:[])) p1AndP2Basis
 p2Queries :: Query Integer
 p2Queries = p1Queries
 
-p2Answers :: [TropicalSemiringValue]
+p2Answers :: [Double]
 p2Answers = p1Answers
 
-parseGraph :: FilePath -> IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural TropicalSemiringValue)))
-parseGraph filepath = fmap (P.mapParseResult (T . fromInteger)) $ parseFile P.graph filepath
+parseGraph :: FilePath -> IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural Double)))
+parseGraph filepath = fmap (fmap (fmap (G.addSelfLoops 0))) $ fmap (P.mapParseResult (fromInteger)) $ parseFile P.graph filepath
 
-p3VerySmallGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural TropicalSemiringValue)))
-p3VerySmallGraph = fmap (fmap (fmap (G.addSelfLoops 0))) $ parseGraph "src/Benchmark/Data/ShortestPath/VerySmall-USA-road-d.NY.gr"
+p3VerySmallGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural Double)))
+p3VerySmallGraph = parseGraph "src/Benchmark/Data/ShortestPath/VerySmall-USA-road-d.NY.gr"
 
-p3SmallGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural TropicalSemiringValue)))
-p3SmallGraph = fmap (fmap (fmap (G.addSelfLoops 0))) $ parseGraph "src/Benchmark/Data/ShortestPath/Small-USA-road-d.NY.gr"
+p3SmallGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural Double)))
+p3SmallGraph = parseGraph "src/Benchmark/Data/ShortestPath/Small-USA-road-d.NY.gr"
 
-p3SmallGraph' :: IO (G.Graph Natural TropicalSemiringValue)
+p3SmallGraph' :: IO (G.Graph Natural Double)
 p3SmallGraph' = P.fromValid $ p3SmallGraph
 
-p3MediumGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural TropicalSemiringValue)))
-p3MediumGraph = fmap (fmap (fmap (G.addSelfLoops 0))) $ parseGraph "src/Benchmark/Data/ShortestPath/Medium-USA-road-d.NY.gr"
+p3MediumGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural Double)))
+p3MediumGraph = parseGraph "src/Benchmark/Data/ShortestPath/Medium-USA-road-d.NY.gr"
 
-p3MediumGraph' :: IO (G.Graph Natural TropicalSemiringValue)
+p3MediumGraph' :: IO (G.Graph Natural Double)
 p3MediumGraph' = P.fromValid $ p3MediumGraph
 
-p3VeryLargeGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural TropicalSemiringValue)))
-p3VeryLargeGraph = fmap (fmap (fmap (G.addSelfLoops 0))) $ parseGraph "src/Benchmark/Data/ShortestPath/VeryLarge-USA-road-d.NY.gr"
+p3VeryLargeGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural Double)))
+p3VeryLargeGraph = parseGraph "src/Benchmark/Data/ShortestPath/VeryLarge-USA-road-d.NY.gr"
 

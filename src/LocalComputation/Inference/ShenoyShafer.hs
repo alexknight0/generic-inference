@@ -85,7 +85,7 @@ type InferredData v a b = [(Domain a, v a b)]
 
 
 -- TODO safely handle invalid queries?
-answerQueries :: forall v a b. (H.Hashable a, H.Hashable b, Show a, Show b, Valuation v, Ord a, Ord b)
+answerQueries :: forall v a b. (Show a, Show b, Valuation v, Ord a, Ord b)
     => [Domain a]
     -> InferredData v a b
     -> [v a b]
@@ -95,13 +95,13 @@ answerQueries queryDomains results = map queryToAnswer queryDomains
         queryToAnswer d = project (snd $ unsafeFind (\(d', _) -> d `isSubsetOf` d') results) d
 
 -- TODO safely handle invalid queries?
-answerQuery :: forall v a b. (H.Hashable a, H.Hashable b, Show a, Show b, Valuation v, Ord a, Ord b)
+answerQuery :: forall v a b. (Show a, Show b, Valuation v, Ord a, Ord b)
     => Domain a
     -> InferredData v a b
     -> v a b
 answerQuery q results = head $ answerQueries [q] results
 
-answerQueriesM :: forall v a b . (H.Hashable a, H.Hashable b, Show a, Show b, Typeable v, Typeable b, Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
+answerQueriesM :: forall v a b . (Show a, Show b, Typeable v, Typeable b, Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
     => [v a b]
     -> [Domain a]
     -> Process [v a b]
@@ -109,7 +109,7 @@ answerQueriesM vs queryDomains = do
     results <- initializeNodes (shenoyJoinTree vs queryDomains)
     pure $ answerQueries queryDomains results
 
-answerQueryM :: forall v a b . (H.Hashable a, H.Hashable b, Show a, Show b, Typeable v, Typeable b, Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
+answerQueryM :: forall v a b . (Show a, Show b, Typeable v, Typeable b, Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
     => [v a b]
     -> Domain a
     -> Process (v a b)
@@ -117,7 +117,7 @@ answerQueryM vs q = do
     results <- initializeNodes (shenoyJoinTree vs [q])
     pure $ answerQuery q results
 
-inference :: forall v a b . (H.Hashable a, H.Hashable b, Show a, Show b, Typeable v, Typeable b, Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
+inference :: forall v a b . (Show a, Show b, Typeable v, Typeable b, Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
     => [v a b]
     -> [Domain a]
     -> Process (InferredData v a b)
@@ -135,7 +135,7 @@ shenoyJoinTree vs queryDomains = toUndirected (baseJoinTree vs queryDomains)
 data NodeWithProcessId a = NodeWithProcessId { id :: ProcessId, node :: a } deriving (Generic, Binary)
 
 -- Initializes all nodes in the join tree for message passing according to the Shenoy-Shafer algorithm.
-initializeNodes :: forall n v a b. (H.Hashable a, H.Hashable b, Show a, Show b, Typeable n, Typeable v, Typeable b, Binary (n v a b), Serializable (v a b), Serializable a, Valuation v, Ord (n v a b), Ord a, Ord b)
+initializeNodes :: forall n v a b. (Show a, Show b, Typeable n, Typeable v, Typeable b, Binary (n v a b), Serializable (v a b), Serializable a, Valuation v, Ord (n v a b), Ord a, Ord b)
     => Graph (n v a b)
     -> Process ([(Domain a, v a b)])
 initializeNodes graph = do
@@ -203,7 +203,7 @@ data Message a = Message {
     } deriving (Generic, Binary)
 
 -- TODO : rename 'node' to 'this' and both 'messages' constants to 'postbox'
-initializeNode :: forall v a b. (H.Hashable a, H.Hashable b, Show a, Show b, Binary (v a b), Binary a, Typeable v, Typeable b, Typeable (v a b), Typeable a, Valuation v, Ord a, Ord b)
+initializeNode :: forall v a b. (Show a, Show b, Binary (v a b), Binary a, Typeable v, Typeable b, Typeable (v a b), Typeable a, Valuation v, Ord a, Ord b)
     => SendPort (Domain a, v a b)
     -> Process ProcessId
 initializeNode resultPort = spawnLocal $ do
@@ -247,7 +247,7 @@ initializeNode resultPort = spawnLocal $ do
         sendPhaseTwo allMessages sender recipient = sendMessage (allMessagesExceptMyOwn recipient allMessages) sender recipient
 
 -- TODO: rename combines combines1
-sendMessage :: (H.Hashable a, H.Hashable b, Show a, Show b, Serializable (v a b), Node n, Valuation v, Ord a, Ord b)
+sendMessage :: (Show a, Show b, Serializable (v a b), Node n, Valuation v, Ord a, Ord b)
     => [Message (v a b)]
     -> NodeWithProcessId (n v a b)
     -> NodeWithProcessId (n v a b)
