@@ -108,6 +108,8 @@ instance Functor (LabelledMatrix a b) where
 -- This argument is passed to every function that uses the Data.Massiv.Array library. This simply indicates
 -- whether or not we wish to parallelize the operation. We choose to use sequential here as the inference
 -- process is sufficently parallelized such that it uses all cores anyway.
+--
+-- If changing to parallel, consider also updating use of 'foldrS' in the code (if it is still being used).
 s :: M.Comp
 s = M.Seq
 
@@ -227,9 +229,20 @@ add :: (Ord a, Ord b)
     -> LabelledMatrix a b c
     -> Maybe (LabelledMatrix a b c)
 add _ x y | assertAllWellFormed [x, y] = undefined
-add addElems m1 m2
+add addElems m1 m2 = pointwise addElems m1 m2
+
+-- | Perform an operation over the matrix pointwise.
+pointwise :: (Eq a, Eq b)
+    => (c -> d -> e)
+    -> LabelledMatrix a b c
+    -> LabelledMatrix a b d
+    -> Maybe (LabelledMatrix a b e)
+pointwise _ m1 m2 | assertIsWellFormed m1 || assertIsWellFormed m2 = undefined
+pointwise f m1 m2
     | m1.rowLabels /= m2.rowLabels || m1.colLabels /= m2.colLabels = Nothing
-    | otherwise = undefined -- Just $ Matrix ((M.!+!) m1.matrix m2.matrix) m1.rowLabels m1.colLabels
+    | otherwise = Just $ Matrix matrix m1.rowLabels m1.colLabels
+    where
+        matrix = M.computeAs M.B $ M.zipWith f m1.matrix m2.matrix
 
 -- | Basic matrix multiplication on two matrices. Returns Nothing if the provided matrices have the wrong shape for matrix multiplication.
 multiply :: forall a b c d . (Eq a, Eq b, Eq c)
@@ -243,14 +256,37 @@ multiply _ _ _ m1 m2 | assertIsWellFormed m1 || assertIsWellFormed m2 = undefine
 multiply zero addElems multiplyElems m1 m2
     | m1.colLabels /= m2.rowLabels = Nothing
     | m1.numRows == 0 || m1.numCols == 0 || m2.numRows == 0 || m2.numCols == 0 = Just $ Matrix emptyMatrix m1.rowLabels m2.colLabels
-    | otherwise = undefined -- Just $ Matrix (m1.matrix M.!><! m2.matrix) m1.rowLabels m2.colLabels
+    | otherwise = Just $ Matrix matrix m1.rowLabels m2.colLabels
 
     where
         emptyMatrix :: M.Matrix M.B d
         emptyMatrix = M.makeArray s (M.Sz2 m1.numRows m2.numCols) $ \_ -> zero
 
+        matrix :: M.Matrix M.B d
+        matrix = M.makeArray s (M.Sz2 m1.numRows m2.numCols) f
+
+        f (i :. j) = M.foldrS addElems zero $ M.zipWith multiplyElems row col
+            where
+                row = (M.!>) m1.matrix i
+                col = (M.<!) m2.matrix j
+
 foobar :: ()
 foobar = undefined
+{-
+
+>>> import Data.Massiv.Array
+>>> a1 = makeArrayR B Seq (Sz2 2 2) $ \(i :. j) -> (i, j)
+>>> a1
+>>> a1 <! 1
+Array B Seq (Sz (2 :. 2))
+  [ [ (0,0), (0,1) ]
+  , [ (1,0), (1,1) ]
+  ]
+Array D Seq (Sz1 2)
+  [ (0,1), (1,1) ]
+
+-}
+
 {-
 
 >>> import Data.Massiv.Array

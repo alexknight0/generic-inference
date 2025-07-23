@@ -6,19 +6,12 @@ module Tests.LabelledMatrix
 where
 
 import           Hedgehog
-import qualified Hedgehog.Gen                                                 as Gen
-import qualified Hedgehog.Range                                               as Range
+import qualified Hedgehog.Gen                    as Gen
+import qualified Hedgehog.Range                  as Range
 
 
-import qualified Data.Matrix                                                  as M
-import           Data.Text.Lazy                                               (unpack)
-import           Debug.Pretty.Simple                                          (pTraceShow)
-import qualified LocalComputation.LabelledMatrix                              as L
-import           LocalComputation.Utils                                       (fromRight,
-                                                                               unitTest)
-import           LocalComputation.ValuationAlgebra.QuasiRegular               (SemiringValue (..))
-import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue (TropicalSemiringValue (..))
-import           Text.Pretty.Simple                                           (pShow)
+import qualified Data.Matrix                     as M
+import qualified LocalComputation.LabelledMatrix as L
 
 tests :: IO Bool
 tests = checkParallel $$(discover)
@@ -33,73 +26,77 @@ genMatrix numRows numColumns genA = fmap M.fromLists $ genListOfRows
         genRow :: Gen [a]
         genRow = Gen.list (Range.singleton numColumns) genA
 
--- prop_matrixAddition :: Property
--- prop_matrixAddition = withTests 100 . property $ do
---     [aSize, bSize] <- forAll $ Gen.list (Range.singleton 2) genMatrixSideLength
---
---     m1 <- forAll $ genMatrix aSize bSize genMatrixEntry
---     m2 <- forAll $ genMatrix aSize bSize genMatrixEntry
---
---     let answer = m1 `dataMatrixAdd` m2
---     let result = L.fromMatrix m1 `L.add` L.fromMatrix m2
---
---     case result of
---         Nothing      -> failure
---         Just result' -> diff (L.fromMatrix answer) (==) result'
---
---     where
---         genMatrixEntry :: Gen Int
---         genMatrixEntry = Gen.int (Range.linear 0 100000)
---
---         -- Seems can't create empty matrix with Data.Matrix
---         genMatrixSideLength :: Gen Int
---         genMatrixSideLength = Gen.int (Range.linear 1 6)
---
---         dataMatrixAdd = M.elementwise (+)
---
--- prop_matrixMultiplication :: Property
--- prop_matrixMultiplication = withTests 100 . property $ do
---     [aSize, bSize, cSize] <- forAll $ Gen.list (Range.singleton 3) genMatrixSideLength
---
---     m1 <- forAll $ genMatrix aSize bSize genMatrixEntry
---     m2 <- forAll $ genMatrix bSize cSize genMatrixEntry
---
---     let answer = m1 `M.multStd` m2
---     let result = L.multiply 0 (L.fromMatrix m1) (L.fromMatrix m2)
---
---     case result of
---         Nothing      -> failure
---         Just result' -> diff (L.fromMatrix answer) (==) result'
---
---     where
---         genMatrixEntry :: Gen Int
---         genMatrixEntry = Gen.int (Range.linear 0 100000)
---
---         -- Seems can't create empty matrix with Data.Matrix
---         genMatrixSideLength :: Gen Int
---         genMatrixSideLength = Gen.int (Range.linear 1 6)
+prop_matrixAddition :: Property
+prop_matrixAddition = withTests 100 . property $ do
+    [aSize, bSize] <- forAll $ Gen.list (Range.singleton 2) genMatrixSideLength
 
+    m1 <- forAll $ genMatrix aSize bSize genMatrixEntry
+    m2 <- forAll $ genMatrix aSize bSize genMatrixEntry
 
-prop_multiplicationWithDifferentDefinition0 :: Property
-prop_multiplicationWithDifferentDefinition0 = unitTest $ do
-    -- annotate $ (unpack $ pShow $ L.multiply zero x y)
-    failure
-    undefined
+    let answer = m1 `dataMatrixAdd` m2
+    let result = L.fromMatrix m1 `add` L.fromMatrix m2
+
+    case result of
+        Nothing      -> failure
+        Just result' -> diff (L.fromMatrix answer) (==) result'
 
     where
-        i :: Double
-        i = read "Infinity"
+        genMatrixEntry :: Gen Int
+        genMatrixEntry = Gen.int (Range.linear 0 100000)
 
-        x :: (Ord a, Ord b, Num a, Num b) => L.LabelledMatrix a b TropicalSemiringValue
-        x = fmap T $ fromRight $ L.fromListDefault (read "Infinity") [
-              ((0, 0), 0), ((0, 1), i)
-            , ((1, 0), i), ((1, 1), 0)
-          ]
-        y :: (Ord a, Ord b, Num a, Num b) => L.LabelledMatrix a b TropicalSemiringValue
-        y = fmap T $ fromRight $ L.fromListDefault (read "Infinity") [
-              ((0, 0), 0), ((0, 1), i)
-            , ((1, 0), i), ((1, 1), 0)
-          ]
+        -- Seems can't create empty matrix with Data.Matrix
+        genMatrixSideLength :: Gen Int
+        genMatrixSideLength = Gen.int (Range.linear 1 6)
+
+        dataMatrixAdd = M.elementwise (+)
+
+        add = L.add (+)
+
+prop_matrixMultiplication :: Property
+prop_matrixMultiplication = withTests 100 . property $ do
+    [aSize, bSize, cSize] <- forAll $ Gen.list (Range.singleton 3) genMatrixSideLength
+
+    m1 <- forAll $ genMatrix aSize bSize genMatrixEntry
+    m2 <- forAll $ genMatrix bSize cSize genMatrixEntry
+
+    let answer = m1 `M.multStd` m2
+    let result = L.fromMatrix m1 `multiply` L.fromMatrix m2
+
+    case result of
+        Nothing      -> failure
+        Just result' -> diff (L.fromMatrix answer) (==) result'
+
+    where
+        genMatrixEntry :: Gen Int
+        genMatrixEntry = Gen.int (Range.linear 0 100000)
+
+        -- Seems can't create empty matrix with Data.Matrix
+        genMatrixSideLength :: Gen Int
+        genMatrixSideLength = Gen.int (Range.linear 1 6)
+
+        multiply = L.multiply 0 (+) (*)
+
+
+-- prop_multiplicationWithDifferentDefinition0 :: Property
+-- prop_multiplicationWithDifferentDefinition0 = unitTest $ do
+--     -- annotate $ (unpack $ pShow $ L.multiply zero x y)
+--     failure
+--     undefined
+--
+--     where
+--         i :: Double
+--         i = read "Infinity"
+--
+--         x :: (Ord a, Ord b, Num a, Num b) => L.LabelledMatrix a b TropicalSemiringValue
+--         x = fmap T $ fromRight $ L.fromListDefault (read "Infinity") [
+--               ((0, 0), 0), ((0, 1), i)
+--             , ((1, 0), i), ((1, 1), 0)
+--           ]
+--         y :: (Ord a, Ord b, Num a, Num b) => L.LabelledMatrix a b TropicalSemiringValue
+--         y = fmap T $ fromRight $ L.fromListDefault (read "Infinity") [
+--               ((0, 0), 0), ((0, 1), i)
+--             , ((1, 0), i), ((1, 1), 0)
+--           ]
 
 
 -- prop_multiplicationWithDifferentDefinition :: Property
