@@ -3,7 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module LocalComputation.ValuationAlgebra.Semiring
-    ( SemiringValue (zero, one)
+    ( SemiringValue (..)
     , SemiringValuation
     , create
     , normalize
@@ -130,7 +130,7 @@ instance (Show c, SemiringValue c) => Valuation (SemiringValuation c) where
         | null rowMap2 = Valuation rowMap1 d1 vD1 (S.difference (S.union e1 e2) d1)
         | otherwise = Valuation newRows newDomain newValueDomain newExtension
         where
-            newRows = fromListAssertDisjoint [(unionAssert' a1 a2, v1 * v2) | (a1, v1) <- M.toList rowMap1, (a2, v2) <- M.toList rowMap2, hasSameValueForSharedVariables a1 a2]
+            newRows = fromListAssertDisjoint [(unionAssert' a1 a2, v1 `multiply` v2) | (a1, v1) <- M.toList rowMap1, (a2, v2) <- M.toList rowMap2, hasSameValueForSharedVariables a1 a2]
             newDomain = S.union d1 d2
             newValueDomain = unionAssert' vD1 vD2
             newExtension = S.difference (S.unions [d1, d2, e1, e2]) (S.unions [d1, d2])
@@ -142,7 +142,7 @@ instance (Show c, SemiringValue c) => Valuation (SemiringValuation c) where
     project x _ | assertIsWellFormed x = undefined
     project x y | assert (S.isSubsetOf y (label x)) False = undefined
     project (Identity _) y = Identity y
-    project (Valuation rMap d vD e) newD = Valuation (M.mapKeysWith (+) projectDomain rMap) (projectDomain' d) (projectDomain vD) (projectDomain' e)
+    project (Valuation rMap d vD e) newD = Valuation (M.mapKeysWith add projectDomain rMap) (projectDomain' d) (projectDomain vD) (projectDomain' e)
         where
             projectDomain = M.filterWithKey (\k _ -> k `elem` newD)
             projectDomain' = S.filter (\k -> k `elem` newD)

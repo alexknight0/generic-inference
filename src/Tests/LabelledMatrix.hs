@@ -16,7 +16,7 @@ import           Debug.Pretty.Simple                                          (p
 import qualified LocalComputation.LabelledMatrix                              as L
 import           LocalComputation.Utils                                       (fromRight,
                                                                                unitTest)
-import           LocalComputation.ValuationAlgebra.QuasiRegular               (SemiringValue (zero))
+import           LocalComputation.ValuationAlgebra.QuasiRegular               (SemiringValue (..))
 import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue (TropicalSemiringValue (..))
 import           Text.Pretty.Simple                                           (pShow)
 
@@ -82,7 +82,7 @@ genMatrix numRows numColumns genA = fmap M.fromLists $ genListOfRows
 
 prop_multiplicationWithDifferentDefinition0 :: Property
 prop_multiplicationWithDifferentDefinition0 = unitTest $ do
-    annotate $ (unpack $ pShow $ L.multiply zero x y)
+    -- annotate $ (unpack $ pShow $ L.multiply zero x y)
     failure
     undefined
 

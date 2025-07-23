@@ -54,6 +54,8 @@ type BayesianNetworkValuation a b = SemiringValuation Probability a b
 newtype Probability = P Double deriving (Num, Fractional, Binary, Show, NFData, Ord, Eq, Generic)
 
 instance SemiringValue Probability where
+    add = (+)
+    multiply = (*)
     zero = 0
     one = 1
 

@@ -3,7 +3,7 @@
 
 module LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
     ( QuasiRegularSemiringValue (quasiInverse)
-    , SemiringValue (zero, one)
+    , SemiringValue (add, multiply, zero, one)
     , TropicalSemiringValue (T)
     , toDouble
     )
@@ -26,23 +26,14 @@ class (SemiringValue a) => QuasiRegularSemiringValue a where
     -- work for path problems? pdf page 257 gen. inf.
 
 -- | A value from the tropical semiring of all real numbers. Detailed page 232 of "Generic Inference" (Pouly & Kohlas, 2012).
-newtype TropicalSemiringValue = T Double deriving (Binary, Show, NFData, Eq, Generic, Read)
+newtype TropicalSemiringValue = T Double deriving (Ord, Num, Binary, Show, NFData, Eq, Generic, Read)
 
 toDouble :: TropicalSemiringValue -> Double
 toDouble (T x) = x
 
-instance Num TropicalSemiringValue where
-    (+) (T x) (T y) = T $ pTrace ("(+) " ++ show x ++ " " ++ show y) $ min x y
-    (*) (T x) (T y) = T $ pTrace ("(*) " ++ show x ++ " " ++ show y) $ x + y
-    (-) (T x) (T y) = error "undefined (-)"      -- T $ x - y
-    abs       (T x) = error "undefined (abs)"    -- T $ abs x
-    signum    (T x) = error "undefined (signum)" -- T $ signum x
-    fromInteger x   = T $ fromInteger x
-
-instance Ord TropicalSemiringValue where
-    (T x) <= (T y) = x <= y
-
 instance SemiringValue TropicalSemiringValue where
+    add = min
+    multiply = (+)
     zero = T (read "Infinity" :: Double)
     one = 0
 

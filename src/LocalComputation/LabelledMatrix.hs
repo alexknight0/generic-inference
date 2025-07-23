@@ -221,23 +221,29 @@ find (a, b) m = do
     pure $ M.index' m.matrix (aIndex :. bIndex)
 
 -- | Basic addition on two matrices. Returns Nothing if the provided matrices have different shapes.
-add :: (Ord a, Ord b, Num c) => LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
-add x y | assertAllWellFormed [x, y] = undefined
-add m1 m2
+add :: (Ord a, Ord b)
+    => (c -> c -> c)
+    -> LabelledMatrix a b c
+    -> LabelledMatrix a b c
+    -> Maybe (LabelledMatrix a b c)
+add _ x y | assertAllWellFormed [x, y] = undefined
+add addElems m1 m2
     | m1.rowLabels /= m2.rowLabels || m1.colLabels /= m2.colLabels = Nothing
-    | otherwise = Just $ Matrix ((M.!+!) m1.matrix m2.matrix) m1.rowLabels m1.colLabels
+    | otherwise = undefined -- Just $ Matrix ((M.!+!) m1.matrix m2.matrix) m1.rowLabels m1.colLabels
 
 -- | Basic matrix multiplication on two matrices. Returns Nothing if the provided matrices have the wrong shape for matrix multiplication.
-multiply :: forall a b c d . (Eq a, Eq b, Eq c, Num d)
+multiply :: forall a b c d . (Eq a, Eq b, Eq c)
     => d
+    -> (d -> d -> d)
+    -> (d -> d -> d)
     -> LabelledMatrix a b d
     -> LabelledMatrix b c d
     -> Maybe (LabelledMatrix a c d)
-multiply _ m1 m2 | assertIsWellFormed m1 || assertIsWellFormed m2 = undefined
-multiply zero m1 m2
+multiply _ _ _ m1 m2 | assertIsWellFormed m1 || assertIsWellFormed m2 = undefined
+multiply zero addElems multiplyElems m1 m2
     | m1.colLabels /= m2.rowLabels = Nothing
     | m1.numRows == 0 || m1.numCols == 0 || m2.numRows == 0 || m2.numCols == 0 = Just $ Matrix emptyMatrix m1.rowLabels m2.colLabels
-    | otherwise = Just $ Matrix (m1.matrix M.!><! m2.matrix) m1.rowLabels m2.colLabels
+    | otherwise = undefined -- Just $ Matrix (m1.matrix M.!><! m2.matrix) m1.rowLabels m2.colLabels
 
     where
         emptyMatrix :: M.Matrix M.B d
@@ -277,12 +283,16 @@ x :: Int
 
 -}
 
-multiplys :: (Eq a, Functor t, Foldable t, Num c)
-    => c -> t (LabelledMatrix a a c) -> Maybe (LabelledMatrix a a c)
-multiplys _ ms | assertAllWellFormed ms = undefined
-multiplys zero ms
+multiplys :: (Eq a, Functor t, Foldable t)
+    => c
+    -> (c -> c -> c)
+    -> (c -> c -> c)
+    -> t (LabelledMatrix a a c)
+    -> Maybe (LabelledMatrix a a c)
+multiplys _ _ _ ms | assertAllWellFormed ms = undefined
+multiplys zero addElems multiplyElems ms
     | null ms = Nothing
-    | otherwise = foldl1 (liftA2' (multiply zero)) (fmap Just ms)
+    | otherwise = foldl1 (liftA2' (multiply zero addElems multiplyElems)) (fmap Just ms)
     where
         liftA2' f x y = Monad.join (liftA2 f x y)
 
@@ -310,8 +320,8 @@ quasiInverse m
         newD = multiplys' [fStar, d, bStar]
         newE = fStar
 
-        add' x y = fromJust $ add x y
-        multiplys' xs = fromJust $ multiplys Q.zero xs
+        add' x y = fromJust $ add Q.add x y
+        multiplys' xs = fromJust $ multiplys Q.zero Q.add Q.multiply xs
         quasiInverse' x = fromJust $ quasiInverse x
 
 -- TODO: This function could probably be made a lot faster by not calling project.

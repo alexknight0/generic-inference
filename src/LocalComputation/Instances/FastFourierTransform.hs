@@ -46,6 +46,8 @@ data FastFourierVariable = X Natural | Y Natural deriving (Eq, Ord, Binary, Gene
 type FastFourierValuation = SemiringValuation FourierComplex FastFourierVariable Natural
 
 instance SemiringValue FourierComplex where
+    add = (+)
+    multiply = (*)
     -- Not used. Should probably look into how they would be defined.
     zero = error "Not implemented"
     one = error "Not implemented"

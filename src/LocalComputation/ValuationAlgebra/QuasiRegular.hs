@@ -2,12 +2,12 @@
 {-# LANGUAGE DeriveGeneric  #-}
 
 module LocalComputation.ValuationAlgebra.QuasiRegular
-    ( QuasiRegularSemiringValue (quasiInverse)
-    , SemiringValue (zero, one)
+    ( Q.QuasiRegularSemiringValue (quasiInverse)
+    , Q.SemiringValue (add, multiply, zero, one)
     , QuasiRegularValuation
     , create
     , solution
-    , TropicalSemiringValue (T)
+    , Q.TropicalSemiringValue (T)
     )
 where
 
@@ -16,7 +16,7 @@ import           Data.Maybe                                                   (f
 import qualified Data.Set                                                     as S
 import qualified LocalComputation.LabelledMatrix                              as M
 import           LocalComputation.ValuationAlgebra
-import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
+import qualified LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue as Q
 
 -- Typeclasses
 import           Control.DeepSeq                                              (NFData)
@@ -30,7 +30,7 @@ create m b
     | isWellFormed (Valuation m b) = Just (Valuation m b)
     | otherwise = Nothing
 
-instance (Show c, QuasiRegularSemiringValue c) => Valuation (QuasiRegularValuation c) where
+instance (Show c, Q.QuasiRegularSemiringValue c) => Valuation (QuasiRegularValuation c) where
     label x | assertIsWellFormed x = undefined
     label (Identity d)    = d
     label (Valuation _ b) = fst (M.domain b)
@@ -62,33 +62,33 @@ instance (Show c, QuasiRegularSemiringValue c) => Valuation (QuasiRegularValuati
     identity d = Identity d
 
 -- | Returns a product useful for the solution of fixpoint systems. Detailed page 367 of "Generic Inference" (Pouly & Kohlas, 2012)
-solution :: (Show a, Ord a, Show c, QuasiRegularSemiringValue c) => QuasiRegularValuation c a b -> M.LabelledMatrix a () c
+solution :: (Show a, Ord a, Show c, Q.QuasiRegularSemiringValue c) => QuasiRegularValuation c a b -> M.LabelledMatrix a () c
 solution (Identity _)    = error "'solution' called on identity valuation."
 solution (Valuation m b) = matrixMultiply (matrixQuasiInverse m) b
 
 -- | Adds two valuations. Unsafe.
-valuationAdd :: (Ord a, QuasiRegularSemiringValue c) => QuasiRegularValuation c a b -> QuasiRegularValuation c a b -> QuasiRegularValuation c a b
+valuationAdd :: (Ord a, Q.QuasiRegularSemiringValue c) => QuasiRegularValuation c a b -> QuasiRegularValuation c a b -> QuasiRegularValuation c a b
 valuationAdd x y | assertIsWellFormed x || assertIsWellFormed y = undefined
 valuationAdd (Valuation m1 b1) (Valuation m2 b2) = fromJust $ create (matrixAdd m1 m2) (matrixAdd b1 b2)
 valuationAdd _ _ = error "Not implemented error."  -- Not 100% certain on how to handle identity elements, but never called anyway.
 
 -- | Extends a valuation. Unsafe.
-extension :: (Ord a, QuasiRegularSemiringValue c) => QuasiRegularValuation c a b -> S.Set a -> QuasiRegularValuation c a b
+extension :: (Ord a, Q.QuasiRegularSemiringValue c) => QuasiRegularValuation c a b -> S.Set a -> QuasiRegularValuation c a b
 extension x _ | assertIsWellFormed x = undefined
 extension (Identity _) d = Identity d
-extension (Valuation m b) t = fromJust $ create (fromJust $ M.extension m t t zero) (fromJust $ M.extension b t (S.singleton ()) zero)
+extension (Valuation m b) t = fromJust $ create (fromJust $ M.extension m t t Q.zero) (fromJust $ M.extension b t (S.singleton ()) Q.zero)
 
-matrixQuasiInverse :: (Show a, Ord a, Show c, QuasiRegularSemiringValue c) => M.LabelledMatrix a a c -> M.LabelledMatrix a a c
+matrixQuasiInverse :: (Show a, Ord a, Show c, Q.QuasiRegularSemiringValue c) => M.LabelledMatrix a a c -> M.LabelledMatrix a a c
 matrixQuasiInverse = fromJust . M.quasiInverse
 
-matrixProject :: (Ord a, Ord b) =>M.LabelledMatrix a b c -> S.Set a -> S.Set b -> M.LabelledMatrix a b c
+matrixProject :: (Ord a, Ord b) => M.LabelledMatrix a b c -> S.Set a -> S.Set b -> M.LabelledMatrix a b c
 matrixProject = ((fromJust .) .) . M.project
 
-matrixAdd :: (Ord a, Ord b, Num c) => M.LabelledMatrix a b c -> M.LabelledMatrix a b c -> M.LabelledMatrix a b c
-matrixAdd = (fromJust .) . M.add
+matrixAdd :: (Ord a, Ord b, Q.QuasiRegularSemiringValue c) => M.LabelledMatrix a b c -> M.LabelledMatrix a b c -> M.LabelledMatrix a b c
+matrixAdd = (fromJust .) . M.add Q.add
 
-matrixMultiply :: (Eq a, Eq b, Eq c, QuasiRegularSemiringValue d) => M.LabelledMatrix a b d -> M.LabelledMatrix b c d -> M.LabelledMatrix a c d
-matrixMultiply = (fromJust .) . M.multiply zero
+matrixMultiply :: (Eq a, Eq b, Eq c, Q.QuasiRegularSemiringValue d) => M.LabelledMatrix a b d -> M.LabelledMatrix b c d -> M.LabelledMatrix a c d
+matrixMultiply = (fromJust .) . M.multiply Q.zero Q.add Q.multiply
 
 isWellFormed :: (Eq a) => QuasiRegularValuation c a b -> Bool
 isWellFormed (Identity _) = True
