@@ -73,7 +73,7 @@ valuationAdd (Valuation m1 b1) (Valuation m2 b2) = fromJust $ create (matrixAdd 
 valuationAdd _ _ = error "Not implemented error."  -- Not 100% certain on how to handle identity elements, but never called anyway.
 
 -- | Extends a valuation. Unsafe.
-extension :: (Ord a, Q.QuasiRegularSemiringValue c) => QuasiRegularValuation c a b -> S.Set a -> QuasiRegularValuation c a b
+extension :: (Ord a, Q.QuasiRegularSemiringValue c, Show c) => QuasiRegularValuation c a b -> S.Set a -> QuasiRegularValuation c a b
 extension x _ | assertIsWellFormed x = undefined
 extension (Identity _) d = Identity d
 extension (Valuation m b) t = fromJust $ create (fromJust $ M.extension m t t Q.zero) (fromJust $ M.extension b t (S.singleton ()) Q.zero)
@@ -81,7 +81,7 @@ extension (Valuation m b) t = fromJust $ create (fromJust $ M.extension m t t Q.
 matrixQuasiInverse :: (Show a, Ord a, Show c, Q.QuasiRegularSemiringValue c) => M.LabelledMatrix a a c -> M.LabelledMatrix a a c
 matrixQuasiInverse = fromJust . M.quasiInverse
 
-matrixProject :: (Ord a, Ord b) => M.LabelledMatrix a b c -> S.Set a -> S.Set b -> M.LabelledMatrix a b c
+matrixProject :: (Ord a, Ord b, Show c) => M.LabelledMatrix a b c -> S.Set a -> S.Set b -> M.LabelledMatrix a b c
 matrixProject = ((fromJust .) .) . M.project
 
 matrixAdd :: (Ord a, Ord b, Q.QuasiRegularSemiringValue c) => M.LabelledMatrix a b c -> M.LabelledMatrix a b c -> M.LabelledMatrix a b c

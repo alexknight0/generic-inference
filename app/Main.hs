@@ -7,14 +7,14 @@
 
 module Main (main) where
 
-import qualified Algebra.Graph                    as Directed
+import qualified Algebra.Graph                                                as Directed
 import           Algebra.Graph.Undirected
-import           Control.Monad                    (when)
-import           Data.Binary                      (Binary)
-import           Data.Char                        (ord)
-import           Data.List                        (intersperse)
-import qualified Data.Map                         as M
-import           Data.Time                        (getCurrentTime)
+import           Control.Monad                                                (when)
+import           Data.Binary                                                  (Binary)
+import           Data.Char                                                    (ord)
+import           Data.List                                                    (intersperse)
+import qualified Data.Map                                                     as M
+import           Data.Time                                                    (getCurrentTime)
 import           GHC.Generics
 
 -- LocalComputation library files
@@ -28,10 +28,14 @@ import           LocalComputation.ValuationAlgebra.Semiring
 
 
 ---- We will need these someday (probably)
-import           Control.Concurrent               (threadDelay)
+import           Control.Concurrent                                           (threadDelay)
 import           Control.Distributed.Process
 import           Control.Distributed.Process.Node
+import qualified LocalComputation.Instances.ShortestPath.SingleTarget         as ST
+import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue (TropicalSemiringValue (..))
 import           Network.Transport.TCP
+import qualified Tests.ShortestPath.SingleTarget.Data                         as D
+import           Text.Pretty.Simple                                           (pPrint)
 
 -- -- uses not-undirected graph so commented out for now
 showAdjacents :: (Ord a, Show a) => (Directed.Graph a) -> String
@@ -64,6 +68,13 @@ mainProcess :: MainParameters -> Process ()
 mainProcess _ = do
 
     liftIO $ putStrLn "\n\n\n\n\nRunning Program...\n\n"
+    p3Small <- liftIO $ D.p3SmallGraph'
+    results <- liftIO $ runProcessLocal $ ST.singleTarget [fmap T p3Small] [68] 69
+    case results of
+        Left ST.MissingZeroCostSelfLoops -> undefined
+        Right xs                         -> pPrint xs
+
+
     liftIO $ putStrLn "\nFinished.\n"
 
     -- when (printP1JoinTree params) $

@@ -81,8 +81,6 @@ prop_p2 = unitTest $ do
 -- | Tests that the baseline algorithm works for a set problem.
 prop_prebuilt :: Property
 prop_prebuilt = withTests 1 . property $ do
-    annotate ("\n========= RESULTS ==========\n" ++ (unpack $ pShow results))
-    annotate ("\n========= ANSWERS ==========\n" ++ (unpack $ pShow p1Answers))
     checkAnswers approx results p1Answers
 
     where

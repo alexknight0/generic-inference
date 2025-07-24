@@ -14,7 +14,6 @@ import           LocalComputation.ValuationAlgebra.Semiring
 -- Typeclasses
 import           Control.DeepSeq                            (NFData)
 import           Data.Binary                                (Binary)
-import           Debug.Pretty.Simple                        (pTrace)
 import           GHC.Generics                               (Generic)
 
 -- | A Quasi-regular semiring is also known as a 'closed' semiring
@@ -26,7 +25,7 @@ class (SemiringValue a) => QuasiRegularSemiringValue a where
     -- work for path problems? pdf page 257 gen. inf.
 
 -- | A value from the tropical semiring of all real numbers. Detailed page 232 of "Generic Inference" (Pouly & Kohlas, 2012).
-newtype TropicalSemiringValue = T Double deriving (Ord, Num, Binary, Show, NFData, Eq, Generic, Read)
+newtype TropicalSemiringValue = T Double deriving (Ord, Num, Show, NFData, Eq, Generic, Read, Binary)
 
 toDouble :: TropicalSemiringValue -> Double
 toDouble (T x) = x
@@ -42,4 +41,9 @@ instance QuasiRegularSemiringValue TropicalSemiringValue where
         | x >= 0 = 0
         | otherwise = T (read "-Infinity" :: Double)
 
-
+-- instance Binary (TropicalSemiringValue) where
+--     put (T x) = put x
+--
+--     get = do
+--         x <- get
+--         pure (T x)

@@ -33,7 +33,7 @@ import           Type.Reflection                                              (T
 type Knowledgebase a = [Q.QuasiRegularValuation TropicalSemiringValue a ()]
 type Query a = (a, a)
 
-data InvalidGraph = MissingZeroCostSelfLoops deriving (NFData, Generic)
+data InvalidGraph = MissingZeroCostSelfLoops deriving (NFData, Generic, Show)
 
 -- If distance of a location to itself is not recorded, it will be recorded as the 'zero'
 -- element of the tropical semiring (i.e. infinity). However, it still seems to determine

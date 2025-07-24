@@ -172,40 +172,56 @@ isSquare m = m.numRows == m.numCols
 domain :: LabelledMatrix a b c -> (S.Set a, S.Set b)
 domain m = (m.rowLabelSet, m.colLabelSet)
 
-toSquare :: (Ord a) => LabelledMatrix a a c -> c -> LabelledMatrix a a c
+toSquare :: (Ord a, Show c) => LabelledMatrix a a c -> c -> LabelledMatrix a a c
 toSquare x _ | assertIsWellFormed x = undefined
 toSquare m defaultElem = fromJust $ extension m squareLabelSet squareLabelSet defaultElem
     where
         squareLabelSet = S.union m.rowLabelSet m.colLabelSet
 
 -- | Reshapes a matrix, filling empty spots with the given default element.
-reshape :: (Ord a, Ord b) => c -> LabelledMatrix a b c -> S.Set a -> S.Set b -> LabelledMatrix a b c
+reshape :: forall a b c . (Ord a, Ord b, Show c) => c -> LabelledMatrix a b c -> S.Set a -> S.Set b -> LabelledMatrix a b c
 reshape defaultElem m rowLabelSet colLabelSet = Matrix matrix rowLabels colLabels
     where
         rowLabels = enumerate rowLabelSet
         colLabels = enumerate colLabelSet
+        nRows = BM.size rowLabels
+        nCols = BM.size colLabels
 
-        shape = M.Sz (length rowLabelSet :. length colLabelSet)
-        matrix = M.makeArray s shape f
-        f (i :. j)
-            | Just oldI <- oldI', Just oldJ <- oldJ' = (M.!) m.matrix (oldI :. oldJ)
-            | otherwise = defaultElem
+        -- TODO: If this is the problem, then doing whole rows at once would approximately half the problem.
+        matrix :: M.Matrix M.B c
+        matrix
+            | nRows == 0 || nCols == 0 = emptyMatrix
+            | otherwise = M.fromLists' s [getRow i (neededJs [0 .. nCols - 1]) | i <- [0 .. nRows - 1]]
             where
-                iLabel = (BM.!) rowLabels i
-                jLabel = (BM.!) colLabels j
+                emptyMatrix :: M.Matrix M.B c
+                emptyMatrix = M.makeArray s (M.Sz2 nRows nCols) $ \_ -> defaultElem
 
-                oldI' = BM.lookupR iLabel m.rowLabels
-                oldJ' = BM.lookupR jLabel m.colLabels
+                getRow i cache
+                    | Just oldI <- oldI' = [getEntry oldI (cache !! j) | j <- [0 .. nCols - 1]]
+                    | otherwise          = [defaultElem     | j <- [0 .. nCols - 1]]
+                    where
+                        iLabel = (BM.!) rowLabels i
+                        oldI' = BM.lookupR iLabel m.rowLabels
+
+                getEntry oldI oldJ'
+                    | Just oldJ <- oldJ' = (M.!) m.matrix (oldI :. oldJ)
+                    | otherwise          = defaultElem
+
+                neededJs idxs = map oldJ' idxs
+                    where
+                        jLabel j = (BM.!) colLabels j
+                        oldJ' j = BM.lookupR (jLabel j) m.colLabels
 
 -- | Extend a matrix to a larger domain, filling spots with the given default element. Returns Nothing if the domain to extend to is not a superset.
-extension :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> c -> Maybe (LabelledMatrix a b c)
+extension :: (Ord a, Ord b, Show c) => LabelledMatrix a b c -> S.Set a -> S.Set b -> c -> Maybe (LabelledMatrix a b c)
 extension x _ _ _ | assertIsWellFormed x = undefined
 extension m rowLabelSet colLabelSet defaultElem
+    | m.rowLabelSet == rowLabelSet && m.colLabelSet == colLabelSet = Just $ m
     | m.rowLabelSet `S.isSubsetOf` rowLabelSet && m.colLabelSet `S.isSubsetOf` colLabelSet = Just $ reshape defaultElem m rowLabelSet colLabelSet
     | otherwise = Nothing
 
 -- | Project the domain of a matrix down to a new domain. Returns nothing if the given domain is not a subset of the old domain.
-project :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> Maybe (LabelledMatrix a b c)
+project :: (Ord a, Ord b, Show c) => LabelledMatrix a b c -> S.Set a -> S.Set b -> Maybe (LabelledMatrix a b c)
 project m _ _ | assertIsWellFormed m = undefined
 project m rowLabelSet colLabelSet
     | not (S.isSubsetOf rowLabelSet m.rowLabelSet) || not (S.isSubsetOf colLabelSet m.colLabelSet) = Nothing
@@ -376,7 +392,7 @@ Where D is of shape `div numRows 2` x `div numCols 2`.
 
 Returns Nothing if the given matrix is empty.   TODO: it probably doesn't have to return Nothing here.
 -}
-decompose :: (Ord a) => LabelledMatrix a a c -> Maybe (LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c)
+decompose :: (Ord a, Show c) => LabelledMatrix a a c -> Maybe (LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c)
 decompose x | assertIsWellFormed x = undefined
 decompose m
     | m.numRows == 0 && m.numCols == 0 = Nothing
@@ -431,6 +447,21 @@ joinSquare a b c d
 enumerate :: (Ord a) => S.Set a -> BM.Bimap M.Ix1 a
 enumerate xs = (BM.fromAscPairList . assert' checkIsAscPairList) $ zip [M.Ix1 0..] (S.toAscList xs)
 
+{- TODO: Isn't the below wrong? It states:
+    """
+    For example, we can't multiply `x` by `y`
+    if `(BM.!) x.colLabels 0 /= (BM.!) y.rowLabels 0`,
+    even if `x.colLabelSet == y.rowLabelSet`.
+    """
+    .
+    But `(BM.!) x.colLabels 0` multiplied by `(BM.!) y.rowLabels 0`
+    doesn't have to represent the multiplication of two elements with
+    the same label - that multiplication can happen (if it even does)
+    at simply another index, i.e:
+    `(BM.!) x.colLabels 0` multiplied by `(BM.!) y.rowLabels 5`
+    - all that is important is that you read the result correctly.
+-}
+
 {- | Returns true if the matrix satisfies a set of invariants that we wish
 to maintain between operations.
 
@@ -457,11 +488,11 @@ isWellFormed m
     -- Shape of matrix matches number of row and column labels.
     | m.numRows /= BM.size m.rowLabels || m.numCols /= BM.size m.colLabels = False
     -- No labels are mapped to indexes outside the bounds of the matrix
-    | any (\v -> v < 0 || v >= m.numRows) (BM.keys m.rowLabels) = False
-    | any (\v -> v < 0 || v >= m.numCols) (BM.keys m.colLabels) = False
+    | any (\v -> v < 0 || v >= m.numRows) (BM.keys m.rowLabels)            = False
+    | any (\v -> v < 0 || v >= m.numCols) (BM.keys m.colLabels)            = False
     -- Entries in the bimap are strictly increasing in both arguments
-    | BM.toAscList m.rowLabels /= map T.swap (BM.toAscListR m.rowLabels) = False
-    | BM.toAscList m.colLabels /= map T.swap (BM.toAscListR m.colLabels) = False
+    | BM.toAscList m.rowLabels /= map T.swap (BM.toAscListR m.rowLabels)   = False
+    | BM.toAscList m.colLabels /= map T.swap (BM.toAscListR m.colLabels)   = False
     | otherwise = True
 
 assertIsWellFormed :: (Eq a, Eq b) => LabelledMatrix a b c -> Bool
