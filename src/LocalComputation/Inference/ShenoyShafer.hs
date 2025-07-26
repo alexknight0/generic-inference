@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE DeriveAnyClass      #-}
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE MonoLocalBinds      #-}
@@ -14,7 +15,6 @@ module LocalComputation.Inference.ShenoyShafer
     )
 where
 
--- Cloud Haskell
 import           Control.Distributed.Process              hiding (Message)
 import           Control.Distributed.Process.Serializable
 
@@ -22,6 +22,7 @@ import           Algebra.Graph.Undirected                 hiding (neighbours)
 import qualified Algebra.Graph.Undirected                 as G
 import           Control.Monad                            (forM_, replicateM)
 import           Data.Binary                              (Binary)
+import qualified Data.Map.Lazy                            as M
 import           Data.Set                                 (intersection,
                                                            isSubsetOf)
 import qualified Data.Set                                 as S
@@ -29,6 +30,8 @@ import           Type.Reflection                          (Typeable)
 
 -- Typeclasses
 import           GHC.Generics                             (Generic)
+import           GHC.Records                              (HasField, getField)
+
 
 import           Control.Exception                        (assert)
 import           LocalComputation.Inference.JoinTree
@@ -237,3 +240,42 @@ receivePhaseOne neighbours = do
 
     pure (postbox, neighbourWhoDidntSend)
 
+
+data ConfigurationExtensionSet v a b = ConfigurationExtensionSet {
+          t   :: Domain a
+        , phi :: v a b
+        , f   :: VariableArrangement a b -> S.Set (VariableArrangement a b)
+    }
+
+instance (Valuation v, Ord a, Ord b, Show a, Show b) => HasField "s" (ConfigurationExtensionSet v a b) (Domain a) where
+    getField w = label w.phi
+
+-- | Compute all solutions.
+--
+-- Note this function does not require a complete run of the specifically the shenoy shafer architecture,
+-- but rather any multi-query local computation architecture should suffice.
+-- This algorithm is based off page 299 of Marc Pouly's "Generic Inference".
+computeSolutions ::
+       InferredData v a b
+    -> ConfigurationExtensionSet v a b
+computeSolutions = undefined
+
+isValidConfigurationExtensionSet :: (Valuation v, Ord a, Ord b, Show a, Show b)
+    => ConfigurationExtensionSet v a b
+    -> VariableArrangement a b
+    -> Bool
+isValidConfigurationExtensionSet w x
+    -- Fits definition of configuration set from `t` to `s`
+    | not $ S.isSubsetOf w.t w.s = False
+    | not $ all elemOfOmegaSMinusT (w.f x) = False
+
+    where
+        elemOfOmegaSMinusT y = S.isSubsetOf (M.keysSet y) (S.difference w.s w.t)
+
+
+
+-- type ConfigurationExtensionSet v a b =
+--        v a b
+--     -> Domain a
+--     -> VariableArrangement a b
+--     -> S.Set (VariableArrangement a b)

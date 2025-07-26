@@ -35,7 +35,7 @@ import           Data.Maybe                                 (fromJust)
 newtype FourierComplex = FourierComplex (C.Complex Double) deriving newtype (Num, Fractional, Binary, Show, NFData, Eq, Generic)
 
 
--- TODO update doc.
+-- TODO: update doc.
 {- | Variables used in the FastFourierValuation
 
 (X i) and (Y j) are variables indicating the i_th and j_th bits in the binary number representation of x and y respectively.
@@ -48,7 +48,8 @@ type FastFourierValuation = SemiringValuation FourierComplex FastFourierVariable
 instance SemiringValue FourierComplex where
     add = (+)
     multiply = (*)
-    -- Not used. Should probably look into how they would be defined.
+
+    -- TODO: Not used. Should probably look into how they would be defined for consistency.
     zero = error "Not implemented"
     one = error "Not implemented"
 
@@ -104,6 +105,18 @@ query samples qs = case integerLogBase2 (fromIntegral $ length samples) of
 findBinaryValue :: SemiringValuation FourierComplex FastFourierVariable Natural -> Natural -> Natural -> FourierComplex
 findBinaryValue table numDigits x = findValue (toBinaryVariableSet numDigits x Y) table
 
-toBinaryVariableSet :: Natural -> Natural -> (Natural -> FastFourierVariable) -> M.Map FastFourierVariable Natural
+{- | Returns the given number in binary.
+
+>>> toBinaryVariableSet 3 6 id
+fromList [(0,0),(1,1),(2,1)]
+                       ^ ^
+                       | |_ a 1 is present...
+                       |___ ... in binary position 2
+
+
+>>> toBinaryVariableSet 3 6 X
+fromList [(X 0,0),(X 1,1),(X 2,1)]
+-}
+toBinaryVariableSet :: (Ord a) => Natural -> Natural -> (Natural -> a) -> M.Map a Natural
 toBinaryVariableSet numDigits x f = fromListAssertDisjoint $ zipWith (\i y -> (f i, fromIntegral $ fromEnum y)) [0..] (reverse $ toBinaryLeadingZeroes numDigits x)
 

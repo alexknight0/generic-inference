@@ -9,8 +9,6 @@ module LocalComputation.ValuationAlgebra.Semiring
     , normalize
     , getRows
     , Valuation
-    , VariableArrangement
-    , Variable
     , findValue
     , mapTableKeys
     )
@@ -26,6 +24,7 @@ import qualified Data.Set                                        as S
 import           GHC.Generics
 import           LocalComputation.ValuationAlgebra.SemiringValue
 
+-- TODO: Migrate to record.
 {- | Valuation for a semiring valuation algebra.
 
 This can be thought of as a table, with each entry as a row.
@@ -84,9 +83,6 @@ Note that a restriction of this form is that the type of the value of each
 variable in a variable arrangement is the same.
 -}
 data SemiringValuation c a b = Valuation (M.Map (VariableArrangement a b) c) (Domain a) (M.Map a (Domain b)) (Domain a) | Identity (Domain a) deriving (Generic, Binary)
-
-type Variable a b = (a, b)
-type VariableArrangement a b = M.Map a b
 
 -- | Returns 'False' if the data structure does not satisfy it's given description.
 isWellFormed :: forall a b c. (Ord a, Eq b) => SemiringValuation c a b -> Bool
@@ -185,7 +181,7 @@ getRows vars ps = assert' isWellFormed $ Valuation rMap d valueDomains extension
         vPermutations :: [(b, [c])] -> [VariableArrangement b c]
         vPermutations xs = map fromListAssertDisjoint $ vPermutations' xs
             where
-                vPermutations' :: [(b, [c])] -> [[Variable b c]]
+                vPermutations' :: [(b, [c])] -> [[(b, c)]]
                 vPermutations' [] = [[]]
                 vPermutations' ((v, vVals) : vs) = [(v, vVal) : rest | vVal <- vVals, rest <- vPermutations' vs]
 
