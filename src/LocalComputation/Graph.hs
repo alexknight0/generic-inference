@@ -15,21 +15,23 @@ module LocalComputation.Graph
     , nodeList
     , addSelfLoops
     , hasZeroCostSelfLoops
+    , nonSymmetricEdges
     )
 where
 
 import           Control.Monad (guard)
+import qualified Data.List     as L
 import qualified Data.Map      as M
 import           Data.Maybe    (isJust)
 import qualified Data.Set      as S
 
-newtype Graph a b = Graph (M.Map a [(a, b)])
+newtype Graph a b = Graph (M.Map a [(a, b)]) deriving Show
 data Edge a b =
     Edge {
           arcHead :: a
         , arcTail :: a
         , weight  :: b
-     }
+     } deriving Show
 
 instance Functor (Graph a) where
     fmap f (Graph g) = Graph $ M.map (map (fmap f)) g
@@ -85,4 +87,18 @@ hasZeroCostSelfLoops (Graph g) = all p (nodeList $ Graph g)
             | Just arcTails <- M.lookup arcHead g, (arcHead, 0) `elem` arcTails = True
             | otherwise = False
 
+-- | Returns a list of all the edges in a that don't have an opposite edge of the same cost.
+-- This function is not as performant as it could be.
+nonSymmetricEdges :: forall a b . (Eq a, Eq b) => Graph a b -> [Edge a b]
+nonSymmetricEdges g = filter f edges
+    where
+        f :: Edge a b -> Bool
+        f e1
+            | (Just _) <- L.find (\e2 -> isOppositeEdge e1 e2 && e1.weight == e2.weight) edges = False
+            | otherwise = True
+
+        edges = toList g
+
+isOppositeEdge :: (Eq a) => Edge a b -> Edge a b -> Bool
+isOppositeEdge e1 e2 = e1.arcTail == e2.arcHead && e1.arcHead == e2.arcTail
 

@@ -11,12 +11,14 @@ import           LocalComputation.LocalProcess                        (runProces
 import           LocalComputation.ValuationAlgebra.QuasiRegular       (TropicalSemiringValue (T))
 
 -- TODO: don't want a dependency of benchmark on test.
+import           LocalComputation.Graph                               (nonSymmetricEdges)
 import qualified Tests.ShortestPath.SingleTarget.Data                 as D
 import           Text.Pretty.Simple                                   (pPrint)
 
 benchmarks :: IO ()
 benchmarks = do
     p3Small <- D.p3SmallGraph'
+    pPrint $ nonSymmetricEdges p3Small
     results <- runProcessLocal $ ST.singleTarget [fmap T p3Small] [68] 69
     pPrint results
 
