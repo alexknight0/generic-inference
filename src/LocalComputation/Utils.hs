@@ -34,6 +34,7 @@ module LocalComputation.Utils
     , lookupDefault
     , lookupDefaultR
     , fromList''
+    , formatTimeNicely
     )
 where
 
@@ -45,6 +46,8 @@ import           Data.Map                      (Map, adjust, elems, insert,
 import qualified Data.Map                      as M
 import           Data.Set                      (Set)
 import qualified Data.Set                      as S
+import           Data.Time                     (UTCTime, utctDayTime)
+import           Text.Printf                   (printf)
 
 import           Data.Functor                  (void)
 import           Hedgehog                      (Property, PropertyT, diff,
@@ -201,3 +204,15 @@ fromList'' = foldr f (Just M.empty)
         f (k, v) (Just acc)
             | M.member k acc = Nothing
             | otherwise = Just $ M.insert k v acc
+
+
+formatTimeNicely :: UTCTime -> String
+formatTimeNicely time = printf "[%02d:%02d:%02d]" hours minutes seconds
+
+    where
+        secondsPastMidnight :: Integer
+        secondsPastMidnight = floor $ utctDayTime time
+
+        seconds = secondsPastMidnight `mod` 60
+        minutes = secondsPastMidnight `div` 60 `mod` 60
+        hours = secondsPastMidnight `div` 60 `div` 60 `mod` 60
