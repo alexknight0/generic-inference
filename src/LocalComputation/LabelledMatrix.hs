@@ -53,9 +53,6 @@ import           GHC.Records                                                  (H
 import           Data.Massiv.Array                                            (Ix2 ((:.)))
 import qualified Data.Massiv.Array                                            as M
 import qualified Data.Tuple.Extra                                             as T
-import           Debug.Pretty.Simple                                          (pTrace,
-                                                                               pTraceShow,
-                                                                               pTraceShowId)
 import           Debug.Trace                                                  (trace)
 
 
@@ -172,14 +169,14 @@ isSquare m = m.numRows == m.numCols
 domain :: LabelledMatrix a b c -> (S.Set a, S.Set b)
 domain m = (m.rowLabelSet, m.colLabelSet)
 
-toSquare :: (Ord a, Show c) => LabelledMatrix a a c -> c -> LabelledMatrix a a c
+toSquare :: (Ord a) => LabelledMatrix a a c -> c -> LabelledMatrix a a c
 toSquare x _ | assertIsWellFormed x = undefined
 toSquare m defaultElem = fromJust $ extension m squareLabelSet squareLabelSet defaultElem
     where
         squareLabelSet = S.union m.rowLabelSet m.colLabelSet
 
 -- | Reshapes a matrix, filling empty spots with the given default element.
-reshape :: forall a b c . (Ord a, Ord b, Show c) => c -> LabelledMatrix a b c -> S.Set a -> S.Set b -> LabelledMatrix a b c
+reshape :: forall a b c . (Ord a, Ord b) => c -> LabelledMatrix a b c -> S.Set a -> S.Set b -> LabelledMatrix a b c
 reshape defaultElem m rowLabelSet colLabelSet = Matrix matrix rowLabels colLabels
     where
         rowLabels = enumerate rowLabelSet
@@ -187,7 +184,7 @@ reshape defaultElem m rowLabelSet colLabelSet = Matrix matrix rowLabels colLabel
         nRows = BM.size rowLabels
         nCols = BM.size colLabels
 
-        -- TODO: If this is the problem, then doing whole rows at once would approximately half the problem.
+        -- TODO: Clean up code
         matrix :: M.Matrix M.B c
         matrix
             | nRows == 0 || nCols == 0 = emptyMatrix
@@ -198,7 +195,7 @@ reshape defaultElem m rowLabelSet colLabelSet = Matrix matrix rowLabels colLabel
 
                 getRow i cache
                     | Just oldI <- oldI' = [getEntry oldI (cache !! j) | j <- [0 .. nCols - 1]]
-                    | otherwise          = [defaultElem     | j <- [0 .. nCols - 1]]
+                    | otherwise          = [defaultElem                | _ <- [0 .. nCols - 1]]
                     where
                         iLabel = (BM.!) rowLabels i
                         oldI' = BM.lookupR iLabel m.rowLabels
@@ -213,7 +210,7 @@ reshape defaultElem m rowLabelSet colLabelSet = Matrix matrix rowLabels colLabel
                         oldJ' j = BM.lookupR (jLabel j) m.colLabels
 
 -- | Extend a matrix to a larger domain, filling spots with the given default element. Returns Nothing if the domain to extend to is not a superset.
-extension :: (Ord a, Ord b, Show c) => LabelledMatrix a b c -> S.Set a -> S.Set b -> c -> Maybe (LabelledMatrix a b c)
+extension :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> c -> Maybe (LabelledMatrix a b c)
 extension x _ _ _ | assertIsWellFormed x = undefined
 extension m rowLabelSet colLabelSet defaultElem
     | m.rowLabelSet == rowLabelSet && m.colLabelSet == colLabelSet = Just $ m
@@ -221,7 +218,7 @@ extension m rowLabelSet colLabelSet defaultElem
     | otherwise = Nothing
 
 -- | Project the domain of a matrix down to a new domain. Returns nothing if the given domain is not a subset of the old domain.
-project :: (Ord a, Ord b, Show c) => LabelledMatrix a b c -> S.Set a -> S.Set b -> Maybe (LabelledMatrix a b c)
+project :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> Maybe (LabelledMatrix a b c)
 project m _ _ | assertIsWellFormed m = undefined
 project m rowLabelSet colLabelSet
     | not (S.isSubsetOf rowLabelSet m.rowLabelSet) || not (S.isSubsetOf colLabelSet m.colLabelSet) = Nothing
@@ -286,55 +283,6 @@ multiply zero addElems multiplyElems m1 m2
                 row = (M.!>) m1.matrix i
                 col = (M.<!) m2.matrix j
 
-foobar :: ()
-foobar = undefined
-{-
-
->>> import Data.Massiv.Array
->>> a1 = makeArrayR B Seq (Sz2 2 2) $ \(i :. j) -> (i, j)
->>> a1
->>> a1 <! 1
-Array B Seq (Sz (2 :. 2))
-  [ [ (0,0), (0,1) ]
-  , [ (1,0), (1,1) ]
-  ]
-Array D Seq (Sz1 2)
-  [ (0,1), (1,1) ]
-
--}
-
-{-
-
->>> import Data.Massiv.Array
->>> import LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
->>> a1 = makeArrayR B Seq (Sz2 2 2) $ \(i :. j) -> if i == j then (T 0) else (T $ Prelude.read "Infinity" :: TropicalSemiringValue)
->>> a2 = makeArrayR B Seq (Sz2 2 2) $ \(i :. j) -> if i == j then (T 0) else (T $ Prelude.read "Infinity" :: TropicalSemiringValue)
->>> a1 !><! a2
-Array B Seq (Sz (2 :. 2))
-  [ [ T 0.0, T 0.0 ]
-  , [ T 0.0, T 0.0 ]
-  ]
-
--}
-
-{- | Empty matrix behaviour
-
-
->>> emptyMat = M.makeArray M.Seq (M.Sz2 5 0) $ \(i M.:. j) -> error "unreachable"
->>> otherMat = M.makeArray M.Seq (M.Sz2 0 4) $ \(i M.:. j) -> i + j
->>> M.multiplyMatrices emptyMat otherMat
-
--}
-
-{-
-
->>> exampleMat :: M.Array M.U M.Ix2 Int; exampleMat = M.makeArray M.Seq (M.Sz2 5 4) $ \(i M.:. j) -> i + j
->>> M.Sz (x M.:. y) = M.size (exampleMat)
->>> :t x
-x :: Int
-
--}
-
 multiplys :: (Eq a, Functor t, Foldable t)
     => c
     -> (c -> c -> c)
@@ -392,7 +340,7 @@ Where D is of shape `div numRows 2` x `div numCols 2`.
 
 Returns Nothing if the given matrix is empty.   TODO: it probably doesn't have to return Nothing here.
 -}
-decompose :: (Ord a, Show c) => LabelledMatrix a a c -> Maybe (LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c)
+decompose :: (Ord a) => LabelledMatrix a a c -> Maybe (LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c)
 decompose x | assertIsWellFormed x = undefined
 decompose m
     | m.numRows == 0 && m.numCols == 0 = Nothing
@@ -447,41 +395,11 @@ joinSquare a b c d
 enumerate :: (Ord a) => S.Set a -> BM.Bimap M.Ix1 a
 enumerate xs = (BM.fromAscPairList . assert' checkIsAscPairList) $ zip [M.Ix1 0..] (S.toAscList xs)
 
-{- TODO: Isn't the below wrong? It states:
-    """
-    For example, we can't multiply `x` by `y`
-    if `(BM.!) x.colLabels 0 /= (BM.!) y.rowLabels 0`,
-    even if `x.colLabelSet == y.rowLabelSet`.
-    """
-    .
-    But `(BM.!) x.colLabels 0` multiplied by `(BM.!) y.rowLabels 0`
-    doesn't have to represent the multiplication of two elements with
-    the same label - that multiplication can happen (if it even does)
-    at simply another index, i.e:
-    `(BM.!) x.colLabels 0` multiplied by `(BM.!) y.rowLabels 5`
-    - all that is important is that you read the result correctly.
--}
-
 {- | Returns true if the matrix satisfies a set of invariants that we wish
 to maintain between operations.
 
-A notable invariant that is not strictly necessary is that each mapping of
-labels to indices must satisfy the rule that if `label i` < `label j` then
-`index i` < `index j`. The reason for this invariant is that the underlying
-matrix's addition and multiplication functions will pair elements up for
-addition or multiplication based on their index - so a necessary precondition
-of these methods is already that the exact same mapping of indices exist
-in both LabelledMatricies. For example, we can't multiply `x` by `y` if
-`(BM.!) x.colLabels 0 /= (BM.!) y.rowLabels 0`, even if
-`x.colLabelSet == y.rowLabelSet`. If we don't include this invariant,
-we have to check this on entry to addition or multiplication anyway,
-and I feel the data structure is harder to use - the developer using this
-data structure should probably not have to worry about this; details like
-this should be kept internal. In short - if you have the correct domain
-you should be ok. The developer shouldn't have to worry about the order too.
-Technically you could have checks to make the matrices match order in
-multiplication and addition for the best of both worlds - this could be
-persued if necessary.
+Entires in bimap strictly increasing in both arguments is unnecessary and should
+likely be removed.
 -}
 isWellFormed :: (Eq a, Eq b) => LabelledMatrix a b c -> Bool
 isWellFormed m
@@ -504,8 +422,4 @@ assertAllWellFormed = any (\x -> assert (isWellFormed x) False)
 checkIsAscPairList :: (Ord a, Ord b) => [(a, b)] -> Bool
 checkIsAscPairList []            = True
 checkIsAscPairList ((x, y) : zs) = all (\(x', y') -> x < x' && y < y') zs
-
-assertIsAscPairList xs
-    | checkIsAscPairList xs = xs
-    | otherwise = pTraceShow xs (assert False xs)
 

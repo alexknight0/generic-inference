@@ -55,7 +55,6 @@ import           Hedgehog                      (Property, PropertyT, diff,
 import qualified Text.ParserCombinators.Parsec as P
 
 import           Control.Exception             (assert)
-import           Debug.Pretty.Simple           (pTraceShow)
 import           GHC.Stack                     (HasCallStack)
 import           Numeric.Natural
 import           System.IO                     (IOMode (ReadMode),
@@ -200,7 +199,7 @@ lookupDefaultR x defaultElem m
 fromList'' :: (Ord a) => [(a, b)] -> Maybe (M.Map a b)
 fromList'' = foldr f (Just M.empty)
     where
-        f (k, v) Nothing = Nothing
+        f (_, _) Nothing = Nothing
         f (k, v) (Just acc)
             | M.member k acc = Nothing
             | otherwise = Just $ M.insert k v acc

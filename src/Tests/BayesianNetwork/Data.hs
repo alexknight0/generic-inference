@@ -28,16 +28,14 @@ import           Data.Binary                                (Binary)
 import qualified Data.Hashable                              as H
 import           GHC.Generics                               (Generic)
 
-
 dataDirectory :: String
-dataDirectory = "data/"
+dataDirectory = "src/Benchmark/Data/BayesianNetwork/"
 
 asiaFilepath :: String
 asiaFilepath = dataDirectory ++ "asia.net"
 
 andesFilepath :: String
 andesFilepath = dataDirectory ++ "andes.net"
-
 
 -- | Variables (AKA nodes) of the asia example. XRayResultAndDyspnea appears only in P3.
 -- If order is updated, also update minAsiaP1 and maxAsiaP1 to define the range of values

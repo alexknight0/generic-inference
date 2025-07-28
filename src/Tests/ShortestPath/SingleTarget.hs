@@ -26,9 +26,7 @@ import qualified Text.Parsec                                                  as
 -- Typeclasses
 import           Data.Binary                                                  (Binary)
 import qualified Data.Hashable                                                as H
-import           Data.Text.Lazy                                               (unpack)
 import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue (toDouble)
-import           Text.Pretty.Simple                                           (pShow)
 import           Type.Reflection                                              (Typeable)
 
 tests :: IO Bool

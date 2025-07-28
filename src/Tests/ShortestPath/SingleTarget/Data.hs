@@ -16,12 +16,11 @@ module Tests.ShortestPath.SingleTarget.Data (
     , p3VeryLargeGraph
 ) where
 
-import qualified LocalComputation.Graph                                       as G
-import qualified LocalComputation.Instances.ShortestPath.Parser               as P
-import           LocalComputation.Utils                                       (parseFile)
-import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
-import           Numeric.Natural                                              (Natural)
-import qualified Text.Parsec                                                  as P (ParseError)
+import qualified LocalComputation.Graph                         as G
+import qualified LocalComputation.Instances.ShortestPath.Parser as P
+import           LocalComputation.Utils                         (parseFile)
+import           Numeric.Natural                                (Natural)
+import qualified Text.Parsec                                    as P (ParseError)
 
 data Query a = Query { sources :: [a], target :: a } deriving Show
 

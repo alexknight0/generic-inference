@@ -16,7 +16,6 @@ import qualified Hedgehog.Range                                  as Range
 
 import           Control.Distributed.Process                     (liftIO)
 
-import qualified Data.Array.IArray                               as I
 import           Data.Complex                                    (Complex ((:+)),
                                                                   imagPart,
                                                                   realPart)
@@ -57,5 +56,5 @@ prop_matchesHackagePackage = withTests 100 . property $ do
 
     case results of
         Nothing -> failure
-        Just xs -> checkAnswers approximateEquals xs (map (FourierComplex) $ I.elems answers)
+        Just xs -> checkAnswers approximateEquals xs (map FourierComplex answers)
 

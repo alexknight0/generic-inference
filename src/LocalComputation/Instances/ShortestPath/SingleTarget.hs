@@ -83,10 +83,3 @@ singleTarget vs sources target
             k = knowledgeBase vs target
             domains = map (\s -> S.fromList [s, target]) sources
 
-foobar :: ()
-foobar = undefined
-{-
-
->>>
-
--}
