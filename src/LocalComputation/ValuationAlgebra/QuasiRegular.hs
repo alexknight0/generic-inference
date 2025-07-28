@@ -23,6 +23,7 @@ import           Control.DeepSeq                                              (N
 import           Data.Binary                                                  (Binary)
 import           GHC.Generics                                                 (Generic)
 
+-- TODO: Migrate to record syntax.
 data QuasiRegularValuation c a b = Valuation (M.LabelledMatrix a a c) (M.LabelledMatrix a () c) | Identity (Domain a) deriving (Binary, NFData, Ord, Eq, Generic, Show)
 
 create :: (Eq a) => M.LabelledMatrix a a c -> M.LabelledMatrix a () c -> Maybe (QuasiRegularValuation c a b)
