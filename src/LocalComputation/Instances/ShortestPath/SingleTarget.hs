@@ -5,6 +5,7 @@
 module LocalComputation.Instances.ShortestPath.SingleTarget
     (
       singleTarget
+    , singleTarget'
     , InvalidGraph (MissingZeroCostSelfLoops)
     )
 where
@@ -25,9 +26,12 @@ import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
 import           Control.DeepSeq                                              (NFData)
 import           Data.Binary                                                  (Binary)
 import qualified Data.Hashable                                                as H
+import           Debug.Pretty.Simple                                          (pTraceShow)
 import           GHC.Generics                                                 (Generic)
 import           LocalComputation.Graph                                       as G
+import           LocalComputation.Inference.Fusion                            (fusion)
 import           LocalComputation.Utils                                       (fromRight)
+import           LocalComputation.ValuationAlgebra.QuasiRegular               (solution)
 import           Type.Reflection                                              (Typeable)
 
 type Knowledgebase a = [Q.QuasiRegularValuation TropicalSemiringValue a ()]
@@ -63,6 +67,7 @@ knowledgeBase gs target = map f gs
 getDistance :: (Show a, Ord a) => Q.QuasiRegularValuation TropicalSemiringValue a () -> Query a -> TropicalSemiringValue
 getDistance x (source, _) = fromJust $ M.find (source, ()) (Q.solution x)
 
+-- TODO: Ensure caches result of 'solution'
 -- TODO: Can this handle negative weights?
 {- | Returns the shortest distance between a single target and multiple sources.
 
@@ -82,4 +87,15 @@ singleTarget vs sources target
         where
             k = knowledgeBase vs target
             domains = map (\s -> S.fromList [s, target]) sources
+
+singleTarget' :: (H.Hashable a, Ord a, Show a) => [Graph a TropicalSemiringValue] -> a -> a -> Either InvalidGraph TropicalSemiringValue
+singleTarget' vs source target
+    | any (not . G.hasZeroCostSelfLoops) vs = Left MissingZeroCostSelfLoops
+    | otherwise = Right $ getDistance result (source, target)
+
+    where
+        k = knowledgeBase vs target
+        domain = S.fromList [source, target]
+
+        result = fromRight $ fusion k domain
 

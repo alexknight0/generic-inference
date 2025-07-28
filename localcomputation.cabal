@@ -33,6 +33,7 @@ library
       LocalComputation.Graph
       LocalComputation.Inference.Collect
       LocalComputation.Inference.EliminationSequence
+      LocalComputation.Inference.Fusion
       LocalComputation.Inference.JoinTree
       LocalComputation.Inference.ShenoyShafer
       LocalComputation.Instances.BayesianNetwork

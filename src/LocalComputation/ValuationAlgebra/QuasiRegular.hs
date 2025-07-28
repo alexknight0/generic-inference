@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric  #-}
 
@@ -12,6 +13,7 @@ module LocalComputation.ValuationAlgebra.QuasiRegular
 where
 
 import           Control.Exception                                            (assert)
+import qualified Data.Map.Lazy                                                as Map
 import           Data.Maybe                                                   (fromJust)
 import qualified Data.Set                                                     as S
 import qualified LocalComputation.LabelledMatrix                              as M
@@ -24,6 +26,9 @@ import           Data.Binary                                                  (B
 import           GHC.Generics                                                 (Generic)
 
 -- TODO: Migrate to record syntax.
+import           GHC.Records                                                  (HasField,
+                                                                               getField)
+
 data QuasiRegularValuation c a b = Valuation (M.LabelledMatrix a a c) (M.LabelledMatrix a () c) | Identity (Domain a) deriving (Binary, NFData, Ord, Eq, Generic, Show)
 
 create :: (Eq a) => M.LabelledMatrix a a c -> M.LabelledMatrix a () c -> Maybe (QuasiRegularValuation c a b)
@@ -62,6 +67,19 @@ instance (Show c, Q.QuasiRegularSemiringValue c) => Valuation (QuasiRegularValua
 
     identity d = Identity d
 
+    eliminate x _ | assertIsWellFormed x = undefined
+    eliminate   (Identity d)    x = Identity (S.difference d x)
+    eliminate v@(Valuation m b) x = Valuation (matrixProject m newD newD) (matrixProject b newD (S.singleton ()))
+        where
+            newD = S.difference (label v) x
+
+
+    -- TODO: Can't define this as need to provide a 'b' and we don't have access to a 'b'.
+    -- Edit: Well we could define a 'maybe b' in the declaration... or a 'Left set | Right map'?
+
+    -- frame x = S.singleton $ Map.fromList $ [(x, ()) | x <- S.toList $ label x]
+
+
 -- | Returns a product useful for the solution of fixpoint systems. Detailed page 367 of "Generic Inference" (Pouly & Kohlas, 2012)
 solution :: (Show a, Ord a, Show c, Q.QuasiRegularSemiringValue c) => QuasiRegularValuation c a b -> M.LabelledMatrix a () c
 solution (Identity _)    = error "'solution' called on identity valuation."
@@ -79,6 +97,10 @@ extension x _ | assertIsWellFormed x = undefined
 extension (Identity _) d = Identity d
 extension (Valuation m b) t = fromJust $ create (fromJust $ M.extension m t t Q.zero) (fromJust $ M.extension b t (S.singleton ()) Q.zero)
 
+------------------------------------------------------------------------------
+-- Unsafe & quasiregular variants of matrix operations.                     --
+------------------------------------------------------------------------------
+
 matrixQuasiInverse :: (Show a, Ord a, Show c, Q.QuasiRegularSemiringValue c) => M.LabelledMatrix a a c -> M.LabelledMatrix a a c
 matrixQuasiInverse = fromJust . M.quasiInverse
 
@@ -90,6 +112,10 @@ matrixAdd = (fromJust .) . M.add Q.add
 
 matrixMultiply :: (Eq a, Eq b, Eq c, Q.QuasiRegularSemiringValue d) => M.LabelledMatrix a b d -> M.LabelledMatrix b c d -> M.LabelledMatrix a c d
 matrixMultiply = (fromJust .) . M.multiply Q.zero Q.add Q.multiply
+
+------------------------------------------------------------------------------
+-- Asserts                                                                  --
+------------------------------------------------------------------------------
 
 isWellFormed :: (Eq a) => QuasiRegularValuation c a b -> Bool
 isWellFormed (Identity _) = True

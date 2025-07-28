@@ -82,7 +82,9 @@ extension        :: Domain a
 Note that a restriction of this form is that the type of the value of each
 variable in a variable arrangement is the same.
 -}
-data SemiringValuation c a b = Valuation (M.Map (VariableArrangement a b) c) (Domain a) (M.Map a (Domain b)) (Domain a) | Identity (Domain a) deriving (Generic, Binary)
+data SemiringValuation c a b = Valuation (M.Map (VariableArrangement a b) c) (Domain a) (M.Map a (Domain b)) (Domain a)
+                             | Identity (Domain a)
+                             deriving (Generic, Binary)
 
 -- | Returns 'False' if the data structure does not satisfy it's given description.
 isWellFormed :: forall a b c. (Ord a, Eq b) => SemiringValuation c a b -> Bool
@@ -114,7 +116,7 @@ create x y z w
 
 instance (Show c, SemiringValue c) => Valuation (SemiringValuation c) where
     label x | assertIsWellFormed x = undefined
-    label (Identity d)                       = d
+    label (Identity d) = d
     label (Valuation _ d _ e) = S.union d e
 
     combine x y | assertAllWellFormed [x, y] = undefined
@@ -144,6 +146,12 @@ instance (Show c, SemiringValue c) => Valuation (SemiringValuation c) where
             projectDomain' = S.filter (\k -> k `elem` newD)
 
     identity = Identity
+
+    -- TODO: Implement (although is not actually currently used)
+    eliminate = error "Not implemented."
+
+    -- frame x | assertIsWellFormed x = undefined
+    -- frame _ = error "Not implemented."
 
 instance (Show a, Show b, Show c) => Show (SemiringValuation a b c) where
     show (Valuation rowMap _ _ _) = "\n------ SemiringValuation ------\n"

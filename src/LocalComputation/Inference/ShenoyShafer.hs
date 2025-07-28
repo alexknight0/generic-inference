@@ -1,4 +1,3 @@
-{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE DeriveAnyClass      #-}
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE MonoLocalBinds      #-}
@@ -56,6 +55,10 @@ instance Ord (ShenoyShaferNode v a b) where
 -- TODO: Could put implementation inside the Node typeclass and then just call it from in here
 instance (Show (v a b), Show a) => Show (ShenoyShaferNode v a b) where
     show (ShenoyShaferNode i d _) = show (i, d)
+
+-- data Marginal n v a b = Marginal {
+--
+-- }
 
 type InferredData v a b = [(Domain a, v a b)]
 
@@ -158,8 +161,13 @@ data Message a = Message {
         , msg    :: a
     } deriving (Generic, Binary)
 
--- TODO : rename 'node' to 'this' and both 'messages' constants to 'postbox'
-initializeNode :: forall v a b. (Show a, Show b, Binary (v a b), Binary a, Typeable v, Typeable b, Typeable (v a b), Typeable a, Valuation v, Ord a, Ord b)
+initializeNode :: forall v a b. (
+      Show a, Show b
+    , Binary (v a b), Binary a
+    , Typeable v, Typeable a, Typeable b, Typeable (v a b)
+    , Valuation v
+    , Ord a, Ord b
+    )
     => SendPort (Domain a, v a b)
     -> Process ProcessId
 initializeNode resultPort = spawnLocal $ do
@@ -237,6 +245,28 @@ receivePhaseOne neighbours = do
     pure (postbox, neighbourWhoDidntSend)
 
 
+------------------------------------------------------------------------------
+-- Solution Construction                                                    --
+------------------------------------------------------------------------------
+
+configSet :: (Valuation v, Show a, Show b, Ord a, Ord b)
+    => v a b
+    -> Domain a
+    -> VariableArrangement a b
+    -> Maybe (S.Set (VariableArrangement a b))
+configSet phi t x
+    | not $ S.isSubsetOf t (label phi) = Nothing
+    | otherwise = undefined
+
+
+
+-- type SolutionSet v a b = ConfigurationExtensionSet v a b
+--
+-- -- | The configuration extension set.
+-- --
+-- -- This is detailed in page 294 of Marc Pouly's "Generic Inference". In short, this is an intermediate
+-- -- product in a larger computation and is related to the set of variables that have not yet been assigned
+-- -- values.
 -- data ConfigurationExtensionSet v a b = ConfigurationExtensionSet {
 --           t   :: Domain a
 --         , phi :: v a b
@@ -269,3 +299,30 @@ receivePhaseOne neighbours = do
 --         elemOfOmegaSMinusT y = S.isSubsetOf (M.keysSet y) (S.difference w.s w.t)
 --
 
+--
+-- instance (Valuation v, Ord a, Ord b, Show a, Show b) => HasField "s" (ConfigurationExtensionSet v a b) (Domain a) where
+--     getField w = label w.phi
+--
+-- -- TODO: Add the final property
+-- isValidConfigurationExtensionSet :: (Valuation v, Ord a, Ord b, Show a, Show b)
+--     => ConfigurationExtensionSet v a b
+--     -> VariableArrangement a b
+--     -> Bool
+-- isValidConfigurationExtensionSet w x
+--     -- Fits definition of configuration set from `t` to `s`
+--     | not $ S.isSubsetOf w.t w.s = False
+--     | not $ all elemOfOmegaSMinusT (w.f x) = False
+--     | otherwise = True
+--
+--     where
+--         elemOfOmegaSMinusT y = S.isSubsetOf (Map.keysSet y) (S.difference w.s w.t)
+--
+-- | Compute all solutions.
+--
+-- Note this function does not require a complete run of the specifically the shenoy shafer architecture,
+-- but rather any multi-query local computation architecture should suffice.
+-- This algorithm is based off page 299 of Marc Pouly's "Generic Inference".
+-- computeSolutions ::
+--        [(Domain a, v a b)]
+--     -> ConfigurationExtensionSet v a b
+-- computeSolutions = undefined

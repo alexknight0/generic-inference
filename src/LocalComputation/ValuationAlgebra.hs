@@ -6,7 +6,7 @@
 {-# LANGUAGE FunctionalDependencies #-}
 
 module LocalComputation.ValuationAlgebra
-    ( Valuation (label, combine, project, identity)
+    ( Valuation (label, combine, project, identity, eliminate)
     , Domain
     , combines1
     , VariableArrangement
@@ -22,10 +22,13 @@ type VariableArrangement a b = M.Map a b
 
 
 class Valuation v where
-    label   :: (Show a, Show b, Ord a, Ord b) => v a b -> Domain a
-    combine :: (Show a, Show b, Ord a, Ord b) => v a b -> v a b -> v a b
-    project :: (Show a, Show b, Ord a, Ord b) => v a b -> Domain a -> v a b
-    identity :: Domain a -> v a b
+    label     :: (Show a, Show b, Ord a, Ord b) => v a b    -> Domain a
+    combine   :: (Show a, Show b, Ord a, Ord b) => v a b    -> v a b    -> v a b
+    project   :: (Show a, Show b, Ord a, Ord b) => v a b    -> Domain a -> v a b
+    eliminate :: (Show a, Show b, Ord a, Ord b) => v a b    -> Domain a -> v a b
+    identity  ::                                   Domain a -> v a b
+    -- frame  :: (Ord a, Eq b, Show a) => v a b -> Set (VariableArrangement a b)
+
 
 combines1 :: (Show a, Show b, Foldable f, Valuation v, Ord a, Ord b) => f (v a b) -> v a b
 combines1 = foldr1 combine

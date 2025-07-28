@@ -40,7 +40,8 @@ p3MatchesPrebuilt = do
     p3VerySmall <- P.fromValid p3VerySmallGraph
     --p3Small <- P.fromValid p3SmallGraph
     checkSequential $ Group "Tests.ShortestPath.SingleTarget" [
-          ("prop_p3VerySmallMatchesPrebuilt", matchesPrebuilt p3VerySmall 10)
+            ("prop_p3VerySmallMatchesPrebuilt", matchesPrebuilt p3VerySmall 10)
+          , ("prop_p3VerySmallMatchesPrebuiltFusion", matchesPrebuiltFusion p3VerySmall 10)
         --, ("prop_p3SmallMatchesPrebuilt", matchesPrebuilt p3Small 1)
        ]
 
@@ -70,11 +71,21 @@ prop_p1 = unitTest $ do
     results <- fmap fromRight $ liftIO $ runProcessLocal $ ST.singleTarget [p1Graph] p1Queries.sources p1Queries.target
     checkAnswers approx (map toDouble results) p1Answers
 
+prop_p1fusion :: Property
+prop_p1fusion = unitTest $ do
+    let result = fromRight $ ST.singleTarget' [p1Graph] (head p1Queries.sources) p1Queries.target
+    checkAnswers approx [toDouble result] [(head p1Answers)]
+
 -- | Tests that the localcomputation algorithm works for a set problem, where multiple graphs are given.
 prop_p2 :: Property
 prop_p2 = unitTest $ do
     results <- fmap fromRight $ liftIO $ runProcessLocal $ ST.singleTarget p2Graph p2Queries.sources p2Queries.target
     checkAnswers approx (map toDouble results) p1Answers
+
+prop_p2fusion :: Property
+prop_p2fusion = unitTest $ do
+    let result = fromRight $ ST.singleTarget' p2Graph (head p2Queries.sources) p2Queries.target
+    checkAnswers approx [toDouble result] [(head p2Answers)]
 
 -- | Tests that the baseline algorithm works for a set problem.
 prop_prebuilt :: Property
@@ -105,6 +116,18 @@ matchesPrebuilt g numTests = withTests numTests . property $ do
     let prebuiltResults =                                            H.singleTarget g query.sources query.target (read "Infinity")
 
     checkAnswers approx (map toDouble inferenceResults) prebuiltResults
+
+matchesPrebuiltFusion :: (H.Hashable a, Binary a, Typeable a, Show a, Ord a)
+    => G.Graph a Double
+    -> TestLimit
+    -> Property
+matchesPrebuiltFusion g numTests = withTests numTests . property $ do
+    query <- forAll $ genQuery (G.nodes g)
+
+    let result          = fromRight $ ST.singleTarget' [(fmap T g)] (head query.sources) query.target
+        prebuiltResults =             H.singleTarget g [head query.sources] query.target (read "Infinity")
+
+    checkAnswers approx [toDouble result] prebuiltResults
 
 -- | Parses the given graph. Fails if a parse error occurs.
 parseGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile a)) -> PropertyT IO a
