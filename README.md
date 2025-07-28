@@ -1,7 +1,7 @@
 # Local Computation
 ## Directory Structure
 
-```bash
+```
 
 .
 ├── app
