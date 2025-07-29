@@ -27,7 +27,8 @@ import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
 import           Control.DeepSeq                                              (NFData)
 import           Data.Binary                                                  (Binary)
 import qualified Data.Hashable                                                as H
-import           Debug.Pretty.Simple                                          (pTraceShow)
+import           Debug.Pretty.Simple                                          (pTraceShow,
+                                                                               pTraceShowId)
 import           GHC.Generics                                                 (Generic)
 import           LocalComputation.Graph                                       as G
 import           LocalComputation.Inference.Fusion                            (fusion)
@@ -82,8 +83,20 @@ To make this assumption explicit, returns `Left InvalidGraph` if a graph that do
 singleTarget :: (H.Hashable a, Binary a, Typeable a, Ord a, Show a) => [Graph a TropicalSemiringValue] -> [a] -> a -> Process (Either InvalidGraph [TropicalSemiringValue])
 singleTarget = singleTarget'' ShenoyShafer
 
-singleTarget' :: (H.Hashable a, Binary a, Typeable a, Ord a, Show a) => [Graph a TropicalSemiringValue] -> [a] -> a -> Process (Either InvalidGraph [TropicalSemiringValue])
-singleTarget' = singleTarget'' Fusion
+-- singleTarget' :: (H.Hashable a, Binary a, Typeable a, Ord a, Show a) => [Graph a TropicalSemiringValue] -> [a] -> a -> Process (Either InvalidGraph [TropicalSemiringValue])
+-- singleTarget' = singleTarget'' Fusion
+
+singleTarget' :: (H.Hashable a, Ord a, Show a) => [Graph a TropicalSemiringValue] -> a -> a -> Either InvalidGraph TropicalSemiringValue
+singleTarget' vs source target
+    | any (not . G.hasZeroCostSelfLoops) vs = Left MissingZeroCostSelfLoops
+    | otherwise = Right $ getDistance (Q.solution result) (source, target)
+
+    where
+        k = knowledgeBase vs target
+        domain = S.fromList [source, target]
+
+        result = fromRight $ fusion k domain
+
 
 data ComputationMode = Fusion | ShenoyShafer
 

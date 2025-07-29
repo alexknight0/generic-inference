@@ -68,11 +68,7 @@ instance (Show c, Q.QuasiRegularSemiringValue c) => Valuation (QuasiRegularValua
     identity d = Identity d
 
     eliminate x _ | assertIsWellFormed x = undefined
-    eliminate   (Identity d)    x = Identity (S.difference d x)
-    eliminate v@(Valuation m b) x = Valuation (matrixProject m newD newD) (matrixProject b newD (S.singleton ()))
-        where
-            newD = S.difference (label v) x
-
+    eliminate v x = project v (S.difference (label v) x)
 
     -- TODO: Can't define this as need to provide a 'b' and we don't have access to a 'b'.
     -- Edit: Well we could define a 'maybe b' in the declaration... or a 'Left set | Right map'?

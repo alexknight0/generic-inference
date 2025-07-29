@@ -4,7 +4,7 @@ module LocalComputation.Inference.Fusion (
 import qualified Data.Set                          as S
 import           LocalComputation.ValuationAlgebra (Domain,
                                                     Valuation (eliminate, label),
-                                                    combines1)
+                                                    combines1, project)
 import           Numeric.Natural                   (Natural)
 
 data WithId a = WithId {
@@ -40,7 +40,7 @@ fusion vs x
     | not $ S.isSubsetOf x dPhi = Left XNotSubsetOfDPhi
     | otherwise                 = Right $ fusion' nextId vsWithIds (S.toList (S.difference dPhi x))
     where
-        dPhi = foldr (S.union . label) S.empty vs
+        dPhi = foldr S.union S.empty (map label vs)
 
         vsWithIds = S.fromList $ zipWith WithId [0..] vs
         nextId = fromIntegral $ length vs
@@ -49,7 +49,18 @@ fusion' :: (Valuation v, Show a, Show b, Ord a, Ord b) => Natural -> S.Set (With
 fusion' _        upperPsi []     = combines1 $ map (.content) $ S.toList upperPsi
 fusion' uniqueId upperPsi (y:ys) = fusion' (uniqueId + 1) upperPsi' ys
     where
-        upperGamma = S.fromList [phi | phi <- S.toList upperPsi, y `S.member` label phi.content]
+        upperGamma = S.filter (\phi -> S.member y (label phi.content)) upperPsi
         psi = combines1 $ map (.content) $ S.toList upperGamma
         upperPsi' = S.union (S.difference upperPsi upperGamma)
                             (S.singleton (WithId uniqueId $ eliminate psi (S.singleton y)))
+
+-- | Basic brute force computation, does not use local computation.
+bruteForce :: (Valuation v, Show a, Show b, Ord a, Ord b)
+    => [v a b]
+    -> Domain a
+    -> Either FusionError (v a b)
+bruteForce vs x
+    | not $ S.isSubsetOf x dPhi = Left XNotSubsetOfDPhi
+    | otherwise                 = Right $ project (combines1 vs) dPhi
+    where
+        dPhi = foldr (S.union . label) S.empty vs

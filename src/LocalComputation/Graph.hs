@@ -102,3 +102,12 @@ nonSymmetricEdges g = filter f edges
 isOppositeEdge :: (Eq a) => Edge a b -> Edge a b -> Bool
 isOppositeEdge e1 e2 = e1.arcTail == e2.arcHead && e1.arcHead == e2.arcTail
 
+-- | Merges the two given graphs.
+merge :: (Ord a) => Graph a b -> Graph a b -> Graph a b
+merge (Graph g1) (Graph g2) = Graph $ M.unionWith (++) g1 g2
+
+-- {- | Adds self loops of the given weight to each node of a graph. -}
+-- addSelfLoops :: (Ord a) => b -> Graph a b -> Graph a b
+-- addSelfLoops b g = merge g selfLoops
+--     where
+--         selfLoops = Graph $ M.fromList [(node, [(node, b)]) | node <- nodeList g]

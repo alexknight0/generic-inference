@@ -31,6 +31,7 @@ import qualified Data.Hashable                              as H
 import           GHC.Generics                               (Generic)
 
 import           Data.Maybe                                 (fromJust)
+import           LocalComputation.Inference.Fusion          (fusion)
 
 newtype FourierComplex = FourierComplex (C.Complex Double) deriving newtype (Num, Fractional, Binary, Show, NFData, Eq, Generic)
 
@@ -99,6 +100,7 @@ query samples qs = case integerLogBase2 (fromIntegral $ length samples) of
         -- Each query has the same domain - the domain of all bits of the Y, i.e. Y_0 to Y_m-1
         let queryDomain = S.fromList $ map Y $ [0 .. m-1]
 
+        -- let result = fromRight $ fusion (getKnowledgebase samples) queryDomain
         result <- answerQueryM (getKnowledgebase samples) queryDomain
         pure $ pure $ map (findBinaryValue result m) qs
 
