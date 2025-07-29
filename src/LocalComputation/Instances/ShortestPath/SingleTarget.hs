@@ -88,14 +88,14 @@ singleTarget vs sources target
             k = knowledgeBase vs target
             domains = map (\s -> S.fromList [s, target]) sources
 
-singleTarget' :: (H.Hashable a, Ord a, Show a) => [Graph a TropicalSemiringValue] -> a -> a -> Either InvalidGraph TropicalSemiringValue
-singleTarget' vs source target
+singleTarget' :: (H.Hashable a, Ord a, Show a) => [Graph a TropicalSemiringValue] -> [a] -> a -> Either InvalidGraph [TropicalSemiringValue]
+singleTarget' vs sources target
     | any (not . G.hasZeroCostSelfLoops) vs = Left MissingZeroCostSelfLoops
-    | otherwise = Right $ getDistance result (source, target)
+    | otherwise = Right $ map (\s -> getDistance result (s, target)) sources
 
     where
         k = knowledgeBase vs target
-        domain = S.fromList [source, target]
+        domains = S.union (S.fromList sources) (S.singleton target)
 
-        result = fromRight $ fusion k domain
+        result = fromRight $ fusion k domains
 
