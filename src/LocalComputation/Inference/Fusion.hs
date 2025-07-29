@@ -18,9 +18,6 @@ instance Eq (WithId a) where
 instance Ord (WithId a) where
     x <= y = x.id <= y.id
 
-data FusionError = XNotSubsetOfDPhi
-
--- TODO: Unsafe - doesn't verify query is subset of domain of combination of all valuations.
 -- TODO: We can use elimination sequence here, but the fusion algorithm specifies that we
 -- don't eliminate any variables in the query - so how is our 'elimination seq' impacted by
 -- this? How do we still ensure we have a good elimination seq?
@@ -32,15 +29,17 @@ data FusionError = XNotSubsetOfDPhi
 -- all valuations projected to the given domain.
 --
 -- Based on the pseudocode of Algorithm 3.1 found in Marc Pouly's "Generic Inference".
+--
+-- __Warning__: Assumes that the query is a subset of the covered domain - this should be checked
+-- by the caller.
 fusion :: (Valuation v, Show a, Show b, Ord a, Ord b)
     => [v a b]
     -> Domain a
-    -> Either FusionError (v a b)
-fusion vs x
-    | not $ S.isSubsetOf x dPhi = Left XNotSubsetOfDPhi
-    | otherwise                 = Right $ fusion' nextId vsWithIds (S.toList (S.difference dPhi x))
+    -> v a b
+fusion vs x = fusion' nextId vsWithIds (S.toList dPhiMinusX)
     where
         dPhi = foldr S.union S.empty (map label vs)
+        dPhiMinusX = S.difference dPhi x
 
         vsWithIds = S.fromList $ zipWith WithId [0..] vs
         nextId = fromIntegral $ length vs
@@ -54,13 +53,3 @@ fusion' uniqueId upperPsi (y:ys) = fusion' (uniqueId + 1) upperPsi' ys
         upperPsi' = S.union (S.difference upperPsi upperGamma)
                             (S.singleton (WithId uniqueId $ eliminate psi (S.singleton y)))
 
--- | Basic brute force computation, does not use local computation.
-bruteForce :: (Valuation v, Show a, Show b, Ord a, Ord b)
-    => [v a b]
-    -> Domain a
-    -> Either FusionError (v a b)
-bruteForce vs x
-    | not $ S.isSubsetOf x dPhi = Left XNotSubsetOfDPhi
-    | otherwise                 = Right $ project (combines1 vs) dPhi
-    where
-        dPhi = foldr (S.union . label) S.empty vs

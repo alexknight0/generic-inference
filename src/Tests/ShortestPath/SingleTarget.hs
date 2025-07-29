@@ -17,15 +17,19 @@ import           Hedgehog
 import qualified Hedgehog.Gen                                                 as Gen
 import qualified Hedgehog.Range                                               as Range
 
-import           Control.Distributed.Process                                  (liftIO)
+import           Control.Distributed.Process                                  (Process,
+                                                                               liftIO)
 import           Control.Monad                                                (forM_)
 import qualified Data.Set                                                     as S
 import qualified LocalComputation.Instances.ShortestPath.Parser               as P
 import qualified Text.Parsec                                                  as P
 
 -- Typeclasses
+import           Control.DeepSeq                                              (NFData)
+import           Control.Monad.IO.Class                                       (MonadIO)
 import           Data.Binary                                                  (Binary)
 import qualified Data.Hashable                                                as H
+import qualified LocalComputation.Inference                                   as I
 import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue (toDouble)
 import           Type.Reflection                                              (Typeable)
 
@@ -56,36 +60,45 @@ approx x y
     | x == (read "-Infinity") && y == (read "-Infinity") = True
     | otherwise = False
 
+singleTarget :: (MonadTest m, NFData a,  MonadIO m, Show a, Binary a, Typeable a,  H.Hashable a, Ord a) => I.Mode -> [G.Graph a TropicalSemiringValue] -> [a] -> a -> m [TropicalSemiringValue]
+singleTarget mode graph sources target
+    | Left e <- result = failure
+    | Right r <- result = r
+    where
+        result = ST.singleTarget mode graph sources target
+
 -- | Tests that graphs that are missing zero cost self loops throw an error.
 -- For the reason behind this behaviour, see the documentation of `ST.singleTarget`
 prop_p0 :: Property
 prop_p0 = unitTest $ do
     forM_ p0Graphs $ \g -> do
-        results <- run $ ST.singleTarget [g] p0Queries.sources p0Queries.target
-        case results of
+        case results g of
             Left ST.MissingZeroCostSelfLoops -> success
-            Right _                          -> failure
+            _                                -> failure
+    where
+        results :: G.Graph Integer TropicalSemiringValue -> Either ST.Error (Process [TropicalSemiringValue])
+        results graph = ST.singleTarget I.Shenoy [graph] p0Queries.sources p0Queries.target
 
 -- | Tests that the localcomputation algorithm works for a set problem, where one graph is given.
 prop_p1 :: Property
 prop_p1 = unitTest $ do
-    results <- fmap fromRight $ run $ ST.singleTarget [p1Graph] p1Queries.sources p1Queries.target
+    results <- singleTarget I.Shenoy [p1Graph] p1Queries.sources p1Queries.target
     checkAnswers approx (map toDouble results) p1Answers
 
 prop_p1fusion :: Property
 prop_p1fusion = unitTest $ do
-    result <- fmap fromRight $ run $ ST.singleTarget' [p1Graph] p1Queries.sources p1Queries.target
+    result <- singleTarget I.Fusion [p1Graph] p1Queries.sources p1Queries.target
     checkAnswers approx (map toDouble result) p1Answers
 
 -- | Tests that the localcomputation algorithm works for a set problem, where multiple graphs are given.
 prop_p2 :: Property
 prop_p2 = unitTest $ do
-    results <- fmap fromRight $ run $ ST.singleTarget p2Graph p2Queries.sources p2Queries.target
+    results <- singleTarget I.Shenoy p2Graph p2Queries.sources p2Queries.target
     checkAnswers approx (map toDouble results) p1Answers
 
 prop_p2fusion :: Property
 prop_p2fusion = unitTest $ do
-    result <- fmap fromRight $ run $ ST.singleTarget' p2Graph p2Queries.sources p2Queries.target
+    result <- singleTarget I.Fusion p2Graph p2Queries.sources p2Queries.target
     checkAnswers approx (map toDouble result) p2Answers
 
 -- | Tests that the baseline algorithm works for a set problem.
@@ -106,7 +119,7 @@ genQuery vertices
     pure $ Query (S.toList sources) target
 
 -- | Checks the output of the localcomputation algorithm and the baseline algorithm match for a set of random queries.
-matchesPrebuilt :: (H.Hashable a, Binary a, Typeable a, Show a, Ord a)
+matchesPrebuilt :: (NFData a, H.Hashable a, Binary a, Typeable a, Show a, Ord a)
     => G.Graph a Double
     -> TestLimit
     -> Property
@@ -115,11 +128,11 @@ matchesPrebuilt g numTests = withTests numTests . property $ do
 
     let prebuiltResults =                       H.singleTarget g query.sources query.target infinity
     if all (== infinity) prebuiltResults then discard else pure ()
-    inferenceResults <- fmap fromRight $ run $ ST.singleTarget [fmap T g] query.sources query.target
+    inferenceResults <- singleTarget I.Shenoy [fmap T g] query.sources query.target
 
     checkAnswers approx (map toDouble inferenceResults) prebuiltResults
 
-matchesPrebuiltFusion :: (H.Hashable a, Binary a, Typeable a, Show a, Ord a)
+matchesPrebuiltFusion :: (NFData a, H.Hashable a, Binary a, Typeable a, Show a, Ord a)
     => G.Graph a Double
     -> TestLimit
     -> Property
@@ -128,7 +141,7 @@ matchesPrebuiltFusion g numTests = withTests numTests . withDiscards 10000 . pro
 
     let prebuiltResults =             H.singleTarget g query.sources query.target infinity
     if all (== infinity) prebuiltResults then discard else pure ()
-    result <- fmap fromRight $ run $ ST.singleTarget' [(fmap T g)] query.sources query.target
+    result <- singleTarget I.Fusion [(fmap T g)] query.sources query.target
 
     checkAnswers approx (map toDouble result) prebuiltResults
 
@@ -136,7 +149,7 @@ matchesPrebuiltFusion g numTests = withTests numTests . withDiscards 10000 . pro
 matchesPrebuiltFusionTMP g = withTests 1 . property $ do
     let query = Query [10] 11
 
-    result <- fmap fromRight $ run $ ST.singleTarget' [(fmap T g)] query.sources query.target
+    result <- singleTarget I.Fusion [(fmap T g)] query.sources query.target
     let prebuiltResults =         H.singleTarget g query.sources query.target infinity
 
     checkAnswers approx (map toDouble result) prebuiltResults

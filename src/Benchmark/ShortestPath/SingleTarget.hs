@@ -35,10 +35,10 @@ benchmarks = do
             --           bench "localcomputation" $ nfIO (runProcessLocal $ ST.singleTarget [D.p1Graph] D.p1Queries.sources D.p1Queries.target)
             --         , bench "djikstra"         $ nf (H.singleTarget D.p1Graph D.p1Queries.sources D.p1Queries.target) (T $ read "Infinity")
             --     ]
-              bgroup "Shortest_Path___Small_Graph" [
-                      bench "localcomputation" $ nfIO (runProcessLocal $ ST.singleTarget [fmap T p3Small] [1, 13, 48] 2)
-                    , bench "djikstra"         $ nf (H.singleTarget p3Small [1, 13, 48] 2) (read "Infinity")
-                ]
+            --   bgroup "Shortest_Path___Small_Graph" [
+            --           bench "localcomputation" $ nfIO (runProcessLocal $ ST.singleTarget [fmap T p3Small] [1, 13, 48] 2)
+            --         , bench "djikstra"         $ nf (H.singleTarget p3Small [1, 13, 48] 2) (read "Infinity")
+            --     ]
         ]
 
     where

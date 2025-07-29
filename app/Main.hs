@@ -68,11 +68,12 @@ mainProcess :: MainParameters -> Process ()
 mainProcess _ = do
 
     liftIO $ putStrLn "\n\n\n\n\nRunning Program...\n\n"
-    p3Small <- liftIO $ D.p3SmallGraph'
-    results <- liftIO $ runProcessLocal $ ST.singleTarget [fmap T p3Small] [68] 69
-    case results of
-        Left ST.MissingZeroCostSelfLoops -> undefined
-        Right xs                         -> pPrint xs
+    liftIO $ putStrLn "[Did Nothing]"
+    -- p3Small <- liftIO $ D.p3SmallGraph'
+    -- results <- liftIO $ runProcessLocal $ ST.singleTarget [fmap T p3Small] [68] 69
+    -- case results of
+    --     Left ST.MissingZeroCostSelfLoops -> undefined
+    --     Right xs                         -> pPrint xs
 
 
     liftIO $ putStrLn "\nFinished.\n"

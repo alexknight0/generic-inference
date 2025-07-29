@@ -5,56 +5,52 @@
 module LocalComputation.Instances.ShortestPath.SingleTarget
     (
       singleTarget
-    , singleTarget'
-    , InvalidGraph (MissingZeroCostSelfLoops)
+    , Error (MissingZeroCostSelfLoops)
     )
 where
 
-import           Control.Distributed.Process                                  (Process)
-import           Data.Maybe                                                   (fromJust)
-import qualified Data.Set                                                     as S
+import           Control.Distributed.Process                    (Process)
+import           Data.Maybe                                     (fromJust)
+import qualified Data.Set                                       as S
 
-import qualified Data.Map                                                     as MP
-import           LocalComputation.Inference.ShenoyShafer                      (answerQueriesM,
-                                                                               answerQueryM)
-import qualified LocalComputation.LabelledMatrix                              as M
-import qualified LocalComputation.ValuationAlgebra.QuasiRegular               as Q (QuasiRegularValuation,
-                                                                                    create,
-                                                                                    solution)
-import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
-
+import qualified Data.Map                                       as MP
+import           LocalComputation.Inference.ShenoyShafer        (answerQueriesM)
+import qualified LocalComputation.LabelledMatrix                as M
+import qualified LocalComputation.ValuationAlgebra.QuasiRegular as Q (QuasiRegularValuation,
+                                                                      SemiringValue (one, zero),
+                                                                      TropicalSemiringValue,
+                                                                      create,
+                                                                      solution)
 -- Typeclasses
-import           Control.DeepSeq                                              (NFData)
-import           Data.Binary                                                  (Binary)
-import qualified Data.Hashable                                                as H
-import           Debug.Pretty.Simple                                          (pTraceShow,
-                                                                               pTraceShowId)
-import           GHC.Generics                                                 (Generic)
-import           LocalComputation.Graph                                       as G
-import           LocalComputation.Inference.Fusion                            (fusion)
-import           LocalComputation.Utils                                       (fromRight)
-import           LocalComputation.ValuationAlgebra.QuasiRegular               (solution)
-import           Type.Reflection                                              (Typeable)
+import           Control.DeepSeq                                (NFData)
+import           Control.Monad.IO.Class                         (MonadIO)
+import           Data.Binary                                    (Binary)
+import qualified Data.Hashable                                  as H
+import           GHC.Generics                                   (Generic)
+import           LocalComputation.Graph                         as G
+import qualified LocalComputation.Inference                     as I
+import           LocalComputation.Utils                         (fromRight)
+import           Type.Reflection                                (Typeable)
 
-type Result a = M.LabelledMatrix a () TropicalSemiringValue
-type Knowledgebase a = [Q.QuasiRegularValuation TropicalSemiringValue a ()]
+type Result a = M.LabelledMatrix a () Q.TropicalSemiringValue
+type Knowledgebase a = [Q.QuasiRegularValuation Q.TropicalSemiringValue a ()]
 type Query a = (a, a)
 
-data InvalidGraph = MissingZeroCostSelfLoops deriving (NFData, Generic, Show)
+data Error = InferenceError I.Error | MissingZeroCostSelfLoops deriving (NFData, Generic, Show)
 
 -- If distance of a location to itself is not recorded, it will be recorded as the 'zero'
 -- element of the tropical semiring (i.e. infinity). However, it still seems to determine
 -- that each vertex has a 0 cost edge to itself.
-knowledgeBase :: forall a . (H.Hashable a, Ord a) => [Graph a TropicalSemiringValue] -> a -> Knowledgebase a
+knowledgeBase :: forall a . (H.Hashable a, Ord a) => [Graph a Q.TropicalSemiringValue] -> a -> Knowledgebase a
 knowledgeBase gs target = map f gs
     where
         f g = fromJust $ Q.create m b
             where
-                m = M.toSquare (matrixFromGraph g) zero
-                b = fromRight $ M.fromList [((a, ()), if a == target then one else zero) | a <- S.toList $ fst (M.domain m)]
+                m = M.toSquare (matrixFromGraph g) Q.zero
+                b = fromRight $ M.fromList [((a, ()), if a == target then Q.one else Q.zero) | a <- S.toList $ fst (M.domain m)]
 
-        matrixFromGraph :: (Ord b, SemiringValue b) => Graph a b -> M.LabelledMatrix a a b
-        matrixFromGraph g = fromRight $ M.fromListDefault zero (MP.toList $ rearrangedGraph g)
+        matrixFromGraph :: (Ord b, Q.SemiringValue b) => Graph a b -> M.LabelledMatrix a a b
+        matrixFromGraph g = fromRight $ M.fromListDefault Q.zero (MP.toList $ rearrangedGraph g)
 
         -- Rearranges the graph from `MP.Map a [(a, b)]` to `MP.Map (a, a) b`.
         -- If multiple arcs exist between a node, retains only the minimum cost arc.
@@ -67,60 +63,40 @@ knowledgeBase gs target = map f gs
         assocList g = map (\e -> ((e.arcHead, e.arcTail), e.weight)) (G.toList g)
 
 -- | Retuns a distance entry from the resulting valuation after inference. Unsafe.
-getDistance :: (Ord a) => Result a -> Query a -> TropicalSemiringValue
+getDistance :: (Ord a) => Result a -> Query a -> Q.TropicalSemiringValue
 getDistance x (source, _) = fromJust $ M.find (source, ()) x
 
--- TODO: Ensure caches result of 'solution'
 -- TODO: Can this handle negative weights?
 {- | Returns the shortest distance between a single target and multiple sources.
 
 Assumes that every graph node can reach itself with 0 cost. This is a limitation of the inference process using quasi regular valuations;
 consider the result of `Q.solution` on a `Q.LabelledMatrix (fromList [(0, 0), T 1]) (fromList [(0, ()), 0)`. Here, following the formula
-for `Q.solution` and the quasi-inverse definition of a `TropicalSemiringValue` the edge cost `T 1` becomes `T 0`.
+for `Q.solution` and the quasi-inverse definition of a `Q.TropicalSemiringValue` the edge cost `T 1` becomes `T 0`.
 
 To make this assumption explicit, returns `Left InvalidGraph` if a graph that does not have 0 cost self loops is given.
 -}
-singleTarget :: (H.Hashable a, Binary a, Typeable a, Ord a, Show a) => [Graph a TropicalSemiringValue] -> [a] -> a -> Process (Either InvalidGraph [TropicalSemiringValue])
-singleTarget = singleTarget'' ShenoyShafer
-
-singleTarget' :: (H.Hashable a, Binary a, Typeable a, Ord a, Show a) => [Graph a TropicalSemiringValue] -> [a] -> a -> Process (Either InvalidGraph [TropicalSemiringValue])
-singleTarget' = singleTarget'' Fusion
-
--- singleTarget' :: (H.Hashable a, Ord a, Show a) => [Graph a TropicalSemiringValue] -> a -> a -> Either InvalidGraph TropicalSemiringValue
--- singleTarget' vs source target
---     | any (not . G.hasZeroCostSelfLoops) vs = Left MissingZeroCostSelfLoops
---     | otherwise = Right $ getDistance (Q.solution result) (source, target)
--- 
---     where
---         k = knowledgeBase vs target
---         domain = S.fromList [source, target]
--- 
---         result = fromRight $ fusion k domain
-
-
-data ComputationMode = Fusion | ShenoyShafer
-
-singleTarget'' :: (Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => ComputationMode
-    -> [Graph a TropicalSemiringValue]
+singleTarget :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+    => I.Mode
+    -> [Graph a Q.TropicalSemiringValue]
     -> [a]
     -> a
-    -> Process (Either InvalidGraph [TropicalSemiringValue])
-singleTarget'' mode vs sources target
-    | any (not . G.hasZeroCostSelfLoops) vs = pure $ Left MissingZeroCostSelfLoops
-    | otherwise = do
-        results <- fmap Q.solution $ case mode of
-                                        ShenoyShafer -> answerQueryM k domain
-                                        Fusion       -> pure $ fromRight $ fusion k domain
-        pure $ Right $ map (\s -> getDistance results (s, target)) sources
+    -> Either Error (m [Q.TropicalSemiringValue])
+singleTarget mode vs sources target
+    | any (not . G.hasZeroCostSelfLoops) vs =  Left MissingZeroCostSelfLoops
+    | Left e          <- solutionMM         =  Left $ InferenceError e
+    | Right solutionM <- solutionMM         = Right $ do
+        solution <- solutionM
+        pure $ map (\s -> getDistance solution (s, target)) sources
 
     where
         k = knowledgeBase vs target
         domain = S.union (S.fromList sources) (S.singleton target)
 
+        solutionMM = fmap (fmap Q.solution) $ I.query mode k domain
+
 
 -- | Old single target algorithm that utilizes shenoy shafer and multiple single-target queries to return the result.
-oldSingleTarget :: (H.Hashable a, Binary a, Typeable a, Ord a, Show a) => [Graph a TropicalSemiringValue] -> [a] -> a -> Process (Either InvalidGraph [TropicalSemiringValue])
+oldSingleTarget :: (H.Hashable a, Binary a, Typeable a, Ord a, Show a) => [Graph a Q.TropicalSemiringValue] -> [a] -> a -> Process (Either Error [Q.TropicalSemiringValue])
 oldSingleTarget vs sources target
     | any (not . G.hasZeroCostSelfLoops) vs = pure $ Left MissingZeroCostSelfLoops
     | otherwise = do

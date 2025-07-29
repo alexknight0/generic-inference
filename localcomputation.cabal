@@ -31,6 +31,7 @@ library
       Benchmark.Baseline.Probability
       Benchmark.ShortestPath.SingleTarget
       LocalComputation.Graph
+      LocalComputation.Inference
       LocalComputation.Inference.Collect
       LocalComputation.Inference.EliminationSequence
       LocalComputation.Inference.Fusion
