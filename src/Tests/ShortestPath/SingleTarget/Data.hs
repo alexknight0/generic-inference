@@ -1,13 +1,10 @@
 module Tests.ShortestPath.SingleTarget.Data (
       Query (..)
+    , Problem (..)
     , p0Graphs
     , p0Queries
-    , p1Graph
-    , p1Queries
-    , p1Answers
-    , p2Graph
-    , p2Queries
-    , p2Answers
+    , p1
+    , p2
     , p3VerySmallGraph
     , p3SmallGraph
     , p3SmallGraph'
@@ -23,6 +20,12 @@ import           Numeric.Natural                                (Natural)
 import qualified Text.Parsec                                    as P (ParseError)
 
 data Query a = Query { sources :: [a], target :: a } deriving Show
+
+data Problem a = Problem {
+      graphs  :: [G.Graph Integer a]
+    , q       :: Query Integer
+    , answers :: [Double]
+}
 
 -- | A collection of graphs inference should fail on due to missing a 0 cost self loop.
 -- See `LocalComputation.Instances.ShortestPath.SingleTarget.hs` for more information.
@@ -74,42 +77,42 @@ p1AndP2Basis = [
           , (8, [(2, 2), (6, 6), (7, 7)])
       ]
 
-p1Graph :: (Num a) => G.Graph Integer a
-p1Graph = G.addSelfLoops 0 $ G.fromList' p1AndP2Basis
-
-p1Queries :: Query Integer
-p1Queries = Query [ 0
-             , 1
-             , 2
-             , 3
-             , 4
-             , 5
-             , 6
-             , 7
-             , 8
-            ] 0
-
-p1Answers :: [Double]
-p1Answers = [ 0
-            , 4
-            , 12
-            , 19
-            , 21
-            , 11
-            , 9
-            , 8
-            , 14
-           ]
+p1 :: (Num a) => Problem a
+p1 = Problem {
+      graphs = [G.addSelfLoops 0 $ G.fromList' p1AndP2Basis]
+    , q = Query [ 0
+                , 1
+                , 2
+                , 3
+                , 4
+                , 5
+                , 6
+                , 7
+                , 8
+               ] 0
+    , answers = [ 0
+                , 4
+                , 12
+                , 19
+                , 21
+                , 11
+                , 9
+                , 8
+                , 14
+               ]
+}
 
 -- P1 but with the information split across 8 individual graphs that must be combined together.
-p2Graph :: (Num a) => [G.Graph Integer a]
-p2Graph = map (G.addSelfLoops 0 . G.fromList' . (:[])) p1AndP2Basis
-
-p2Queries :: Query Integer
-p2Queries = p1Queries
-
-p2Answers :: [Double]
-p2Answers = p1Answers
+p2 :: (Num a) => Problem a
+p2 = Problem {
+      graphs = map (G.addSelfLoops 0 . G.fromList' . (:[])) p1AndP2Basis
+    , q = p1.q
+    , answers = p1'.answers
+}
+    where
+        -- Prevent defaulting warning
+        p1' :: Problem Integer
+        p1' = p1
 
 parseGraph :: FilePath -> IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural Double)))
 parseGraph filepath = fmap (fmap (fmap (G.addSelfLoops 0))) $ fmap (P.mapParseResult (fromInteger)) $ parseFile P.graph filepath

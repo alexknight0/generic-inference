@@ -1,6 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell   #-}
 
+-- | Tests the valuation algebra solving shortest path problems.
+-- Also doubles up to test that all methods of inference produce
+-- the same results - all tests verify this property.
 module Tests.ShortestPath.SingleTarget
     ( tests )
 where
@@ -8,7 +11,6 @@ where
 import qualified Benchmark.Baseline.DjikstraSimple                            as H
 import qualified LocalComputation.Graph                                       as G
 import qualified LocalComputation.Instances.ShortestPath.SingleTarget         as ST
-import           LocalComputation.LocalProcess
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra.QuasiRegular
 import           Tests.ShortestPath.SingleTarget.Data
@@ -46,7 +48,6 @@ p3MatchesPrebuilt = do
     checkSequential $ Group "Tests.ShortestPath.SingleTarget" [
             ("prop_p3VerySmallMatchesPrebuilt", matchesPrebuilt p3VerySmall 30)
           , ("prop_p3VerySmallMatchesPrebuiltFusion", matchesPrebuiltFusion p3VerySmall 500)
-          , ("prop_p3VerySmallMatchesPrebuiltFusionTMP", matchesPrebuiltFusionTMP p3VerySmall)
         --, ("prop_p3SmallMatchesPrebuilt", matchesPrebuilt p3Small 1)
        ]
 
@@ -62,7 +63,7 @@ approx x y
 
 singleTarget :: (MonadTest m, NFData a,  MonadIO m, Show a, Binary a, Typeable a,  H.Hashable a, Ord a) => I.Mode -> [G.Graph a TropicalSemiringValue] -> [a] -> a -> m [TropicalSemiringValue]
 singleTarget mode graph sources target
-    | Left e <- result = failure
+    | Left _ <- result = failure
     | Right r <- result = r
     where
         result = ST.singleTarget mode graph sources target
@@ -82,32 +83,32 @@ prop_p0 = unitTest $ do
 -- | Tests that the localcomputation algorithm works for a set problem, where one graph is given.
 prop_p1 :: Property
 prop_p1 = unitTest $ do
-    results <- singleTarget I.Shenoy [p1Graph] p1Queries.sources p1Queries.target
-    checkAnswers approx (map toDouble results) p1Answers
+    results <- singleTarget I.Shenoy p1.graphs p1.q.sources p1.q.target
+    checkAnswers approx (map toDouble results) p1.answers
 
 prop_p1fusion :: Property
 prop_p1fusion = unitTest $ do
-    result <- singleTarget I.Fusion [p1Graph] p1Queries.sources p1Queries.target
-    checkAnswers approx (map toDouble result) p1Answers
+    result <- singleTarget I.Fusion p1.graphs p1.q.sources p1.q.target
+    checkAnswers approx (map toDouble result) p1.answers
 
 -- | Tests that the localcomputation algorithm works for a set problem, where multiple graphs are given.
 prop_p2 :: Property
 prop_p2 = unitTest $ do
-    results <- singleTarget I.Shenoy p2Graph p2Queries.sources p2Queries.target
-    checkAnswers approx (map toDouble results) p1Answers
+    results <- singleTarget I.Shenoy p2.graphs p2.q.sources p2.q.target
+    checkAnswers approx (map toDouble results) p2.answers
 
 prop_p2fusion :: Property
 prop_p2fusion = unitTest $ do
-    result <- singleTarget I.Fusion p2Graph p2Queries.sources p2Queries.target
-    checkAnswers approx (map toDouble result) p2Answers
+    result <- singleTarget I.Fusion p2.graphs p2.q.sources p2.q.target
+    checkAnswers approx (map toDouble result) p2.answers
 
 -- | Tests that the baseline algorithm works for a set problem.
 prop_prebuilt :: Property
 prop_prebuilt = withTests 1 . property $ do
-    checkAnswers approx results p1Answers
+    checkAnswers approx results p1.answers
 
     where
-        results = H.singleTarget p1Graph p1Queries.sources p1Queries.target infinity
+        results = H.singleTarget p1.graphs p1.q.sources p1.q.target infinity
 
 -- | Generates a random query from the given set of graph vertices.
 genQuery :: (Ord a) => S.Set a -> Gen (Query a)
@@ -126,7 +127,7 @@ matchesPrebuilt :: (NFData a, H.Hashable a, Binary a, Typeable a, Show a, Ord a)
 matchesPrebuilt g numTests = withTests numTests . property $ do
     query <- forAll $ genQuery (G.nodes g)
 
-    let prebuiltResults =                       H.singleTarget g query.sources query.target infinity
+    let prebuiltResults =                       H.singleTarget [g] query.sources query.target infinity
     if all (== infinity) prebuiltResults then discard else pure ()
     inferenceResults <- singleTarget I.Shenoy [fmap T g] query.sources query.target
 
@@ -139,18 +140,9 @@ matchesPrebuiltFusion :: (NFData a, H.Hashable a, Binary a, Typeable a, Show a, 
 matchesPrebuiltFusion g numTests = withTests numTests . withDiscards 10000 . property $ do
     query <- forAll $ genQuery (G.nodes g)
 
-    let prebuiltResults =             H.singleTarget g query.sources query.target infinity
+    let prebuiltResults =             H.singleTarget [g] query.sources query.target infinity
     if all (== infinity) prebuiltResults then discard else pure ()
     result <- singleTarget I.Fusion [(fmap T g)] query.sources query.target
-
-    checkAnswers approx (map toDouble result) prebuiltResults
-
--- TODO: A temporary test. Can be deleted now.
-matchesPrebuiltFusionTMP g = withTests 1 . property $ do
-    let query = Query [10] 11
-
-    result <- singleTarget I.Fusion [(fmap T g)] query.sources query.target
-    let prebuiltResults =         H.singleTarget g query.sources query.target infinity
 
     checkAnswers approx (map toDouble result) prebuiltResults
 

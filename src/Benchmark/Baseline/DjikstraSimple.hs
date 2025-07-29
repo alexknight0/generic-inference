@@ -25,6 +25,8 @@ singleSource graph source targets unreachable = map (\t -> M.findWithDefault unr
     where
         shortest = shortestPaths graph source
 
-singleTarget :: (Ord a, Ord b, Num b) => LG.Graph a b -> [a] -> a -> b -> [b]
-singleTarget graph sources target unreachable = singleSource (create $ LG.flipArcDirections graph) target sources unreachable
+singleTarget :: (Ord a, Ord b, Num b) => [LG.Graph a b] -> [a] -> a -> b -> [b]
+singleTarget graphs sources target unreachable = singleSource graph target sources unreachable
+    where
+        graph = create $ LG.merges1 $ map LG.flipArcDirections graphs
 

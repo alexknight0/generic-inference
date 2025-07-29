@@ -16,6 +16,8 @@ module LocalComputation.Graph
     , addSelfLoops
     , hasZeroCostSelfLoops
     , nonSymmetricEdges
+    , merge
+    , merges1
     )
 where
 
@@ -78,7 +80,9 @@ flipArcDirections g = fromList [Edge x.arcTail x.arcHead x.weight | x <- toList 
 
 {- | Adds self loops of the given weight to each node of a graph. -}
 addSelfLoops :: (Ord a) => b -> Graph a b -> Graph a b
-addSelfLoops b (Graph g) = Graph $ M.unionWith (++) g (M.fromList [(node, [(node, b)]) | node <- nodeList (Graph g)])
+addSelfLoops b g = merge g selfLoops
+    where
+        selfLoops = Graph $ M.fromList [(node, [(node, b)]) | node <- nodeList g]
 
 hasZeroCostSelfLoops :: (Ord a, Eq b, Num b) => Graph a b -> Bool
 hasZeroCostSelfLoops (Graph g) = all p (nodeList $ Graph g)
@@ -106,8 +110,5 @@ isOppositeEdge e1 e2 = e1.arcTail == e2.arcHead && e1.arcHead == e2.arcTail
 merge :: (Ord a) => Graph a b -> Graph a b -> Graph a b
 merge (Graph g1) (Graph g2) = Graph $ M.unionWith (++) g1 g2
 
--- {- | Adds self loops of the given weight to each node of a graph. -}
--- addSelfLoops :: (Ord a) => b -> Graph a b -> Graph a b
--- addSelfLoops b g = merge g selfLoops
---     where
---         selfLoops = Graph $ M.fromList [(node, [(node, b)]) | node <- nodeList g]
+merges1 :: (Foldable f, Ord a) => f (Graph a b) -> Graph a b
+merges1 gs = foldr1 merge gs
