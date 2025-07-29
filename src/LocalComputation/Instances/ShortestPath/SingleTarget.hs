@@ -15,7 +15,8 @@ import           Data.Maybe                                                   (f
 import qualified Data.Set                                                     as S
 
 import qualified Data.Map                                                     as MP
-import           LocalComputation.Inference.ShenoyShafer                      (answerQueriesM)
+import           LocalComputation.Inference.ShenoyShafer                      (answerQueriesM,
+                                                                               answerQueryM)
 import qualified LocalComputation.LabelledMatrix                              as M
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular               as Q (QuasiRegularValuation,
                                                                                     create,
@@ -34,6 +35,7 @@ import           LocalComputation.Utils                                       (f
 import           LocalComputation.ValuationAlgebra.QuasiRegular               (solution)
 import           Type.Reflection                                              (Typeable)
 
+type Result a = M.LabelledMatrix a () TropicalSemiringValue
 type Knowledgebase a = [Q.QuasiRegularValuation TropicalSemiringValue a ()]
 type Query a = (a, a)
 
@@ -64,8 +66,8 @@ knowledgeBase gs target = map f gs
         assocList g = map (\e -> ((e.arcHead, e.arcTail), e.weight)) (G.toList g)
 
 -- | Retuns a distance entry from the resulting valuation after inference. Unsafe.
-getDistance :: (Show a, Ord a) => Q.QuasiRegularValuation TropicalSemiringValue a () -> Query a -> TropicalSemiringValue
-getDistance x (source, _) = fromJust $ M.find (source, ()) (Q.solution x)
+getDistance :: (Ord a) => Result a -> Query a -> TropicalSemiringValue
+getDistance x (source, _) = fromJust $ M.find (source, ()) x
 
 -- TODO: Ensure caches result of 'solution'
 -- TODO: Can this handle negative weights?
@@ -78,24 +80,40 @@ for `Q.solution` and the quasi-inverse definition of a `TropicalSemiringValue` t
 To make this assumption explicit, returns `Left InvalidGraph` if a graph that does not have 0 cost self loops is given.
 -}
 singleTarget :: (H.Hashable a, Binary a, Typeable a, Ord a, Show a) => [Graph a TropicalSemiringValue] -> [a] -> a -> Process (Either InvalidGraph [TropicalSemiringValue])
-singleTarget vs sources target
+singleTarget = singleTarget'' ShenoyShafer
+
+singleTarget' :: (H.Hashable a, Binary a, Typeable a, Ord a, Show a) => [Graph a TropicalSemiringValue] -> [a] -> a -> Process (Either InvalidGraph [TropicalSemiringValue])
+singleTarget' = singleTarget'' Fusion
+
+data ComputationMode = Fusion | ShenoyShafer
+
+singleTarget'' :: (Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+    => ComputationMode
+    -> [Graph a TropicalSemiringValue]
+    -> [a]
+    -> a
+    -> Process (Either InvalidGraph [TropicalSemiringValue])
+singleTarget'' mode vs sources target
+    | any (not . G.hasZeroCostSelfLoops) vs = pure $ Left MissingZeroCostSelfLoops
+    | otherwise = do
+        results <- fmap Q.solution $ case mode of
+                                        ShenoyShafer -> answerQueryM k domain
+                                        Fusion       -> pure $ fromRight $ fusion k domain
+        pure $ Right $ map (\s -> getDistance results (s, target)) sources
+
+    where
+        k = knowledgeBase vs target
+        domain = S.union (S.fromList sources) (S.singleton target)
+
+
+-- | Old single target algorithm that utilizes shenoy shafer and multiple single-target queries to return the result.
+oldSingleTarget :: (H.Hashable a, Binary a, Typeable a, Ord a, Show a) => [Graph a TropicalSemiringValue] -> [a] -> a -> Process (Either InvalidGraph [TropicalSemiringValue])
+oldSingleTarget vs sources target
     | any (not . G.hasZeroCostSelfLoops) vs = pure $ Left MissingZeroCostSelfLoops
     | otherwise = do
         results <- answerQueriesM k domains
-        pure $ Right $ map (\(s, r) -> getDistance r (s, target)) $ zip sources results
+        pure $ Right $ map (\(s, r) -> getDistance r (s, target)) $ zip sources (map Q.solution results)
 
         where
             k = knowledgeBase vs target
             domains = map (\s -> S.fromList [s, target]) sources
-
-singleTarget' :: (H.Hashable a, Ord a, Show a) => [Graph a TropicalSemiringValue] -> [a] -> a -> Either InvalidGraph [TropicalSemiringValue]
-singleTarget' vs sources target
-    | any (not . G.hasZeroCostSelfLoops) vs = Left MissingZeroCostSelfLoops
-    | otherwise = Right $ map (\s -> getDistance result (s, target)) sources
-
-    where
-        k = knowledgeBase vs target
-        domains = S.union (S.fromList sources) (S.singleton target)
-
-        result = fromRight $ fusion k domains
-

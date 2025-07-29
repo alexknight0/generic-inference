@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
-module LocalComputation.LocalProcess (runProcessLocal) where
+module LocalComputation.LocalProcess (run, runProcessLocal) where
 
 import qualified Data.Map                         as M
 
@@ -19,6 +19,7 @@ import           Network.Transport.TCP
 
 import           Control.Exception                (assert, throw)
 import qualified Control.Exception                as E
+import           Control.Monad.IO.Class           (MonadIO)
 import           GHC.IO.Exception                 (IOErrorType (ResourceBusy),
                                                    ioe_type)
 
@@ -27,6 +28,10 @@ maxTcpPortNum = 65535
 
 defaultPort :: Integer
 defaultPort = 8080
+
+{- | Shorthand for `liftIO . runProcessLocal` -}
+run :: (MonadIO m, NFData a) => Process a -> m a
+run = liftIO . runProcessLocal
 
 {- | Runs a process locally and returns the result. -}
 runProcessLocal :: (NFData a) => Process a -> IO a
@@ -42,8 +47,6 @@ runProcessLocal process = do
     case y of
          Nothing -> error "issue"
          Just x  -> pure x
-
-
 
 
 {- | Runs a process on a local TCP address, returning the port number it is running on.

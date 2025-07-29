@@ -32,12 +32,12 @@ approximateEquals (FourierComplex x) (FourierComplex y) = abs (realPart x - real
 prop_queryMatchesKnownAnswers :: Property
 prop_queryMatchesKnownAnswers = unitTest $ do
 
-    resultsP1 <- liftIO $ runProcessLocal $ query fourierP1Samples fourierP1Queries
+    resultsP1 <- run $ query fourierP1Samples fourierP1Queries
     case resultsP1 of
         Nothing -> failure
         Just xs -> checkAnswers approximateEquals xs fourierP1Answers
 
-    resultsP2 <- liftIO $ runProcessLocal $ query fourierP2Samples fourierP2Queries
+    resultsP2 <- run $ query fourierP2Samples fourierP2Queries
     case resultsP2 of
         Nothing -> failure
         Just xs -> checkAnswers approximateEquals xs fourierP2Answers
@@ -52,7 +52,7 @@ prop_matchesHackagePackage = withTests 100 . property $ do
     let samples' = map (\x -> FourierComplex $ x :+ 0) samples
 
     answers <- liftIO $ dft samples'
-    results <- liftIO $ runProcessLocal $ query samples' [0 .. (fromIntegral $ length samples' - 1)]
+    results <- run $ query samples' [0 .. (fromIntegral $ length samples' - 1)]
 
     case results of
         Nothing -> failure

@@ -60,7 +60,7 @@ approx x y
 prop_p0 :: Property
 prop_p0 = unitTest $ do
     forM_ p0Graphs $ \g -> do
-        results <- liftIO $ runProcessLocal $ ST.singleTarget [g] p0Queries.sources p0Queries.target
+        results <- run $ ST.singleTarget [g] p0Queries.sources p0Queries.target
         case results of
             Left ST.MissingZeroCostSelfLoops -> success
             Right _                          -> failure
@@ -68,23 +68,23 @@ prop_p0 = unitTest $ do
 -- | Tests that the localcomputation algorithm works for a set problem, where one graph is given.
 prop_p1 :: Property
 prop_p1 = unitTest $ do
-    results <- fmap fromRight $ liftIO $ runProcessLocal $ ST.singleTarget [p1Graph] p1Queries.sources p1Queries.target
+    results <- fmap fromRight $ run $ ST.singleTarget [p1Graph] p1Queries.sources p1Queries.target
     checkAnswers approx (map toDouble results) p1Answers
 
 prop_p1fusion :: Property
 prop_p1fusion = unitTest $ do
-    let result = fromRight $ ST.singleTarget' [p1Graph] (p1Queries.sources) p1Queries.target
+    result <- fmap fromRight $ run $ ST.singleTarget' [p1Graph] p1Queries.sources p1Queries.target
     checkAnswers approx (map toDouble result) p1Answers
 
 -- | Tests that the localcomputation algorithm works for a set problem, where multiple graphs are given.
 prop_p2 :: Property
 prop_p2 = unitTest $ do
-    results <- fmap fromRight $ liftIO $ runProcessLocal $ ST.singleTarget p2Graph p2Queries.sources p2Queries.target
+    results <- fmap fromRight $ run $ ST.singleTarget p2Graph p2Queries.sources p2Queries.target
     checkAnswers approx (map toDouble results) p1Answers
 
 prop_p2fusion :: Property
 prop_p2fusion = unitTest $ do
-    let result = fromRight $ ST.singleTarget' p2Graph (p2Queries.sources) p2Queries.target
+    result <- fmap fromRight $ run $ ST.singleTarget' p2Graph (p2Queries.sources) p2Queries.target
     checkAnswers approx (map toDouble result) p2Answers
 
 -- | Tests that the baseline algorithm works for a set problem.
@@ -93,7 +93,7 @@ prop_prebuilt = withTests 1 . property $ do
     checkAnswers approx results p1Answers
 
     where
-        results = H.singleTarget p1Graph p1Queries.sources p1Queries.target (read "Infinity" :: Double)
+        results = H.singleTarget p1Graph p1Queries.sources p1Queries.target infinity
 
 -- | Generates a random query from the given set of graph vertices.
 genQuery :: (Ord a) => S.Set a -> Gen (Query a)
@@ -112,8 +112,8 @@ matchesPrebuilt :: (H.Hashable a, Binary a, Typeable a, Show a, Ord a)
 matchesPrebuilt g numTests = withTests numTests . property $ do
     query <- forAll $ genQuery (G.nodes g)
 
-    inferenceResults <- fmap fromRight $ liftIO $ runProcessLocal $ ST.singleTarget [fmap T g] query.sources query.target
-    let prebuiltResults =                                            H.singleTarget g query.sources query.target (read "Infinity")
+    inferenceResults <- fmap fromRight $ run $ ST.singleTarget [fmap T g] query.sources query.target
+    let prebuiltResults =                       H.singleTarget g query.sources query.target infinity
 
     checkAnswers approx (map toDouble inferenceResults) prebuiltResults
 
@@ -124,8 +124,8 @@ matchesPrebuiltFusion :: (H.Hashable a, Binary a, Typeable a, Show a, Ord a)
 matchesPrebuiltFusion g numTests = withTests numTests . property $ do
     query <- forAll $ genQuery (G.nodes g)
 
-    let result          = fromRight $ ST.singleTarget' [(fmap T g)] (query.sources) query.target
-        prebuiltResults =             H.singleTarget g query.sources query.target (read "Infinity")
+    result <- fmap fromRight $ run $ ST.singleTarget' [(fmap T g)] (query.sources) query.target
+    let prebuiltResults =             H.singleTarget g query.sources query.target infinity
 
     checkAnswers approx (map toDouble result) prebuiltResults
 

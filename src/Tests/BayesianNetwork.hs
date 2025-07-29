@@ -39,7 +39,7 @@ dataToValuations vs = map (uncurry getRows) withVariableDomains
 checkQueries :: (H.Hashable a, H.Hashable b, Show a, Show b, Serializable a, Serializable b, Ord a, Ord b) => [ProbabilityQuery a b] -> [Probability] -> PropertyT IO (Network a b) -> PropertyT IO (Network a b)
 checkQueries qs ps getNetwork = do
     network <- getNetwork
-    results <- liftIO $ runProcessLocal $ queryNetwork qs network
+    results <- run $ queryNetwork qs network
     checkAnswers probabilityApproxEqual results ps
     pure network
 
@@ -125,7 +125,7 @@ prop_inferenceAnswersMatchPrebuilt = withTests 100 . property $ do
         genQueries :: Gen ([ProbabilityQuery AsiaVar Bool])
         genQueries = Gen.list (Range.linear 1 6) genQuery
 
-        algebraResults qs = liftIO $ runProcessLocal $ queryNetwork qs (dataToValuations asiaValuationsP1)
+        algebraResults qs = run $ queryNetwork qs (dataToValuations asiaValuationsP1)
         prebuiltResults qs = liftIO $ E.try $ E.evaluate $ force $ runQueries (createNetwork asiaValuationsP1) qs
 
 

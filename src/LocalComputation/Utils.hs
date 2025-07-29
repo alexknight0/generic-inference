@@ -35,6 +35,7 @@ module LocalComputation.Utils
     , lookupDefaultR
     , fromList''
     , formatTimeNicely
+    , infinity
     )
 where
 
@@ -215,3 +216,6 @@ formatTimeNicely time = printf "[%02d:%02d:%02d]" hours minutes seconds
         seconds = secondsPastMidnight `mod` 60
         minutes = secondsPastMidnight `div` 60 `mod` 60
         hours = secondsPastMidnight `div` 60 `div` 60 `mod` 60
+
+infinity :: Double
+infinity = read "Infinity"
