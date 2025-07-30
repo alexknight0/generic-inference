@@ -21,8 +21,6 @@ module LocalComputation.Utils
     , zipAssert
     , divAssert
     , toBinary
-    , unitTest
-    , checkAnswers
     , toBinaryLeadingZeroes
     , assert'
     , integerLogBase2
@@ -50,9 +48,6 @@ import qualified Data.Set                      as S
 import           Data.Time                     (UTCTime, utctDayTime)
 import           Text.Printf                   (printf)
 
-import           Data.Functor                  (void)
-import           Hedgehog                      (Property, PropertyT, diff,
-                                                property, withTests)
 import qualified Text.ParserCombinators.Parsec as P
 
 import           Control.Exception             (assert)
@@ -148,16 +143,6 @@ toBinaryLeadingZeroes totalDigits x = take numLeadingZeroes (repeat False) ++ bi
 assert' :: HasCallStack => (a -> Bool) -> a -> a
 assert' p x = assert (p x) x
 
-unitTest :: PropertyT IO a -> Property
-unitTest = withTests 1 . property . void
-
-checkAnswers :: (Show a, Show b) => (a -> b -> Bool) -> [a] -> [b] -> PropertyT IO ()
-checkAnswers f results answers = diff results (\rs as -> foobar rs as) answers
-    where
-        foobar rs as
-            | and (zipWithAssert f rs as) == False = False
-            | otherwise = True
-
 integerLogBase2 :: Natural -> Maybe Natural
 integerLogBase2 x = integerLogBase2' 0 x
     where
@@ -175,6 +160,7 @@ safeHead :: [a] -> Maybe a
 safeHead []    = Nothing
 safeHead (x:_) = Just x
 
+-- TODO: Move to benchmark utils file.
 parseFile :: P.GenParser Char () a -> FilePath -> IO (Either P.ParseError a)
 parseFile p filename = do
     handle <- openFile filename ReadMode

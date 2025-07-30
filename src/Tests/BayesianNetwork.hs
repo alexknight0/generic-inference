@@ -23,6 +23,8 @@ import qualified Control.Exception                                 as E
 import           Control.Monad                                     (forM)
 import qualified Data.Hashable                                     as H
 import qualified Data.Set                                          as S
+import           Tests.Utils                                       (checkAnswers,
+                                                                    unitTest)
 
 tests :: IO Bool
 tests = checkParallel $$(discover)

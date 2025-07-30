@@ -27,7 +27,7 @@ import           LocalComputation.ValuationAlgebra       (Valuation)
 
 data Error = QueryNotSubsetOfValuations deriving (NFData, Generic, Show)
 
-data Mode = Baseline | Fusion | Shenoy
+data Mode = BruteForce | Fusion | Shenoy deriving (Show)
 
 -- | Compute inference using the given mode to return valuations with the given domains.
 queries :: (
@@ -74,9 +74,9 @@ queries'' :: (
     , MonadIO m
     )
  => Mode -> [v a b] -> [Domain a] -> m [v a b]
-queries'' Baseline vs qs = mapM (\q -> pure $ baseline vs q) qs
-queries'' Fusion   vs qs = mapM (\q -> pure $ F.fusion vs q) qs
-queries'' Shenoy   vs qs = run $ SS.answerQueriesM vs qs
+queries'' BruteForce vs qs = mapM (\q -> pure $ baseline vs q) qs
+queries'' Fusion   vs qs   = mapM (\q -> pure $ F.fusion vs q) qs
+queries'' Shenoy   vs qs   = run $ SS.answerQueriesM vs qs
 
 
 -- | Compute inference using the given mode to return a valuation with the given domain.

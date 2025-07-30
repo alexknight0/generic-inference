@@ -18,9 +18,12 @@ module LocalComputation.Graph
     , nonSymmetricEdges
     , merge
     , merges1
+    , adjacencyList
+    , reverseAdjacencyList
     )
 where
 
+import qualified Algebra.Graph as AG
 import           Control.Monad (guard)
 import qualified Data.List     as L
 import qualified Data.Map      as M
@@ -112,3 +115,12 @@ merge (Graph g1) (Graph g2) = Graph $ M.unionWith (++) g1 g2
 
 merges1 :: (Foldable f, Ord a) => f (Graph a b) -> Graph a b
 merges1 gs = foldr1 merge gs
+
+toAlgebraGraph :: Graph a b -> AG.Graph a
+toAlgebraGraph g = AG.overlays [AG.edge e.arcHead e.arcTail | e <- toList g]
+
+adjacencyList :: (Ord a) => Graph a b -> [(a, [a])]
+adjacencyList g = AG.adjacencyList $ toAlgebraGraph g
+
+reverseAdjacencyList :: (Ord a) => Graph a b -> [(a, [a])]
+reverseAdjacencyList = adjacencyList . flipArcDirections

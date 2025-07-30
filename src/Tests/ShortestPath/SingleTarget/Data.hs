@@ -21,8 +21,8 @@ import qualified Text.Parsec                                    as P (ParseError
 
 data Query a = Query { sources :: [a], target :: a } deriving Show
 
-data Problem a = Problem {
-      graphs  :: [G.Graph Integer a]
+data Problem = Problem {
+      graphs  :: [G.Graph Integer Double]
     , q       :: Query Integer
     , answers :: [Double]
 }
@@ -77,7 +77,7 @@ p1AndP2Basis = [
           , (8, [(2, 2), (6, 6), (7, 7)])
       ]
 
-p1 :: (Num a) => Problem a
+p1 :: Problem
 p1 = Problem {
       graphs = [G.addSelfLoops 0 $ G.fromList' p1AndP2Basis]
     , q = Query [ 0
@@ -103,16 +103,12 @@ p1 = Problem {
 }
 
 -- P1 but with the information split across 8 individual graphs that must be combined together.
-p2 :: (Num a) => Problem a
+p2 :: Problem
 p2 = Problem {
       graphs = map (G.addSelfLoops 0 . G.fromList' . (:[])) p1AndP2Basis
     , q = p1.q
-    , answers = p1'.answers
+    , answers = p1.answers
 }
-    where
-        -- Prevent defaulting warning
-        p1' :: Problem Integer
-        p1' = p1
 
 parseGraph :: FilePath -> IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural Double)))
 parseGraph filepath = fmap (fmap (fmap (G.addSelfLoops 0))) $ fmap (P.mapParseResult (fromInteger)) $ parseFile P.graph filepath

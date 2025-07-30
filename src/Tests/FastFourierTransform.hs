@@ -19,6 +19,8 @@ import           Control.Distributed.Process                     (liftIO)
 import           Data.Complex                                    (Complex ((:+)),
                                                                   imagPart,
                                                                   realPart)
+import           Tests.Utils                                     (checkAnswers,
+                                                                  unitTest)
 
 tests :: IO Bool
 tests = checkParallel $$(discover)

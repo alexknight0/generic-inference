@@ -1,9 +1,15 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell     #-}
 
-module Tests.Utils
-    ( tests )
-where
+{- | Module containing both tests for the utilities in the local computation library,
+as well as general utilities used by the test library.
+-}
+module Tests.Utils (
+      tests
+    , genMode
+    , unitTest
+    , checkAnswers
+) where
 
 import           Hedgehog
 import qualified Hedgehog.Gen                as Gen
@@ -12,8 +18,13 @@ import qualified Hedgehog.Range              as Range
 import           Control.DeepSeq             (force)
 import           Control.Distributed.Process
 import qualified Control.Exception           as E
+import           Control.Monad               (void)
+import qualified LocalComputation.Inference  as I
+import           LocalComputation.Utils      (zipWithAssert)
 
-
+-------------------------------------------------------------------------------
+-- Tests                                                                     --
+-------------------------------------------------------------------------------
 tests :: IO Bool
 tests = checkParallel $$(discover)
 
@@ -34,3 +45,21 @@ prop_assertsAreStillPresent = withTests 100 . property $ do
         f :: Int -> Int
         f _ | E.assert False False = undefined
         f _ = 4
+
+-------------------------------------------------------------------------------
+-- Utils                                                                     --
+-------------------------------------------------------------------------------
+
+genMode :: Gen I.Mode
+genMode = Gen.element [I.BruteForce, I.Fusion, I.Shenoy]
+
+unitTest :: PropertyT IO a -> Property
+unitTest = withTests 1 . property . void
+
+checkAnswers :: (Show a, Show b) => (a -> b -> Bool) -> [a] -> [b] -> PropertyT IO ()
+checkAnswers f results answers = diff results (\rs as -> foobar rs as) answers
+    where
+        foobar rs as
+            | and (zipWithAssert f rs as) == False = False
+            | otherwise = True
+

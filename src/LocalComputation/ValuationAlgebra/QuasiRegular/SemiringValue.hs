@@ -25,7 +25,7 @@ class (SemiringValue a) => QuasiRegularSemiringValue a where
     -- work for path problems? pdf page 257 gen. inf.
 
 -- | A value from the tropical semiring of all real numbers. Detailed page 232 of "Generic Inference" (Pouly & Kohlas, 2012).
-newtype TropicalSemiringValue = T Double deriving (Ord, Num, Show, NFData, Eq, Generic, Read, Binary)
+newtype TropicalSemiringValue = T Double deriving (Ord, Num, Real, Enum, Show, NFData, Eq, Generic, Read, Binary)
 
 toDouble :: TropicalSemiringValue -> Double
 toDouble (T x) = x
