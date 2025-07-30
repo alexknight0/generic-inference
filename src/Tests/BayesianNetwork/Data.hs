@@ -28,6 +28,8 @@ import           Data.Binary                                (Binary)
 import qualified Data.Hashable                              as H
 import           GHC.Generics                               (Generic)
 
+import           Control.DeepSeq                            (NFData)
+
 dataDirectory :: String
 dataDirectory = "src/Benchmark/Data/BayesianNetwork/"
 
@@ -42,7 +44,7 @@ andesFilepath = dataDirectory ++ "andes.net"
 -- that a random value should be generated between.
 data AsiaVar = VisitToAsia | HasTuberculosis | Smoker | HasLungCancer
            | HasBronchitis | TuberculosisOrCancer | XRayResult | Dyspnea | XRayResultAndDyspnea
-           deriving (Eq, Ord, Show, Generic, Binary, Enum, H.Hashable)
+           deriving (Eq, Ord, Show, Generic, Binary, Enum, H.Hashable, NFData)
 
 minAsiaP1 :: AsiaVar
 minAsiaP1 = VisitToAsia

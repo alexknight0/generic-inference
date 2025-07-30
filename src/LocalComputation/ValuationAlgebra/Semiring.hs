@@ -17,6 +17,7 @@ where
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra
 
+import           Control.DeepSeq                                 (NFData)
 import           Control.Exception                               (assert)
 import           Data.Binary                                     (Binary)
 import qualified Data.Map                                        as M
@@ -84,7 +85,7 @@ variable in a variable arrangement is the same.
 -}
 data SemiringValuation c a b = Valuation (M.Map (VariableArrangement a b) c) (Domain a) (M.Map a (Domain b)) (Domain a)
                              | Identity (Domain a)
-                             deriving (Generic, Binary)
+                             deriving (Generic, Binary, NFData)
 
 -- | Returns 'False' if the data structure does not satisfy it's given description.
 isWellFormed :: forall a b c. (Ord a, Eq b) => SemiringValuation c a b -> Bool

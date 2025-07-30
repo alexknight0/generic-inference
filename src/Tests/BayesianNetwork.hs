@@ -26,6 +26,8 @@ import qualified Data.Set                                          as S
 import           Tests.Utils                                       (checkAnswers,
                                                                     unitTest)
 
+import           Control.DeepSeq                                   (NFData)
+
 tests :: IO Bool
 tests = checkParallel $$(discover)
 
@@ -38,10 +40,14 @@ dataToValuations vs = map (uncurry getRows) withVariableDomains
         withVariableDomains :: [([(AsiaVar, [Bool])], [Probability])]
         withVariableDomains = map (\(xs, ps) -> (map boolify xs, ps)) vs
 
-checkQueries :: (H.Hashable a, H.Hashable b, Show a, Show b, Serializable a, Serializable b, Ord a, Ord b) => [ProbabilityQuery a b] -> [Probability] -> PropertyT IO (Network a b) -> PropertyT IO (Network a b)
+checkQueries :: (H.Hashable a, H.Hashable b, Show a, Show b, Serializable a, Serializable b, Ord a, Ord b, NFData a, NFData b)
+    => [ProbabilityQuery a b]
+    -> [Probability]
+    -> PropertyT IO (Network a b)
+    -> PropertyT IO (Network a b)
 checkQueries qs ps getNetwork = do
     network <- getNetwork
-    results <- run $ queryNetwork qs network
+    results <- run $ getProbability qs network
     checkAnswers probabilityApproxEqual results ps
     pure network
 
@@ -127,11 +133,8 @@ prop_inferenceAnswersMatchPrebuilt = withTests 100 . property $ do
         genQueries :: Gen ([ProbabilityQuery AsiaVar Bool])
         genQueries = Gen.list (Range.linear 1 6) genQuery
 
-        algebraResults qs = run $ queryNetwork qs (dataToValuations asiaValuationsP1)
+        algebraResults qs = run $ getProbability qs (dataToValuations asiaValuationsP1)
         prebuiltResults qs = liftIO $ E.try $ E.evaluate $ force $ runQueries (createNetwork asiaValuationsP1) qs
-
-
-
 
 prop_parsesAndes :: Property
 prop_parsesAndes = unitTest $ parseNetwork'' andesFilepath
