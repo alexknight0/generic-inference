@@ -10,11 +10,11 @@ module Tests.ShortestPath.SingleTarget
 where
 
 import qualified Benchmark.Baseline.DjikstraSimple                            as H
+import           Benchmark.Data.ShortestPath
 import qualified LocalComputation.Graph                                       as G
 import qualified LocalComputation.Instances.ShortestPath.SingleTarget         as ST
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra.QuasiRegular
-import           Tests.ShortestPath.SingleTarget.Data
 
 import           Hedgehog
 import qualified Hedgehog.Gen                                                 as Gen
@@ -104,20 +104,6 @@ prop_p1 = pX p1
 -- | Tests that the all implementations work for a set problem where multiple graphs are given.
 prop_p2 :: Property
 prop_p2 = pX p2
-
--- | Generates a random query from the given set of graph vertices.
-genQuery :: (Ord a) => S.Set a -> Gen (Query a)
-genQuery vertices
-    | null vertices = error "Expected non-empty vertices iterable"
-    | otherwise = do
-    target <- Gen.element vertices
-    sources <- Gen.set (Range.linear 1 (length vertices - 1)) (Gen.element vertices)
-    pure $ Query (S.toList sources) target
-
-genConnectedQuery :: [(a, [a])] -> Gen (Query a)
-genConnectedQuery reverseAdjacencyList = do
-    (target, sources) <- Gen.element reverseAdjacencyList
-    pure $ Query sources target
 
 -- | Checks the output of the local computation algorithms and the baseline algorithm match for a set of random queries.
 matchesBaseline :: forall a . (NFData a, H.Hashable a, Binary a, Typeable a, Show a, Ord a)

@@ -1,6 +1,8 @@
-module Tests.ShortestPath.SingleTarget.Data (
+module Benchmark.Data.ShortestPath (
       Query (..)
     , Problem (..)
+    , genQuery
+    , genConnectedQuery
     , p0Graphs
     , p0Queries
     , p1
@@ -19,6 +21,12 @@ import           LocalComputation.Utils                         (parseFile)
 import           Numeric.Natural                                (Natural)
 import qualified Text.Parsec                                    as P (ParseError)
 
+import qualified Data.Set                                       as S
+import           Hedgehog
+import qualified Hedgehog.Gen                                   as Gen
+import qualified Hedgehog.Internal.Property                     as Hedgehog (PropertyName (..))
+import qualified Hedgehog.Range                                 as Range
+
 data Query a = Query { sources :: [a], target :: a } deriving Show
 
 data Problem = Problem {
@@ -26,6 +34,29 @@ data Problem = Problem {
     , q       :: Query Integer
     , answers :: [Double]
 }
+
+--------------------------------------------------------------------------------
+-- Randomly generated tests                                                   --
+--------------------------------------------------------------------------------
+
+-- | Generates a random query from the given set of graph vertices.
+genQuery :: (Ord a) => S.Set a -> Gen (Query a)
+genQuery vertices
+    | null vertices = error "Expected non-empty vertices iterable"
+    | otherwise = do
+    target <- Gen.element vertices
+    sources <- Gen.set (Range.linear 1 (length vertices - 1)) (Gen.element vertices)
+    pure $ Query (S.toList sources) target
+
+-- | Generates a random connected query given a reverse adjacency list.
+genConnectedQuery :: [(a, [a])] -> Gen (Query a)
+genConnectedQuery reverseAdjacencyList = do
+    (target, sources) <- Gen.element reverseAdjacencyList
+    pure $ Query sources target
+
+--------------------------------------------------------------------------------
+-- Manual tests                                                               --
+--------------------------------------------------------------------------------
 
 -- | A collection of graphs inference should fail on due to missing a 0 cost self loop.
 -- See `LocalComputation.Instances.ShortestPath.SingleTarget.hs` for more information.

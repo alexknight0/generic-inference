@@ -29,6 +29,7 @@ library
       Benchmark.Baseline.DjikstraSimple
       Benchmark.Baseline.FFT
       Benchmark.Baseline.Probability
+      Benchmark.Data.ShortestPath
       Benchmark.ShortestPath.SingleTarget
       LocalComputation.Graph
       LocalComputation.Inference
@@ -57,7 +58,6 @@ library
       Tests.FastFourierTransform.Data
       Tests.LabelledMatrix
       Tests.ShortestPath.SingleTarget
-      Tests.ShortestPath.SingleTarget.Data
       Tests.Utils
   other-modules:
       Paths_localcomputation

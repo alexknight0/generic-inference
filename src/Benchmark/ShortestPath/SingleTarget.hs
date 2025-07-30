@@ -5,7 +5,7 @@ module Benchmark.ShortestPath.SingleTarget
 where
 
 -- TODO: don't want a dependency of benchmark on test - move queries to a place inside benchmark.
-import qualified Tests.ShortestPath.SingleTarget.Data                 as D
+import qualified Benchmark.Data.ShortestPath                          as D
 
 import qualified Benchmark.Baseline.DjikstraSimple                    as H
 import           Benchmark.Baseline.FFT                               (dft)

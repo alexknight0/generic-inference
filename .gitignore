@@ -2,3 +2,4 @@
 *~
 *.prof
 report.html
+src/Benchmark/Data/ShortestPath/*

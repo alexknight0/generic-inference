@@ -34,7 +34,6 @@ import           Control.Distributed.Process.Node
 import qualified LocalComputation.Instances.ShortestPath.SingleTarget         as ST
 import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue (TropicalSemiringValue (..))
 import           Network.Transport.TCP
-import qualified Tests.ShortestPath.SingleTarget.Data                         as D
 import           Text.Pretty.Simple                                           (pPrint)
 
 -- -- uses not-undirected graph so commented out for now
