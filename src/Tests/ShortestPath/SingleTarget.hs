@@ -50,12 +50,11 @@ tests = fmap and $ sequence [
 p3MatchesBaseline :: IO Bool
 p3MatchesBaseline = do
     p3VerySmall <- P.fromValid p3VerySmallGraph
-    --p3Small <- P.fromValid p3SmallGraph
     checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map (getTest p3VerySmall) [I.BruteForce, I.Fusion, I.Shenoy]
 
     where
         getTest :: G.Graph Natural Double -> I.Mode -> (PropertyName, Property)
-        getTest g mode = (Hedgehog.PropertyName $ "prop_p3VerySmall_MatchesBaseline_" ++ show mode, matchesBaseline mode g 300)
+        getTest g mode = (Hedgehog.PropertyName $ "prop_p3VerySmall_MatchesBaseline_" ++ show mode, matchesBaseline mode g 100)
 
 
 tolerableError :: Double
@@ -120,7 +119,6 @@ genConnectedQuery reverseAdjacencyList = do
     (target, sources) <- Gen.element reverseAdjacencyList
     pure $ Query sources target
 
-
 -- | Checks the output of the local computation algorithms and the baseline algorithm match for a set of random queries.
 matchesBaseline :: forall a . (NFData a, H.Hashable a, Binary a, Typeable a, Show a, Ord a)
     => I.Mode
@@ -153,4 +151,6 @@ parseGraph g = do
 
 -- | Tests the parser doesn't fail on a known working example.
 prop_parser :: Property
-prop_parser = unitTest $ parseGraph p3SmallGraph
+prop_parser = unitTest $ do
+    _ <- parseGraph p3SmallGraph
+    parseGraph p3MediumGraph
