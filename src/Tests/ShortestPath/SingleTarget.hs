@@ -18,6 +18,7 @@ import           Tests.ShortestPath.SingleTarget.Data
 
 import           Hedgehog
 import qualified Hedgehog.Gen                                                 as Gen
+import qualified Hedgehog.Internal.Property                                   as Hedgehog (PropertyName (..))
 import qualified Hedgehog.Range                                               as Range
 
 import           Control.Distributed.Process                                  (Process,
@@ -35,25 +36,27 @@ import           Data.Binary                                                  (B
 import qualified Data.Hashable                                                as H
 import qualified LocalComputation.Inference                                   as I
 import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue (toDouble)
+import           Numeric.Natural                                              (Natural)
 import           Tests.Utils                                                  (checkAnswers,
-                                                                               genMode,
                                                                                unitTest)
 import           Type.Reflection                                              (Typeable)
 
 tests :: IO Bool
 tests = fmap and $ sequence [
         checkParallel $$(discover)
-      , p3MatchesPrebuilt
+      , p3MatchesBaseline
    ]
 
-p3MatchesPrebuilt :: IO Bool
-p3MatchesPrebuilt = do
+p3MatchesBaseline :: IO Bool
+p3MatchesBaseline = do
     p3VerySmall <- P.fromValid p3VerySmallGraph
     --p3Small <- P.fromValid p3SmallGraph
-    checkSequential $ Group "Tests.ShortestPath.SingleTarget" [
-            ("prop_p3VerySmallMatchesPrebuilt", matchesBaseline p3VerySmall 300)
-        --, ("prop_p3SmallMatchesPrebuilt", matchesPrebuilt p3Small 1)
-       ]
+    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map (getTest p3VerySmall) [I.BruteForce, I.Fusion, I.Shenoy]
+
+    where
+        getTest :: G.Graph Natural Double -> I.Mode -> (PropertyName, Property)
+        getTest g mode = (Hedgehog.PropertyName $ "prop_p3VerySmall_MatchesBaseline_" ++ show mode, matchesBaseline mode g 300)
+
 
 tolerableError :: Double
 tolerableError = 0.00000001
@@ -120,25 +123,21 @@ genConnectedQuery reverseAdjacencyList = do
 
 -- | Checks the output of the local computation algorithms and the baseline algorithm match for a set of random queries.
 matchesBaseline :: forall a . (NFData a, H.Hashable a, Binary a, Typeable a, Show a, Ord a)
-    => G.Graph a Double
+    => I.Mode
+    -> G.Graph a Double
     -> TestLimit
     -> Property
-matchesBaseline g numTests = withTests numTests . property $ do
+matchesBaseline mode g numTests = withTests numTests . property $ do
     query <- forAll $ genConnectedQuery reverseAdjacencyList
 
-    -- Get prebuilt results. Discard if all infinity as too many of these tests is redundant.
     baseline  <- go Baseline query
-    if all (== infinity) baseline then discard else pure ()
-
-    -- Generate localcomputation inference results using a random implementation.
-    mode <- forAll genMode
-    local <- go (Local mode) query
+    local     <- go (Local mode) query
 
     checkAnswers approx local baseline
 
     where
         go :: (MonadTest m, MonadIO m) => Implementation -> Query a -> m [Double]
-        go mode query = singleTarget mode [g] query.sources query.target
+        go m query = singleTarget m [g] query.sources query.target
 
         reverseAdjacencyList = G.reverseAdjacencyList g
 
