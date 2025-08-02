@@ -20,17 +20,23 @@ module LocalComputation.Graph
     , merges1
     , adjacencyList
     , reverseAdjacencyList
+    , empty
     )
 where
 
-import qualified Algebra.Graph as AG
-import           Control.Monad (guard)
-import qualified Data.List     as L
-import qualified Data.Map      as M
-import           Data.Maybe    (isJust)
-import qualified Data.Set      as S
+import qualified Algebra.Graph      as AG
+import           Control.Monad      (guard)
+import qualified Data.List          as L
+import qualified Data.Map           as M
+import           Data.Maybe         (isJust)
+import qualified Data.Set           as S
+import qualified Data.Text.Lazy     as LT
+import           Text.Pretty.Simple (pShow, pShowNoColor)
 
-newtype Graph a b = Graph (M.Map a [(a, b)]) deriving Show
+newtype Graph a b = Graph (M.Map a [(a, b)])
+
+instance (Show a, Show b) => Show (Graph a b) where
+    show (Graph g) = LT.unpack $ pShowNoColor g
 data Edge a b =
     Edge {
           arcHead :: a
@@ -124,3 +130,6 @@ adjacencyList g = AG.adjacencyList $ toAlgebraGraph g
 
 reverseAdjacencyList :: (Ord a) => Graph a b -> [(a, [a])]
 reverseAdjacencyList = adjacencyList . flipArcDirections
+
+empty :: Graph a b
+empty = Graph M.empty

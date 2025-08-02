@@ -9,28 +9,30 @@ module LocalComputation.Instances.ShortestPath.SingleTarget
     )
 where
 
-import           Control.Distributed.Process                    (Process)
-import           Data.Maybe                                     (fromJust)
-import qualified Data.Set                                       as S
+import           Control.Distributed.Process                                  (Process)
+import           Data.Maybe                                                   (fromJust)
+import qualified Data.Set                                                     as S
 
-import qualified Data.Map                                       as MP
-import           LocalComputation.Inference.ShenoyShafer        (answerQueriesM)
-import qualified LocalComputation.LabelledMatrix                as M
-import qualified LocalComputation.ValuationAlgebra.QuasiRegular as Q (QuasiRegularValuation,
-                                                                      SemiringValue (one, zero),
-                                                                      TropicalSemiringValue,
-                                                                      create,
-                                                                      solution)
+import qualified Data.Map                                                     as MP
+import           LocalComputation.Inference.ShenoyShafer                      (answerQueriesM)
+import qualified LocalComputation.LabelledMatrix                              as M
+import qualified LocalComputation.ValuationAlgebra.QuasiRegular               as Q (QuasiRegularValuation,
+                                                                                    SemiringValue (one, zero),
+                                                                                    TropicalSemiringValue,
+                                                                                    create,
+                                                                                    solution)
 -- Typeclasses
-import           Control.DeepSeq                                (NFData)
-import           Control.Monad.IO.Class                         (MonadIO)
-import           Data.Binary                                    (Binary)
-import qualified Data.Hashable                                  as H
-import           GHC.Generics                                   (Generic)
-import           LocalComputation.Graph                         as G
-import qualified LocalComputation.Inference                     as I
-import           LocalComputation.Utils                         (fromRight)
-import           Type.Reflection                                (Typeable)
+import           Control.DeepSeq                                              (NFData)
+import           Control.Monad.IO.Class                                       (MonadIO)
+import           Data.Binary                                                  (Binary)
+import qualified Data.Hashable                                                as H
+import           GHC.Generics                                                 (Generic)
+import           LocalComputation.Graph                                       as G
+import qualified LocalComputation.Inference                                   as I
+import           LocalComputation.Utils                                       (fromRight)
+import qualified LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue as Q (TropicalSemiringValue (..),
+                                                                                    toDouble)
+import           Type.Reflection                                              (Typeable)
 
 type Result a = M.LabelledMatrix a () Q.TropicalSemiringValue
 type Knowledgebase a = [Q.QuasiRegularValuation Q.TropicalSemiringValue a ()]
@@ -66,7 +68,6 @@ knowledgeBase gs target = map f gs
 getDistance :: (Ord a) => Result a -> Query a -> Q.TropicalSemiringValue
 getDistance x (source, _) = fromJust $ M.find (source, ()) x
 
--- TODO: Can this handle negative weights?
 {- | Returns the shortest distance between a single target and multiple sources.
 
 Assumes that every graph node can reach itself with 0 cost. This is a limitation of the inference process using quasi regular valuations;
@@ -77,11 +78,20 @@ To make this assumption explicit, returns `Left InvalidGraph` if a graph that do
 -}
 singleTarget :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
     => I.Mode
+    -> [Graph a Double]
+    -> [a]
+    -> a
+    -> Either Error (m [Double])
+singleTarget mode vs sources target = fmap (fmap (map Q.toDouble)) $ singleTarget' mode (map (fmap Q.T) vs) sources target
+
+-- TODO: Can this handle negative weights?
+singleTarget' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+    => I.Mode
     -> [Graph a Q.TropicalSemiringValue]
     -> [a]
     -> a
     -> Either Error (m [Q.TropicalSemiringValue])
-singleTarget mode vs sources target
+singleTarget' mode vs sources target
     | any (not . G.hasZeroCostSelfLoops) vs =  Left MissingZeroCostSelfLoops
     | Left e          <- solutionMM         =  Left $ InferenceError e
     | Right solutionM <- solutionMM         = Right $ do

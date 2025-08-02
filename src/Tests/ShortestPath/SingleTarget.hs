@@ -75,9 +75,9 @@ singleTarget :: (MonadTest m, NFData a,  MonadIO m, Show a, Binary a, Typeable a
 singleTarget Baseline      graphs sources target = pure $ H.singleTarget graphs sources target infinity
 singleTarget (Local mode)  graphs sources target
     | Left _ <- result = failure
-    | Right r <- result = fmap (map toDouble) r
+    | Right r <- result = r
     where
-        result = ST.singleTarget mode (map (fmap T) graphs) sources target
+        result = ST.singleTarget mode graphs sources target
 
 -- | Tests that graphs that are missing zero cost self loops throw an error.
 -- For the reason behind this behaviour, see the documentation of `ST.singleTarget`
@@ -88,7 +88,7 @@ prop_p0 = unitTest $ do
             Left ST.MissingZeroCostSelfLoops -> success
             _                                -> failure
     where
-        results :: G.Graph Integer TropicalSemiringValue -> Either ST.Error (Process [TropicalSemiringValue])
+        results :: G.Graph Integer Double -> Either ST.Error (Process [Double])
         results graph = ST.singleTarget I.Shenoy [graph] p0Queries.sources p0Queries.target
 
 pX :: Problem -> Property

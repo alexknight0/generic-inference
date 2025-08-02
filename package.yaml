@@ -50,6 +50,7 @@ dependencies:
 - massiv
 - bimap
 - bytestring
+- random
 
 ghc-options:
 - -Wall

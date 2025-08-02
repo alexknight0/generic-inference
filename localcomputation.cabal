@@ -96,6 +96,7 @@ library
     , parsec
     , pretty-simple
     , probability
+    , random
     , silently
     , strict-concurrency
     , text
@@ -139,6 +140,7 @@ executable localcomputation-exe
     , parsec
     , pretty-simple
     , probability
+    , random
     , silently
     , strict-concurrency
     , text
@@ -187,6 +189,7 @@ test-suite localcomputation-test
     , parsec
     , pretty-simple
     , probability
+    , random
     , silently
     , strict-concurrency
     , text
@@ -235,6 +238,7 @@ benchmark localcomputation-benchmark
     , parsec
     , pretty-simple
     , probability
+    , random
     , silently
     , strict-concurrency
     , text

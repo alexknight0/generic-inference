@@ -1,12 +1,16 @@
+{- | Tests for benchmarking suite. Also exposes some example problems that can be used in a test suite -}
 module Benchmark.Data.ShortestPath (
       Query (..)
     , Problem (..)
     , genQuery
     , genConnectedQuery
+    , genConnectedQueries
+    , sample
     , p0Graphs
     , p0Queries
     , p1
     , p2
+    , p3
     , p3VerySmallGraph
     , p3SmallGraph
     , p3SmallGraph'
@@ -17,26 +21,39 @@ module Benchmark.Data.ShortestPath (
 
 import qualified LocalComputation.Graph                         as G
 import qualified LocalComputation.Instances.ShortestPath.Parser as P
-import           LocalComputation.Utils                         (parseFile)
+import           LocalComputation.Utils                         (fromRight,
+                                                                 parseFile)
 import           Numeric.Natural                                (Natural)
 import qualified Text.Parsec                                    as P (ParseError)
 
+import           Control.Monad                                  (replicateM)
 import qualified Data.Set                                       as S
 import           Hedgehog
 import qualified Hedgehog.Gen                                   as Gen
-import qualified Hedgehog.Internal.Property                     as Hedgehog (PropertyName (..))
 import qualified Hedgehog.Range                                 as Range
 
+-- | Query for a multiple-source single-target problem.
 data Query a = Query { sources :: [a], target :: a } deriving Show
 
+-- | Problem definition
 data Problem = Problem {
       graphs  :: [G.Graph Integer Double]
     , q       :: Query Integer
     , answers :: [Double]
 }
 
+-- | A problem where solutions are not specified - only used for benchmarking
+-- Can specify multiple queries.
+data BenchmarkProblem = BenchmarkProblem {
+      graphs :: IO [G.Graph Natural Double]
+    , qs     :: [Query Natural]
+}
+
+dataDirectory :: FilePath
+dataDirectory = "src/Benchmark/Data/ShortestPath"
+
 --------------------------------------------------------------------------------
--- Randomly generated tests                                                   --
+-- Randomly test generation
 --------------------------------------------------------------------------------
 
 -- | Generates a random query from the given set of graph vertices.
@@ -54,8 +71,53 @@ genConnectedQuery reverseAdjacencyList = do
     (target, sources) <- Gen.element reverseAdjacencyList
     pure $ Query sources target
 
+-- | Generates a random list of queries given a graph and a number of queries to generate.
+genConnectedQueries :: (Ord a) => Natural -> G.Graph a b -> Gen ([Query a])
+genConnectedQueries numQueries g = do
+    queries <- Gen.list (Range.singleton $ fromIntegral numQueries)
+                        (Gen.element (G.reverseAdjacencyList g))
+    pure $ fmap (\(target, sources) -> Query sources target) queries
+
+
+genEdge :: Gen a -> Gen b -> Gen (G.Edge a b)
+genEdge genNode genCost = do
+    arcHead <- genNode
+    arcTail <- genNode
+    cost <- genCost
+    pure (G.Edge arcHead arcTail cost)
+
+
+-- | Generates a random graph with the given number of nodes and edges.
+-- Graph may be disconnected. After generation of the graph, one 0 cost self loop
+-- is added to every node. Edge costs range from 0 to 100. Unaffected by size
+-- parameter so suitable for use with `Gen.sample`.
+genGraph :: Natural -> Natural -> Gen (G.Graph Natural Integer)
+genGraph 0     _    = pure G.empty
+genGraph nodes arcs = do
+    edges <- Gen.list (Range.singleton $ fromIntegral arcs)
+                      (genEdge genNode genCost)
+
+    pure $ G.fromList edges
+
+    where
+        genNode = fmap fromIntegral $ Gen.int (Range.constant 0 (fromIntegral nodes - 1))
+        genCost = fmap fromIntegral $ Gen.int (Range.constant 0 100)
+
+foobar :: ()
+foobar = undefined
+{-
+
+>>> sample $ genGraph 5 2
+
+-}
+
+
+-- | Takes a hedgehog generator and generates a random sample.
+sample :: Gen a -> IO a
+sample = Gen.sample
+
 --------------------------------------------------------------------------------
--- Manual tests                                                               --
+-- Manual tests
 --------------------------------------------------------------------------------
 
 -- | A collection of graphs inference should fail on due to missing a 0 cost self loop.
@@ -141,8 +203,30 @@ p2 = Problem {
     , answers = p1.answers
 }
 
+-- | A test on a small graph of 78 nodes and 93 arcs.
+p3 :: BenchmarkProblem
+p3 = BenchmarkProblem {
+      graphs = p3Graphs
+    , qs = p3Queries
+}
+
+p3Graphs = fmap (:[]) $ parseGraph' (dataDirectory ++ "Small-USA-road-d.NY.gr")
+
+-- Randomly generated (but fixed) query. See 'HLS eval plugin' if unsure how to regenerate.
+--
+-- >>> let reverseAdjacencyList = G.reverseAdjacencyList p3Graphs
+-- >>> sample $ genConnectedQuery (reverseAdjacencyList)
+p3Queries = undefined
+
+-------------------------------------------------------------------------------
+-- Utils
+-------------------------------------------------------------------------------
+
 parseGraph :: FilePath -> IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural Double)))
 parseGraph filepath = fmap (fmap (fmap (G.addSelfLoops 0))) $ fmap (P.mapParseResult (fromInteger)) $ parseFile P.graph filepath
+
+parseGraph' :: FilePath -> IO (G.Graph Natural Double)
+parseGraph' filepath = fmap (fromRight . fromRight) $ parseGraph filepath
 
 p3VerySmallGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural Double)))
 p3VerySmallGraph = parseGraph "src/Benchmark/Data/ShortestPath/VerySmall-USA-road-d.NY.gr"
