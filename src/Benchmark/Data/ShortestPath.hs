@@ -1,7 +1,6 @@
 {- | Tests for benchmarking suite. Also exposes some example problems that can be used in a test suite -}
 module Benchmark.Data.ShortestPath (
-      Query (..)
-    , Problem (..)
+      Problem (..)
     , genQuery
     , genConnectedQuery
     , genConnectedQueries
@@ -19,21 +18,18 @@ module Benchmark.Data.ShortestPath (
     , p3VeryLargeGraph
 ) where
 
-import qualified LocalComputation.Graph                         as G
-import qualified LocalComputation.Instances.ShortestPath.Parser as P
-import           LocalComputation.Utils                         (fromRight,
-                                                                 parseFile)
-import           Numeric.Natural                                (Natural)
-import qualified Text.Parsec                                    as P (ParseError)
+import qualified LocalComputation.Graph                               as G
+import qualified LocalComputation.Instances.ShortestPath.Parser       as P
+import           LocalComputation.Utils                               (fromRight,
+                                                                       parseFile)
+import           Numeric.Natural                                      (Natural)
+import qualified Text.Parsec                                          as P (ParseError)
 
-import           Control.Monad                                  (replicateM)
-import qualified Data.Set                                       as S
+import qualified Data.Set                                             as S
 import           Hedgehog
-import qualified Hedgehog.Gen                                   as Gen
-import qualified Hedgehog.Range                                 as Range
-
--- | Query for a multiple-source single-target problem.
-data Query a = Query { sources :: [a], target :: a } deriving Show
+import qualified Hedgehog.Gen                                         as Gen
+import qualified Hedgehog.Range                                       as Range
+import           LocalComputation.Instances.ShortestPath.SingleTarget (Query (..))
 
 -- | Problem definition
 data Problem = Problem {

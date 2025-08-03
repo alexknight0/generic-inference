@@ -24,7 +24,9 @@ import qualified Hedgehog.Range                                               as
 import           Control.Distributed.Process                                  (Process,
                                                                                liftIO)
 import           Control.Monad                                                (forM,
-                                                                               forM_)
+                                                                               forM_,
+                                                                               zipWithM,
+                                                                               zipWithM_)
 import qualified Data.Set                                                     as S
 import qualified LocalComputation.Instances.ShortestPath.Parser               as P
 import qualified Text.Parsec                                                  as P
@@ -120,10 +122,22 @@ matchesBaseline mode g numTests = withTests numTests . property $ do
     checkAnswers approx local baseline
 
     where
-        go :: (MonadTest m, MonadIO m) => Implementation -> Query a -> m [Double]
+        go :: (MonadTest m, MonadIO m) => Implementation -> ST.Query a -> m [Double]
         go m query = singleTarget m [g] query.sources query.target
 
         reverseAdjacencyList = G.reverseAdjacencyList g
+
+prop_multipleTargets :: Property
+prop_multipleTargets = withTests 100 . property $ do
+    queries <- forAll $ genQueries
+
+    v1 <- fromRight $ ST.singleTargetsV1 I.Shenoy p1.graphs queries
+    v2 <- fromRight $ ST.singleTargetsV2 I.Shenoy p1.graphs queries
+    zipWithM_ (\x y -> checkAnswers approx x y) v1 v2
+
+    where
+        genQueries :: Gen ([ST.Query Integer])
+        genQueries = genConnectedQueries 4 (G.merges G.empty p1.graphs)
 
 -- | Parses the given graph. Fails if a parse error occurs.
 parseGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile a)) -> PropertyT IO a

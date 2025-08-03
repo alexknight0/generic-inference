@@ -17,6 +17,7 @@ module LocalComputation.Graph
     , hasZeroCostSelfLoops
     , nonSymmetricEdges
     , merge
+    , merges
     , merges1
     , adjacencyList
     , reverseAdjacencyList
@@ -118,6 +119,9 @@ isOppositeEdge e1 e2 = e1.arcTail == e2.arcHead && e1.arcHead == e2.arcTail
 -- | Merges the two given graphs.
 merge :: (Ord a) => Graph a b -> Graph a b -> Graph a b
 merge (Graph g1) (Graph g2) = Graph $ M.unionWith (++) g1 g2
+
+merges :: (Foldable f, Ord a) => Graph a b -> f (Graph a b) -> Graph a b
+merges initial gs = foldr merge initial gs
 
 merges1 :: (Foldable f, Ord a) => f (Graph a b) -> Graph a b
 merges1 gs = foldr1 merge gs
