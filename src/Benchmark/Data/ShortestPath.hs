@@ -4,6 +4,7 @@ module Benchmark.Data.ShortestPath (
     , genQuery
     , genConnectedQuery
     , genConnectedQueries
+    , genGraph
     , sample
     , p0Graphs
     , p0Queries
@@ -83,9 +84,10 @@ genEdge genNode genCost = do
     pure (G.Edge arcHead arcTail cost)
 
 
--- | Generates a random graph with the given number of nodes and edges.
--- Graph may be disconnected. After generation of the graph, one 0 cost self loop
--- is added to every node. Edge costs range from 0 to 100. Unaffected by size
+-- | Generates a random graph with the given number of edges, and at most
+-- the given number of nodes. The nodes are numbered from 0 to numNodes - 1.
+-- Edge costs range from 0 to 100. Graph may be disconnected. After generation
+-- of the graph, one 0 cost self loop is added to every node. Unaffected by size
 -- parameter so suitable for use with `Gen.sample`.
 genGraph :: Natural -> Natural -> Gen (G.Graph Natural Integer)
 genGraph 0     _    = pure G.empty

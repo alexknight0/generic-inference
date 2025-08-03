@@ -22,6 +22,7 @@ import           Control.DeepSeq                                      (NFData,
                                                                        deepseq,
                                                                        rnf)
 import           Control.Monad                                        (forM)
+import qualified Data.Map.Lazy                                        as M
 
 data Implementation = Baseline | Local I.Mode deriving Show
 
@@ -29,66 +30,62 @@ data Implementation = Baseline | Local I.Mode deriving Show
 -- Benchmarks
 --------------------------------------------------------------------------------
 
+foobar :: ()
+foobar = undefined
+{-
+
+>>> p3Small <- D.p3SmallGraph'
+>>> sample $ genConnectedQueries 10 p3Small
+[Query {sources = [9,10], target = 10},Query {sources = [16,17], target = 17},Query {sources = [25,26], target = 26},Query {sources = [54,55], target = 54},Query {sources = [64,65], target = 64},Query {sources = [27,28], target = 28},Query {sources = [20,21], target = 21},Query {sources = [60,61,68,69], target = 60},Query {sources = [18,19], target = 18},Query {sources = [43,44], target = 43}]
+
+-}
+
 benchmarks :: IO Benchmark
 benchmarks = do
     p3Small <- D.p3SmallGraph'
-    let p3SmallAdjList = G.reverseAdjacencyList p3Small
-    -- pPrint p3Small
-    -- results <- runProcessLocal $ ST.singleTarget [fmap T p3Small] [68] 69
-    -- pPrint results
-    queries <- sample $ genConnectedQueries 100 p3Small
+    -- p3Medium <- D.p3MediumGraph'
+    -- tmp <- sample $ genConnectedQueries 10 p3Medium
+    queries <- sample $ genConnectedQueries 10 p3Small
+
+    shenoy      <- singleTarget (Local I.Shenoy)     [p3Small] queries
+    bruteForce  <- singleTarget (Local I.BruteForce) [p3Small] queries
+    fusion      <- singleTarget (Local I.Fusion)     [p3Small] queries
+    baseline    <- singleTarget (Baseline)            [p3Small] queries
 
     pure $ bgroup "Shortest Path" [
-                  bench "localcomputation" $ nfIO $ singleTargetWithRandomQuery (Local I.Shenoy) p3Small p3SmallAdjList
-                , bench "djikstra"         $ nfIO $ singleTargetWithRandomQuery (Baseline)       p3Small p3SmallAdjList
-            ]
 
-singleTargetWithRandomQuery :: Implementation -> G.Graph Natural Double -> [(Natural, [Natural])] -> IO [Double]
-singleTargetWithRandomQuery mode graph reverseAdjacencyList = do
-    query <- D.sample $ D.genConnectedQuery reverseAdjacencyList
-    singleTarget mode [graph] query
+                  --bench "inparlell-shenoy"     $ nfIO $ fromRight $ ST.singleTarget (I.Shenoy) [p3Medium] (head tmp).sources (head tmp).target
+                  bench "localcomputation-shenoy"     $ nfIO shenoy
+                , bench "localcomputation-bruteForce" $ nfIO bruteForce
+                , bench "localcomputation-fusion"     $ nfIO fusion
+                , bench "djikstra"                    $ nfIO baseline
+            ]
 
 -- | A uniform interface for querying the single target shortest path solution using any implementation.
 -- Returns an IO action that returns another IO action. When the initial IO action is bound it
 -- performs the setup for problem and then returns an IO action that performs the computation that
 -- actually needs to be benchmarked.
-singleTarget' :: Implementation -> [G.Graph Natural Double] -> [ST.Query Natural] -> IO (IO [[Double]])
-singleTarget' Baseline gs qs = do
+singleTarget :: Implementation -> [G.Graph Natural Double] -> [ST.Query Natural] -> IO (IO [[Double]])
+singleTarget Baseline gs qs = do
     -- We peform arc reversal during setup as we want to compare the baseline and
     -- localcomputation algorithms as if both were single source or single target.
-    let reversedGraphs = map (H.create . G.flipArcDirections) gs
+    let reversedGraphs = map G.flipArcDirections gs
 
-    pure $ do
-        -- We count merging as a cost of using the package.
-        let g = H.merges H.empty reversedGraphs
+    reversedGraphs `deepseq` pure $ do
+        -- We do count merging as a cost of using the package.
+        let g = H.merges H.empty (map H.fromGraph reversedGraphs)
+
+        -- Compute solutions
         pure $ map (\q -> H.singleSource g q.target q.sources infinity) qs
+singleTarget (Local mode) gs qs = pure $ mapM (\q -> fromRight $ ST.singleTarget mode gs q.sources q.target) qs
 
--- singleTarget' (Local mode) gs qs = do
---     fromRight $ ST.singleTarget mode graphs q.sources q.target
+-- singleTargetWithRandomQuery :: Implementation -> G.Graph Natural Double -> [(Natural, [Natural])] -> IO [Double]
+-- singleTargetWithRandomQuery mode graph reverseAdjacencyList = do
+--     query <- D.sample $ D.genConnectedQuery reverseAdjacencyList
+--     singleTarget mode [graph] query
 
 
--- TODO: Test here. Also remember the ghci caches intermediate results.
-testFib :: IO (IO Integer)
-testFib = do
-    let ans = fib 35
-    ans `deepseq` pure $ do
-        print ans
-        pure ans
-
-fib 0 = 0
-fib 1 = 1
-fib n = fib (n - 1) + fib (n - 2)
-
-foobar :: ()
-foobar = undefined
-{-
-
->>> fib 35
-9227465
-
--}
-
-singleTarget :: Implementation -> [G.Graph Natural Double] -> ST.Query Natural -> IO [Double]
-singleTarget Baseline graphs q = pure $ H.singleTarget graphs q.sources q.target infinity
-singleTarget (Local mode) graphs q = fromRight $ ST.singleTarget mode graphs q.sources q.target
+-- singleTarget :: Implementation -> [G.Graph Natural Double] -> ST.Query Natural -> IO [Double]
+-- singleTarget Baseline graphs q = pure $ H.singleTarget graphs q.sources q.target infinity
+-- singleTarget (Local mode) graphs q = fromRight $ ST.singleTarget mode graphs q.sources q.target
 

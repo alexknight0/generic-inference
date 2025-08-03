@@ -1,6 +1,7 @@
 module Benchmark.Baseline.DjikstraSimple
     (
-      create
+      fromGraph
+    , toGraph
     , shortestPaths
     , singleSource
     , singleTarget
@@ -12,31 +13,34 @@ module Benchmark.Baseline.DjikstraSimple
 where
 
 import qualified Data.Map                       as M
-import qualified Graph.DijkstraSimple           as G
-import qualified Graph.DijkstraSimple.Weighters as G
-import qualified LocalComputation.Graph         as LG
+import qualified Graph.DijkstraSimple           as H
+import qualified Graph.DijkstraSimple.Weighters as H
+import qualified LocalComputation.Graph         as G
 
-create :: LG.Graph a b -> G.Graph a b
-create xs = G.Graph $ M.map (map (\(destination, cost) -> G.EdgeTo destination cost)) (LG.toMap xs)
+fromGraph :: G.Graph a b -> H.Graph a b
+fromGraph g = H.Graph $ M.map (map (\(destination, cost) -> H.EdgeTo destination cost)) (G.toMap g)
 
-empty :: G.Graph a b
-empty = G.Graph M.empty
+toGraph :: H.Graph a b -> G.Graph a b
+toGraph (H.Graph m) = G.fromMap $ M.map (map (\(H.EdgeTo destination cost) -> (destination, cost))) m
 
-merge :: (Ord a) => G.Graph a b -> G.Graph a b -> G.Graph a b
-merge (G.Graph g1) (G.Graph g2) = G.Graph $ M.unionWith (++) g1 g2
+empty :: H.Graph a b
+empty = H.Graph M.empty
 
-merges :: (Foldable f, Ord a) => G.Graph a b -> f (G.Graph a b) -> G.Graph a b
+merge :: (Ord a) => H.Graph a b -> H.Graph a b -> H.Graph a b
+merge (H.Graph g1) (H.Graph g2) = H.Graph $ M.unionWith (++) g1 g2
+
+merges :: (Foldable f, Ord a) => H.Graph a b -> f (H.Graph a b) -> H.Graph a b
 merges initial gs = foldr merge initial gs
 
-merges1 :: (Foldable f, Ord a) => f (G.Graph a b) -> G.Graph a b
+merges1 :: (Foldable f, Ord a) => f (H.Graph a b) -> H.Graph a b
 merges1 gs = foldr1 merge gs
 
-shortestPaths :: (Ord a, Ord b, Num b) => G.Graph a b -> a -> M.Map a b
-shortestPaths xs source = M.map (\(G.Path _ cost) -> cost) paths
+shortestPaths :: (Ord a, Ord b, Num b) => H.Graph a b -> a -> M.Map a b
+shortestPaths xs source = M.map (\(H.Path _ cost) -> cost) paths
     where
-        (G.Paths paths) = G.lightestPaths xs source G.cumulativeWeighter
+        (H.Paths paths) = H.lightestPaths xs source H.cumulativeWeighter
 
-singleSource :: (Ord a, Ord b, Num b) => G.Graph a b -> a -> [a] -> b -> [b]
+singleSource :: (Ord a, Ord b, Num b) => H.Graph a b -> a -> [a] -> b -> [b]
 singleSource graph source targets unreachable = map (\t -> M.findWithDefault unreachable t shortest) targets
     where
         shortest = shortestPaths graph source
@@ -46,8 +50,8 @@ singleSource graph source targets unreachable = map (\t -> M.findWithDefault unr
 __Warning__: This function should not be used for benhmarking purposes as it includes the overhead of switching
 all arc directions of the given graphs.
 -}
-singleTarget :: (Ord a, Ord b, Num b) => [LG.Graph a b] -> [a] -> a -> b -> [b]
+singleTarget :: (Ord a, Ord b, Num b) => [G.Graph a b] -> [a] -> a -> b -> [b]
 singleTarget graphs sources target unreachable = singleSource graph target sources unreachable
     where
-        graph = create $ LG.merges1 $ map LG.flipArcDirections graphs
+        graph = fromGraph $ G.merges1 $ map G.flipArcDirections graphs
 

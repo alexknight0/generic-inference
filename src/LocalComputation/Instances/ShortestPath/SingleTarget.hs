@@ -67,7 +67,6 @@ knowledgeBase gs target = map f gs
         assocList :: Graph a b -> [((a, a), b)]
         assocList g = map (\e -> ((e.arcHead, e.arcTail), e.weight)) (G.toList g)
 
-
 -- | Retuns a distance entry from the resulting valuation after inference. Unsafe.
 getDistance :: (Ord a) => Result a -> (a, a) -> Q.TropicalSemiringValue
 getDistance x (source, _) = fromJust $ M.find (source, ()) x
@@ -107,15 +106,15 @@ singleTarget' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable 
     -> a
     -> Either Error (m [Q.TropicalSemiringValue])
 singleTarget' mode vs sources target
-    | any (not . G.hasZeroCostSelfLoops) vs = Left MissingZeroCostSelfLoops
-    | Left e          <- solutionMM         = Left $ InferenceError e
+    | any (not . G.hasZeroCostSelfLoops) vs = Left  $ MissingZeroCostSelfLoops
+    | Left e          <- solutionMM         = Left  $ InferenceError e
     | Right solutionM <- solutionMM         = Right $ do
         solution <- solutionM
         pure $ map (\s -> getDistance solution (s, target)) sources
 
     where
         k = knowledgeBase vs target
-        domain = S.union (S.fromList sources) (S.singleton target)
+        domain = S.fromList (target : sources)
 
         solutionMM = fmap (fmap Q.solution) $ I.query mode k domain
 

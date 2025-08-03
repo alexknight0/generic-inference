@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass      #-}
+{-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module LocalComputation.Graph
@@ -34,16 +36,19 @@ import qualified Data.Set           as S
 import qualified Data.Text.Lazy     as LT
 import           Text.Pretty.Simple (pShow, pShowNoColor)
 
-newtype Graph a b = Graph (M.Map a [(a, b)])
+import           Control.DeepSeq    (NFData)
+import           GHC.Generics       (Generic)
+
+newtype Graph a b = Graph (M.Map a [(a, b)]) deriving (Generic, NFData)
 
 instance (Show a, Show b) => Show (Graph a b) where
     show (Graph g) = LT.unpack $ pShowNoColor g
-data Edge a b =
-    Edge {
-          arcHead :: a
-        , arcTail :: a
-        , weight  :: b
-     } deriving Show
+
+data Edge a b = Edge {
+      arcHead :: a
+    , arcTail :: a
+    , weight  :: b
+ } deriving Show
 
 instance Functor (Graph a) where
     fmap f (Graph g) = Graph $ M.map (map (fmap f)) g
