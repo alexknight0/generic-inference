@@ -29,7 +29,9 @@ library
       Benchmark.Baseline.DjikstraSimple
       Benchmark.Baseline.FFT
       Benchmark.Baseline.Probability
+      Benchmark.BayesianNetwork
       Benchmark.Data.ShortestPath
+      Benchmark.FastFourierTransform
       Benchmark.ShortestPath.SingleTarget
       LocalComputation.Graph
       LocalComputation.Inference
