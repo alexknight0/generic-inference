@@ -74,7 +74,7 @@ queries'' :: (
     , MonadIO m
     )
  => Mode -> [v a b] -> [Domain a] -> m [v a b]
-queries'' BruteForce vs qs = mapM (\q -> pure $ baseline vs q) qs
+queries'' BruteForce vs qs = pure $ baselines vs qs
 queries'' Fusion   vs qs   = mapM (\q -> pure $ F.fusion vs q) qs
 queries'' Shenoy   vs qs   = run $ SS.answerQueriesM vs qs
 
@@ -110,11 +110,27 @@ query' mode vs q = fmap head $ queries' mode vs [q]
 --
 -- __Warning__: Assumes that the query is a subset of the covered domain - this should be checked
 -- by the caller.
+--
+-- __Warning__: Assumes the given list of valuations is not empty.
 baseline :: (Valuation v, Show a, Show b, Ord a, Ord b)
     => [v a b]
     -> Domain a
     -> v a b
 baseline vs q = project (combines1 vs) q
+
+-- | Basic brute force computation, does not use local computation.
+--
+-- __Warning__: Assumes that the given queries are subsets of the covered domain - this should be checked
+-- by the caller.
+--
+-- __Warning__: Assumes the given list of valuations is not empty.
+baselines :: (Valuation v, Show a, Show b, Ord a, Ord b)
+    => [v a b]
+    -> [Domain a]
+    -> [v a b]
+baselines vs qs = map (\q -> project combined q) qs
+    where
+        combined = combines1 vs
 
 -- TODO: The above function is untested. The below function seemed to be the one that passed tests,
 -- but it seems wrong?

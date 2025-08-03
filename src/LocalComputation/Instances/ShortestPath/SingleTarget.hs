@@ -5,8 +5,6 @@
 module LocalComputation.Instances.ShortestPath.SingleTarget
     (
       singleTarget
-    , singleTargetsV1
-    , singleTargetsV2
     , Error (MissingZeroCostSelfLoops)
     , Query (..)
     )
@@ -70,27 +68,6 @@ knowledgeBase gs target = map f gs
         assocList g = map (\e -> ((e.arcHead, e.arcTail), e.weight)) (G.toList g)
 
 
-knowledgeBaseV2 :: forall a . (H.Hashable a, Ord a) => [Graph a Q.TropicalSemiringValue] -> S.Set a -> Knowledgebase a
-knowledgeBaseV2 gs targets = map f gs
-    where
-        f g = fromJust $ Q.create m b
-            where
-                m = M.toSquare (matrixFromGraph g) Q.zero
-                b = fromRight $ M.fromList [((a, ()), if a `S.member` targets then Q.one else Q.zero) | a <- S.toList $ fst (M.domain m)]
-
-        matrixFromGraph :: (Ord b, Q.SemiringValue b) => Graph a b -> M.LabelledMatrix a a b
-        matrixFromGraph g = fromRight $ M.fromListDefault Q.zero (MP.toList $ rearrangedGraph g)
-
-        -- Rearranges the graph from `MP.Map a [(a, b)]` to `MP.Map (a, a) b`.
-        -- If multiple arcs exist between a node, retains only the minimum cost arc.
-        rearrangedGraph :: Ord b => Graph a b -> MP.Map (a, a) b
-        rearrangedGraph g = MP.fromListWith (\v1 v2 -> min v1 v2) (assocList g)
-
-        -- Rearranges the graph into an associative list of ((arcHead, arcTail), cost)
-        -- May contain duplicate entries if there may exist multiple arcs between a set of nodes.
-        assocList :: Graph a b -> [((a, a), b)]
-        assocList g = map (\e -> ((e.arcHead, e.arcTail), e.weight)) (G.toList g)
-
 -- | Retuns a distance entry from the resulting valuation after inference. Unsafe.
 getDistance :: (Ord a) => Result a -> (a, a) -> Q.TropicalSemiringValue
 getDistance x (source, _) = fromJust $ M.find (source, ()) x
@@ -113,63 +90,14 @@ singleTarget mode vs sources target = fmap (fmap (map Q.toDouble)) $ singleTarge
 
 -- | Returns the answers to multiple single-target queries.
 --
--- Computes the solution by performing multiple seperate single target computations
-singleTargetsV1 :: forall a m . (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+-- Computes the solution by performing multiple seperate single target computations, even in the shenoy case;
+-- using shenoy here allows computing multiple sources in one inference sweep, but not computing multiple targets.
+singleTargets :: forall a m . (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
     => I.Mode
     -> [Graph a Double]
     -> [Query a]
     -> Either Error (m [[Double]])
-singleTargetsV1 mode gs qs = fmap sequence $ mapM (\q -> singleTarget mode gs q.sources q.target) qs
-
--- | Returns the answers to multiple single-target queries.
---
--- Computes the solution by performing one large computation with a large query domain.
-singleTargetsV2 :: forall a m . (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => I.Mode
-    -> [Graph a Double]
-    -> [Query a]
-    -> Either Error (m [[Double]])
-singleTargetsV2 mode gs qs = fmap (fmap (map (map Q.toDouble))) $ singleTargetsV2' mode (map (fmap Q.T) gs) qs
-
--- | Returns the answers to multiple single-target queries.
---
--- Computes the solution by performing one large computation with a large query domain.
-singleTargetsV2' :: forall a m . (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => I.Mode
-    -> [Graph a Q.TropicalSemiringValue]
-    -> [Query a]
-    -> Either Error (m [[Q.TropicalSemiringValue]])
-singleTargetsV2' mode gs qs
-    | any (not . G.hasZeroCostSelfLoops) gs =  Left MissingZeroCostSelfLoops
-    | Left e          <- solutionMM         =  Left $ InferenceError e
-    | Right solutionM <- solutionMM         = Right $ do
-        solution <- solutionM
-        pure $ map (\q -> map (\source -> getDistance solution (source, q.target)) q.sources) qs
-
-    where
-        k = knowledgeBaseV2 gs (S.fromList $ map (.target) qs)
-        domain = S.fromList [x | q <- qs, x <- q.target : q.sources]
-
-        solutionMM = fmap (fmap Q.solution) $ I.query mode k domain
-
--- TODO: Can this handle negative weights?
--- singleTargets' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
---     => I.Mode
---     -> [Graph a Q.TropicalSemiringValue]
---     -> [Query a]
---     -> Either Error (m [Q.TropicalSemiringValue])
--- singleTargets' mode gs qs
---     | any (not . G.hasZeroCostSelfLoops) gs =  Left MissingZeroCostSelfLoops
---     | Left e          <- solutionMM         =  Left $ InferenceError e
---     | Right solutionM <- solutionMM         = Right $ do
---         solution <- solutionM
---         pure $ map (\s -> getDistance solution (s, target)) sources
---
---     where
---         k = knowledgeBase gs target
---         domain = S.union (S.fromList sources) (S.singleton target)
---
---         solutionMM = fmap (fmap Q.solution) $ I.query mode k domain
+singleTargets mode gs qs = fmap sequence $ mapM (\q -> singleTarget mode gs q.sources q.target) qs
 
 -- TODO: Can this handle negative weights?
 singleTarget' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
@@ -179,8 +107,8 @@ singleTarget' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable 
     -> a
     -> Either Error (m [Q.TropicalSemiringValue])
 singleTarget' mode vs sources target
-    | any (not . G.hasZeroCostSelfLoops) vs =  Left MissingZeroCostSelfLoops
-    | Left e          <- solutionMM         =  Left $ InferenceError e
+    | any (not . G.hasZeroCostSelfLoops) vs = Left MissingZeroCostSelfLoops
+    | Left e          <- solutionMM         = Left $ InferenceError e
     | Right solutionM <- solutionMM         = Right $ do
         solution <- solutionM
         pure $ map (\s -> getDistance solution (s, target)) sources

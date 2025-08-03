@@ -127,18 +127,6 @@ matchesBaseline mode g numTests = withTests numTests . property $ do
 
         reverseAdjacencyList = G.reverseAdjacencyList g
 
-prop_multipleTargets :: Property
-prop_multipleTargets = withTests 100 . property $ do
-    queries <- forAll $ genQueries
-
-    v1 <- fromRight $ ST.singleTargetsV1 I.Shenoy p1.graphs queries
-    v2 <- fromRight $ ST.singleTargetsV2 I.Shenoy p1.graphs queries
-    zipWithM_ (\x y -> checkAnswers approx x y) v1 v2
-
-    where
-        genQueries :: Gen ([ST.Query Integer])
-        genQueries = genConnectedQueries 4 (G.merges G.empty p1.graphs)
-
 -- | Parses the given graph. Fails if a parse error occurs.
 parseGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile a)) -> PropertyT IO a
 parseGraph g = do
