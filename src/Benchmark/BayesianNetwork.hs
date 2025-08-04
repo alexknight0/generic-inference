@@ -11,8 +11,8 @@ import           Criterion.Main
 benchmarks :: IO Benchmark
 benchmarks = do
         pure $ bgroup "Bayesian" [
-                      bench "localcomputation" $ nfIO $ print "placeholder"
-                    , bench "placeholder"      $ nfIO $ print "placeholder"
+                      bench "localcomputation" $ nfIO $ pure ()
+                    , bench "placeholder"      $ nfIO $ pure ()
                 ]
 
 

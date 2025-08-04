@@ -34,15 +34,11 @@ approximateEquals (FourierComplex x) (FourierComplex y) = abs (realPart x - real
 prop_queryMatchesKnownAnswers :: Property
 prop_queryMatchesKnownAnswers = unitTest $ do
 
-    resultsP1 <- run $ query fourierP1Samples fourierP1Queries
-    case resultsP1 of
-        Nothing -> failure
-        Just xs -> checkAnswers approximateEquals xs fourierP1Answers
-
-    resultsP2 <- run $ query fourierP2Samples fourierP2Queries
-    case resultsP2 of
-        Nothing -> failure
-        Just xs -> checkAnswers approximateEquals xs fourierP2Answers
+    case query fourierP1Samples fourierP1Queries of
+        Nothing       -> failure
+        Just resultsM -> do
+            results <- run resultsM
+            checkAnswers approximateEquals results fourierP1Answers
 
 prop_matchesHackagePackage :: Property
 prop_matchesHackagePackage = withTests 100 . property $ do
@@ -53,10 +49,27 @@ prop_matchesHackagePackage = withTests 100 . property $ do
                         Gen.double (Range.exponentialFloat (-100000) 100000)
     let samples' = map (\x -> FourierComplex $ x :+ 0) samples
 
+    -- Hackage package results
     answers <- liftIO $ dft samples'
-    results <- run $ query samples' [0 .. (fromIntegral $ length samples' - 1)]
 
-    case results of
-        Nothing -> failure
-        Just xs -> checkAnswers approximateEquals xs (map FourierComplex answers)
+    case query samples' [0 .. (fromIntegral $ length samples' - 1)] of
+        Nothing       -> failure
+        Just resultsM -> do
+            results <- run resultsM
+            checkAnswers approximateEquals results (map FourierComplex answers)
+
+prop_matchesHackagePackage2 :: Property
+prop_matchesHackagePackage2 = unitTest $ do
+
+    let samples' = map (\x -> FourierComplex $ x :+ 0) samples
+
+    answers <- liftIO $ dft samples'
+    case query samples' [0 .. (fromIntegral $ length samples' - 1)] of
+        Nothing       -> failure
+        Just resultsM -> do
+            results <- run resultsM
+            checkAnswers approximateEquals results (map FourierComplex answers)
+
+    where
+        samples = take (2 ^ (5 :: Int)) $ repeat 0
 

@@ -84,22 +84,25 @@ genEdge genNode genCost = do
     pure (G.Edge arcHead arcTail cost)
 
 
--- | Generates a random graph with the given number of edges, and at most
--- the given number of nodes. The nodes are numbered from 0 to numNodes - 1.
--- Edge costs range from 0 to 100. Graph may be disconnected. After generation
--- of the graph, one 0 cost self loop is added to every node. Unaffected by size
--- parameter so suitable for use with `Gen.sample`.
-genGraph :: Natural -> Natural -> Gen (G.Graph Natural Integer)
+-- | Generates a random graph with the given number of nodes and edges.
+-- The nodes are numbered from 0 to numNodes - 1. Edge costs range from 0 to 100.
+-- Graph may be disconnected. After generation of the graph, one 0 cost self loop
+-- is added to every node. Unaffected by size parameter so suitable for use with `Gen.sample`.
+genGraph :: Natural -> Natural -> Gen (G.Graph Natural Double)
 genGraph 0     _    = pure G.empty
 genGraph nodes arcs = do
     edges <- Gen.list (Range.singleton $ fromIntegral arcs)
                       (genEdge genNode genCost)
 
-    pure $ G.fromList edges
+    pure $ G.fromList (edges ++ selfLoops)
 
     where
         genNode = fmap fromIntegral $ Gen.int (Range.constant 0 (fromIntegral nodes - 1))
         genCost = fmap fromIntegral $ Gen.int (Range.constant 0 100)
+
+        -- This approach of adding self loops also ensures that each node is actually
+        -- present in the graph.
+        selfLoops = [G.Edge x x 0 | x <- [0 .. nodes - 1]]
 
 foobar :: ()
 foobar = undefined

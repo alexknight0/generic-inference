@@ -42,22 +42,23 @@ foobar = undefined
 
 benchmarks :: IO Benchmark
 benchmarks = do
-    p3Small <- D.p3SmallGraph'
+    -- p3Small <- D.p3SmallGraph'
+    graph <- sample $ D.genGraph 50 200
     -- p3Medium <- D.p3MediumGraph'
     -- tmp <- sample $ genConnectedQueries 10 p3Medium
-    queries <- sample $ genConnectedQueries 10 p3Small
+    queries <- sample $ genConnectedQueries 10 graph
 
-    shenoy      <- singleTarget (Local I.Shenoy)     [p3Small] queries
-    bruteForce  <- singleTarget (Local I.BruteForce) [p3Small] queries
-    fusion      <- singleTarget (Local I.Fusion)     [p3Small] queries
-    baseline    <- singleTarget (Baseline)            [p3Small] queries
+    bruteForce  <- singleTarget (Local I.BruteForce) [graph] queries
+    fusion      <- singleTarget (Local I.Fusion)     [graph] queries
+    shenoy      <- singleTarget (Local I.Shenoy)     [graph] queries
+    baseline    <- singleTarget (Baseline)           [graph] queries
 
     pure $ bgroup "Shortest Path" [
 
                   --bench "inparlell-shenoy"     $ nfIO $ fromRight $ ST.singleTarget (I.Shenoy) [p3Medium] (head tmp).sources (head tmp).target
-                  bench "localcomputation-shenoy"     $ nfIO shenoy
-                , bench "localcomputation-bruteForce" $ nfIO bruteForce
+                  bench "localcomputation-bruteForce" $ nfIO bruteForce
                 , bench "localcomputation-fusion"     $ nfIO fusion
+                , bench "localcomputation-shenoy"     $ nfIO shenoy
                 , bench "djikstra"                    $ nfIO baseline
             ]
 

@@ -7,6 +7,7 @@
 
 module LocalComputation.Instances.FastFourierTransform
     ( query
+    , query'
     , FourierComplex (FourierComplex)
     , toBinaryVariableSet
     )
@@ -92,17 +93,24 @@ oneOrZero xs = fromListAssertDisjoint $ map (\x -> (x, S.fromList [0, 1])) (S.to
 Only operates if the number of samples is > 1 and is a power of two (I think theoretically this could be expanded to any power
 of a prime number, but that hasn't been done here). Returns Nothing if and only if the number of samples is > 1 and not a power of two.
 -}
-query :: [FourierComplex] -> [Natural] -> Process (Maybe [FourierComplex])
+query :: [FourierComplex] -> [Natural] -> Maybe (Process [FourierComplex])
 query samples qs = case integerLogBase2 (fromIntegral $ length samples) of
-    Nothing -> pure Nothing
-    (Just 0) -> pure Nothing
-    (Just m) -> do
+    Nothing -> Nothing
+    (Just 0) -> Nothing
+    (Just m) -> Just $ do
         -- Each query has the same domain - the domain of all bits of the Y, i.e. Y_0 to Y_m-1
         let queryDomain = S.fromList $ map Y $ [0 .. m-1]
 
         -- let result = fromRight $ fusion (getKnowledgebase samples) queryDomain
         result <- answerQueryM (getKnowledgebase samples) queryDomain
-        pure $ pure $ map (findBinaryValue result m) qs
+        pure $ map (findBinaryValue result m) qs
+
+-- | An unsafe version of `query` - throws when `query` would return `Nothing`.
+query' :: [FourierComplex] -> [Natural] -> Process [FourierComplex]
+query' samples qs = case query samples qs of
+                        Just result -> result
+                        Nothing     -> error "Invalid call to `query`"
+
 
 findBinaryValue :: SemiringValuation FourierComplex FastFourierVariable Natural -> Natural -> Natural -> FourierComplex
 findBinaryValue table numDigits x = findValue (toBinaryVariableSet numDigits x Y) table

@@ -8,16 +8,16 @@ where
 
 import           Benchmark.Baseline.FFT                          (dft)
 import           Criterion.Main
-import           LocalComputation.Instances.FastFourierTransform (query)
+import           LocalComputation.Instances.FastFourierTransform (query, query')
 import           LocalComputation.LocalProcess                   (runProcessLocal)
 
 benchmarks :: IO Benchmark
 benchmarks = do
     pure $ bgroup "Fast_Fourier_Transform" [
-                      bench "localcomputation" $ nfIO $ runProcessLocal $ query fftInput [0 .. (fromIntegral $ length fftInput - 1)]
+                      bench "localcomputation" $ nfIO $ runProcessLocal $ query' fftInput [0 .. (fromIntegral $ length fftInput - 1)]
                     , bench "FFTW"             $ nfIO $ dft fftInput
                 ]
 
     where
-        fftInput = take 100000 $ repeat 0
+        fftInput = take (2 ^ (5 :: Int)) $ repeat 0
 
