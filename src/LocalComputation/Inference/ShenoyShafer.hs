@@ -15,7 +15,6 @@ module LocalComputation.Inference.ShenoyShafer (
 import           Control.Distributed.Process              hiding (Message)
 import           Control.Distributed.Process.Serializable
 
-import qualified Algebra.Graph                            as DG
 import           Algebra.Graph.Undirected                 hiding (neighbours)
 import qualified Algebra.Graph.Undirected                 as G
 import           Control.Monad                            (forM_, replicateM)
@@ -28,11 +27,13 @@ import           Type.Reflection                          (Typeable)
 
 
 import           Control.Exception                        (assert)
-import           LocalComputation.Inference.JoinTree
+import           LocalComputation.Inference.JoinTree      (Node (..),
+                                                           baseJoinTree)
+import qualified LocalComputation.Inference.JoinTree      as J
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra
 
-type InferredData v a b = [(Domain a, v a b)]
+type InferredData v a b = [Node (v a b)]
 
 -- TODO: safely handle invalid queries?
 answerQueries :: forall v a b. (Show a, Show b, Valuation v, Ord a, Ord b)
@@ -42,7 +43,7 @@ answerQueries :: forall v a b. (Show a, Show b, Valuation v, Ord a, Ord b)
 answerQueries queryDomains results = map queryToAnswer queryDomains
     where
         queryToAnswer :: Domain a -> v a b
-        queryToAnswer d = project (snd $ unsafeFind (\(d', _) -> d `isSubsetOf` d') results) d
+        queryToAnswer d = project (unsafeFind (\n -> d `isSubsetOf` n.d) results).v d
 
 -- TODO safely handle invalid queries?
 answerQuery :: forall v a b. (Show a, Show b, Valuation v, Ord a, Ord b)
@@ -51,7 +52,7 @@ answerQuery :: forall v a b. (Show a, Show b, Valuation v, Ord a, Ord b)
     -> v a b
 answerQuery q results = head $ answerQueries [q] results
 
-answerQueriesM :: forall v a b . (Show a, Show b, Typeable v, Typeable b, Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
+answerQueriesM :: forall v a b . (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
     => [v a b]
     -> [Domain a]
     -> Process [v a b]
@@ -59,7 +60,7 @@ answerQueriesM vs queryDomains = do
     results <- initializeNodes (shenoyJoinTree vs queryDomains)
     pure $ answerQueries queryDomains results
 
-answerQueryM :: forall v a b . (Show a, Show b, Typeable v, Typeable b, Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
+answerQueryM :: forall v a b . (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
     => [v a b]
     -> Domain a
     -> Process (v a b)
@@ -67,7 +68,7 @@ answerQueryM vs q = do
     results <- initializeNodes (shenoyJoinTree vs [q])
     pure $ answerQuery q results
 
-inference :: forall v a b . (Show a, Show b, Typeable v, Typeable b, Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
+inference :: forall v a b . (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
     => [v a b]
     -> [Domain a]
     -> Process (InferredData v a b)
@@ -85,9 +86,9 @@ shenoyJoinTree vs queryDomains = toUndirected (baseJoinTree vs queryDomains)
 data NodeWithProcessId a = NodeWithProcessId { id :: ProcessId, node :: a } deriving (Generic, Binary)
 
 -- Initializes all nodes in the join tree for message passing according to the Shenoy-Shafer algorithm.
-initializeNodes :: forall v a b. (Show a, Show b, Typeable v, Typeable b, Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
+initializeNodes :: forall v a b. (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
     => Graph (Node (v a b))
-    -> Process ([(Domain a, v a b)])
+    -> Process [Node (v a b)]
 initializeNodes graph = do
 
     -- Initialize all nodes
@@ -115,7 +116,7 @@ initializeNodes graph = do
     mapM (\p -> fmap assertHasMessage $ receiveChanTimeout 0 p) resultPorts
 
     where
-        initializeNodeAndMonitor :: Node (v a b) -> Process (NodeWithProcessId (Node (v a b)), ReceivePort (Domain a, v a b))
+        initializeNodeAndMonitor :: Node (v a b) -> Process (NodeWithProcessId (Node (v a b)), ReceivePort (Node (v a b)))
         initializeNodeAndMonitor node = do
             (sendFinalResult, receiveFinalResult) <- newChan
 
@@ -135,12 +136,11 @@ data Message a = Message {
 
 initializeNode :: forall v a b. (
       Show a, Show b
-    , Binary (v a b), Binary a
-    , Typeable v, Typeable a, Typeable b, Typeable (v a b)
+    , Binary (v a b), Typeable (v a b)
     , Valuation v
     , Ord a, Ord b
     )
-    => SendPort (Domain a, v a b)
+    => SendPort (Node (v a b))
     -> Process ProcessId
 initializeNode resultPort = spawnLocal $ do
     this :: NodeWithProcessId (Node (v a b)) <- expect
@@ -168,7 +168,7 @@ initializeNode resultPort = spawnLocal $ do
     -- Send result back to parent process
     let result = combines1 (this.node.v : map (.msg) phase2Postbox)
     assert (this.node.d == label result) (pure ())
-    sendChan resultPort (this.node.d, result)
+    sendChan resultPort (J.node this.node.id result)
 
     where
         filterOut :: NodeWithProcessId (Node (v a b)) -> [NodeWithProcessId (Node (v a b))] -> [NodeWithProcessId (Node (v a b))]

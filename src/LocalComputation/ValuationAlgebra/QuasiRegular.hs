@@ -14,7 +14,6 @@ module LocalComputation.ValuationAlgebra.QuasiRegular
 where
 
 import           Control.Exception                                            (assert)
-import qualified Data.Map.Lazy                                                as Map
 import           Data.Maybe                                                   (fromJust)
 import qualified Data.Set                                                     as S
 import qualified LocalComputation.LabelledMatrix                              as M
@@ -27,16 +26,7 @@ import           Data.Binary                                                  (B
 import           GHC.Generics                                                 (Generic)
 
 -- TODO: Migrate to record syntax.
-import qualified Algebra.Graph                                                as DG
-import qualified Algebra.Graph                                                as G
-import qualified Data.Map.Lazy                                                as Map
-import           GHC.Records                                                  (HasField,
-                                                                               getField)
-import           LocalComputation.Inference.JoinTree                          (Node)
-import qualified LocalComputation.Inference.JoinTree                          as N
-import           LocalComputation.Inference.ShenoyShafer                      (InferredData)
-import           LocalComputation.Utils                                       (findAssertSingleMatch,
-                                                                               unsafeFind)
+import           LocalComputation.Utils                                       (unsafeFind)
 
 data QuasiRegularValuation c a b = Valuation (M.LabelledMatrix a a c) (M.LabelledMatrix a () c) | Identity (Domain a) deriving (Binary, NFData, Ord, Eq, Generic, Show)
 
@@ -129,57 +119,57 @@ configSet phi@(Valuation m b) t x = Just $ S.singleton result
 getValuation :: (Eq a) => a -> [(a, b)] -> b
 getValuation x results = snd $ unsafeFind (\(d, v) -> d == x) results
 
--- TODO: We should take one of the following approaches
--- 1. Check if there is a way to perform this algorithm without the notion of labels
---      (might be hard because it seems to use child(..))
--- 2. Provide node id information inside inferred data so we don't have to stitch it back together afterward.
---      (If we get asserts failing here, we actually can't stitch it back together accurately!)
-multiqueryCompute :: forall a c . (Eq a, Q.QuasiRegularSemiringValue c, Show a, Show c, Ord a, Ord c)
-    => DG.Graph (Node ((QuasiRegularValuation c) a ()))
-    -> InferredData (QuasiRegularValuation c) a ()
-    -> S.Set (M.LabelledMatrix a () c)
-multiqueryCompute g results = undefined
-    where
-        stitched = stitch g results
-
-        root :: Maybe (S.Set (M.LabelledMatrix a () c))
-        root = configSet phiR S.empty M.empty
-            where
-                phiR = (.v) . snd $ Map.findMax stitched
-
-        go i = undefined
-            where
-                w = configSet phiI.v undefined
-                    where
-                        phiI = (Map.!) stitched i
-                        phi_NEED_CHILD = undefined
-
-
-
-
-data NewInferredData v a b = NewInferredData {
-      d :: Domain a
-    , v :: v a b
-}
-
--- TODO: can we write an assert somewhere that checks that the domain of the valuation is the same
--- as the domain of the node? I think due to 'identity' now properly representing it's domain this
--- invariant is maintained?
--- If this assert doesnt fail then it could be a map rather than a list actually...
--- TODO: Does the label of a valuation not represent it's domain?
-stitch :: (Show a, Show b, Ord a, Ord b, Valuation v, Eq a)
-    => DG.Graph (Node (v a b))
-    -> InferredData v a b
-    -> Map.Map Integer (NewInferredData v a b)
-stitch g datas = Map.fromList $ map toInferredData datas
-    where
-        toInferredData (d, v) = (entry.id, NewInferredData d v)
-            where
-                entry = findAssertSingleMatch (\n -> n.d == d) nodes
-
-                nodes = DG.vertexList g
-
-
+-- -- TODO: We should take one of the following approaches
+-- -- 1. Check if there is a way to perform this algorithm without the notion of labels
+-- --      (might be hard because it seems to use child(..))
+-- -- 2. Provide node id information inside inferred data so we don't have to stitch it back together afterward.
+-- --      (If we get asserts failing here, we actually can't stitch it back together accurately!)
+-- multiqueryCompute :: forall a c . (Eq a, Q.QuasiRegularSemiringValue c, Show a, Show c, Ord a, Ord c)
+--     => DG.Graph (Node ((QuasiRegularValuation c) a ()))
+--     -> InferredData (QuasiRegularValuation c) a ()
+--     -> S.Set (M.LabelledMatrix a () c)
+-- multiqueryCompute g results = undefined
+--     where
+--         stitched = stitch g results
+--
+--         root :: Maybe (S.Set (M.LabelledMatrix a () c))
+--         root = configSet phiR S.empty M.empty
+--             where
+--                 phiR = (.v) . snd $ Map.findMax stitched
+--
+--         go i = undefined
+--             where
+--                 w = configSet phiI.v undefined
+--                     where
+--                         phiI = (Map.!) stitched i
+--                         phi_NEED_CHILD = undefined
+--
+--
+--
+--
+-- data NewInferredData v a b = NewInferredData {
+--       d :: Domain a
+--     , v :: v a b
+-- }
+--
+-- -- TODO: can we write an assert somewhere that checks that the domain of the valuation is the same
+-- -- as the domain of the node? I think due to 'identity' now properly representing it's domain this
+-- -- invariant is maintained?
+-- -- If this assert doesnt fail then it could be a map rather than a list actually...
+-- -- TODO: Does the label of a valuation not represent it's domain?
+-- stitch :: (Show a, Show b, Ord a, Ord b, Valuation v, Eq a)
+--     => DG.Graph (Node (v a b))
+--     -> InferredData v a b
+--     -> Map.Map Integer (NewInferredData v a b)
+-- stitch g datas = Map.fromList $ map toInferredData datas
+--     where
+--         toInferredData (d, v) = (entry.id, NewInferredData d v)
+--             where
+--                 entry = findAssertSingleMatch (\n -> n.d == d) nodes
+--
+--                 nodes = DG.vertexList g
+--
+--
 ------------------------------------------------------------------------------
 -- Unsafe & quasiregular variants of matrix operations.                     --
 ------------------------------------------------------------------------------

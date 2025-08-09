@@ -7,6 +7,7 @@
 module LocalComputation.Inference.JoinTree
     ( Node (id, v)
     , baseJoinTree
+    , node
     )
 where
 
@@ -33,6 +34,9 @@ data Node v = Node {
       id :: Integer
     , v  :: v
 } deriving (Generic, Typeable, Binary)
+
+node :: Integer -> v -> Node v
+node = Node
 
 -- | Accessor for the domain of the valuation.  Equivalent to calling `label` on the valuation.
 -- __Warning__: Not necessarily O(1).
