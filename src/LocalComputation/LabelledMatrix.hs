@@ -10,6 +10,7 @@ module LocalComputation.LabelledMatrix
     , fromMatrix
     , fromList
     , fromListDefault
+    , empty
     , domain
     , isSquare
     , toSquare
@@ -422,4 +423,7 @@ assertAllWellFormed = any (\x -> assert (isWellFormed x) False)
 checkIsAscPairList :: (Ord a, Ord b) => [(a, b)] -> Bool
 checkIsAscPairList []            = True
 checkIsAscPairList ((x, y) : zs) = all (\(x', y') -> x < x' && y < y') zs
+
+empty :: LabelledMatrix a b c
+empty = Matrix M.empty BM.empty BM.empty
 

@@ -4,6 +4,7 @@ module LocalComputation.Inference.JoinTree
     ( Node
     , collect, getValuation, getDomain, create, nodeId
     , baseJoinTree
+    , Id
     )
 where
 
@@ -17,12 +18,18 @@ import qualified LocalComputation.Inference.EliminationSequence as E
 import           Data.Maybe                                     (fromJust)
 import           LocalComputation.ValuationAlgebra
 
+type Id = Integer
+
 class Node n where
     collect         :: (Valuation v) => n v a b -> n v a b
     getValuation    :: (Valuation v) => n v a b -> v a b
-    getDomain       :: (Valuation v) => n v a b -> Domain a
-    create          :: (Valuation v) => Integer -> Domain a -> v a b -> n v a b
-    nodeId          ::                  n v a b -> Integer
+    getDomain       :: (Show a, Show b, Ord a, Ord b, Valuation v) => n v a b -> Domain a
+    create          :: (Valuation v) => Integer -> v a b -> n v a b
+    nodeId          ::                  n v a b -> Id
+
+-- TODO: Can we implement equality by default on the 'nodeId' field by enabling flexible instances?
+-- instance (forall n v a b . Node n) => Ord (n v a b) where
+--     x <= y = nodeId x <= nodeId y
 
 setDifference :: (Eq a) => [a] -> [a] -> [a]
 setDifference xs ys = filter (\x -> not $ x `elem` ys) xs
@@ -72,8 +79,8 @@ baseJoinTree vs queries = edges $ baseJoinTree' nextNodeId r d
         d = E.create $ map label vs
 
         r :: [n v a b]
-        r = zipWith (\nid v -> create nid (label v) v) [0 ..] vs
-            ++ zipWith (\nid q -> create nid q (identity q)) [fromIntegral (length vs) ..] queries
+        r = zipWith (\nid v -> create nid v) [0 ..] vs
+            ++ zipWith (\nid q -> create nid (identity q)) [fromIntegral (length vs) ..] queries
 
         nextNodeId :: Integer
         nextNodeId = fromIntegral $ length r
@@ -85,7 +92,7 @@ Where convenient, variables have been named as they appear in the pseudocode des
 is a parameter such that there currently exists no nodes with id > 'nextNodeId' in the tree. As we may
 create up to 2 nodes on each iteration, we make the recursive call with 'nextNodeId + 2'
 -}
-baseJoinTree' :: forall n v a b. (Node n, Valuation v, Eq (n v a b), Ord a)
+baseJoinTree' :: forall n v a b. (Node n, Valuation v, Eq (n v a b), Ord a, Show a, Show b, Ord b)
     => Integer
     -> [n v a b]
     -> E.EliminationSequence a
@@ -108,7 +115,7 @@ baseJoinTree' nextNodeId r d
         domainOfPhiX = foldr (S.union) (S.empty) $ map getDomain phiX
 
         nUnion :: n v a b
-        nUnion = create nextNodeId domainOfPhiX (identity domainOfPhiX)
+        nUnion = create nextNodeId (identity domainOfPhiX)
 
         r' :: [n v a b]
         r' = setDifference r phiX
@@ -117,7 +124,7 @@ baseJoinTree' nextNodeId r d
         e = [(n, nUnion) | n <- phiX]
 
         nP :: n v a b
-        nP = create (nextNodeId + 1) nPDomain (identity nPDomain)
+        nP = create (nextNodeId + 1) (identity nPDomain)
             where
                 nPDomain = (fromList $ setDifference (toList domainOfPhiX) [x])
 

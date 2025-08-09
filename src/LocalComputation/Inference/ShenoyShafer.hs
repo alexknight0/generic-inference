@@ -3,20 +3,20 @@
 {-# LANGUAGE MonoLocalBinds      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module LocalComputation.Inference.ShenoyShafer
-    (
-        initializeNodes
-        , shenoyJoinTree
-        , answerQueriesM, answerQueryM
-        , answerQueries, answerQuery
-        , inference
-        , InferredData
-    )
-where
+module LocalComputation.Inference.ShenoyShafer (
+      initializeNodes
+    , shenoyJoinTree
+    , answerQueriesM, answerQueryM
+    , answerQueries, answerQuery
+    , inference
+    , InferredData
+    , ShenoyShaferNode
+) where
 
 import           Control.Distributed.Process              hiding (Message)
 import           Control.Distributed.Process.Serializable
 
+import qualified Algebra.Graph                            as DG
 import           Algebra.Graph.Undirected                 hiding (neighbours)
 import qualified Algebra.Graph.Undirected                 as G
 import           Control.Monad                            (forM_, replicateM)
@@ -33,18 +33,18 @@ import           LocalComputation.Inference.JoinTree
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra
 
-data ShenoyShaferNode v a b = ShenoyShaferNode Integer (Domain a) (v a b) deriving (Generic, Binary)
+data ShenoyShaferNode v a b = ShenoyShaferNode Integer (v a b) deriving (Generic, Binary)
 
 instance Node ShenoyShaferNode where
     collect = undefined
 
-    getValuation (ShenoyShaferNode _ _ v) = v
+    getValuation (ShenoyShaferNode _ v) = v
 
-    getDomain (ShenoyShaferNode _ d _) = d
+    getDomain (ShenoyShaferNode _ v) = label v
 
-    create i d v = ShenoyShaferNode i d v
+    create i v = ShenoyShaferNode i v
 
-    nodeId (ShenoyShaferNode i _ _) = i
+    nodeId (ShenoyShaferNode i _) = i
 
 instance Eq (ShenoyShaferNode v a b) where
     x == y = nodeId x == nodeId y
@@ -53,8 +53,8 @@ instance Ord (ShenoyShaferNode v a b) where
     x <= y = nodeId x <= nodeId y
 
 -- TODO: Could put implementation inside the Node typeclass and then just call it from in here
-instance (Show (v a b), Show a) => Show (ShenoyShaferNode v a b) where
-    show (ShenoyShaferNode i d _) = show (i, d)
+instance (Valuation v, Show (v a b), Show a, Show b, Ord a, Ord b) => Show (ShenoyShaferNode v a b) where
+    show (ShenoyShaferNode i v) = show (i, label v)
 
 -- data Marginal n v a b = Marginal {
 --
@@ -194,11 +194,14 @@ initializeNode resultPort = spawnLocal $ do
 
     --[[ Sending Results ]]
     -- Send result back to parent process
-    sendChan resultPort (getDomain this.node, combines1 (getValuation this.node : map (.msg) phase2Postbox))
+    let result = combines1 (getValuation this.node : map (.msg) phase2Postbox)
+    assert (getDomain this.node == label result) (pure ())
+    sendChan resultPort (getDomain this.node, result)
 
     where
         filterOut :: NodeWithProcessId (n v a b) -> [NodeWithProcessId (n v a b)] -> [NodeWithProcessId (n v a b)]
         filterOut neighbour neighbours = filter (\n -> n.id /= neighbour.id) neighbours
+
 
 -- | Sends a message from the given sender to the given receiver.
 --
@@ -304,6 +307,7 @@ configSet phi t x
 --     getField w = label w.phi
 --
 -- -- TODO: Add the final property
+--
 -- isValidConfigurationExtensionSet :: (Valuation v, Ord a, Ord b, Show a, Show b)
 --     => ConfigurationExtensionSet v a b
 --     -> VariableArrangement a b

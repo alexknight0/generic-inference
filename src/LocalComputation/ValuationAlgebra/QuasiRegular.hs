@@ -1,6 +1,7 @@
-{-# LANGUAGE DataKinds      #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric  #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE DeriveAnyClass      #-}
+{-# LANGUAGE DeriveGeneric       #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module LocalComputation.ValuationAlgebra.QuasiRegular
     ( Q.QuasiRegularSemiringValue (quasiInverse)
@@ -26,8 +27,16 @@ import           Data.Binary                                                  (B
 import           GHC.Generics                                                 (Generic)
 
 -- TODO: Migrate to record syntax.
+import qualified Algebra.Graph                                                as DG
+import qualified Algebra.Graph                                                as G
+import qualified Data.Map.Lazy                                                as Map
 import           GHC.Records                                                  (HasField,
                                                                                getField)
+import qualified LocalComputation.Inference.JoinTree                          as N
+import           LocalComputation.Inference.ShenoyShafer                      (InferredData,
+                                                                               ShenoyShaferNode)
+import           LocalComputation.Utils                                       (findAssertSingleMatch,
+                                                                               unsafeFind)
 
 data QuasiRegularValuation c a b = Valuation (M.LabelledMatrix a a c) (M.LabelledMatrix a () c) | Identity (Domain a) deriving (Binary, NFData, Ord, Eq, Generic, Show)
 
@@ -92,6 +101,84 @@ extension :: (Ord a, Q.QuasiRegularSemiringValue c) => QuasiRegularValuation c a
 extension x _ | assertIsWellFormed x = undefined
 extension (Identity _) d = Identity d
 extension (Valuation m b) t = fromJust $ create (fromJust $ M.extension m t t Q.zero) (fromJust $ M.extension b t (S.singleton ()) Q.zero)
+
+------------------------------------------------------------------------------
+-- QuasiRegularValuation Extension Sets
+------------------------------------------------------------------------------
+
+-- TODO: should we replace the operations of project here with variable elimination?
+--
+-- | Produces the configuration set. See page 368 of Marc Pouly's "Generic Inference"
+configSet :: (Q.QuasiRegularSemiringValue c, Show a, Show c, Ord a)
+    => QuasiRegularValuation c a ()
+    -> Domain a
+    -> M.LabelledMatrix a () c
+    -> Maybe (S.Set (M.LabelledMatrix a () c))
+configSet     (Identity _)    _ _ = error "Not implemented error"
+configSet phi@(Valuation m b) t x = Just $ S.singleton result
+    where
+        result = matrixMultiply (matrixQuasiInverse (matrixProject m sMinusT sMinusT))
+                                (matrixAdd (matrixMultiply (matrixProject m sMinusT t)
+                                                           (x)
+                                            )
+                                           (matrixProject b sMinusT (S.singleton ())))
+
+        s = label phi
+        sMinusT = S.difference s t
+
+getValuation :: (Eq a) => a -> [(a, b)] -> b
+getValuation x results = snd $ unsafeFind (\(d, v) -> d == x) results
+
+-- TODO: We should take one of the following approaches
+-- 1. Check if there is a way to perform this algorithm without the notion of labels
+--      (might be hard because it seems to use child(..))
+-- 2. Provide node id information inside inferred data so we don't have to stitch it back together afterward.
+--      (If we get asserts failing here, we actually can't stitch it back together accurately!)
+multiqueryCompute :: forall a c . (Eq a, Q.QuasiRegularSemiringValue c, Show a, Show c, Ord a, Ord c)
+    => DG.Graph (ShenoyShaferNode (QuasiRegularValuation c) a ())
+    -> InferredData (QuasiRegularValuation c) a ()
+    -> S.Set (M.LabelledMatrix a () c)
+multiqueryCompute g results = undefined
+    where
+        stitched = stitch g results
+
+        root :: Maybe (S.Set (M.LabelledMatrix a () c))
+        root = configSet phiR S.empty M.empty
+            where
+                phiR = (.v) . snd $ Map.findMax stitched
+
+        go i = undefined
+            where
+                w = configSet phiI.v undefined
+                    where
+                        phiI = (Map.!) stitched i
+                        phi_NEED_CHILD = undefined
+
+
+
+
+data NewInferredData v a b = NewInferredData {
+      d :: Domain a
+    , v :: v a b
+}
+
+-- TODO: can we write an assert somewhere that checks that the domain of the valuation is the same
+-- as the domain of the node? I think due to 'identity' now properly representing it's domain this
+-- invariant is maintained?
+-- If this assert doesnt fail then it could be a map rather than a list actually...
+-- TODO: Does the label of a valuation not represent it's domain?
+stitch :: (Show a, Show b, Ord a, Ord b, N.Node n, Ord (n v a b), Valuation v, Eq a)
+    => DG.Graph (n v a b)
+    -> InferredData v a b
+    -> Map.Map N.Id (NewInferredData v a b)
+stitch g datas = Map.fromList $ map toInferredData datas
+    where
+        toInferredData (d, v) = ((N.nodeId entry), NewInferredData d v)
+            where
+                entry = findAssertSingleMatch (\n -> N.getDomain n == d) nodes
+
+                nodes = DG.vertexList g
+
 
 ------------------------------------------------------------------------------
 -- Unsafe & quasiregular variants of matrix operations.                     --

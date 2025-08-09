@@ -148,7 +148,7 @@ instance (Show c, SemiringValue c) => Valuation (SemiringValuation c) where
 
     identity = Identity
 
-    -- TODO: Implement (although is not actually currently used)
+    -- TODO: Implement (probably can be implemented through a default implementation?)
     eliminate = error "Not implemented."
 
     -- frame x | assertIsWellFormed x = undefined

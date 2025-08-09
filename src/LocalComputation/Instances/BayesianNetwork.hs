@@ -72,6 +72,7 @@ conditionalProbability :: (Ord a) => VariableArrangement a b -> VariableArrangem
 conditionalProbability vars givenVars p = p (unionAssertDisjoint vars givenVars) / p givenVars
 
 -- TODO: I thought we had to normalize, but this is passing all tests?
+-- TODO: Below uses more generic inference, but appears to perform slower?
 
 -- | Returns the probability of a given event occuring, given a set of conditional variables.
 -- Takes a network (a list of conditional probability tables) as input.
