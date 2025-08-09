@@ -1,10 +1,12 @@
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE DeriveAnyClass      #-}
+{-# LANGUAGE DeriveGeneric       #-}
+{-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module LocalComputation.Inference.JoinTree
-    ( Node
-    , collect, getValuation, getDomain, create, nodeId
+    ( Node (id, v)
     , baseJoinTree
-    , Id
     )
 where
 
@@ -16,20 +18,35 @@ import qualified Data.Set                                       as S
 import qualified LocalComputation.Inference.EliminationSequence as E
 
 import           Data.Maybe                                     (fromJust)
+import           GHC.Records                                    (HasField,
+                                                                 getField)
 import           LocalComputation.ValuationAlgebra
 
-type Id = Integer
+import           Data.Binary                                    (Binary)
+import           Data.Text.Lazy                                 (unpack)
+import           GHC.Generics                                   (Generic)
+import           Text.Pretty.Simple                             (pShow)
+import           Type.Reflection                                (Typeable)
 
-class Node n where
-    collect         :: (Valuation v) => n v a b -> n v a b
-    getValuation    :: (Valuation v) => n v a b -> v a b
-    getDomain       :: (Show a, Show b, Ord a, Ord b, Valuation v) => n v a b -> Domain a
-    create          :: (Valuation v) => Integer -> v a b -> n v a b
-    nodeId          ::                  n v a b -> Id
 
--- TODO: Can we implement equality by default on the 'nodeId' field by enabling flexible instances?
--- instance (forall n v a b . Node n) => Ord (n v a b) where
---     x <= y = nodeId x <= nodeId y
+data Node v = Node {
+      id :: Integer
+    , v  :: v
+} deriving (Generic, Typeable, Binary)
+
+-- | Accessor for the domain of the valuation.  Equivalent to calling `label` on the valuation.
+-- __Warning__: Not necessarily O(1).
+instance (Valuation v, Ord a, Ord b, Show a, Show b) => HasField "d" (Node (v a b)) (Domain a) where
+    getField m = label m.v
+
+instance Eq (Node v) where
+    x == y = x.id == y.id
+
+instance Ord (Node v) where
+    x <= y = x.id <= y.id
+
+instance (Valuation v, Ord a, Ord b, Show a, Show b) => Show (Node (v a b)) where
+    show n = unpack $ pShow (n.id, n.d)
 
 setDifference :: (Eq a) => [a] -> [a] -> [a]
 setDifference xs ys = filter (\x -> not $ x `elem` ys) xs
@@ -69,18 +86,18 @@ The query domains are used only to ensure the join tree has a node that answers
 each query (by creating empty nodes for each the query domain). The node ids
 of the input valuations 'vs' in the final join tree are [0 .. (length vs)] respectively.
 -}
-baseJoinTree :: forall n v a b. (Show a, Show b, Node n, Valuation v, Ord a, Ord b, Eq (n v a b))
+baseJoinTree :: forall v a b. (Show a, Show b, Valuation v, Ord a, Ord b)
     => [v a b]
     -> [Domain a]
-    -> Graph (n v a b)
+    -> Graph (Node (v a b))
 baseJoinTree vs queries = edges $ baseJoinTree' nextNodeId r d
     where
         d :: E.EliminationSequence a
         d = E.create $ map label vs
 
-        r :: [n v a b]
-        r = zipWith (\nid v -> create nid v) [0 ..] vs
-            ++ zipWith (\nid q -> create nid (identity q)) [fromIntegral (length vs) ..] queries
+        r :: [Node (v a b)]
+        r = zipWith (\nid v -> Node nid v) [0 ..] vs
+            ++ zipWith (\nid q -> Node nid (identity q)) [fromIntegral (length vs) ..] queries
 
         nextNodeId :: Integer
         nextNodeId = fromIntegral $ length r
@@ -92,11 +109,11 @@ Where convenient, variables have been named as they appear in the pseudocode des
 is a parameter such that there currently exists no nodes with id > 'nextNodeId' in the tree. As we may
 create up to 2 nodes on each iteration, we make the recursive call with 'nextNodeId + 2'
 -}
-baseJoinTree' :: forall n v a b. (Node n, Valuation v, Eq (n v a b), Ord a, Show a, Show b, Ord b)
+baseJoinTree' :: forall v a b. (Valuation v, Ord a, Show a, Show b, Ord b)
     => Integer
-    -> [n v a b]
+    -> [Node (v a b)]
     -> E.EliminationSequence a
-    -> [(n v a b, n v a b)]
+    -> [(Node (v a b), Node (v a b))]
 baseJoinTree' nextNodeId r d
     | E.isEmpty d = []
     | length r <= 1 = []
@@ -105,26 +122,26 @@ baseJoinTree' nextNodeId r d
     where
         (x, d') = fromJust $ E.eliminateNext d
 
-        xIsInNodeDomain :: n v a b -> Bool
-        xIsInNodeDomain n = x `elem` (getDomain n)
+        xIsInNodeDomain :: Node (v a b) -> Bool
+        xIsInNodeDomain n = x `elem` (n.d)
 
-        phiX :: [n v a b]
+        phiX :: [Node (v a b)]
         phiX = filter xIsInNodeDomain r
 
         domainOfPhiX :: Domain a
-        domainOfPhiX = foldr (S.union) (S.empty) $ map getDomain phiX
+        domainOfPhiX = foldr (S.union) (S.empty) $ map (.d) phiX
 
-        nUnion :: n v a b
-        nUnion = create nextNodeId (identity domainOfPhiX)
+        nUnion :: Node (v a b)
+        nUnion = Node nextNodeId (identity domainOfPhiX)
 
-        r' :: [n v a b]
+        r' :: [Node (v a b)]
         r' = setDifference r phiX
 
-        e :: [(n v a b, n v a b)]
+        e :: [(Node (v a b), Node (v a b))]
         e = [(n, nUnion) | n <- phiX]
 
-        nP :: n v a b
-        nP = create (nextNodeId + 1) (identity nPDomain)
+        nP :: Node (v a b)
+        nP = Node (nextNodeId + 1) (identity nPDomain)
             where
                 nPDomain = (fromList $ setDifference (toList domainOfPhiX) [x])
 

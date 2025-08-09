@@ -32,9 +32,9 @@ import qualified Algebra.Graph                                                as
 import qualified Data.Map.Lazy                                                as Map
 import           GHC.Records                                                  (HasField,
                                                                                getField)
+import           LocalComputation.Inference.JoinTree                          (Node)
 import qualified LocalComputation.Inference.JoinTree                          as N
-import           LocalComputation.Inference.ShenoyShafer                      (InferredData,
-                                                                               ShenoyShaferNode)
+import           LocalComputation.Inference.ShenoyShafer                      (InferredData)
 import           LocalComputation.Utils                                       (findAssertSingleMatch,
                                                                                unsafeFind)
 
@@ -135,7 +135,7 @@ getValuation x results = snd $ unsafeFind (\(d, v) -> d == x) results
 -- 2. Provide node id information inside inferred data so we don't have to stitch it back together afterward.
 --      (If we get asserts failing here, we actually can't stitch it back together accurately!)
 multiqueryCompute :: forall a c . (Eq a, Q.QuasiRegularSemiringValue c, Show a, Show c, Ord a, Ord c)
-    => DG.Graph (ShenoyShaferNode (QuasiRegularValuation c) a ())
+    => DG.Graph (Node ((QuasiRegularValuation c) a ()))
     -> InferredData (QuasiRegularValuation c) a ()
     -> S.Set (M.LabelledMatrix a () c)
 multiqueryCompute g results = undefined
@@ -167,15 +167,15 @@ data NewInferredData v a b = NewInferredData {
 -- invariant is maintained?
 -- If this assert doesnt fail then it could be a map rather than a list actually...
 -- TODO: Does the label of a valuation not represent it's domain?
-stitch :: (Show a, Show b, Ord a, Ord b, N.Node n, Ord (n v a b), Valuation v, Eq a)
-    => DG.Graph (n v a b)
+stitch :: (Show a, Show b, Ord a, Ord b, Valuation v, Eq a)
+    => DG.Graph (Node (v a b))
     -> InferredData v a b
-    -> Map.Map N.Id (NewInferredData v a b)
+    -> Map.Map Integer (NewInferredData v a b)
 stitch g datas = Map.fromList $ map toInferredData datas
     where
-        toInferredData (d, v) = ((N.nodeId entry), NewInferredData d v)
+        toInferredData (d, v) = (entry.id, NewInferredData d v)
             where
-                entry = findAssertSingleMatch (\n -> N.getDomain n == d) nodes
+                entry = findAssertSingleMatch (\n -> n.d == d) nodes
 
                 nodes = DG.vertexList g
 

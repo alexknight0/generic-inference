@@ -10,7 +10,6 @@ module LocalComputation.Inference.ShenoyShafer (
     , answerQueries, answerQuery
     , inference
     , InferredData
-    , ShenoyShaferNode
 ) where
 
 import           Control.Distributed.Process              hiding (Message)
@@ -32,33 +31,6 @@ import           Control.Exception                        (assert)
 import           LocalComputation.Inference.JoinTree
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra
-
-data ShenoyShaferNode v a b = ShenoyShaferNode Integer (v a b) deriving (Generic, Binary)
-
-instance Node ShenoyShaferNode where
-    collect = undefined
-
-    getValuation (ShenoyShaferNode _ v) = v
-
-    getDomain (ShenoyShaferNode _ v) = label v
-
-    create i v = ShenoyShaferNode i v
-
-    nodeId (ShenoyShaferNode i _) = i
-
-instance Eq (ShenoyShaferNode v a b) where
-    x == y = nodeId x == nodeId y
-
-instance Ord (ShenoyShaferNode v a b) where
-    x <= y = nodeId x <= nodeId y
-
--- TODO: Could put implementation inside the Node typeclass and then just call it from in here
-instance (Valuation v, Show (v a b), Show a, Show b, Ord a, Ord b) => Show (ShenoyShaferNode v a b) where
-    show (ShenoyShaferNode i v) = show (i, label v)
-
--- data Marginal n v a b = Marginal {
---
--- }
 
 type InferredData v a b = [(Domain a, v a b)]
 
@@ -107,14 +79,14 @@ inference vs queryDomains = initializeNodes (shenoyJoinTree vs queryDomains)
 shenoyJoinTree :: forall v a b. (Show a, Show b, Valuation v, Ord a, Ord b)
     => [v a b]
     -> [Domain a]
-    -> Graph (ShenoyShaferNode v a b)
+    -> Graph (Node (v a b))
 shenoyJoinTree vs queryDomains = toUndirected (baseJoinTree vs queryDomains)
 
 data NodeWithProcessId a = NodeWithProcessId { id :: ProcessId, node :: a } deriving (Generic, Binary)
 
 -- Initializes all nodes in the join tree for message passing according to the Shenoy-Shafer algorithm.
-initializeNodes :: forall n v a b. (Show a, Show b, Typeable n, Typeable v, Typeable b, Binary (n v a b), Serializable (v a b), Serializable a, Valuation v, Ord (n v a b), Ord a, Ord b)
-    => Graph (n v a b)
+initializeNodes :: forall v a b. (Show a, Show b, Typeable v, Typeable b, Serializable (v a b), Serializable a, Valuation v, Ord a, Ord b)
+    => Graph (Node (v a b))
     -> Process ([(Domain a, v a b)])
 initializeNodes graph = do
 
@@ -143,7 +115,7 @@ initializeNodes graph = do
     mapM (\p -> fmap assertHasMessage $ receiveChanTimeout 0 p) resultPorts
 
     where
-        initializeNodeAndMonitor :: n v a b -> Process (NodeWithProcessId (n v a b), ReceivePort (Domain a, v a b))
+        initializeNodeAndMonitor :: Node (v a b) -> Process (NodeWithProcessId (Node (v a b)), ReceivePort (Domain a, v a b))
         initializeNodeAndMonitor node = do
             (sendFinalResult, receiveFinalResult) <- newChan
 
@@ -171,8 +143,8 @@ initializeNode :: forall v a b. (
     => SendPort (Domain a, v a b)
     -> Process ProcessId
 initializeNode resultPort = spawnLocal $ do
-    this :: NodeWithProcessId (ShenoyShaferNode v a b) <- expect
-    neighbours :: [NodeWithProcessId (ShenoyShaferNode v a b)] <- expect
+    this :: NodeWithProcessId (Node (v a b)) <- expect
+    neighbours :: [NodeWithProcessId (Node (v a b))] <- expect
 
     --[[ Phase 1: Collect Phase ]]
     -- Wait for messages from all neighbours bar one
@@ -194,12 +166,12 @@ initializeNode resultPort = spawnLocal $ do
 
     --[[ Sending Results ]]
     -- Send result back to parent process
-    let result = combines1 (getValuation this.node : map (.msg) phase2Postbox)
-    assert (getDomain this.node == label result) (pure ())
-    sendChan resultPort (getDomain this.node, result)
+    let result = combines1 (this.node.v : map (.msg) phase2Postbox)
+    assert (this.node.d == label result) (pure ())
+    sendChan resultPort (this.node.d, result)
 
     where
-        filterOut :: NodeWithProcessId (n v a b) -> [NodeWithProcessId (n v a b)] -> [NodeWithProcessId (n v a b)]
+        filterOut :: NodeWithProcessId (Node (v a b)) -> [NodeWithProcessId (Node (v a b))] -> [NodeWithProcessId (Node (v a b))]
         filterOut neighbour neighbours = filter (\n -> n.id /= neighbour.id) neighbours
 
 
@@ -210,10 +182,10 @@ initializeNode resultPort = spawnLocal $ do
 --  2. combining this result with the sender's valuation
 --  3. projecting the result to the intersection of the sender and recipient's domain
 --  4. dispatching the resulting message to the recipient node.
-sendMessage :: (Show a, Show b, Serializable (v a b), Node n, Valuation v, Ord a, Ord b)
+sendMessage :: (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
     => [Message (v a b)]
-    -> NodeWithProcessId (n v a b)
-    -> NodeWithProcessId (n v a b)
+    -> NodeWithProcessId (Node (v a b))
+    -> NodeWithProcessId (Node (v a b))
     -> Process ()
 sendMessage postbox sender recipient = sendMessage' (filter (\msg -> msg.sender /= recipient.id) postbox)
                                                     sender
@@ -222,21 +194,21 @@ sendMessage postbox sender recipient = sendMessage' (filter (\msg -> msg.sender 
 -- | Same as `sendMessage` except doesn't filter the given postbox for messages that don't come from the
 -- recipient. Hence should only be used when it is known that none of the messages in the postbox come
 -- from the recipient.
-sendMessage' :: (Show a, Show b, Serializable (v a b), Node n, Valuation v, Ord a, Ord b)
+sendMessage' :: (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
     => [Message (v a b)]
-    -> NodeWithProcessId (n v a b)
-    -> NodeWithProcessId (n v a b)
+    -> NodeWithProcessId (Node (v a b))
+    -> NodeWithProcessId (Node (v a b))
     -> Process ()
 sendMessage' postbox sender recipient = send recipient.id msg
     where
-        msg = Message sender.id (project (combines1 (getValuation (sender.node) : map (.msg) postbox))
-                                         (intersection (getDomain sender.node) (getDomain recipient.node)))
+        msg = Message sender.id (project (combines1 (sender.node.v : map (.msg) postbox))
+                                         (intersection sender.node.d recipient.node.d))
 
 -- | Receives messages from all neighbours but one, returning the neighbour that it never
 -- received a message from.
 receivePhaseOne :: Serializable (v a b)
-    => [NodeWithProcessId (n v a b)]
-    -> Process ([Message (v a b)], NodeWithProcessId (n v a b))
+    => [NodeWithProcessId (Node (v a b))]
+    -> Process ([Message (v a b)], NodeWithProcessId (Node (v a b)))
 receivePhaseOne [] = error "receivePhaseOne: Attempted to receive from no port."
 receivePhaseOne neighbours = do
 
