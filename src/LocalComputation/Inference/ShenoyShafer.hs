@@ -15,8 +15,8 @@ module LocalComputation.Inference.ShenoyShafer (
 import           Control.Distributed.Process              hiding (Message)
 import           Control.Distributed.Process.Serializable
 
-import           Algebra.Graph.Undirected                 hiding (neighbours)
-import qualified Algebra.Graph.Undirected                 as G
+import qualified Algebra.Graph                            as DG
+import qualified Algebra.Graph.Undirected                 as UG
 import           Control.Monad                            (forM_, replicateM)
 import           Data.Binary                              (Binary)
 import           Data.Set                                 (intersection,
@@ -33,7 +33,7 @@ import qualified LocalComputation.Inference.JoinTree      as J
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra
 
-type InferredData v a b = [Node (v a b)]
+type InferredData v a b = DG.Graph (Node (v a b))
 
 -- TODO: safely handle invalid queries?
 answerQueries :: forall v a b. (Show a, Show b, Valuation v, Ord a, Ord b)
@@ -43,7 +43,7 @@ answerQueries :: forall v a b. (Show a, Show b, Valuation v, Ord a, Ord b)
 answerQueries queryDomains results = map queryToAnswer queryDomains
     where
         queryToAnswer :: Domain a -> v a b
-        queryToAnswer d = project (unsafeFind (\n -> d `isSubsetOf` n.d) results).v d
+        queryToAnswer d = project (unsafeFind (\n -> d `isSubsetOf` n.d) (DG.vertexList results)).v d
 
 -- TODO safely handle invalid queries?
 answerQuery :: forall v a b. (Show a, Show b, Valuation v, Ord a, Ord b)
@@ -57,7 +57,7 @@ answerQueriesM :: forall v a b . (Show a, Show b, Serializable (v a b), Valuatio
     -> [Domain a]
     -> Process [v a b]
 answerQueriesM vs queryDomains = do
-    results <- initializeNodes (shenoyJoinTree vs queryDomains)
+    results <- initializeNodes (baseJoinTree vs queryDomains)
     pure $ answerQueries queryDomains results
 
 answerQueryM :: forall v a b . (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
@@ -65,14 +65,14 @@ answerQueryM :: forall v a b . (Show a, Show b, Serializable (v a b), Valuation 
     -> Domain a
     -> Process (v a b)
 answerQueryM vs q = do
-    results <- initializeNodes (shenoyJoinTree vs [q])
+    results <- initializeNodes (baseJoinTree vs [q])
     pure $ answerQuery q results
 
 inference :: forall v a b . (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
     => [v a b]
     -> [Domain a]
     -> Process (InferredData v a b)
-inference vs queryDomains = initializeNodes (shenoyJoinTree vs queryDomains)
+inference vs queryDomains = initializeNodes (baseJoinTree vs queryDomains)
 
 -- The base join tree must be transformed to an undirected graph.
 -- While mailboxes should be connected up for each neighbour, this happens in the
@@ -80,24 +80,25 @@ inference vs queryDomains = initializeNodes (shenoyJoinTree vs queryDomains)
 shenoyJoinTree :: forall v a b. (Show a, Show b, Valuation v, Ord a, Ord b)
     => [v a b]
     -> [Domain a]
-    -> Graph (Node (v a b))
-shenoyJoinTree vs queryDomains = toUndirected (baseJoinTree vs queryDomains)
+    -> UG.Graph (Node (v a b))
+shenoyJoinTree vs queryDomains = UG.toUndirected (baseJoinTree vs queryDomains)
 
 data NodeWithProcessId a = NodeWithProcessId { id :: ProcessId, node :: a } deriving (Generic, Binary)
 
 -- Initializes all nodes in the join tree for message passing according to the Shenoy-Shafer algorithm.
 initializeNodes :: forall v a b. (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
-    => Graph (Node (v a b))
-    -> Process [Node (v a b)]
-initializeNodes graph = do
+    => DG.Graph (Node (v a b))
+    -> Process (DG.Graph (Node (v a b)))
+initializeNodes directed = do
 
     -- Initialize all nodes
-    let vs = vertexList graph
+    let undirected = UG.toUndirected directed
+        vs         = UG.vertexList undirected
     (nodesWithPid, resultPorts) <- fmap unzip $ mapM initializeNodeAndMonitor vs
 
     -- Tell each node who it is and who it's neighbours are
     forM_ nodesWithPid $ \nodeWithPid -> do
-        let neighbours = S.toList $ G.neighbours nodeWithPid.node graph
+        let neighbours = S.toList $ UG.neighbours nodeWithPid.node undirected
             neighboursWithPid = filter (\n -> n.node `elem` neighbours) nodesWithPid
         send nodeWithPid.id nodeWithPid
         send nodeWithPid.id neighboursWithPid
@@ -113,7 +114,11 @@ initializeNodes graph = do
              x               -> error $ "Error - " ++ show x
 
     -- All should be terminated - receive all messages
-    mapM (\p -> fmap assertHasMessage $ receiveChanTimeout 0 p) resultPorts
+    newNodes <- mapM (\p -> fmap assertHasMessage $ receiveChanTimeout 0 p) resultPorts
+
+    -- Construct graph from new nodes
+    pure $ fmap (\oldNode -> unsafeFind (\newNode -> newNode.id == oldNode.id) newNodes) directed
+
 
     where
         initializeNodeAndMonitor :: Node (v a b) -> Process (NodeWithProcessId (Node (v a b)), ReceivePort (Node (v a b)))
