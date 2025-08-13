@@ -48,6 +48,7 @@ library
       LocalComputation.LabelledMatrix
       LocalComputation.LocalProcess
       LocalComputation.Utils
+      LocalComputation.Utils.Set
       LocalComputation.ValuationAlgebra
       LocalComputation.ValuationAlgebra.QuasiRegular
       LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue

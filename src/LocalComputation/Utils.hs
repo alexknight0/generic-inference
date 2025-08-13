@@ -34,10 +34,13 @@ module LocalComputation.Utils
     , fromList''
     , formatTimeNicely
     , infinity
+    , neighbours
+    , unusedArg
     )
 where
 
 
+import qualified Algebra.Graph                 as DG
 import qualified Data.Bimap                    as BM
 import           Data.List                     (find)
 import           Data.Map                      (Map, adjust, elems, insert,
@@ -205,3 +208,10 @@ formatTimeNicely time = printf "[%02d:%02d:%02d]" hours minutes seconds
 
 infinity :: Double
 infinity = read "Infinity"
+
+neighbours :: Ord a  => a -> DG.Graph a -> Maybe [a]
+neighbours x g = do
+    (_, adjacent) <- find (\(y, _) -> y == x) $ DG.adjacencyList g
+    pure adjacent
+
+unusedArg = error "Argument should not be used"

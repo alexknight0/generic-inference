@@ -27,11 +27,14 @@ import           GHC.Generics                                                 (G
 
 -- TODO: Migrate to record syntax.
 import qualified Algebra.Graph                                                as DG
+import           Data.List                                                    (maximumBy)
 import qualified Data.Map                                                     as Map
-import           LocalComputation.Inference.JoinTree                          (Node)
+import           LocalComputation.Inference.JoinTree                          (Node (id, v))
 import           LocalComputation.Inference.ShenoyShafer                      (InferredData)
 import           LocalComputation.Utils                                       (findAssertSingleMatch,
-                                                                               unsafeFind)
+                                                                               unsafeFind,
+                                                                               unusedArg)
+import qualified LocalComputation.Utils                                       as DG (neighbours)
 
 data QuasiRegularValuation c a b = Valuation (M.LabelledMatrix a a c) (M.LabelledMatrix a () c) | Identity (Domain a) deriving (Binary, NFData, Ord, Eq, Generic, Show)
 
@@ -126,29 +129,63 @@ getValuation x results = snd $ unsafeFind (\(d, v) -> d == x) results
 
 -- TODO: need child info.
 
--- -- TODO: We should take one of the following approaches
--- -- 1. Check if there is a way to perform this algorithm without the notion of labels
--- --      (might be hard because it seems to use child(..))
--- -- 2. Provide node id information inside inferred data so we don't have to stitch it back together afterward.
--- --      (If we get asserts failing here, we actually can't stitch it back together accurately!)
--- multiqueryCompute :: forall a c . (Eq a, Q.QuasiRegularSemiringValue c, Show a, Show c, Ord a, Ord c)
---     => DG.Graph (Node ((QuasiRegularValuation c) a ()))
---     -> InferredData (QuasiRegularValuation c) a ()
---     -> S.Set (M.LabelledMatrix a () c)
--- multiqueryCompute g results = undefined
---     where
---         root :: Maybe (S.Set (M.LabelledMatrix a () c))
---         root = configSet phiR S.empty M.empty
---             where
---                 phiR = (.v) . snd $ Map.findMax stitched
---
---         go i = undefined
---             where
---                 w = configSet phiI.v undefined
---                     where
---                         phiI = (Map.!) stitched i
---                         phi_NEED_CHILD = undefined
---
+-- TODO: We should take one of the following approaches
+-- 1. Check if there is a way to perform this algorithm without the notion of labels
+--      (might be hard because it seems to use child(..))
+-- 2. Provide node id information inside inferred data so we don't have to stitch it back together afterward.
+--      (If we get asserts failing here, we actually can't stitch it back together accurately!)
+multiqueryCompute :: forall a c . (Eq a, Q.QuasiRegularSemiringValue c, Show a, Show c, Ord a, Ord c)
+    => DG.Graph (Node ((QuasiRegularValuation c) a ()))
+    -> InferredData (QuasiRegularValuation c) a ()
+    -> S.Set (M.LabelledMatrix a () c)
+multiqueryCompute g results = go rootNode.id rootConfigSet rootNode.d
+    where
+        vertices = DG.vertexList results
+
+        rootNode :: Node ((QuasiRegularValuation c) a ())
+        rootNode = maximum vertices
+
+        rootConfigSet :: Maybe (S.Set (M.LabelledMatrix a () c))
+        rootConfigSet = configSet rootNode.v S.empty M.empty
+
+        go i c s = undefined
+            where
+                -- This doesn't exactly follow the mathematical definition as doing so
+                -- appears to require enumerating an infinite set.
+                c' = undefined
+
+                s' = S.union s phiI.d
+                phiI = unsafeFind (\n -> n.id == i) vertices
+
+
+-- the 'r' in the psi indicates that the 'fusion algorithm' was executed with 'r' as the root node.
+singleSolutionCompute :: forall a c . (Eq a, Q.QuasiRegularSemiringValue c, Show a, Show c, Ord a, Ord c)
+    => InferredData (QuasiRegularValuation c) a ()
+    -> M.LabelledMatrix a () c
+singleSolutionCompute g = go (rootNode.id - 1) initialX
+    where
+        vertices = DG.vertexList g
+
+        rootNode :: Node ((QuasiRegularValuation c) a ())
+        rootNode = maximum vertices
+
+        initialX = S.findMin $ fromJust $ configSet rootNode.v S.empty empty
+
+        empty = M.reshape unusedArg M.empty S.empty (S.singleton ())
+
+        go 0 x = x
+        go i x = go (i - 1) (fromJust $ M.appendRows x y')
+            where
+                nodeI      = unsafeFind (\n -> n.id == i) vertices
+                nodeChildI = head $ fromJust $ DG.neighbours nodeI g
+
+                y' = S.findMin $ fromJust y
+
+                y = configSet nodeI.v
+                              intersectionOfIAndChildI
+                              (matrixProject x intersectionOfIAndChildI (S.singleton ()))
+                intersectionOfIAndChildI = (S.intersection nodeI.d nodeChildI.d)
+
 
 
 ------------------------------------------------------------------------------

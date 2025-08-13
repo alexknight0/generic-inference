@@ -21,6 +21,7 @@ type Domain a = Set a
 type VariableArrangement a b = M.Map a b
 
 -- TODO: document choice of having two types 'a' and 'b'
+-- TODO: Could use 'data' constructor inside class declaration...
 class Valuation v where
     label     :: (Show a, Show b, Ord a, Ord b) => v a b    -> Domain a
     combine   :: (Show a, Show b, Ord a, Ord b) => v a b    -> v a b    -> v a b

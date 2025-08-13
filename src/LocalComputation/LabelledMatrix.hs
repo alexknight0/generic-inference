@@ -12,6 +12,8 @@ module LocalComputation.LabelledMatrix
     , fromListDefault
     , empty
     , domain
+    , reshape
+    , appendRows
     , isSquare
     , toSquare
     , extension
@@ -349,14 +351,15 @@ decompose m
                         project' m notARows aCols, project' m notARows notACols)
 
     where
-        (aRows, notARows) = T.both (Map.keysSet . BM.toMapR) $ BM.partition (\i _ -> i < aNumRows) m.rowLabels
-        (aCols, notACols) = T.both (Map.keysSet . BM.toMapR) $ BM.partition (\i _ -> i < aNumCols) m.colLabels
-
         aNumRows = m.numRows `div` 2 + m.numRows `mod` 2
         aNumCols = m.numCols `div` 2 + m.numCols `mod` 2
 
+        (aRows, notARows) = T.both (Map.keysSet . BM.toMapR) $ BM.partition (\i _ -> i < aNumRows) m.rowLabels
+        (aCols, notACols) = T.both (Map.keysSet . BM.toMapR) $ BM.partition (\i _ -> i < aNumCols) m.colLabels
+
         project' x y z = fromJust $ project x y z
 
+-- TODO: Reduce code duplication by calling `appendRows` and creating a new `appendCols` function.
 {- Joins four matrices, returning Nothing if the matrices are not arranged in a square.
 
 For inputs A -> B -> C -> D returns:
@@ -392,6 +395,22 @@ joinSquare a b c d
                                               (BM.toAscList $ BM.mapMonotonic (+ a.numCols) b.colLabels)
 
         append = ((M.computeAs M.B .) .) . M.append'
+
+
+appendRows :: (Ord a, Eq b) => LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
+appendRows m1 m2 | assertAllWellFormed  [m1, m2] = undefined
+appendRows m1 m2
+    | m1.colLabels /= m2.colLabels = Nothing
+    | not $ S.disjoint m1.rowLabelSet m2.rowLabelSet = Nothing
+    | otherwise = Just $ Matrix matrix rowLabels m1.colLabels
+    where
+        matrix = append 2 m1.matrix m2.matrix
+
+        rowLabels = BM.fromAscPairList $ (++) (BM.toAscList m1.rowLabels)
+                                              (BM.toAscList $ BM.mapMonotonic (+ m1.numRows) m2.rowLabels)
+
+        append = ((M.computeAs M.B .) .) . M.append'
+
 
 enumerate :: (Ord a) => S.Set a -> BM.Bimap M.Ix1 a
 enumerate xs = (BM.fromAscPairList . assert' checkIsAscPairList) $ zip [M.Ix1 0..] (S.toAscList xs)

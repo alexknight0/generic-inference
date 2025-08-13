@@ -40,6 +40,8 @@ foobar = undefined
 
 -}
 
+-- TODO: split the problem up across graphs before giving it to the algorithms.
+
 benchmarks :: IO Benchmark
 benchmarks = do
     -- p3Small <- D.p3SmallGraph'
