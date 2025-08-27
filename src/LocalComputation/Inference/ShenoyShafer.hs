@@ -6,30 +6,31 @@
 module LocalComputation.Inference.ShenoyShafer (
       initializeNodes
     , shenoyJoinTree
-    , answerQueriesM, answerQueryM
+    , answerQueriesM, answerQueryM, answerQueriesDrawGraphM
     , answerQueries, answerQuery
     , inference
     , InferredData
 ) where
 
-import           Control.Distributed.Process              hiding (Message)
+import           Control.Distributed.Process                 hiding (Message)
 import           Control.Distributed.Process.Serializable
 
-import qualified Algebra.Graph                            as DG
-import qualified Algebra.Graph.Undirected                 as UG
-import           Control.Monad                            (forM_, replicateM)
-import           Data.Binary                              (Binary)
-import           Data.Set                                 (intersection,
-                                                           isSubsetOf)
-import qualified Data.Set                                 as S
-import           GHC.Generics                             (Generic)
-import           Type.Reflection                          (Typeable)
+import qualified Algebra.Graph                               as DG
+import qualified Algebra.Graph.Undirected                    as UG
+import           Control.Monad                               (forM_, replicateM)
+import           Data.Binary                                 (Binary)
+import           Data.Set                                    (intersection,
+                                                              isSubsetOf)
+import qualified Data.Set                                    as S
+import           GHC.Generics                                (Generic)
+import           Type.Reflection                             (Typeable)
 
 
-import           Control.Exception                        (assert)
-import           LocalComputation.Inference.JoinTree      (Node (..),
-                                                           baseJoinTree)
-import qualified LocalComputation.Inference.JoinTree      as J
+import           Control.Exception                           (assert)
+import           LocalComputation.Inference.JoinTree         (Node (..),
+                                                              baseJoinTree)
+import qualified LocalComputation.Inference.JoinTree         as J
+import qualified LocalComputation.Inference.JoinTree.Diagram as D
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra
 
@@ -67,6 +68,16 @@ answerQueryM :: forall v a b . (Show a, Show b, Serializable (v a b), Valuation 
 answerQueryM vs q = do
     results <- initializeNodes (baseJoinTree vs [q])
     pure $ answerQuery q results
+
+answerQueriesDrawGraphM :: forall v a b . (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
+    => FilePath
+    -> [v a b]
+    -> [Domain a]
+    -> Process [v a b]
+answerQueriesDrawGraphM filename vs queryDomains = do
+    results <- initializeNodes (baseJoinTree vs queryDomains)
+    liftIO $ D.draw filename results
+    pure $ answerQueries queryDomains results
 
 inference :: forall v a b . (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
     => [v a b]

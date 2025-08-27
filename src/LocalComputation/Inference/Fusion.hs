@@ -20,7 +20,8 @@ instance Ord (WithId a) where
 
 -- TODO: We can use elimination sequence here, but the fusion algorithm specifies that we
 -- don't eliminate any variables in the query - so how is our 'elimination seq' impacted by
--- this? How do we still ensure we have a good elimination seq?
+-- this; but how does this affect *calculation* of the elimation seq?
+-- i.e. Do we remove them before or after calculating the elimination seq?
 -- A: Use that one step lookahead from that local computation paper.
 --    Wait; p371 of generic inference say something about the treewidth indicating an upper
 --    bound on the time complexity of variable elimination?
@@ -52,4 +53,11 @@ fusion' uniqueId upperPsi (y:ys) = fusion' (uniqueId + 1) upperPsi' ys
         psi = combines1 $ map (.content) $ S.toList upperGamma
         upperPsi' = S.union (S.difference upperPsi upperGamma)
                             (S.singleton (WithId uniqueId $ eliminate psi (S.singleton y)))
+
+
+--------------------------------------------------------------------------------
+-- Fusion as a message passing scheme
+--------------------------------------------------------------------------------
+-- TODO: Our current join tree construction method does not set the root node as we desire.
+
 

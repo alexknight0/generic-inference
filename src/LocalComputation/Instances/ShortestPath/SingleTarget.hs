@@ -5,6 +5,7 @@
 module LocalComputation.Instances.ShortestPath.SingleTarget
     (
       singleTarget
+    , singleTargetTmp
     , Error (MissingZeroCostSelfLoops)
     , Query (..)
     )
@@ -30,6 +31,7 @@ import qualified Data.Hashable                                                as
 import           GHC.Generics                                                 (Generic)
 import           LocalComputation.Graph                                       as G
 import qualified LocalComputation.Inference                                   as I
+import qualified LocalComputation.Inference.Fusion                            as F
 import           LocalComputation.Utils                                       (fromRight)
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue as Q (TropicalSemiringValue (..),
                                                                                     toDouble)
@@ -117,6 +119,54 @@ singleTarget' mode vs sources target
         domain = S.fromList (target : sources)
 
         solutionMM = fmap (fmap Q.solution) $ I.query mode k domain
+
+singleTargetTmp :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+    => FilePath
+    -> [Graph a Double]
+    -> [a]
+    -> a
+    -> Either Error (m [Double])
+singleTargetTmp filepath vs sources target = fmap (fmap (map Q.toDouble)) $ singleTargetTmp' filepath (map (fmap Q.T) vs) sources target
+
+
+singleTargetTmp' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+    => FilePath
+    -> [Graph a Q.TropicalSemiringValue]
+    -> [a]
+    -> a
+    -> Either Error (m [Q.TropicalSemiringValue])
+singleTargetTmp' filepath vs sources target
+    | any (not . G.hasZeroCostSelfLoops) vs = Left  $ MissingZeroCostSelfLoops
+    | Left e          <- solutionMM         = Left  $ InferenceError e
+    | Right solutionM <- solutionMM         = Right $ do
+        solution <- solutionM
+        pure $ map (\s -> getDistance solution (s, target)) sources
+
+    where
+        k = knowledgeBase vs target
+        domain = S.fromList (target : sources)
+
+        solutionMM = fmap (fmap Q.solution) $ I.queryDrawGraph filepath I.Shenoy k domain
+
+-- TODO: How do we get 'inferred results' from fusion?
+--
+-- singleTarget'' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+--     => [Graph a Q.TropicalSemiringValue]
+--     -> [a]
+--     -> a
+--     -> Either Error (m [Q.TropicalSemiringValue])
+-- singleTarget'' vs sources target
+--     | any (not . G.hasZeroCostSelfLoops) vs = Left  $ MissingZeroCostSelfLoops
+--     | otherwise                             = Right $ do
+--         solution <- solutionM
+--         pure $ map (\s -> getDistance solution (s, target)) sources
+--
+--     where
+--         k = knowledgeBase vs target
+--         domains = map (\s -> S.fromList [s, target]) sources
+--
+--         solutionMM = undefined
+--         test = mapM (\q -> F.fusion vs q) domains
 
 
 -- | Old single target algorithm that utilizes shenoy shafer and multiple single-target queries to return the result.

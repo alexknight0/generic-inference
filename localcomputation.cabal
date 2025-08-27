@@ -39,6 +39,7 @@ library
       LocalComputation.Inference.EliminationSequence
       LocalComputation.Inference.Fusion
       LocalComputation.Inference.JoinTree
+      LocalComputation.Inference.JoinTree.Diagram
       LocalComputation.Inference.ShenoyShafer
       LocalComputation.Instances.BayesianNetwork
       LocalComputation.Instances.BayesianNetwork.Parser
@@ -85,6 +86,9 @@ library
     , containers
     , criterion
     , deepseq
+    , diagrams
+    , diagrams-lib
+    , diagrams-svg
     , dijkstra-simple
     , distributed-process ==0.7.8
     , extra
@@ -128,6 +132,9 @@ executable localcomputation-exe
     , containers
     , criterion
     , deepseq
+    , diagrams
+    , diagrams-lib
+    , diagrams-svg
     , dijkstra-simple
     , distributed-process ==0.7.8
     , extra
@@ -177,6 +184,9 @@ test-suite localcomputation-test
     , containers
     , criterion
     , deepseq
+    , diagrams
+    , diagrams-lib
+    , diagrams-svg
     , dijkstra-simple
     , distributed-process ==0.7.8
     , extra
@@ -226,6 +236,9 @@ benchmark localcomputation-benchmark
     , containers
     , criterion
     , deepseq
+    , diagrams
+    , diagrams-lib
+    , diagrams-svg
     , dijkstra-simple
     , distributed-process ==0.7.8
     , extra

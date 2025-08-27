@@ -51,6 +51,9 @@ dependencies:
 - bimap
 - bytestring
 - random
+- diagrams
+- diagrams-lib
+- diagrams-svg
 
 ghc-options:
 - -Wall

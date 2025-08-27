@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Tests.BayesianNetwork
-    ( tests )
+    ( tests, dataToValuations )
 where
 
 import           Benchmark.Baseline.Probability
@@ -27,6 +27,8 @@ import           Tests.Utils                                       (checkAnswers
                                                                     unitTest)
 
 import           Control.DeepSeq                                   (NFData)
+import           LocalComputation.Inference                        (Mode (Shenoy),
+                                                                    queriesDrawGraph)
 
 tests :: IO Bool
 tests = checkParallel $$(discover)
@@ -63,6 +65,11 @@ boolify x = (x, [False, True])
 
 inferenceAnswers :: [ProbabilityQuery AsiaVar Bool] -> [Probability] -> [([AsiaVar], [Probability])] -> Property
 inferenceAnswers qs as vs = unitTest $ checkQueries qs as (pure $ dataToValuations vs)
+
+-- prop_drawGraph :: Property
+-- prop_drawGraph = unitTest $ do
+--     fromRight $ queriesDrawGraph "test.svg" Shenoy (dataToValuations asiaValuationsP1) asiaQueriesP1
+--     pure ()
 
 prop_inferenceAnswersP1 :: Property
 prop_inferenceAnswersP1 = inferenceAnswers asiaQueriesP1 asiaAnswersP1 asiaValuationsP1

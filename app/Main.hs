@@ -20,21 +20,27 @@ import           GHC.Generics
 -- LocalComputation library files
 import           LocalComputation.Inference.Collect
 import           LocalComputation.Inference.JoinTree
+import qualified LocalComputation.Inference.JoinTree.Diagram                  as D
 import           LocalComputation.Inference.ShenoyShafer
 import           LocalComputation.LocalProcess
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra
 import           LocalComputation.ValuationAlgebra.Semiring
+import           Tests.BayesianNetwork.Data
 
 
 ---- We will need these someday (probably)
 import           Control.Concurrent                                           (threadDelay)
 import           Control.Distributed.Process
 import           Control.Distributed.Process.Node
+import           LocalComputation.Instances.BayesianNetwork
 import qualified LocalComputation.Instances.ShortestPath.SingleTarget         as ST
 import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue (TropicalSemiringValue (..))
 import           Network.Transport.TCP
+import           Tests.BayesianNetwork                                        (dataToValuations)
 import           Text.Pretty.Simple                                           (pPrint)
+
+import           Diagrams.Backend.SVG.CmdLine                                 (mainWith)
 
 -- -- uses not-undirected graph so commented out for now
 showAdjacents :: (Ord a, Show a) => (Directed.Graph a) -> String
@@ -54,14 +60,17 @@ data MainParameters = MainParameters {
 }
 
 main :: IO ()
-main = runProcessLocal $ mainProcess (MainParameters {
-    printP1JoinTree = False,
-    printP2JoinTree = False,
-    performP1ShenoyInference = False,
-    queryP1Network = True,
-    performP2SeminarInference = False,
-    test = False
-})
+main = pure () -- mainWith (D.tree p1BasicTree)
+
+-- main :: IO ()
+-- main = runProcessLocal $ mainProcess (MainParameters {
+--     printP1JoinTree = False,
+--     printP2JoinTree = False,
+--     performP1ShenoyInference = False,
+--     queryP1Network = True,
+--     performP2SeminarInference = False,
+--     test = False
+-- })
 
 mainProcess :: MainParameters -> Process ()
 mainProcess _ = do
@@ -81,8 +90,8 @@ mainProcess _ = do
     --     liftIO $ print $ length $ showAdjacents $ p1BasicTree
 
 
--- p1BasicTree :: Directed.Graph (CollectNode (SemiringValuation Probability) P1Var P1Value)
--- p1BasicTree = baseJoinTree p1Valuations p1Queries
+-- p1BasicTree :: Directed.Graph (Node ((SemiringValuation Probability) AsiaVar Bool))
+-- p1BasicTree = baseJoinTree (dataToValuations asiaValuationsP1) asiaQueriesP1
 --
 --
 -- p2BasicTree :: Directed.Graph (CollectNode (SemiringValuation Probability) P2Var P2Value)

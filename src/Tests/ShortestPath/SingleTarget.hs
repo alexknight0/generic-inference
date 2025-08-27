@@ -99,6 +99,22 @@ pX p = unitTest $ do
         results <- singleTarget mode p.graphs p.q.sources p.q.target
         checkAnswers approx (results) p.answers
 
+prop_p1_drawGraph :: Property
+prop_p1_drawGraph = unitTest $ do
+    case ST.singleTargetTmp "p1.svg" p1.graphs p1.q.sources p1.q.target of
+        Left _ -> failure
+        Right results -> do
+            results' <- results
+            checkAnswers approx results' p1.answers
+
+prop_p2_drawGraph :: Property
+prop_p2_drawGraph = unitTest $ do
+    case ST.singleTargetTmp "p2.svg" p2.graphs p2.q.sources p2.q.target of
+        Left _ -> failure
+        Right results -> do
+            results' <- results
+            checkAnswers approx results' p2.answers
+
 -- | Tests that the all implementations work for a set problem where one graph is given.
 prop_p1 :: Property
 prop_p1 = pX p1
