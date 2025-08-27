@@ -101,7 +101,7 @@ pX p = unitTest $ do
 
 prop_p1_drawGraph :: Property
 prop_p1_drawGraph = unitTest $ do
-    case ST.singleTargetTmp "p1.png" p1.graphs p1.q.sources p1.q.target of
+    case ST.singleTargetTmp "p1.svg" p1.graphs p1.q.sources p1.q.target of
         Left _ -> failure
         Right results -> do
             results' <- results
@@ -109,7 +109,7 @@ prop_p1_drawGraph = unitTest $ do
 
 prop_p2_drawGraph :: Property
 prop_p2_drawGraph = unitTest $ do
-    case ST.singleTargetTmp "p2.png" p2.graphs p2.q.sources p2.q.target of
+    case ST.singleTargetTmp "p2.svg" p2.graphs p2.q.sources p2.q.target of
         Left _ -> failure
         Right results -> do
             results' <- results

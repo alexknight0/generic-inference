@@ -6,16 +6,17 @@ module LocalComputation.Inference.JoinTree.Diagram (
     draw
 ) where
 
-import           Diagrams.Backend.Rasterific         (renderRasterific)
-import           Diagrams.Backend.Rasterific.CmdLine
+import           Diagrams.Backend.SVG                (renderSVG)
+import           Diagrams.Backend.SVG.CmdLine
 import           Diagrams.Prelude
+import qualified Graphics.SVGFonts                   as SF
 
 import qualified Algebra.Graph                       as G
 import           Control.Exception                   (assert)
 import qualified Data.List                           as L
 import qualified Data.List.Extra                     as L (splitOn)
 import           Data.Maybe                          (fromJust)
-import           Diagrams.Backend.Rasterific.Text    (texterific)
+import qualified Graphics.SVGFonts.ReadFont          as SF
 import qualified LocalComputation.Inference.JoinTree as JT
 
 myCircle :: Diagram B
@@ -25,21 +26,25 @@ myCircle = circle 1
 -- to unite all graphs under one data structure to prevent confusion.
 
 draw :: FilePath -> G.Graph (JT.Node a) -> IO ()
-draw name g = renderRasterific name (dims2D 700 700) (tree g)
+draw name g = tree g >>= renderSVG name (dims2D 700 700)
 
 -- | Assumes a tree like structure, and that the node with the highest `id` is the root.
-tree :: G.Graph (JT.Node a) -> Diagram B
-tree g = assert rootHasNoOutgoingEdges $ tree' root g
+tree :: G.Graph (JT.Node a) -> IO (Diagram B)
+tree g = do
+    font <- SF.bit
+    pure $ paragraph font exampleText2
+    -- assert rootHasNoOutgoingEdges $ tree' root g
     where
         root = L.maximumBy (\x y -> x.id `compare` y.id) $ G.vertexList g
-
-        tree' _ _ = paragraph exampleText2
 
         rootHasNoOutgoingEdges = length rootOutgoingEdges == 0
         rootOutgoingEdges = snd . fromJust . L.find (\(x, adjacents) -> x.id == root.id) . G.adjacencyList $ g
 
-paragraph :: String -> Diagram B
-paragraph s = foldr ((===) . texterific) mempty $ L.splitOn "\n" s
+paragraph :: (SF.PreparedFont Double) -> String -> Diagram B
+paragraph font s = foldr ((===) . textWithEnvelope font) mempty $ L.splitOn "\n" s
+
+textWithEnvelope :: (SF.PreparedFont Double) -> String -> Diagram B
+textWithEnvelope font s = SF.svgText (SF.TextOpts font SF.HADV False) s # SF.set_envelope
 
 -- | Assumes the given node is in the tree.
 tree' :: JT.Node a -> G.Graph (JT.Node a) -> Diagram B

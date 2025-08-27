@@ -55,6 +55,7 @@ dependencies:
 - diagrams-lib
 - diagrams-svg
 - diagrams-rasterific
+- SVGFonts
 
 ghc-options:
 - -Wall
