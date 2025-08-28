@@ -187,7 +187,7 @@ initializeNode resultPort = spawnLocal $ do
     -- Send result back to parent process
     let result = combines1 (this.node.v : map (.msg) phase2Postbox)
     assert (this.node.d == label result) (pure ())
-    sendChan resultPort (J.node this.node.id result)
+    sendChan resultPort (J.node this.node.id result this.node.t)
 
     where
         filterOut :: NodeWithProcessId (Node (v a b)) -> [NodeWithProcessId (Node (v a b))] -> [NodeWithProcessId (Node (v a b))]

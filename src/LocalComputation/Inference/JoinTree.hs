@@ -5,9 +5,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module LocalComputation.Inference.JoinTree
-    ( Node (id, v)
+    ( Node (id, v, t)
     , baseJoinTree
     , node
+    , NodeType (Valuation, Query, Union, Projection)
     )
 where
 
@@ -35,9 +36,12 @@ import           Type.Reflection                                (Typeable)
 data Node v = Node {
       id :: Integer
     , v  :: v
+    , t  :: NodeType
 } deriving (Generic, Typeable, Binary)
 
-node :: Integer -> v -> Node v
+data NodeType = Valuation | Query | Union | Projection deriving (Generic, Binary)
+
+node :: Integer -> v -> NodeType -> Node v
 node = Node
 
 -- | Accessor for the domain of the valuation.  Equivalent to calling `label` on the valuation.
@@ -102,8 +106,8 @@ baseJoinTree vs queries = edges $ baseJoinTree' nextNodeId r d
         d = E.create $ map label vs
 
         r :: [Node (v a b)]
-        r = zipWith (\nid v -> Node nid v) [0 ..] vs
-            ++ zipWith (\nid q -> Node nid (identity q)) [fromIntegral (length vs) ..] queries
+        r = zipWith (\nid v -> Node nid v Valuation) [0 ..] vs
+            ++ zipWith (\nid q -> Node nid (identity q) Query) [fromIntegral (length vs) ..] queries
 
         nextNodeId :: Integer
         nextNodeId = fromIntegral $ length r
@@ -145,7 +149,7 @@ baseJoinTree' nextNodeId r d
         domainOfPhiX = foldr (S.union) (S.empty) $ map (.d) phiX
 
         nUnion :: Node (v a b)
-        nUnion = Node nextNodeId (identity domainOfPhiX)
+        nUnion = Node nextNodeId (identity domainOfPhiX) Union
 
         r' :: [Node (v a b)]
         r' = setDifference r phiX
@@ -154,7 +158,7 @@ baseJoinTree' nextNodeId r d
         e = [(n, nUnion) | n <- phiX]
 
         nP :: Node (v a b)
-        nP = Node (nextNodeId + 1) (identity nPDomain)
+        nP = Node (nextNodeId + 1) (identity nPDomain) Projection
             where
                 nPDomain = (fromList $ setDifference (toList domainOfPhiX) [x])
 
