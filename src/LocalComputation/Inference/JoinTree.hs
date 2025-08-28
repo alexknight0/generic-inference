@@ -30,6 +30,8 @@ import           Text.Pretty.Simple                             (pShow)
 import           Type.Reflection                                (Typeable)
 
 
+-- TODO: investigate if union nodes are necessary.
+
 data Node v = Node {
       id :: Integer
     , v  :: v
@@ -106,7 +108,14 @@ baseJoinTree vs queries = edges $ baseJoinTree' nextNodeId r d
         nextNodeId :: Integer
         nextNodeId = fromIntegral $ length r
 
-{- | For an explanation of the overall algorithm see 'baseJoinTree'
+{- | For a more general explanation of the overall algorithm see 'baseJoinTree'.
+
+'r' holds the valuations / queries that need to be placed in the join tree in node form.
+Each iteration we eliminate a variable, and store all the nodes that had this variable in 'phiX'.
+We then add a union node 'nUnion' and add an edge to that union node from each node in 'phiX'.
+We then add a projection node 'nP' that has the same domain as 'nUnion' minus the variable we eliminated,
+and add an edge from the union node to the projection node.
+
 
 Where convenient, variables have been named as they appear in the pseudocode described on page 22 of
 "A Generic Architecture for Local Computation" by Marc Pouly. Not found in this pseudocode, 'nextNodeId'

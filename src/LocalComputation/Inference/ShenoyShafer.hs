@@ -76,8 +76,10 @@ answerQueriesDrawGraphM :: forall v a b . (Show a, Show b, Show (v a b), Seriali
     -> [Domain a]
     -> Process [v a b]
 answerQueriesDrawGraphM filename vs queryDomains = do
-    results <- initializeNodes (baseJoinTree vs queryDomains)
-    liftIO $ D.draw filename results
+    let tree = baseJoinTree vs queryDomains
+    liftIO $ D.draw filename tree
+    results <- initializeNodes tree
+    -- liftIO $ D.draw filename results
     pure $ answerQueries queryDomains results
 
 inference :: forall v a b . (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)

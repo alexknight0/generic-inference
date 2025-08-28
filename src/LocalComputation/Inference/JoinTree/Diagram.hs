@@ -21,12 +21,14 @@ import qualified Graphics.SVGFonts.ReadFont          as SF
 import qualified LocalComputation.Inference.JoinTree as JT
 import qualified LocalComputation.ValuationAlgebra   as V
 
--- TODO: A different data structure could be better here. Additionally, we might want
+-- TODO: A different data structure for the graph could be better here. Additionally, we might want
 -- to unite all graphs under one data structure to prevent confusion.
 
 draw :: (V.Valuation v, Show (v a b), Ord a, Ord b, Show b, Show a)
     => FilePath -> G.Graph (JT.Node (v a b)) -> IO ()
-draw name g = tree g >>= renderSVG name (dims2D 1400 1400)
+draw name g = do
+    diagram <- tree g
+    renderSVG name (dims2D 1400 1400) (diagram # framePadding 0.05)
 
 -- | Assumes a tree like structure, and that the node with the highest `id` is the root.
 tree :: (V.Valuation v, Show (v a b), Ord a, Ord b, Show b, Show a)
@@ -34,7 +36,8 @@ tree :: (V.Valuation v, Show (v a b), Ord a, Ord b, Show b, Show a)
 tree g = do
     chosenFont <- SF.bit
     assert (length rootOutgoingEdges == 0) (pure ())
-    pure $ tree' chosenFont root g # centerXY # pad 1.05
+
+    pure $ tree' chosenFont root g
     where
         root = L.maximumBy (\x y -> x.id `compare` y.id) $ G.vertexList g
 
@@ -44,6 +47,9 @@ data DiagramWithBorder a = DiagramWithBorder {
     diagram     :: Diagram a,
     borderWidth :: Double
 }
+
+framePadding :: Double -> Diagram B -> Diagram B
+framePadding ratio x = x # frame (ratio * min (width x) (height x))
 
 withBorder :: Diagram B -> DiagramWithBorder B
 withBorder x = DiagramWithBorder ((textWithPadding <> rectangle) # withEnvelope rectangle)
