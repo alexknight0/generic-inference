@@ -141,8 +141,8 @@ tree' chosenFont node g = vsep vgap [root.diagram, parents] # applyAll arrows
         incoming = snd . fromJust . L.find (\(x, _) -> x.id == node.id) . G.adjacencyList . G.transpose $ g
         parents = centerX . hsep hgap . map alignT . map (\n -> tree' chosenFont n g) $ incoming
 
-        arrows = map (\parent -> connectOutside' arrowOpts parent.id node.id # lwL (root.borderWidth / 1.5)) incoming
-        arrowOpts = with & headLength .~ local (root.borderWidth * 4.5)
+        arrows = map (\parent -> connectOutside' arrowOpts parent.id node.id # lwL root.borderWidth) incoming
+        arrowOpts = with & headLength .~ local (root.borderWidth * 8)
                          & headGap    .~ local (root.borderWidth * 6)
                          & tailGap    .~ local (root.borderWidth * 6)
         vgap = 0.5  * height root.diagram
