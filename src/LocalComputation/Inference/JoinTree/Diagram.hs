@@ -33,11 +33,11 @@ tree :: (V.Valuation v, Show (v a b), Ord a, Ord b, Show b, Show a)
     => G.Graph (JT.Node (v a b)) -> IO (Diagram B)
 tree g = do
     chosenFont <- SF.bit
-    pure $ assert rootHasNoOutgoingEdges $ tree' chosenFont root g
+    assert (length rootOutgoingEdges == 0) (pure ())
+    pure $ tree' chosenFont root g # centerXY # pad 1.05
     where
         root = L.maximumBy (\x y -> x.id `compare` y.id) $ G.vertexList g
 
-        rootHasNoOutgoingEdges = length rootOutgoingEdges == 0
         rootOutgoingEdges = snd . fromJust . L.find (\(x, _) -> x.id == root.id) . G.adjacencyList $ g
 
 data DiagramWithBorder a = DiagramWithBorder {
