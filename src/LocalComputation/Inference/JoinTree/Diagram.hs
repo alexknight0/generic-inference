@@ -17,6 +17,7 @@ import           Control.Exception                   (assert)
 import qualified Data.List                           as L
 import qualified Data.List.Extra                     as L (splitOn)
 import           Data.Maybe                          (fromJust)
+import qualified Debug.Trace                         as D
 import qualified Graphics.SVGFonts.ReadFont          as SF
 import qualified LocalComputation.Inference.JoinTree as JT
 import qualified LocalComputation.ValuationAlgebra   as V
@@ -45,18 +46,17 @@ data DiagramWithBorder = TextWithBorder {
     borderWidth :: Double
 }
 
--- TODO: Opacity might look nice
 withBorder :: Diagram B -> DiagramWithBorder
-withBorder x = TextWithBorder ((textWithPadding <> rectangle) # withEnvelope rectangle)
+withBorder x = TextWithBorder ((withPadding <> myCircle) # withEnvelope myCircle)
                               borderWidth
     where
-        -- Think this line is redundant
-        result = x # centerXY
-        paddingSize = min (width result) (height result)
-        textWithPadding = result # frame (0.1 * paddingSize)
+        withPadding = x # frame (0.1 * paddingSize) # centerXY # showEnvelope
+        paddingSize :: Double
+        paddingSize = 0
 
-        rectangle = rect (width textWithPadding) (height textWithPadding) # borderStyles
-        borderWidth = 0.02 * paddingSize
+        myCircle = circle circleRadius # borderStyles
+        circleRadius = max (width withPadding) (height withPadding) / 2
+        borderWidth = 0.02 * min (width x) (height x)
         borderStyles = lwL (borderWidth / 2) # dashingL [borderWidth * 2, borderWidth * 3] 0 # opacity 0.8
 
 
