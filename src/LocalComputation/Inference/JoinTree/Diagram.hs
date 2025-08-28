@@ -16,6 +16,7 @@ import           Control.Exception                   (assert)
 import qualified Data.List                           as L
 import qualified Data.List.Extra                     as L (splitOn)
 import           Data.Maybe                          (fromJust)
+import qualified Debug.Trace                         as D
 import qualified Graphics.SVGFonts.ReadFont          as SF
 import qualified LocalComputation.Inference.JoinTree as JT
 
@@ -25,37 +26,60 @@ myCircle = circle 1
 -- TODO: A different data structure could be better here. Additionally, we might want
 -- to unite all graphs under one data structure to prevent confusion.
 
-draw :: FilePath -> G.Graph (JT.Node a) -> IO ()
-draw name g = tree g >>= renderSVG name (dims2D 700 700)
+draw :: Show a => FilePath -> G.Graph (JT.Node a) -> IO ()
+draw name g = tree g >>= renderSVG name (dims2D 1400 1400)
 
 -- | Assumes a tree like structure, and that the node with the highest `id` is the root.
-tree :: G.Graph (JT.Node a) -> IO (Diagram B)
+tree :: Show a => G.Graph (JT.Node a) -> IO (Diagram B)
 tree g = do
     font <- SF.bit
-    pure $ paragraph font exampleText2
-    -- assert rootHasNoOutgoingEdges $ tree' root g
+    pure $ assert rootHasNoOutgoingEdges $ tree' font root g
     where
         root = L.maximumBy (\x y -> x.id `compare` y.id) $ G.vertexList g
 
         rootHasNoOutgoingEdges = length rootOutgoingEdges == 0
         rootOutgoingEdges = snd . fromJust . L.find (\(x, adjacents) -> x.id == root.id) . G.adjacencyList $ g
 
-paragraph :: (SF.PreparedFont Double) -> String -> Diagram B
-paragraph font s = foldr ((===) . textWithEnvelope font) mempty $ L.splitOn "\n" s
+data TextWithBorder = TextWithBorder {
+    diagram     :: Diagram B,
+    borderWidth :: Double
+}
+
+textWithBorder :: (SF.PreparedFont Double) -> String -> TextWithBorder
+textWithBorder font s = TextWithBorder ((textWithPadding <> rectangle) # withEnvelope rectangle)
+                                       borderWidth
+    where
+        result = textWithNewlines font s # centerXY
+        paddingSize = min (width result) (height result)
+        borderWidth = 0.02 * paddingSize
+        textWithPadding = result # frame (0.1 * paddingSize)
+
+        rectangle = rect (width textWithPadding) (height textWithPadding) # lwL (borderWidth / 2) # dashingL [borderWidth * 2, borderWidth * 3] 0
+
+textWithNewlines :: (SF.PreparedFont Double) -> String -> Diagram B
+textWithNewlines font s = foldr ((===) . textWithEnvelope font) mempty $ L.splitOn "\n" s
 
 textWithEnvelope :: (SF.PreparedFont Double) -> String -> Diagram B
-textWithEnvelope font s = SF.svgText (SF.TextOpts font SF.HADV False) s # SF.set_envelope
+textWithEnvelope font s = SF.svgText (SF.TextOpts font SF.HADV False) s # SF.set_envelope # lw none # fc black
 
 -- | Assumes the given node is in the tree.
-tree' :: JT.Node a -> G.Graph (JT.Node a) -> Diagram B
-tree' node g = vsep 3 [root, parents] # applyAll (map (\parent -> connectOutside parent.id node.id) incoming)
+tree' :: Show a => (SF.PreparedFont Double) -> JT.Node a -> G.Graph (JT.Node a) -> Diagram B
+tree' font node g = vsep vgap [root, parents] # applyAll arrows
     where
-        root = text (show node.id) <> circle 1 # named node.id
+        -- root = text (show node.id) <> circle 1 # named node.id
+        root = rootText.diagram # named node.id
+        rootText = textWithBorder font (show node.v)
 
         -- Horribly inefficent, constantly recalculated
         incoming = snd . fromJust . L.find (\(x, adjacents) -> x.id == node.id) . G.adjacencyList . G.transpose $ g
+        parents = centerX . hsep hgap . map alignT . map (\n -> tree' font n g) $ incoming
 
-        parents = centerX . hsep 1 . map alignT . map (\n -> tree' n g) $ incoming
+        arrows = map (\parent -> connectOutside' arrowOpts parent.id node.id # lwL (rootText.borderWidth / 1.5)) incoming
+        arrowOpts = with & headLength .~ local (rootText.borderWidth * 4.5)
+                         & headGap    .~ local (rootText.borderWidth * 6)
+                         & tailGap    .~ local (rootText.borderWidth * 6)
+        vgap = 0.5 * height root
+        hgap = 0.25 * width root
 
 
 exampleText2 =

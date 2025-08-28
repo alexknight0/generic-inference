@@ -82,7 +82,7 @@ queriesDrawGraph :: (
     , Ord a, Ord b
     , Binary a, Binary (v a b)
     , Typeable v, Typeable a, Typeable b
-    , Show a, Show b
+    , Show a, Show b, Show (v a b)
     , MonadIO m
     )
  => FilePath -> Mode -> [v a b] -> [Domain a] -> Either Error (m [v a b])
@@ -124,7 +124,7 @@ queryDrawGraph :: (
     , Ord a, Ord b
     , Binary a, Binary (v a b)
     , Typeable v, Typeable a, Typeable b
-    , Show a, Show b
+    , Show a, Show b, Show (v a b)
     , MonadIO m
     )
  => FilePath -> Mode -> [v a b] -> Domain a -> Either Error (m (v a b))

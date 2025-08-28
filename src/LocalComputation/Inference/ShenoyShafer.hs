@@ -69,7 +69,8 @@ answerQueryM vs q = do
     results <- initializeNodes (baseJoinTree vs [q])
     pure $ answerQuery q results
 
-answerQueriesDrawGraphM :: forall v a b . (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
+-- TODO: Right now visualises the after tree. We should have options for both i guess!
+answerQueriesDrawGraphM :: forall v a b . (Show a, Show b, Show (v a b), Serializable (v a b), Valuation v, Ord a, Ord b)
     => FilePath
     -> [v a b]
     -> [Domain a]

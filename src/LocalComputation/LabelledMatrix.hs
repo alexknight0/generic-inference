@@ -69,7 +69,10 @@ data LabelledMatrix a b c = Matrix {
       matrix    :: M.Matrix M.B c
     , rowLabels :: BM.Bimap M.Ix1 a
     , colLabels :: BM.Bimap M.Ix1 b
-} deriving (Show, Eq, NFData, Ord, Generic)
+} deriving (Eq, NFData, Ord, Generic)
+
+instance (Show c) => Show (LabelledMatrix a b c) where
+    show m = show m.matrix
 
 -- | O(1) accessor for number of rows
 instance HasField "numRows" (LabelledMatrix a b c) M.Ix1 where
