@@ -10,14 +10,16 @@ module LocalComputation.ValuationAlgebra
     , Domain
     , combines1
     , VariableArrangement
+    , showDomain
     )
 where
 
 import qualified Data.Hashable as H
+import qualified Data.List     as L
 import qualified Data.Map.Lazy as M
-import           Data.Set      (Set)
+import qualified Data.Set      as S
 
-type Domain a = Set a
+type Domain a = S.Set a
 type VariableArrangement a b = M.Map a b
 
 -- TODO: document choice of having two types 'a' and 'b'
@@ -38,6 +40,6 @@ class Valuation v where
 combines1 :: (Show a, Show b, Foldable f, Valuation v, Ord a, Ord b) => f (v a b) -> v a b
 combines1 = foldr1 combine
 
-showDomain :: Domain a -> String
-showDomain x = undefined
+showDomain :: Show a => Domain a -> String
+showDomain x = "{" ++ L.intercalate "," (map show (S.toList x)) ++ "}"
 

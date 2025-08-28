@@ -17,7 +17,6 @@ import           Control.Exception                   (assert)
 import qualified Data.List                           as L
 import qualified Data.List.Extra                     as L (splitOn)
 import           Data.Maybe                          (fromJust)
-import qualified Debug.Trace                         as D
 import qualified Graphics.SVGFonts.ReadFont          as SF
 import qualified LocalComputation.Inference.JoinTree as JT
 import qualified LocalComputation.ValuationAlgebra   as V
@@ -41,22 +40,20 @@ tree g = do
         rootHasNoOutgoingEdges = length rootOutgoingEdges == 0
         rootOutgoingEdges = snd . fromJust . L.find (\(x, _) -> x.id == root.id) . G.adjacencyList $ g
 
-data DiagramWithBorder = TextWithBorder {
-    diagram     :: Diagram B,
+data DiagramWithBorder a = DiagramWithBorder {
+    diagram     :: Diagram a,
     borderWidth :: Double
 }
 
-withBorder :: Diagram B -> DiagramWithBorder
-withBorder x = TextWithBorder ((withPadding <> myCircle) # withEnvelope myCircle)
+withBorder :: Diagram B -> DiagramWithBorder B
+withBorder x = DiagramWithBorder ((textWithPadding <> rectangle) # withEnvelope rectangle)
                               borderWidth
     where
-        withPadding = x # frame (0.1 * paddingSize) # centerXY # showEnvelope
-        paddingSize :: Double
-        paddingSize = 0
+        paddingSize = min (width x) (height x)
+        textWithPadding = x # frame (0.1 * paddingSize) # centerXY
 
-        myCircle = circle circleRadius # borderStyles
-        circleRadius = max (width withPadding) (height withPadding) / 2
-        borderWidth = 0.02 * min (width x) (height x)
+        rectangle = rect (width textWithPadding) (height textWithPadding) # borderStyles
+        borderWidth = 0.02 * paddingSize
         borderStyles = lwL (borderWidth / 2) # dashingL [borderWidth * 2, borderWidth * 3] 0 # opacity 0.8
 
 
@@ -69,14 +66,17 @@ textWithEnvelope :: (SF.PreparedFont Double) -> String -> Diagram B
 textWithEnvelope chosenFont s = SF.svgText (SF.TextOpts chosenFont SF.HADV False) s # SF.set_envelope # lw none # fc black
 
 treeNode :: (V.Valuation v, Show (v a b), Ord a, Ord b, Show b, Show a)
-    => (SF.PreparedFont Double) -> JT.Node (v a b) -> DiagramWithBorder
-treeNode chosenFont node = TextWithBorder (body.diagram # named node.id) body.borderWidth
+    => (SF.PreparedFont Double) -> JT.Node (v a b) -> DiagramWithBorder B
+treeNode chosenFont node = DiagramWithBorder (body.diagram # named node.id) body.borderWidth
     where
-        body = withBorder $ vsep seperationSpace [nodeId, seperator, domain, seperator, valuation]
+        body = withBorder $ vsep seperationSpace [titleText "NODE ID",   nodeId, seperator,
+                                                  titleText "DOMAIN",    domain, seperator,
+                                                  titleText "VALUATION", valuation]
 
-        nodeId    = textWithNewlines chosenFont (show node.id)           # scale 3
-        domain    = textWithNewlines chosenFont (show $ V.label node.v)  # scale 3
-        valuation = textWithNewlines chosenFont (show node.v)
+        nodeId         = textWithNewlines chosenFont (show node.id)                   # scale 3
+        domain         = textWithNewlines chosenFont (V.showDomain $ V.label node.v)  # scale 3
+        valuation      = textWithNewlines chosenFont (show node.v)                    # scale 1
+        titleText s    = textWithNewlines chosenFont s # scale 1 # opacity 0.7
 
         seperator = line (maximum [width nodeId, width domain, width valuation]) # opacity 0.5
 
