@@ -38,3 +38,6 @@ class Valuation v where
 combines1 :: (Show a, Show b, Foldable f, Valuation v, Ord a, Ord b) => f (v a b) -> v a b
 combines1 = foldr1 combine
 
+showDomain :: Domain a -> String
+showDomain x = undefined
+
