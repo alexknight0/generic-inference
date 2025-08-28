@@ -39,7 +39,7 @@ data Node v = Node {
     , t  :: NodeType
 } deriving (Generic, Typeable, Binary)
 
-data NodeType = Valuation | Query | Union | Projection deriving (Generic, Binary)
+data NodeType = Valuation | Query | Union | Projection deriving (Show, Generic, Binary, Enum, Bounded)
 
 node :: Integer -> v -> NodeType -> Node v
 node = Node

@@ -84,6 +84,7 @@ library
     , bytestring
     , cached-io
     , carray
+    , colour
     , containers
     , criterion
     , deepseq
@@ -132,6 +133,7 @@ executable localcomputation-exe
     , bytestring
     , cached-io
     , carray
+    , colour
     , containers
     , criterion
     , deepseq
@@ -186,6 +188,7 @@ test-suite localcomputation-test
     , bytestring
     , cached-io
     , carray
+    , colour
     , containers
     , criterion
     , deepseq
@@ -240,6 +243,7 @@ benchmark localcomputation-benchmark
     , bytestring
     , cached-io
     , carray
+    , colour
     , containers
     , criterion
     , deepseq
