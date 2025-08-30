@@ -28,7 +28,6 @@ import           LocalComputation.ValuationAlgebra
 import           LocalComputation.ValuationAlgebra.Semiring
 
 
----- We will need these someday (probably)
 import           Control.Concurrent                                           (threadDelay)
 import           Control.Distributed.Process
 import           Control.Distributed.Process.Node
