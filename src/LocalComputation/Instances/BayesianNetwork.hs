@@ -72,11 +72,11 @@ type Network a b = [BayesianNetworkValuation a b]
 -- In other words, a query for \(P(\text{conditioned} | \text{conditional})\) where
 -- 'conditioned' and 'conditional' are sets of variables.
 data Query a b = Query {
-      conditioned :: VariableArrangement (SemiringValuation Probability b) a b
-    , conditional :: VariableArrangement (SemiringValuation Probability b) a b
+      conditioned :: VarAssignment (SemiringValuation Probability b) a b
+    , conditional :: VarAssignment (SemiringValuation Probability b) a b
 } deriving (Show)
 
-conditionalProbability :: (Ord a) => Query a b -> (VariableArrangement (SemiringValuation Probability b) a b -> Probability) -> Probability
+conditionalProbability :: (Ord a) => Query a b -> (VarAssignment (SemiringValuation Probability b) a b -> Probability) -> Probability
 conditionalProbability q p = p (unionAssertDisjoint q.conditioned q.conditional) / p q.conditional
 
 -- TODO: I thought we had to normalize, but this is passing all tests?
@@ -102,7 +102,7 @@ conditionalProbability q p = p (unionAssertDisjoint q.conditioned q.conditional)
 --                                              ]) qs
 
 {- | Takes a query and returns the resulting probability. Assumes the query is covered by the network. -}
-queryToProbability :: (Ord a, Show a, Ord b, Show b) => VariableArrangement (SemiringValuation c b) a b -> InferredData (SemiringValuation Probability b) a -> Probability
+queryToProbability :: (Ord a, Show a, Ord b, Show b) => VarAssignment (SemiringValuation c b) a b -> InferredData (SemiringValuation Probability b) a -> Probability
 queryToProbability vars results = findValue vars (normalize $ answerQuery (M.keysSet vars) results)
 
 toQuery :: (Ord a) => ([(a, b)], [(a, b)]) -> Query a b

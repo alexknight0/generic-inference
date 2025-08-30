@@ -86,7 +86,7 @@ Note that a restriction of this form is that the type of the value of each
 variable in a variable arrangement is the same.
 -}
 data SemiringValuation c b a = Identity { d :: Domain a } | Valuation {
-      _rows         :: M.Map (VariableArrangement (SemiringValuation c b) a b) c
+      _rows         :: M.Map (VarAssignment (SemiringValuation c b) a b) c
     , d             :: Domain a
     , _valueDomains :: M.Map a (Domain b)
     , _e            :: Domain a
@@ -113,7 +113,7 @@ isWellFormed t@Valuation{}
 
 -- | Creates a valuation, returning 'Nothing' if the given parameters would lead to the creation
 -- of a valuation that is not well formed.
-create :: (Ord a, Eq b) => M.Map (VariableArrangement (SemiringValuation c b) a b) c -> Domain a -> M.Map a (Domain b) -> Domain a -> Maybe (SemiringValuation c b a)
+create :: (Ord a, Eq b) => M.Map (VarAssignment (SemiringValuation c b) a b) c -> Domain a -> M.Map a (Domain b) -> Domain a -> Maybe (SemiringValuation c b a)
 create x y z w
     | isWellFormed result = Just result
     | otherwise = Nothing
@@ -121,7 +121,7 @@ create x y z w
         result = Valuation x y z w
 
 instance (Ord b, Show b, Show c, SemiringValue c) => Valuation (SemiringValuation c b) where
-    type VariableArrangement (SemiringValuation c b) a b = M.Map a b
+    type VarAssignment (SemiringValuation c b) a b = M.Map a b
 
     label x | assertIsWellFormed x = undefined
     label i@Identity{}  = i.d
@@ -204,7 +204,7 @@ getRows vars ps = assert' isWellFormed $ Valuation rMap d valueDomains extension
         valueDomains = fromListAssertDisjoint (map (\(v, values) -> (v, fromListAssertDisjoint' values)) vars)
         extension = S.empty
 
-        vPermutations :: [(a, [b])] -> [VariableArrangement (SemiringValuation c b) a b]
+        vPermutations :: [(a, [b])] -> [VarAssignment (SemiringValuation c b) a b]
         vPermutations xs = map fromListAssertDisjoint $ vPermutations' xs
             where
                 vPermutations' :: [(a, [b])] -> [[(a, b)]]
@@ -217,7 +217,7 @@ hasSameValueForSharedVariables xs ys = all (\k -> xs M.! k == ys M.! k) sharedKe
         sharedKeys = S.toList $ S.intersection (M.keysSet xs) (M.keysSet ys)
 
 -- | Returns the value of the given variable arrangement. Unsafe.
-findValue :: (Ord a, Ord b) => VariableArrangement (SemiringValuation c b) a b -> SemiringValuation c b a -> c
+findValue :: (Ord a, Ord b) => VarAssignment (SemiringValuation c b) a b -> SemiringValuation c b a -> c
 findValue x (Valuation rowMap _ _ _) = rowMap M.! x
 findValue _ (Identity _) = error "findProbability: Attempted to read value from an identity valuation."
 

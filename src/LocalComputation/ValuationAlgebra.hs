@@ -7,7 +7,7 @@
 {-# LANGUAGE TypeFamilies           #-}
 
 module LocalComputation.ValuationAlgebra
-    ( Valuation (label, combine, project, identity, eliminate, VariableArrangement)
+    ( Valuation (label, combine, project, identity, eliminate, VarAssignment)
     , Domain
     , combines1
     , showDomain
@@ -25,7 +25,7 @@ type Domain a = S.Set a
 -- TODO: document choice of having two types 'a' and 'b'
 -- TODO: Could use 'data' constructor inside class declaration...
 class Valuation v where
-    type VariableArrangement v a b
+    type VarAssignment v a b
 
     label     :: (Show a, Ord a) => v a      -> Domain a
     combine   :: (Show a, Ord a) => v a      -> v a      -> v a
