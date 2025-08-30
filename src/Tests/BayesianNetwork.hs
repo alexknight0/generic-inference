@@ -107,7 +107,7 @@ genQuery = do
     conditionedVarIndex <- Gen.int (Range.linear 0 (length vars - 1))
     let conditionedVar = vars !! conditionedVarIndex
         conditionalVars = filter (\x -> x /= conditionedVar) vars
-    pure $ toProbabilityQuery ([conditionedVar], conditionalVars)
+    pure $ toQuery ([conditionedVar], conditionalVars)
 
     where
         genVars = Gen.set (Range.linear 1 numVarsToChooseFrom)

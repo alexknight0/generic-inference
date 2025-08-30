@@ -5,7 +5,7 @@
 {-# LANGUAGE UndecidableInstances       #-}
 
 module LocalComputation.Instances.BayesianNetwork
-    ( getProbability, toProbabilityQuery
+    ( getProbability, toQuery
     , Query (conditioned, conditional)
     , Probability (P)
     , Network
@@ -105,8 +105,8 @@ conditionalProbability q p = p (unionAssertDisjoint q.conditioned q.conditional)
 queryToProbability :: (Show a, Show b, Ord a, Ord b) => VariableArrangement a b -> InferredData (SemiringValuation Probability) a b -> Probability
 queryToProbability vars results = findValue vars (normalize $ answerQuery (M.keysSet vars) results)
 
-toProbabilityQuery :: (Ord a) => ([(a, b)], [(a, b)]) -> Query a b
-toProbabilityQuery (x, y) = Query (fromListAssertDisjoint x) (fromListAssertDisjoint y)
+toQuery :: (Ord a) => ([(a, b)], [(a, b)]) -> Query a b
+toQuery (x, y) = Query (fromListAssertDisjoint x) (fromListAssertDisjoint y)
 
 getProbability :: forall a b. (H.Hashable a, H.Hashable b, Show a, Show b, Serializable a, Serializable b, Ord a, Ord b)
     => [Query a b]
