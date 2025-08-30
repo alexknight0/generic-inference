@@ -28,7 +28,6 @@ import qualified Data.Set                                        as S
 import           GHC.Generics
 import           LocalComputation.ValuationAlgebra.SemiringValue
 
--- TODO: Migrate to record.
 {- | Valuation for a semiring valuation algebra.
 
 This can be thought of as a table, with each entry as a row.
@@ -55,22 +54,22 @@ Represents:
     Korea          Water           8
 
 
-rowMap           :: M.Map (M.Map a b) c,
+rows :: M.Map (M.Map a b) c,
 
     A mapping from variable arrangements 'M.Map a b' to values 'c'.
     Each variable arrangement is a permutation of an assignment of
     each element of the domain 'varDomain' to a value from
     'varToValueDomain'. All permutations can be found in rowMap.
 
-varDomain        :: Domain a,
+d :: Domain a,
 
     All the variables that are included in a variable arrangement.
 
-varToValueDomain :: M.Map a (Domain b),
+valueDomains :: M.Map a (Domain b),
 
     The possible values each variable can take in a variable arrangement.
 
-extension        :: Domain a
+e :: Domain a
 
     An extension to 'varDomain' that extends the domain of the valuation
     but without adding any extra rows. This could be thought of as adding
@@ -86,30 +85,31 @@ extension        :: Domain a
 Note that a restriction of this form is that the type of the value of each
 variable in a variable arrangement is the same.
 -}
-data SemiringValuation c b a = Valuation (M.Map (VariableArrangement (SemiringValuation c b) a b) c) (Domain a) (M.Map a (Domain b)) (Domain a)
-                             | Identity (Domain a)
-                             deriving (Generic, Binary, NFData)
-
---deriving instance NFData (VariableArrangement (SemiringValuation c b) a b) => NFData (SemiringValuation c a b)
+data SemiringValuation c b a = Identity { d :: Domain a } | Valuation {
+      _rows         :: M.Map (VariableArrangement (SemiringValuation c b) a b) c
+    , d             :: Domain a
+    , _valueDomains :: M.Map a (Domain b)
+    , _e            :: Domain a
+} deriving (Generic, Binary, NFData)
 
 -- | Returns 'False' if the data structure does not satisfy it's given description.
 isWellFormed :: forall a b c. (Ord a, Eq b) => SemiringValuation c b a -> Bool
-isWellFormed (Identity _) = True
-isWellFormed (Valuation rows d valueDomains vacuousExtension)
-    | M.keysSet valueDomains /= d = False
-    | any (not . validRow) (M.keysSet rows) = False
-    | length (M.toList rows) /= numPermutations = False
-    | not (S.disjoint d vacuousExtension) = False
+isWellFormed Identity{} = True
+isWellFormed t@Valuation{}
+    | M.keysSet t._valueDomains /= t.d = False
+    | any (not . validRow) (M.keysSet t._rows) = False
+    | length (M.toList t._rows) /= numPermutations = False
+    | not (S.disjoint t.d t._e) = False
     | otherwise = True
 
     where
         validRow :: M.Map a b -> Bool
         validRow row
-            | M.keysSet row /= d = False
-            | any (\(var, value) -> value `notElem` (valueDomains M.! var)) (M.toList row) = False
+            | M.keysSet row /= t.d = False
+            | any (\(var, value) -> value `notElem` (t._valueDomains M.! var)) (M.toList row) = False
             | otherwise = True
 
-        numPermutations = foldr ((*) . length) 1 (M.elems valueDomains)
+        numPermutations = foldr ((*) . length) 1 (M.elems t._valueDomains)
 
 -- | Creates a valuation, returning 'Nothing' if the given parameters would lead to the creation
 -- of a valuation that is not well formed.
@@ -124,43 +124,44 @@ instance (Ord b, Show b, Show c, SemiringValue c) => Valuation (SemiringValuatio
     type VariableArrangement (SemiringValuation c b) a b = M.Map a b
 
     label x | assertIsWellFormed x = undefined
-    label (Identity d) = d
-    label (Valuation _ d _ e) = S.union d e
+    label i@Identity{}  = i.d
+    label s@Valuation{} = S.union s.d s._e
 
     combine x y | assertAllWellFormed [x, y] = undefined
-    combine (Identity d1) (Identity d2) = Identity (S.union d1 d2)
-    combine (Identity d1) (Valuation rowMap d2 vD e) = Valuation rowMap d2 vD (S.difference (S.union d1 e) d2)
-    combine (Valuation rowMap d1 vD e) (Identity d2) = Valuation rowMap d1 vD (S.difference (S.union d2 e) d1)
-    combine (Valuation rowMap1 d1 vD1 e1) (Valuation rowMap2 d2 vD2 e2)
-        | null rowMap1 = Valuation rowMap2 d2 vD2 (S.difference (S.union e1 e2) d2)
-        | null rowMap2 = Valuation rowMap1 d1 vD1 (S.difference (S.union e1 e2) d1)
+    combine i1@Identity{} i2@Identity{} = Identity { d = S.union i1.d i2.d }
+    combine i@Identity{}  t@Valuation{} = t { _e = (S.difference (S.union i.d t._e) t.d) }
+    combine t@Valuation{} i@Identity{}  = t { _e = (S.difference (S.union i.d t._e) t.d) }
+    combine t1@Valuation{} t2@Valuation{} -- (Valuation rowMap1 d1 vD1 e1) (Valuation rowMap2 d2 vD2 e2)
+        | null t1._rows = t2 { _e = S.difference (S.union t1._e t2._e) t2.d }
+        | null t2._rows = t1 { _e = S.difference (S.union t1._e t2._e) t2.d }
         | otherwise = Valuation newRows newDomain newValueDomain newExtension
         where
-            newRows = fromListAssertDisjoint [(unionAssert' a1 a2, v1 `multiply` v2) | (a1, v1) <- M.toList rowMap1, (a2, v2) <- M.toList rowMap2, hasSameValueForSharedVariables a1 a2]
-            newDomain = S.union d1 d2
-            newValueDomain = unionAssert2' vD1 vD2
-            newExtension = S.difference (S.unions [d1, d2, e1, e2]) (S.unions [d1, d2])
+            newRows = fromListAssertDisjoint [(unionAssert' a1 a2, v1 `multiply` v2) | (a1, v1) <- M.toList t1._rows, (a2, v2) <- M.toList t2._rows, hasSameValueForSharedVariables a1 a2]
+            newDomain = S.union t1.d t2.d
+            newValueDomain = unionAssert2' t1._valueDomains t2._valueDomains
+            newExtension = S.difference (S.unions [t1.d, t2.d, t1._e, t2._e]) (S.unions [t1.d, t2.d])
 
             -- Asserts colliding keys have same value
-            unionAssert' :: (Ord a, Eq b) => M.Map a b -> M.Map a b -> M.Map a b
+            unionAssert' :: (Ord a) => M.Map a b -> M.Map a b -> M.Map a b
             unionAssert' = M.unionWith (\v1 v2 -> assert (v1 == v2) v1)
 
-            unionAssert2' :: (Ord a, Eq b) => M.Map a (Domain b) -> M.Map a (Domain b) -> M.Map a (Domain b)
+            -- TODO: Fix redunant function
+            unionAssert2' :: (Ord a) => M.Map a (Domain b) -> M.Map a (Domain b) -> M.Map a (Domain b)
             unionAssert2' = M.unionWith (\v1 v2 -> assert (v1 == v2) v1)
 
-    project :: forall a b . (Show a, Show b, Ord a, Ord b) => SemiringValuation c b a -> Domain a -> SemiringValuation c b a
     project x _ | assertIsWellFormed x = undefined
     project x y | assert (S.isSubsetOf y (label x)) False = undefined
-    project (Identity _) y = Identity y
-    project (Valuation rMap d vD e) newD = Valuation (M.mapKeysWith add projectDomain rMap) (projectDomain' d) (projectDomain2 vD) (projectDomain' e)
+    project i@Identity{}  d = i { d = d }
+    project t@Valuation{} d = t { _rows         = M.mapKeysWith add projectDomain1 t._rows
+                                , d             = projectDomain3 t.d
+                                , _valueDomains = projectDomain2 t._valueDomains
+                                , _e            = projectDomain3 t._e
+                                }
         where
-            projectDomain :: M.Map a b -> M.Map a b
-            projectDomain = M.filterWithKey (\k _ -> k `elem` newD)
-
-            projectDomain2 :: M.Map a (Domain b) -> M.Map a (Domain b)
-            projectDomain2 = M.filterWithKey (\k _ -> k `elem` newD)
-
-            projectDomain' = S.filter (\k -> k `elem` newD)
+            -- I know. Try change it.
+            projectDomain1 = M.filterWithKey (\k _ -> k `elem` d)
+            projectDomain2 = M.filterWithKey (\k _ -> k `elem` d)
+            projectDomain3 = S.filter (\k -> k `elem` d)
 
     identity = Identity
 
