@@ -31,8 +31,8 @@ data DiagramWithBorder a = DiagramWithBorder {
 -- to unite all graphs under one data structure to prevent confusion.
 
 -- Draws a tree from the given graph, outputting the drawing into a file of the given name. Has the same assumptions as `tree`.
-draw :: (V.Valuation v, Show (v a b), Ord a, Ord b, Show b, Show a)
-    => FilePath -> G.Graph (JT.Node (v a b)) -> IO ()
+draw :: (V.Valuation v, Show (v a), Ord a, Show a)
+    => FilePath -> G.Graph (JT.Node (v a)) -> IO ()
 draw name g = do
     chosenFont <- SF.bit
 
@@ -45,8 +45,8 @@ draw name g = do
 --
 -- Assumes the given graph has a tree like structure, as specified in the description of `baseJoinTree`,
 -- and that the node with the highest `id` is the root.
-tree :: (V.Valuation v, Show (v a b), Ord a, Ord b, Show b, Show a)
-    => SF.PreparedFont Double -> G.Graph (JT.Node (v a b)) -> Diagram B
+tree :: (V.Valuation v, Show (v a), Ord a, Show a)
+    => SF.PreparedFont Double -> G.Graph (JT.Node (v a)) -> Diagram B
 tree chosenFont g = assert (length rootOutgoingEdges == 0) $
                            tree' chosenFont root g
     where
@@ -55,8 +55,8 @@ tree chosenFont g = assert (length rootOutgoingEdges == 0) $
         rootOutgoingEdges = snd . fromJust . L.find (\(x, _) -> x.id == root.id) . G.adjacencyList $ g
 
 -- | Produces a diagram of a tree by following all **incoming** edges from a given node in a graph. Assumes the given node is in the tree.
-tree' :: (V.Valuation v, Show (v a b), Ord a, Ord b, Show b, Show a)
-    => SF.PreparedFont Double -> JT.Node (v a b) -> G.Graph (JT.Node (v a b)) -> Diagram B
+tree' :: (V.Valuation v, Show (v a), Ord a, Show a)
+    => SF.PreparedFont Double -> JT.Node (v a) -> G.Graph (JT.Node (v a)) -> Diagram B
 tree' chosenFont node g = vsep vgap [root.diagram, parents] # applyAll arrows
     where
         root = treeNode chosenFont node
@@ -73,8 +73,8 @@ tree' chosenFont node g = vsep vgap [root.diagram, parents] # applyAll arrows
         hgap = 0.25 * width root.diagram
 
 -- | Produces a diagram representing a node in a tree.
-treeNode :: (V.Valuation v, Show (v a b), Ord a, Ord b, Show b, Show a)
-    => SF.PreparedFont Double -> JT.Node (v a b) -> DiagramWithBorder B
+treeNode :: (V.Valuation v, Show (v a), Ord a, Show a)
+    => SF.PreparedFont Double -> JT.Node (v a) -> DiagramWithBorder B
 treeNode chosenFont node = DiagramWithBorder (full # named node.id) contents.borderWidth
     where
         full = vsep 0 [header, body]

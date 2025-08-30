@@ -38,7 +38,7 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue as
 import           Type.Reflection                                              (Typeable)
 
 type Result a = M.LabelledMatrix a () Q.TropicalSemiringValue
-type Knowledgebase a = [Q.QuasiRegularValuation Q.TropicalSemiringValue a ()]
+type Knowledgebase a = [Q.QuasiRegularValuation Q.TropicalSemiringValue a]
 
 -- | Query for a multiple-source single-target problem.
 data Query a = Query { sources :: [a], target :: a } deriving Show

@@ -27,11 +27,11 @@ type Domain a = S.Set a
 class Valuation v where
     type VariableArrangement v a b
 
-    label     :: (Show a, Show b, Ord a, Ord b) => v a b    -> Domain a
-    combine   :: (Show a, Show b, Ord a, Ord b) => v a b    -> v a b    -> v a b
-    project   :: (Show a, Show b, Ord a, Ord b) => v a b    -> Domain a -> v a b
-    eliminate :: (Show a, Show b, Ord a, Ord b) => v a b    -> Domain a -> v a b
-    identity  ::                                   Domain a -> v a b
+    label     :: (Show a, Ord a) => v a      -> Domain a
+    combine   :: (Show a, Ord a) => v a      -> v a      -> v a
+    project   :: (Show a, Ord a) => v a      -> Domain a -> v a
+    eliminate :: (Show a, Ord a) => v a      -> Domain a -> v a
+    identity  ::                    Domain a -> v a
     -- frame     :: (Ord a, Eq b, Show a) => v a b -> Set (VariableArrangement a b)
 
     -- What if we force the implementer to implement a data structure for the frame,
@@ -39,7 +39,7 @@ class Valuation v where
     -- Edit: Well then don't we just have a map?
 
 
-combines1 :: (Show a, Show b, Foldable f, Valuation v, Ord a, Ord b) => f (v a b) -> v a b
+combines1 :: (Show a, Foldable f, Valuation v, Ord a) => f (v a) -> v a
 combines1 = foldr1 combine
 
 showDomain :: Show a => Domain a -> String

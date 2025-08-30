@@ -36,22 +36,22 @@ data Mode = BruteForce | Fusion | FusionMessagePassing | Shenoy deriving (Show)
 -- | Compute inference using the given mode to return valuations with the given domains.
 queries :: (
       Valuation v
-    , NFData (v a b)
-    , Ord a, Ord b
-    , Binary a, Binary (v a b)
-    , Typeable v, Typeable a, Typeable b
-    , Show a, Show b
+    , NFData (v a)
+    , Ord a
+    , Binary a, Binary (v a)
+    , Typeable v, Typeable a
+    , Show a
     , MonadIO m
     )
- => Mode -> [v a b] -> [Domain a] -> Either Error (m [v a b])
+ => Mode -> [v a] -> [Domain a] -> Either Error (m [v a])
 queries _          vs qs
     | not $ queryIsCovered vs qs = Left  $ QueryNotSubsetOfValuations
 queries BruteForce vs qs         = Right $ pure $ baselines vs qs
 queries Fusion     vs qs         = Right $ mapM (\q -> pure $ F.fusion vs q) qs
 queries Shenoy     vs qs         = Right $ run $ SS.answerQueriesM vs qs
 
-queryIsCovered :: (Foldable t, Valuation v, Show a, Show b, Ord a, Ord b)
-    => [v a b]
+queryIsCovered :: (Foldable t, Valuation v, Show a, Ord a)
+    => [v a]
     -> t (S.Set a)
     -> Bool
 queryIsCovered vs qs = not $ any (\q -> not $ S.isSubsetOf q coveredDomain) qs
@@ -63,14 +63,14 @@ queryIsCovered vs qs = not $ any (\q -> not $ S.isSubsetOf q coveredDomain) qs
 -- domain the given valuations cover.
 queries' :: (
       Valuation v
-    , NFData (v a b)
-    , Ord a, Ord b
-    , Binary a, Binary (v a b)
-    , Typeable v, Typeable a, Typeable b
-    , Show a, Show b
+    , NFData (v a)
+    , Ord a
+    , Binary a, Binary (v a)
+    , Typeable v, Typeable a
+    , Show a
     , MonadIO m
     )
- => Mode -> [v a b] -> [Domain a] -> m [v a b]
+ => Mode -> [v a] -> [Domain a] -> m [v a]
 queries' mode vs qs = case queries mode vs qs of
                             Left e  -> error (show e)
                             Right r -> r
@@ -78,14 +78,14 @@ queries' mode vs qs = case queries mode vs qs of
 -- TODO: Draw graph might function better as a 'mode'. i.e. make 'mode' a record that includes a 'drawgraph' property.
 queriesDrawGraph :: (
       Valuation v
-    , NFData (v a b)
-    , Ord a, Ord b
-    , Binary a, Binary (v a b)
-    , Typeable v, Typeable a, Typeable b
-    , Show a, Show b, Show (v a b)
+    , NFData (v a)
+    , Ord a
+    , Binary a, Binary (v a)
+    , Typeable v, Typeable a
+    , Show a, Show (v a)
     , MonadIO m
     )
- => FilePath -> Mode -> [v a b] -> [Domain a] -> Either Error (m [v a b])
+ => FilePath -> Mode -> [v a] -> [Domain a] -> Either Error (m [v a])
 queriesDrawGraph _        _      vs qs
     | not $ queryIsCovered vs qs   = Left  $ QueryNotSubsetOfValuations
 queriesDrawGraph name FusionMessagePassing vs qs = Right $ run $ SS.answerQueriesDrawGraphM name vs qs
@@ -95,40 +95,40 @@ queriesDrawGraph _    _      _  _  = error "Not implemented"
 -- | Compute inference using the given mode to return a valuation with the given domain.
 query :: (
       Valuation v
-    , NFData (v a b)
-    , Ord a, Ord b
-    , Binary a, Binary (v a b)
-    , Typeable v, Typeable a, Typeable b
-    , Show a, Show b
+    , NFData (v a)
+    , Ord a
+    , Binary a, Binary (v a)
+    , Typeable v, Typeable a
+    , Show a
     , MonadIO m
     )
- => Mode -> [v a b] -> Domain a -> Either Error (m (v a b))
+ => Mode -> [v a] -> Domain a -> Either Error (m (v a))
 query mode vs q = fmap (fmap head) $ queries mode vs [q]
 
 -- | Unsafe variant of `query` - will throw if query is not subset of the
 -- domain the given valuations cover.
 query' :: (
       Valuation v
-    , NFData (v a b)
-    , Ord a, Ord b
-    , Binary a, Binary (v a b)
-    , Typeable v, Typeable a, Typeable b
-    , Show a, Show b
+    , NFData (v a)
+    , Ord a
+    , Binary a, Binary (v a)
+    , Typeable v, Typeable a
+    , Show a
     , MonadIO m
     )
- => Mode -> [v a b] -> Domain a -> m (v a b)
+ => Mode -> [v a] -> Domain a -> m (v a)
 query' mode vs q = fmap head $ queries' mode vs [q]
 
 queryDrawGraph :: (
       Valuation v
-    , NFData (v a b)
-    , Ord a, Ord b
-    , Binary a, Binary (v a b)
-    , Typeable v, Typeable a, Typeable b
-    , Show a, Show b, Show (v a b)
+    , NFData (v a)
+    , Ord a
+    , Binary a, Binary (v a)
+    , Typeable v, Typeable a
+    , Show a, Show (v a)
     , MonadIO m
     )
- => FilePath -> Mode -> [v a b] -> Domain a -> Either Error (m (v a b))
+ => FilePath -> Mode -> [v a] -> Domain a -> Either Error (m (v a))
 queryDrawGraph name mode vs q = fmap (fmap head) $ queriesDrawGraph name mode vs [q]
 
 --------------------------------------------------------------------------------
@@ -141,10 +141,10 @@ queryDrawGraph name mode vs q = fmap (fmap head) $ queriesDrawGraph name mode vs
 -- by the caller.
 --
 -- __Warning__: Assumes the given list of valuations is not empty.
-baseline :: (Valuation v, Show a, Show b, Ord a, Ord b)
-    => [v a b]
+baseline :: (Valuation v, Show a, Ord a)
+    => [v a]
     -> Domain a
-    -> v a b
+    -> v a
 baseline vs q = project (combines1 vs) q
 
 -- | Basic brute force computation, does not use local computation.
@@ -153,10 +153,10 @@ baseline vs q = project (combines1 vs) q
 -- by the caller.
 --
 -- __Warning__: Assumes the given list of valuations is not empty.
-baselines :: (Valuation v, Show a, Show b, Ord a, Ord b)
-    => [v a b]
+baselines :: (Valuation v, Show a, Ord a)
+    => [v a]
     -> [Domain a]
-    -> [v a b]
+    -> [v a]
 baselines vs qs = map (\q -> project combined q) qs
     where
         combined = combines1 vs

@@ -50,7 +50,7 @@ node = Node
 
 -- | Accessor for the domain of the valuation.  Equivalent to calling `label` on the valuation.
 -- __Warning__: Not necessarily O(1).
-instance (Valuation v, Ord a, Ord b, Show a, Show b) => HasField "d" (Node (v a b)) (Domain a) where
+instance (Valuation v, Ord a, Show a) => HasField "d" (Node (v a)) (Domain a) where
     getField m = label m.v
 
 instance Eq (Node v) where
@@ -59,7 +59,7 @@ instance Eq (Node v) where
 instance Ord (Node v) where
     x <= y = x.id <= y.id
 
-instance (Valuation v, Ord a, Ord b, Show a, Show b) => Show (Node (v a b)) where
+instance (Valuation v, Ord a, Show a) => Show (Node (v a)) where
     show n = unpack $ pShow (n.id, n.d)
 
 setDifference :: (Eq a) => [a] -> [a] -> [a]
@@ -100,16 +100,16 @@ The query domains are used only to ensure the join tree has a node that answers
 each query (by creating empty nodes for each the query domain). The node ids
 of the input valuations 'vs' in the final join tree are [0 .. (length vs)] respectively.
 -}
-baseJoinTree :: forall v a b. (Show a, Show b, Valuation v, Ord a, Ord b)
-    => [v a b]
+baseJoinTree :: forall v a. (Show a, Valuation v, Ord a)
+    => [v a]
     -> [Domain a]
-    -> Graph (Node (v a b))
+    -> Graph (Node (v a))
 baseJoinTree vs queries = edges $ baseJoinTree' nextNodeId r d
     where
         d :: E.EliminationSequence a
         d = E.create $ map label vs
 
-        r :: [Node (v a b)]
+        r :: [Node (v a)]
         r =    zipWith (\nid v -> Node nid v            Valuation) [0                        ..] vs
             ++ zipWith (\nid q -> Node nid (identity q) Query)     [fromIntegral (length vs) ..] queries
 
@@ -130,11 +130,11 @@ Where convenient, variables have been named as they appear in the pseudocode des
 is a parameter such that there currently exists no nodes with id > 'nextNodeId' in the tree. As we may
 create up to 2 nodes on each iteration, we make the recursive call with 'nextNodeId + 2'
 -}
-baseJoinTree' :: forall v a b. (Valuation v, Ord a, Show a, Show b, Ord b)
+baseJoinTree' :: forall v a . (Valuation v, Ord a, Show a)
     => Id
-    -> [Node (v a b)]
+    -> [Node (v a)]
     -> E.EliminationSequence a
-    -> [(Node (v a b), Node (v a b))]
+    -> [(Node (v a), Node (v a))]
 baseJoinTree' nextNodeId r d
     | E.isEmpty d = []
     | length r <= 1 = []
@@ -143,25 +143,25 @@ baseJoinTree' nextNodeId r d
     where
         (x, d') = fromJust $ E.eliminateNext d
 
-        xIsInNodeDomain :: Node (v a b) -> Bool
+        xIsInNodeDomain :: Node (v a) -> Bool
         xIsInNodeDomain n = x `elem` (n.d)
 
-        phiX :: [Node (v a b)]
+        phiX :: [Node (v a)]
         phiX = filter xIsInNodeDomain r
 
         domainOfPhiX :: Domain a
         domainOfPhiX = foldr (S.union) (S.empty) $ map (.d) phiX
 
-        nUnion :: Node (v a b)
+        nUnion :: Node (v a)
         nUnion = Node nextNodeId (identity domainOfPhiX) Union
 
-        r' :: [Node (v a b)]
+        r' :: [Node (v a)]
         r' = setDifference r phiX
 
-        e :: [(Node (v a b), Node (v a b))]
+        e :: [(Node (v a), Node (v a))]
         e = [(n, nUnion) | n <- phiX]
 
-        nP :: Node (v a b)
+        nP :: Node (v a)
         nP = Node (nextNodeId + 1) (identity nPDomain) Projection
             where
                 nPDomain = (fromList $ setDifference (toList domainOfPhiX) [x])
@@ -182,8 +182,8 @@ redirectTree i g = foldr f g outgoingNodes
 -- | Redirects the given join tree to reverse edges to face a query node of the given domain.
 -- If multiple query nodes with this domain exist, one is chosen at random. This function only
 -- searches amongst nodes with a `NodeType` of `Query`.
-redirectToQueryNode :: (Valuation v, Ord a, Ord b, Show a, Show b)
-    => Domain a -> Graph (Node (v a b)) -> Graph (Node (v a b))
+redirectToQueryNode :: (Valuation v, Ord a, Show a)
+    => Domain a -> Graph (Node (v a)) -> Graph (Node (v a))
 redirectToQueryNode d g = redirectTree (queryNode.id) g
     where
         queryNode = head $ filter (\n -> n.d == d && n.t == Query) (vertexList g)

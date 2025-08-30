@@ -34,47 +34,47 @@ import qualified LocalComputation.Inference.JoinTree.Diagram as D
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra
 
-type InferredData v a b = DG.Graph (Node (v a b))
+type InferredData v a = DG.Graph (Node (v a))
 
 -- TODO: safely handle invalid queries?
-answerQueries :: forall v a b. (Show a, Show b, Valuation v, Ord a, Ord b)
+answerQueries :: forall v a. (Show a, Valuation v, Ord a)
     => [Domain a]
-    -> InferredData v a b
-    -> [v a b]
+    -> InferredData v a
+    -> [v a]
 answerQueries queryDomains results = map queryToAnswer queryDomains
     where
-        queryToAnswer :: Domain a -> v a b
+        queryToAnswer :: Domain a -> v a
         queryToAnswer d = project (unsafeFind (\n -> d `isSubsetOf` n.d) (DG.vertexList results)).v d
 
 -- TODO safely handle invalid queries?
-answerQuery :: forall v a b. (Show a, Show b, Valuation v, Ord a, Ord b)
+answerQuery :: forall v a. (Show a, Valuation v, Ord a)
     => Domain a
-    -> InferredData v a b
-    -> v a b
+    -> InferredData v a
+    -> v a
 answerQuery q results = head $ answerQueries [q] results
 
-answerQueriesM :: forall v a b . (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
-    => [v a b]
+answerQueriesM :: forall v a . (Show a, Serializable (v a), Valuation v, Ord a)
+    => [v a]
     -> [Domain a]
-    -> Process [v a b]
+    -> Process [v a]
 answerQueriesM vs queryDomains = do
     results <- initializeNodes (baseJoinTree vs queryDomains)
     pure $ answerQueries queryDomains results
 
-answerQueryM :: forall v a b . (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
-    => [v a b]
+answerQueryM :: forall v a . (Show a, Serializable (v a), Valuation v, Ord a)
+    => [v a]
     -> Domain a
-    -> Process (v a b)
+    -> Process (v a)
 answerQueryM vs q = do
     results <- initializeNodes (baseJoinTree vs [q])
     pure $ answerQuery q results
 
 -- TODO: Right now visualises the after tree. We should have options for both i guess!
-answerQueriesDrawGraphM :: forall v a b . (Show a, Show b, Show (v a b), Serializable (v a b), Valuation v, Ord a, Ord b)
+answerQueriesDrawGraphM :: forall v a . (Show a, Show (v a), Serializable (v a), Valuation v, Ord a)
     => FilePath
-    -> [v a b]
+    -> [v a]
     -> [Domain a]
-    -> Process [v a b]
+    -> Process [v a]
 answerQueriesDrawGraphM filename vs queryDomains = do
     let tree = baseJoinTree vs queryDomains
     liftIO $ D.draw filename tree
@@ -82,27 +82,27 @@ answerQueriesDrawGraphM filename vs queryDomains = do
     -- liftIO $ D.draw filename results
     pure $ answerQueries queryDomains results
 
-inference :: forall v a b . (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
-    => [v a b]
+inference :: forall v a . (Show a, Serializable (v a), Valuation v, Ord a)
+    => [v a]
     -> [Domain a]
-    -> Process (InferredData v a b)
+    -> Process (InferredData v a)
 inference vs queryDomains = initializeNodes (baseJoinTree vs queryDomains)
 
 -- The base join tree must be transformed to an undirected graph.
 -- While mailboxes should be connected up for each neighbour, this happens in the
 -- 'initializeNodes' function which also handles starting the message passing.
-shenoyJoinTree :: forall v a b. (Show a, Show b, Valuation v, Ord a, Ord b)
-    => [v a b]
+shenoyJoinTree :: forall v a. (Show a, Valuation v, Ord a)
+    => [v a]
     -> [Domain a]
-    -> UG.Graph (Node (v a b))
+    -> UG.Graph (Node (v a))
 shenoyJoinTree vs queryDomains = UG.toUndirected (baseJoinTree vs queryDomains)
 
 data NodeWithProcessId a = NodeWithProcessId { id :: ProcessId, node :: a } deriving (Generic, Binary)
 
 -- Initializes all nodes in the join tree for message passing according to the Shenoy-Shafer algorithm.
-initializeNodes :: forall v a b. (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
-    => DG.Graph (Node (v a b))
-    -> Process (DG.Graph (Node (v a b)))
+initializeNodes :: forall v a. (Show a, Serializable (v a), Valuation v, Ord a)
+    => DG.Graph (Node (v a))
+    -> Process (DG.Graph (Node (v a)))
 initializeNodes directed = do
 
     -- Initialize all nodes
@@ -135,7 +135,7 @@ initializeNodes directed = do
 
 
     where
-        initializeNodeAndMonitor :: Node (v a b) -> Process (NodeWithProcessId (Node (v a b)), ReceivePort (Node (v a b)))
+        initializeNodeAndMonitor :: Node (v a) -> Process (NodeWithProcessId (Node (v a)), ReceivePort (Node (v a)))
         initializeNodeAndMonitor node = do
             (sendFinalResult, receiveFinalResult) <- newChan
 
@@ -153,17 +153,17 @@ data Message a = Message {
         , msg    :: a
     } deriving (Generic, Binary)
 
-initializeNode :: forall v a b. (
-      Show a, Show b
-    , Binary (v a b), Typeable (v a b)
+initializeNode :: forall v a. (
+      Show a
+    , Binary (v a), Typeable (v a)
     , Valuation v
-    , Ord a, Ord b
+    , Ord a
     )
-    => SendPort (Node (v a b))
+    => SendPort (Node (v a))
     -> Process ProcessId
 initializeNode resultPort = spawnLocal $ do
-    this :: NodeWithProcessId (Node (v a b)) <- expect
-    neighbours :: [NodeWithProcessId (Node (v a b))] <- expect
+    this :: NodeWithProcessId (Node (v a)) <- expect
+    neighbours :: [NodeWithProcessId (Node (v a))] <- expect
 
     --[[ Phase 1: Collect Phase ]]
     -- Wait for messages from all neighbours bar one
@@ -174,7 +174,7 @@ initializeNode resultPort = spawnLocal $ do
 
     --[[ Phase 2: Distribute Phase ]]
     -- Wait for response from neighbour we just sent a message to
-    message :: Message (v a b) <- expect
+    message :: Message (v a) <- expect
 
     let phase2Postbox = message : phase1Postbox
     assert (message.sender == neighbourWhoDidntSend.id) (pure ())
@@ -190,7 +190,7 @@ initializeNode resultPort = spawnLocal $ do
     sendChan resultPort (J.node this.node.id result this.node.t)
 
     where
-        filterOut :: NodeWithProcessId (Node (v a b)) -> [NodeWithProcessId (Node (v a b))] -> [NodeWithProcessId (Node (v a b))]
+        filterOut :: NodeWithProcessId (Node (v a)) -> [NodeWithProcessId (Node (v a))] -> [NodeWithProcessId (Node (v a))]
         filterOut neighbour neighbours = filter (\n -> n.id /= neighbour.id) neighbours
 
 
@@ -201,10 +201,10 @@ initializeNode resultPort = spawnLocal $ do
 --  2. combining this result with the sender's valuation
 --  3. projecting the result to the intersection of the sender and recipient's domain
 --  4. dispatching the resulting message to the recipient node.
-sendMessage :: (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
-    => [Message (v a b)]
-    -> NodeWithProcessId (Node (v a b))
-    -> NodeWithProcessId (Node (v a b))
+sendMessage :: (Show a, Serializable (v a), Valuation v, Ord a)
+    => [Message (v a)]
+    -> NodeWithProcessId (Node (v a))
+    -> NodeWithProcessId (Node (v a))
     -> Process ()
 sendMessage postbox sender recipient = sendMessage' (filter (\msg -> msg.sender /= recipient.id) postbox)
                                                     sender
@@ -213,10 +213,10 @@ sendMessage postbox sender recipient = sendMessage' (filter (\msg -> msg.sender 
 -- | Same as `sendMessage` except doesn't filter the given postbox for messages that don't come from the
 -- recipient. Hence should only be used when it is known that none of the messages in the postbox come
 -- from the recipient.
-sendMessage' :: (Show a, Show b, Serializable (v a b), Valuation v, Ord a, Ord b)
-    => [Message (v a b)]
-    -> NodeWithProcessId (Node (v a b))
-    -> NodeWithProcessId (Node (v a b))
+sendMessage' :: (Show a, Serializable (v a), Valuation v, Ord a)
+    => [Message (v a)]
+    -> NodeWithProcessId (Node (v a))
+    -> NodeWithProcessId (Node (v a))
     -> Process ()
 sendMessage' postbox sender recipient = send recipient.id msg
     where
@@ -225,9 +225,9 @@ sendMessage' postbox sender recipient = send recipient.id msg
 
 -- | Receives messages from all neighbours but one, returning the neighbour that it never
 -- received a message from.
-receivePhaseOne :: Serializable (v a b)
-    => [NodeWithProcessId (Node (v a b))]
-    -> Process ([Message (v a b)], NodeWithProcessId (Node (v a b)))
+receivePhaseOne :: Serializable (v a)
+    => [NodeWithProcessId (Node (v a))]
+    -> Process ([Message (v a)], NodeWithProcessId (Node (v a)))
 receivePhaseOne [] = error "receivePhaseOne: Attempted to receive from no port."
 receivePhaseOne neighbours = do
 
@@ -243,31 +243,31 @@ receivePhaseOne neighbours = do
 -- Solution Construction                                                    --
 ------------------------------------------------------------------------------
 
-configSet :: (Valuation v, Show a, Show b, Ord a, Ord b)
-    => v a b
-    -> Domain a
-    -> VariableArrangement v a b
-    -> Maybe (S.Set (VariableArrangement v a b))
-configSet phi t x
-    | not $ S.isSubsetOf t (label phi) = Nothing
-    | otherwise = undefined
+-- configSet :: (Valuation v, Show a, Ord a)
+--     => v a
+--     -> Domain a
+--     -> VariableArrangement v a b
+--     -> Maybe (S.Set (VariableArrangement v a b))
+-- configSet phi t x
+--     | not $ S.isSubsetOf t (label phi) = Nothing
+--     | otherwise = undefined
 
 
 
--- type SolutionSet v a b = ConfigurationExtensionSet v a b
+-- type SolutionSet v a = ConfigurationExtensionSet v a
 --
 -- -- | The configuration extension set.
 -- --
 -- -- This is detailed in page 294 of Marc Pouly's "Generic Inference". In short, this is an intermediate
 -- -- product in a larger computation and is related to the set of variables that have not yet been assigned
 -- -- values.
--- data ConfigurationExtensionSet v a b = ConfigurationExtensionSet {
+-- data ConfigurationExtensionSet v a = ConfigurationExtensionSet {
 --           t   :: Domain a
---         , phi :: v a b
+--         , phi :: v a
 --         , f   :: VariableArrangement a b -> S.Set (VariableArrangement a b)
 --     }
 --
--- instance (Valuation v, Ord a, Ord b, Show a, Show b) => HasField "s" (ConfigurationExtensionSet v a b) (Domain a) where
+-- instance (Valuation v, Ord a, Ord b, Show a, Show b) => HasField "s" (ConfigurationExtensionSet v a) (Domain a) where
 --     getField w = label w.phi
 --
 -- -- | Compute all solutions.
@@ -276,12 +276,12 @@ configSet phi t x
 -- -- but rather any multi-query local computation architecture should suffice.
 -- -- This algorithm is based off page 299 of Marc Pouly's "Generic Inference".
 -- computeSolutions ::
---        InferredData v a b
---     -> ConfigurationExtensionSet v a b
+--        InferredData v a
+--     -> ConfigurationExtensionSet v a
 -- computeSolutions = undefined
 --
 -- isValidConfigurationExtensionSet :: (Valuation v, Ord a, Ord b, Show a, Show b)
---     => ConfigurationExtensionSet v a b
+--     => ConfigurationExtensionSet v a
 --     -> VariableArrangement a b
 --     -> Bool
 -- isValidConfigurationExtensionSet w x
@@ -294,13 +294,13 @@ configSet phi t x
 --
 
 --
--- instance (Valuation v, Ord a, Ord b, Show a, Show b) => HasField "s" (ConfigurationExtensionSet v a b) (Domain a) where
+-- instance (Valuation v, Ord a, Ord b, Show a, Show b) => HasField "s" (ConfigurationExtensionSet v a) (Domain a) where
 --     getField w = label w.phi
 --
 -- -- TODO: Add the final property
 --
 -- isValidConfigurationExtensionSet :: (Valuation v, Ord a, Ord b, Show a, Show b)
---     => ConfigurationExtensionSet v a b
+--     => ConfigurationExtensionSet v a
 --     -> VariableArrangement a b
 --     -> Bool
 -- isValidConfigurationExtensionSet w x
@@ -318,6 +318,6 @@ configSet phi t x
 -- but rather any multi-query local computation architecture should suffice.
 -- This algorithm is based off page 299 of Marc Pouly's "Generic Inference".
 -- computeSolutions ::
---        [(Domain a, v a b)]
---     -> ConfigurationExtensionSet v a b
+--        [(Domain a, v a)]
+--     -> ConfigurationExtensionSet v a
 -- computeSolutions = undefined

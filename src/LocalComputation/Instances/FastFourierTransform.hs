@@ -45,7 +45,7 @@ newtype FourierComplex = FourierComplex (C.Complex Double) deriving newtype (Num
 -}
 data FastFourierVariable = X Natural | Y Natural deriving (Eq, Ord, Binary, Generic, Show, H.Hashable)
 
-type FastFourierValuation = SemiringValuation FourierComplex FastFourierVariable Natural
+type FastFourierValuation = SemiringValuation FourierComplex Natural FastFourierVariable
 
 instance SemiringValue FourierComplex where
     add = (+)
@@ -112,7 +112,7 @@ query' samples qs = case query samples qs of
                         Nothing     -> error "Invalid call to `query`"
 
 
-findBinaryValue :: SemiringValuation FourierComplex FastFourierVariable Natural -> Natural -> Natural -> FourierComplex
+findBinaryValue :: FastFourierValuation -> Natural -> Natural -> FourierComplex
 findBinaryValue table numDigits x = findValue (toBinaryVariableSet numDigits x Y) table
 
 {- | Returns the given number in binary.

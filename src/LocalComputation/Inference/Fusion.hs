@@ -33,10 +33,10 @@ instance Ord (WithId a) where
 --
 -- __Warning__: Assumes that the query is a subset of the covered domain - this should be checked
 -- by the caller.
-fusion :: (Valuation v, Show a, Show b, Ord a, Ord b)
-    => [v a b]
+fusion :: (Valuation v, Show a, Ord a)
+    => [v a]
     -> Domain a
-    -> v a b
+    -> v a
 fusion vs x = fusion' nextId vsWithIds (S.toList dPhiMinusX)
     where
         dPhi = foldr S.union S.empty (map label vs)
@@ -45,7 +45,7 @@ fusion vs x = fusion' nextId vsWithIds (S.toList dPhiMinusX)
         vsWithIds = S.fromList $ zipWith WithId [0..] vs
         nextId = fromIntegral $ length vs
 
-fusion' :: (Valuation v, Show a, Show b, Ord a, Ord b) => Natural -> S.Set (WithId (v a b)) -> [a] -> v a b
+fusion' :: (Valuation v, Show a, Ord a) => Natural -> S.Set (WithId (v a)) -> [a] -> v a
 fusion' _        upperPsi []     = combines1 $ map (.content) $ S.toList upperPsi
 fusion' uniqueId upperPsi (y:ys) = fusion' (uniqueId + 1) upperPsi' ys
     where

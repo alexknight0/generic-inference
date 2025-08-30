@@ -36,9 +36,9 @@ import           LocalComputation.Utils                                       (f
                                                                                unusedArg)
 import qualified LocalComputation.Utils                                       as DG (neighbours)
 
-data QuasiRegularValuation c a b = Valuation (M.LabelledMatrix a a c) (M.LabelledMatrix a () c) | Identity (Domain a) deriving (Binary, NFData, Ord, Eq, Generic, Show)
+data QuasiRegularValuation c a = Valuation (M.LabelledMatrix a a c) (M.LabelledMatrix a () c) | Identity (Domain a) deriving (Binary, NFData, Ord, Eq, Generic, Show)
 
-create :: (Eq a) => M.LabelledMatrix a a c -> M.LabelledMatrix a () c -> Maybe (QuasiRegularValuation c a b)
+create :: (Eq a) => M.LabelledMatrix a a c -> M.LabelledMatrix a () c -> Maybe (QuasiRegularValuation c a)
 create m b
     | isWellFormed (Valuation m b) = Just (Valuation m b)
     | otherwise = Nothing
@@ -84,18 +84,18 @@ instance (Show c, Q.QuasiRegularSemiringValue c) => Valuation (QuasiRegularValua
 
 
 -- | Returns a product useful for the solution of fixpoint systems. Detailed page 367 of "Generic Inference" (Pouly & Kohlas, 2012)
-solution :: (Show a, Ord a, Show c, Q.QuasiRegularSemiringValue c) => QuasiRegularValuation c a b -> M.LabelledMatrix a () c
+solution :: (Show a, Ord a, Show c, Q.QuasiRegularSemiringValue c) => QuasiRegularValuation c a -> M.LabelledMatrix a () c
 solution (Identity _)    = error "'solution' called on identity valuation."
 solution (Valuation m b) = matrixMultiply (matrixQuasiInverse m) b
 
 -- | Adds two valuations. Unsafe.
-valuationAdd :: (Ord a, Q.QuasiRegularSemiringValue c) => QuasiRegularValuation c a b -> QuasiRegularValuation c a b -> QuasiRegularValuation c a b
+valuationAdd :: (Ord a, Q.QuasiRegularSemiringValue c) => QuasiRegularValuation c a -> QuasiRegularValuation c a -> QuasiRegularValuation c a
 valuationAdd x y | assertIsWellFormed x || assertIsWellFormed y = undefined
 valuationAdd (Valuation m1 b1) (Valuation m2 b2) = fromJust $ create (matrixAdd m1 m2) (matrixAdd b1 b2)
 valuationAdd _ _ = error "Not implemented error."  -- Not 100% certain on how to handle identity elements, but never called anyway.
 
 -- | Extends a valuation. Unsafe.
-extension :: (Ord a, Q.QuasiRegularSemiringValue c) => QuasiRegularValuation c a b -> S.Set a -> QuasiRegularValuation c a b
+extension :: (Ord a, Q.QuasiRegularSemiringValue c) => QuasiRegularValuation c a -> S.Set a -> QuasiRegularValuation c a
 extension x _ | assertIsWellFormed x = undefined
 extension (Identity _) d = Identity d
 extension (Valuation m b) t = fromJust $ create (fromJust $ M.extension m t t Q.zero) (fromJust $ M.extension b t (S.singleton ()) Q.zero)
@@ -108,7 +108,7 @@ extension (Valuation m b) t = fromJust $ create (fromJust $ M.extension m t t Q.
 --
 -- | Produces the configuration set. See page 368 of Marc Pouly's "Generic Inference"
 configSet :: (Q.QuasiRegularSemiringValue c, Show a, Show c, Ord a)
-    => QuasiRegularValuation c a ()
+    => QuasiRegularValuation c a
     -> Domain a
     -> M.LabelledMatrix a () c
     -> Maybe (S.Set (M.LabelledMatrix a () c))
@@ -135,14 +135,14 @@ getValuation x results = snd $ unsafeFind (\(d, v) -> d == x) results
 -- 2. Provide node id information inside inferred data so we don't have to stitch it back together afterward.
 --      (If we get asserts failing here, we actually can't stitch it back together accurately!)
 multiqueryCompute :: forall a c . (Eq a, Q.QuasiRegularSemiringValue c, Show a, Show c, Ord a, Ord c)
-    => DG.Graph (Node ((QuasiRegularValuation c) a ()))
-    -> InferredData (QuasiRegularValuation c) a ()
+    => DG.Graph (Node ((QuasiRegularValuation c) a))
+    -> InferredData (QuasiRegularValuation c) a
     -> S.Set (M.LabelledMatrix a () c)
 multiqueryCompute g results = go rootNode.id rootConfigSet rootNode.d
     where
         vertices = DG.vertexList results
 
-        rootNode :: Node ((QuasiRegularValuation c) a ())
+        rootNode :: Node ((QuasiRegularValuation c) a)
         rootNode = maximum vertices
 
         rootConfigSet :: Maybe (S.Set (M.LabelledMatrix a () c))
@@ -160,13 +160,13 @@ multiqueryCompute g results = go rootNode.id rootConfigSet rootNode.d
 
 -- the 'r' in the psi indicates that the 'fusion algorithm' was executed with 'r' as the root node.
 singleSolutionCompute :: forall a c . (Eq a, Q.QuasiRegularSemiringValue c, Show a, Show c, Ord a, Ord c)
-    => InferredData (QuasiRegularValuation c) a ()
+    => InferredData (QuasiRegularValuation c) a
     -> M.LabelledMatrix a () c
 singleSolutionCompute g = go (rootNode.id - 1) initialX
     where
         vertices = DG.vertexList g
 
-        rootNode :: Node ((QuasiRegularValuation c) a ())
+        rootNode :: Node ((QuasiRegularValuation c) a)
         rootNode = maximum vertices
 
         initialX = S.findMin $ fromJust $ configSet rootNode.v S.empty empty
@@ -208,10 +208,10 @@ matrixMultiply = (fromJust .) . M.multiply Q.zero Q.add Q.multiply
 -- Asserts                                                                  --
 ------------------------------------------------------------------------------
 
-isWellFormed :: (Eq a) => QuasiRegularValuation c a b -> Bool
+isWellFormed :: (Eq a) => QuasiRegularValuation c a -> Bool
 isWellFormed (Identity _) = True
 isWellFormed (Valuation m b) = (M.isSquare m) && ((fst $ M.domain m) == (fst $ M.domain b)) && M.isWellFormed m && M.isWellFormed b
 
-assertIsWellFormed :: (Eq a) => QuasiRegularValuation c a b -> Bool
+assertIsWellFormed :: (Eq a) => QuasiRegularValuation c a -> Bool
 assertIsWellFormed x = assert (isWellFormed x) False
 
