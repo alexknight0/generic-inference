@@ -33,13 +33,13 @@ happens' x
     | x = happens
     | otherwise = doesNotHappen
 
-runQueries :: (Eq a) => Network a -> [B.ProbabilityQuery a Bool] -> [B.Probability]
+runQueries :: (Eq a) => Network a -> [B.Query a Bool] -> [B.Probability]
 runQueries n qs = map (runQuery n) qs
 
-runQuery :: (Eq a) => Network a -> B.ProbabilityQuery a Bool -> B.Probability
-runQuery n (conditioned, conditional)
-    | length conditioned /= 1 = error "Expected exactly one conditioned var for a query on the hackage version of a bNet."
-    | otherwise = fromRational $ runQuery' n (head $ M.assocs conditioned, M.assocs conditional)
+runQuery :: (Eq a) => Network a -> B.Query a Bool -> B.Probability
+runQuery n q
+    | length q.conditioned /= 1 = error "Expected exactly one conditioned var for a query on the hackage version of a bNet."
+    | otherwise = fromRational $ runQuery' n (head $ M.assocs q.conditioned, M.assocs q.conditional)
 
 runQuery' :: (Eq a) => Network a -> ((a, Bool), [(a, Bool)]) -> P.Probability
 runQuery' n ((x, xVal), ys) = happens' xVal x ?? foldr (\(y, yVal) acc -> happens' yVal y ?=<< acc) n ys

@@ -43,7 +43,7 @@ dataToValuations vs = map (uncurry getRows) withVariableDomains
         withVariableDomains = map (\(xs, ps) -> (map boolify xs, ps)) vs
 
 checkQueries :: (H.Hashable a, H.Hashable b, Show a, Show b, Serializable a, Serializable b, Ord a, Ord b, NFData a, NFData b)
-    => [ProbabilityQuery a b]
+    => [Query a b]
     -> [Probability]
     -> PropertyT IO (Network a b)
     -> PropertyT IO (Network a b)
@@ -63,7 +63,7 @@ parseNetwork'' filename = do
 boolify :: a -> (a, [Bool])
 boolify x = (x, [False, True])
 
-inferenceAnswers :: [ProbabilityQuery AsiaVar Bool] -> [Probability] -> [([AsiaVar], [Probability])] -> Property
+inferenceAnswers :: [Query AsiaVar Bool] -> [Probability] -> [([AsiaVar], [Probability])] -> Property
 inferenceAnswers qs as vs = unitTest $ checkQueries qs as (pure $ dataToValuations vs)
 
 -- prop_drawGraph :: Property
@@ -101,7 +101,7 @@ prop_prebuiltAnswersP3 = unitTest $ do
     let results = runQueries (createNetwork asiaValuationsP3) asiaQueriesP3
     checkAnswers probabilityApproxEqual results asiaAnswersP3
 
-genQuery :: Gen (ProbabilityQuery AsiaVar Bool)
+genQuery :: Gen (Query AsiaVar Bool)
 genQuery = do
     vars <- genVarsWithAssignedValue
     conditionedVarIndex <- Gen.int (Range.linear 0 (length vars - 1))
@@ -137,7 +137,7 @@ prop_inferenceAnswersMatchPrebuilt = withTests 100 . property $ do
             checkAnswers probabilityApproxEqual algebraResults' prebuiltResults''
 
     where
-        genQueries :: Gen ([ProbabilityQuery AsiaVar Bool])
+        genQueries :: Gen ([Query AsiaVar Bool])
         genQueries = Gen.list (Range.linear 1 6) genQuery
 
         algebraResults qs = run $ getProbability qs (dataToValuations asiaValuationsP1)

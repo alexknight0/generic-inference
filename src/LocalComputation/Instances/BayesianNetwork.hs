@@ -6,7 +6,7 @@
 
 module LocalComputation.Instances.BayesianNetwork
     ( getProbability, toProbabilityQuery
-    , ProbabilityQuery
+    , Query (conditioned, conditional)
     , Probability (P)
     , Network
     , BayesianNetworkValuation
@@ -65,11 +65,19 @@ instance SemiringValue Probability where
 
 type Network a b = [BayesianNetworkValuation a b]
 
--- | (conditionedVariables, conditionalVariables)
-type ProbabilityQuery a b = (VariableArrangement a b, VariableArrangement a b)
+-- TODO: See if can handle conditioned being in conditional and vice versa - will allow us to eliminate
+-- 'disjoint union' checks.
 
-conditionalProbability :: (Ord a) => VariableArrangement a b -> VariableArrangement a b -> (VariableArrangement a b -> Probability) -> Probability
-conditionalProbability vars givenVars p = p (unionAssertDisjoint vars givenVars) / p givenVars
+-- | A query for a bayesian network is a query for the conditional probability of some event.
+-- In other words, a query for \(P(\text{conditioned} | \text{conditional})\) where
+-- 'conditioned' and 'conditional' are sets of variables.
+data Query a b = Query {
+      conditioned :: VariableArrangement a b
+    , conditional :: VariableArrangement a b
+} deriving (Show)
+
+conditionalProbability :: (Ord a) => Query a b -> (VariableArrangement a b -> Probability) -> Probability
+conditionalProbability q p = p (unionAssertDisjoint q.conditioned q.conditional) / p q.conditional
 
 -- TODO: I thought we had to normalize, but this is passing all tests?
 -- TODO: Below uses more generic inference, but appears to perform slower?
@@ -97,23 +105,21 @@ conditionalProbability vars givenVars p = p (unionAssertDisjoint vars givenVars)
 queryToProbability :: (Show a, Show b, Ord a, Ord b) => VariableArrangement a b -> InferredData (SemiringValuation Probability) a b -> Probability
 queryToProbability vars results = findValue vars (normalize $ answerQuery (M.keysSet vars) results)
 
-toProbabilityQuery :: (Ord a) => ([(a, b)], [(a, b)]) -> ProbabilityQuery a b
-toProbabilityQuery (x, y) = (fromListAssertDisjoint x, fromListAssertDisjoint y)
-
-
+toProbabilityQuery :: (Ord a) => ([(a, b)], [(a, b)]) -> Query a b
+toProbabilityQuery (x, y) = Query (fromListAssertDisjoint x) (fromListAssertDisjoint y)
 
 getProbability :: forall a b. (H.Hashable a, H.Hashable b, Show a, Show b, Serializable a, Serializable b, Ord a, Ord b)
-    => [ProbabilityQuery a b]
+    => [Query a b]
     -> Network a b
     -> Process [Probability]
 getProbability qs network' = do
     results <- inference network' queriesForInference
     let f vs = queryToProbability vs results
-    pure $ map (\(vs, givenVs) -> conditionalProbability vs givenVs f) qs
+    pure $ map (\q -> conditionalProbability q f) qs
 
     where
         queriesForInference :: [Domain a]
-        queriesForInference = map (\(vs, givenVs) -> assert (S.disjoint (M.keysSet vs) (M.keysSet givenVs))
-                                                            (union (M.keysSet vs) (M.keysSet givenVs))
+        queriesForInference = map (\q -> assert (S.disjoint (M.keysSet q.conditioned) (M.keysSet q.conditional))
+                                                            (union (M.keysSet q.conditioned) (M.keysSet q.conditional))
                                     ) qs
 
