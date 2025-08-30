@@ -25,14 +25,16 @@ source-repository head
 
 library
   exposed-modules:
-      Benchmark
-      Benchmark.Baseline.DjikstraSimple
-      Benchmark.Baseline.FFT
-      Benchmark.Baseline.Probability
-      Benchmark.BayesianNetwork
-      Benchmark.Data.ShortestPath
-      Benchmark.FastFourierTransform
-      Benchmark.ShortestPath.SingleTarget
+      Benchmarks
+      Benchmarks.BayesianNetwork
+      Benchmarks.BayesianNetwork.Baseline
+      Benchmarks.BayesianNetwork.Data
+      Benchmarks.FastFourierTransform
+      Benchmarks.FastFourierTransform.Baseline
+      Benchmarks.FastFourierTransform.Data
+      Benchmarks.ShortestPath.SingleTarget
+      Benchmarks.ShortestPath.SingleTarget.Baseline
+      Benchmarks.ShortestPath.SingleTarget.Data
       LocalComputation.Graph
       LocalComputation.Inference
       LocalComputation.Inference.Collect
@@ -57,9 +59,7 @@ library
       LocalComputation.ValuationAlgebra.SemiringValue
       Tests
       Tests.BayesianNetwork
-      Tests.BayesianNetwork.Data
       Tests.FastFourierTransform
-      Tests.FastFourierTransform.Data
       Tests.LabelledMatrix
       Tests.ShortestPath.SingleTarget
       Tests.Utils

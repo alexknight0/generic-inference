@@ -9,8 +9,8 @@ module Tests.ShortestPath.SingleTarget
     ( tests )
 where
 
-import qualified Benchmark.Baseline.DjikstraSimple                            as H
-import           Benchmark.Data.ShortestPath
+import qualified Benchmarks.ShortestPath.SingleTarget.Baseline                as H
+import           Benchmarks.ShortestPath.SingleTarget.Data
 import qualified LocalComputation.Graph                                       as G
 import qualified LocalComputation.Instances.ShortestPath.SingleTarget         as ST
 import           LocalComputation.Utils

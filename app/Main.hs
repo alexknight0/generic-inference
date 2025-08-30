@@ -26,7 +26,6 @@ import           LocalComputation.LocalProcess
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra
 import           LocalComputation.ValuationAlgebra.Semiring
-import           Tests.BayesianNetwork.Data
 
 
 ---- We will need these someday (probably)

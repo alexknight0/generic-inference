@@ -4,13 +4,13 @@ module Tests.BayesianNetwork
     ( tests, dataToValuations )
 where
 
-import           Benchmark.Baseline.Probability
+import           Benchmarks.BayesianNetwork.Baseline
+import           Benchmarks.BayesianNetwork.Data
 import           LocalComputation.Instances.BayesianNetwork
 import qualified LocalComputation.Instances.BayesianNetwork.Parser as P
 import           LocalComputation.LocalProcess
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra.Semiring
-import           Tests.BayesianNetwork.Data
 
 import           Hedgehog
 import qualified Hedgehog.Gen                                      as Gen

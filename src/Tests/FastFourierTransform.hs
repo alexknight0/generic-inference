@@ -4,11 +4,11 @@ module Tests.FastFourierTransform
     ( tests )
 where
 
-import           Benchmark.Baseline.FFT
+import           Benchmarks.FastFourierTransform.Baseline
 import           LocalComputation.Instances.FastFourierTransform
 import           LocalComputation.LocalProcess
 import           LocalComputation.Utils
-import           Tests.FastFourierTransform.Data
+import           Benchmarks.FastFourierTransform.Data
 
 import           Hedgehog
 import qualified Hedgehog.Gen                                    as Gen
