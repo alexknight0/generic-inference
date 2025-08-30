@@ -9,14 +9,14 @@ module LocalComputation.Instances.BayesianNetwork
     , Query (conditioned, conditional)
     , Probability (P)
     , Network
-    , BayesianNetworkValuation
+    , Valuation
     )
 where
 
 import           LocalComputation.Inference.ShenoyShafer
 import           LocalComputation.Utils
-import           LocalComputation.ValuationAlgebra
-import           LocalComputation.ValuationAlgebra.Semiring
+import qualified LocalComputation.ValuationAlgebra          as V
+import qualified LocalComputation.ValuationAlgebra.Semiring as S
 
 import           Control.DeepSeq                            (NFData)
 import           Control.Exception                          (assert)
@@ -53,17 +53,18 @@ of as simply unnormalized probability distributions.
      .    .   .        .                      .
      .    .   .        .                      .
 -}
-type BayesianNetworkValuation a b = SemiringValuation Probability b a
+type Valuation a b = S.SemiringValuation Probability b a
+type VarAssignment a b = V.VarAssignment (S.SemiringValuation Probability b) a b
 
 newtype Probability = P Double deriving (Num, Fractional, Binary, Show, NFData, Ord, Eq, Generic)
 
-instance SemiringValue Probability where
+instance S.SemiringValue Probability where
     add = (+)
     multiply = (*)
     zero = 0
     one = 1
 
-type Network a b = [BayesianNetworkValuation a b]
+type Network a b = [Valuation a b]
 
 -- TODO: See if can handle conditioned being in conditional and vice versa - will allow us to eliminate
 -- 'disjoint union' checks.
@@ -72,11 +73,11 @@ type Network a b = [BayesianNetworkValuation a b]
 -- In other words, a query for \(P(\text{conditioned} | \text{conditional})\) where
 -- 'conditioned' and 'conditional' are sets of variables.
 data Query a b = Query {
-      conditioned :: VarAssignment (SemiringValuation Probability b) a b
-    , conditional :: VarAssignment (SemiringValuation Probability b) a b
+      conditioned :: VarAssignment a b
+    , conditional :: VarAssignment a b
 } deriving (Show)
 
-conditionalProbability :: (Ord a) => Query a b -> (VarAssignment (SemiringValuation Probability b) a b -> Probability) -> Probability
+conditionalProbability :: (Ord a) => Query a b -> (VarAssignment a b -> Probability) -> Probability
 conditionalProbability q p = p (unionAssertDisjoint q.conditioned q.conditional) / p q.conditional
 
 -- TODO: I thought we had to normalize, but this is passing all tests?
@@ -102,8 +103,8 @@ conditionalProbability q p = p (unionAssertDisjoint q.conditioned q.conditional)
 --                                              ]) qs
 
 {- | Takes a query and returns the resulting probability. Assumes the query is covered by the network. -}
-queryToProbability :: (Ord a, Show a, Ord b, Show b) => VarAssignment (SemiringValuation c b) a b -> InferredData (SemiringValuation Probability b) a -> Probability
-queryToProbability vars results = findValue vars (normalize $ answerQuery (M.keysSet vars) results)
+queryToProbability :: (Ord a, Show a, Ord b, Show b) => VarAssignment a b -> InferredData (S.SemiringValuation Probability b) a -> Probability
+queryToProbability vars results = S.findValue vars (S.normalize $ answerQuery (M.keysSet vars) results)
 
 toQuery :: (Ord a) => ([(a, b)], [(a, b)]) -> Query a b
 toQuery (x, y) = Query (fromListAssertDisjoint x) (fromListAssertDisjoint y)
@@ -118,7 +119,7 @@ getProbability qs network' = do
     pure $ map (\q -> conditionalProbability q f) qs
 
     where
-        queriesForInference :: [Domain a]
+        queriesForInference :: [V.Domain a]
         queriesForInference = map (\q -> assert (S.disjoint (M.keysSet q.conditioned) (M.keysSet q.conditional))
                                                             (union (M.keysSet q.conditioned) (M.keysSet q.conditional))
                                     ) qs

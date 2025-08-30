@@ -4,7 +4,7 @@ module LocalComputation.Instances.BayesianNetwork.Parser
 where
 
 import           LocalComputation.Instances.BayesianNetwork
-import           LocalComputation.ValuationAlgebra.Semiring
+import qualified LocalComputation.ValuationAlgebra.Semiring as S
 
 import           Data.Functor.Identity                      (Identity)
 import           Text.Parsec.Char                           (endOfLine)
@@ -79,7 +79,7 @@ node = do
     <?> "node"
 
 -- todo may not have conditional vars. i.e. terminators and initials.
-potential :: GenParser Char st (BayesianNetworkValuation String Bool)
+potential :: GenParser Char st (Valuation String Bool)
 potential = do
         skipMany spacesAndNewLine
 
@@ -99,7 +99,7 @@ potential = do
         _ <- spaces' >> char ';' >> spacesAndNewLine
 
         _ <- char '}' >> spacesAndNewLine
-        pure (getRows (map (\x -> (x, [False, True])) (conditionedVar : conditionalVars)) probabilities)
+        pure (S.getRows (map (\x -> (x, [False, True])) (conditionedVar : conditionalVars)) probabilities)
     <?> "potential"
 
 -- We don't worry about verifying the file is in the correct format here,
