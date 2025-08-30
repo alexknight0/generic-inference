@@ -6,6 +6,7 @@
 
 module LocalComputation.Instances.BayesianNetwork
     ( getProbability, toQuery
+    , getProbabilityAlt
     , Query (conditioned, conditional)
     , Probability (P)
     , Network
@@ -77,30 +78,53 @@ data Query a b = Query {
     , conditional :: VarAssignment a b
 } deriving (Show)
 
-conditionalProbability :: (Ord a) => Query a b -> (VarAssignment a b -> Probability) -> Probability
-conditionalProbability q p = p (unionAssertDisjoint q.conditioned q.conditional) / p q.conditional
+threshold :: Probability
+threshold = 1 * 10 ^^ (-10 :: Integer)
+
+approxEqual :: Probability -> Probability -> Bool
+approxEqual x y = abs (x - y) < threshold
+
+-- | Returns the conditional probability of a certain event.
+conditionalP :: (Ord a, Ord b) => Query a b -> (VarAssignment a b -> Probability) -> Probability
+conditionalP q p
+    | not $ sharedKeysHaveSameValue q.conditioned q.conditional = 0
+    | p q.conditional `approxEqual` 0                           = 0
+    | otherwise                                                 =   p (M.union q.conditioned q.conditional)
+                                                                  / p q.conditional
+
+sharedKeysHaveSameValue :: (Ord a, Ord b) => M.Map a b -> M.Map a b -> Bool
+sharedKeysHaveSameValue m1 m2 = allTrue $ M.intersectionWith f (withIndicator m1) (withIndicator m2)
+    where
+        withIndicator = M.map (\x -> (x, True))
+
+        -- Set indicator to false if values not equal
+        f (x, False) _          = (x, False)
+        f _          (x, False) = (x, False)
+        f (x, _)     (y, _)     = (x, x == y)
+
+        allTrue = all ((== True) . snd . snd) . M.toList
 
 -- TODO: I thought we had to normalize, but this is passing all tests?
 -- TODO: Below uses more generic inference, but appears to perform slower?
 
 -- | Returns the probability of a given event occuring, given a set of conditional variables.
 -- Takes a network (a list of conditional probability tables) as input.
--- getProbability :: forall a b. (H.Hashable a, H.Hashable b, Show a, Show b, Serializable a, Serializable b, Ord a, Ord b, NFData a, NFData b)
---     => [ProbabilityQuery a b]
---     -> Network a b
---     -> Process [Probability]
--- getProbability qs network' = do
---     results <- fromRight $ I.queries I.Shenoy network' domains
---     pure $ zipWith (\(vars, givenVars) [top, bottom] -> findValue (unionAssertDisjoint vars givenVars) top / findValue givenVars bottom) qs (chunksOf 2 results)
---     -- let f vars = queryToProbability vars results
---     -- pure $ map (\(vars, givenVars) -> conditionalProbability vars givenVars f) qs
---
---     where
---         -- The two queries we need
---         domains :: [Domain a]
---         domains = concatMap (\(vs, givenVs) -> [unionAssertDisjoint' (M.keysSet vs) (M.keysSet givenVs)
---                                               , M.keysSet givenVs
---                                              ]) qs
+getProbabilityAlt :: forall a b. ( Show a, Show b, Serializable a, Serializable b, Ord a, Ord b, NFData a, NFData b)
+    =>[Query a b]
+    -> Network a b
+    -> Process [Probability]
+getProbabilityAlt qs network' = do
+    results <- fromRight $ I.queries I.Shenoy network' domains
+    pure $ zipWith (\q [top, bottom] -> S.findValue (unionAssertDisjoint q.conditioned q.conditional) top / S.findValue q.conditional bottom) qs (chunksOf 2 results)
+    -- let f vars = queryToProbability vars results
+    -- pure $ map (\(vars, givenVars) -> conditionalProbability vars givenVars f) qs
+
+    where
+        -- The two queries we need
+        domains :: [V.Domain a]
+        domains = concatMap (\q -> [union (M.keysSet q.conditioned) (M.keysSet q.conditional)
+                                  , M.keysSet q.conditional
+                                             ]) qs
 
 {- | Takes a query and returns the resulting probability. Assumes the query is covered by the network. -}
 queryToProbability :: (Ord a, Show a, Ord b, Show b) => VarAssignment a b -> InferredData (S.SemiringValuation Probability b) a -> Probability
@@ -116,11 +140,9 @@ getProbability :: forall a b. (H.Hashable a, H.Hashable b, Show a, Show b, Seria
 getProbability qs network' = do
     results <- inference network' queriesForInference
     let f vs = queryToProbability vs results
-    pure $ map (\q -> conditionalProbability q f) qs
+    pure $ map (\q -> conditionalP q f) qs
 
     where
         queriesForInference :: [V.Domain a]
-        queriesForInference = map (\q -> assert (S.disjoint (M.keysSet q.conditioned) (M.keysSet q.conditional))
-                                                            (union (M.keysSet q.conditioned) (M.keysSet q.conditional))
-                                    ) qs
+        queriesForInference = map (\q -> union (M.keysSet q.conditioned) (M.keysSet q.conditional)) qs
 

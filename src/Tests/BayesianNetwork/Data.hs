@@ -121,10 +121,26 @@ asiaQueriesP2 = map BN.toQuery [
             [(XRayResult, True), (Dyspnea, True)],
             [(HasBronchitis, False), (HasLungCancer, True)]
           )
+        , (
+            [(XRayResult, True), (Dyspnea, True)],
+            [(HasBronchitis, False), (HasLungCancer, True), (Dyspnea, True)]
+          )
+        , (
+            [(XRayResult, True), (Dyspnea, True)],
+            [(HasBronchitis, False), (HasLungCancer, True), (XRayResult, True)]
+          )
+        , (
+            [(XRayResult, True), (Dyspnea, True)],
+            [(HasBronchitis, False), (HasLungCancer, True), (XRayResult, True), (Dyspnea, True)]
+          )
+        , (
+          [(XRayResult, True), (Dyspnea, True)],
+          [(HasBronchitis, False), (HasLungCancer, True), (XRayResult, True), (Dyspnea, False)]
+          )
     ]
 
 asiaAnswersP2 :: [BN.Probability]
-asiaAnswersP2 = [0.099, 0.686]
+asiaAnswersP2 = [0.099, 0.686, 0.98, 0.7, 1, 0]
 
 asiaValuationsP3 :: [([AsiaVar], [BN.Probability])]
 asiaValuationsP3 = asiaValuations ++ [([XRayResultAndDyspnea, XRayResult, Dyspnea], [1, 1, 1, 0, 0, 0, 0, 1])]

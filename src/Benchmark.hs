@@ -10,7 +10,11 @@ import           Criterion.Main
 
 allBenchmarks :: IO ()
 allBenchmarks = do
-    benchmarks <- sequence [ST.benchmarks, FFT.benchmarks, BN.benchmarks]
+    benchmarks <- sequence [
+                          --  ST.benchmarks
+                          --  FFT.benchmarks
+                            BN.benchmarks
+                          ]
     defaultMain benchmarks
 
 -- --    defaultMainWith customConfig [
