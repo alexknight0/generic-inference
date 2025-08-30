@@ -24,11 +24,27 @@ where
 import qualified LocalComputation.Instances.BayesianNetwork as BN
 
 -- Typeclasses
+import           Control.DeepSeq                            (NFData)
 import           Data.Binary                                (Binary)
-import qualified Data.Hashable                              as H
 import           GHC.Generics                               (Generic)
 
-import           Control.DeepSeq                            (NFData)
+import qualified Hedgehog                                   as H
+import qualified Hedgehog.Gen                               as Gen
+
+--------------------------------------------------------------------------------
+-- Test case generation
+--------------------------------------------------------------------------------
+
+genQuery :: H.Gen (BN.Query a b)
+genQuery = undefined
+
+
+
+
+
+--------------------------------------------------------------------------------
+-- Manual test cases
+--------------------------------------------------------------------------------
 
 dataDirectory :: String
 dataDirectory = "src/Benchmarks/BayesianNetwork/Data/"
@@ -44,7 +60,7 @@ andesFilepath = dataDirectory ++ "andes.net"
 -- that a random value should be generated between.
 data AsiaVar = VisitToAsia | HasTuberculosis | Smoker | HasLungCancer
            | HasBronchitis | TuberculosisOrCancer | XRayResult | Dyspnea | XRayResultAndDyspnea
-           deriving (Eq, Ord, Show, Generic, Binary, Enum, H.Hashable, NFData)
+           deriving (Eq, Ord, Show, Generic, Binary, Enum, NFData)
 
 minAsiaP1 :: AsiaVar
 minAsiaP1 = VisitToAsia

@@ -50,7 +50,7 @@ dataDirectory :: FilePath
 dataDirectory = "src/Benchmarks/ShortestPath/SingleTarget/Data/"
 
 --------------------------------------------------------------------------------
--- Randomly test generation
+-- Random test generation
 --------------------------------------------------------------------------------
 
 -- | Generates a random query from the given set of graph vertices.

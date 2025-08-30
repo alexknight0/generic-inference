@@ -42,7 +42,7 @@ dataToValuations vs = map (uncurry getRows) withVariableDomains
         withVariableDomains :: [([(AsiaVar, [Bool])], [Probability])]
         withVariableDomains = map (\(xs, ps) -> (map boolify xs, ps)) vs
 
-checkQueries :: (H.Hashable a, H.Hashable b, Show a, Show b, Serializable a, Serializable b, Ord a, Ord b, NFData a, NFData b)
+checkQueries :: (Show a, Show b, Serializable a, Serializable b, Ord a, Ord b)
     => [Query a b]
     -> [Probability]
     -> PropertyT IO (Network a b)
