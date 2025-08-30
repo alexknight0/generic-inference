@@ -246,8 +246,8 @@ receivePhaseOne neighbours = do
 configSet :: (Valuation v, Show a, Show b, Ord a, Ord b)
     => v a b
     -> Domain a
-    -> VariableArrangement a b
-    -> Maybe (S.Set (VariableArrangement a b))
+    -> VariableArrangement v a b
+    -> Maybe (S.Set (VariableArrangement v a b))
 configSet phi t x
     | not $ S.isSubsetOf t (label phi) = Nothing
     | otherwise = undefined

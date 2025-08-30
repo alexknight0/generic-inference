@@ -4,12 +4,12 @@
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE TypeFamilies           #-}
 
 module LocalComputation.ValuationAlgebra
-    ( Valuation (label, combine, project, identity, eliminate)
+    ( Valuation (label, combine, project, identity, eliminate, VariableArrangement)
     , Domain
     , combines1
-    , VariableArrangement
     , showDomain
     )
 where
@@ -20,11 +20,13 @@ import qualified Data.Map.Lazy as M
 import qualified Data.Set      as S
 
 type Domain a = S.Set a
-type VariableArrangement a b = M.Map a b
+-- type VariableArrangement a b = M.Map a b
 
 -- TODO: document choice of having two types 'a' and 'b'
 -- TODO: Could use 'data' constructor inside class declaration...
 class Valuation v where
+    type VariableArrangement v a b
+
     label     :: (Show a, Show b, Ord a, Ord b) => v a b    -> Domain a
     combine   :: (Show a, Show b, Ord a, Ord b) => v a b    -> v a b    -> v a b
     project   :: (Show a, Show b, Ord a, Ord b) => v a b    -> Domain a -> v a b

@@ -1,6 +1,9 @@
 {-# LANGUAGE DeriveAnyClass      #-}
 {-# LANGUAGE DeriveGeneric       #-}
+{-# LANGUAGE InstanceSigs        #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving  #-}
+{-# LANGUAGE TypeFamilies        #-}
 
 module LocalComputation.ValuationAlgebra.Semiring
     ( SemiringValue (..)
@@ -83,9 +86,11 @@ extension        :: Domain a
 Note that a restriction of this form is that the type of the value of each
 variable in a variable arrangement is the same.
 -}
-data SemiringValuation c a b = Valuation (M.Map (VariableArrangement a b) c) (Domain a) (M.Map a (Domain b)) (Domain a)
+data SemiringValuation c a b = Valuation (M.Map (VariableArrangement (SemiringValuation c) a b) c) (Domain a) (M.Map a (Domain b)) (Domain a)
                              | Identity (Domain a)
                              deriving (Generic, Binary, NFData)
+
+--deriving instance NFData (VariableArrangement (SemiringValuation c) a b) => NFData (SemiringValuation c a b)
 
 -- | Returns 'False' if the data structure does not satisfy it's given description.
 isWellFormed :: forall a b c. (Ord a, Eq b) => SemiringValuation c a b -> Bool
@@ -108,7 +113,7 @@ isWellFormed (Valuation rows d valueDomains vacuousExtension)
 
 -- | Creates a valuation, returning 'Nothing' if the given parameters would lead to the creation
 -- of a valuation that is not well formed.
-create :: (Ord a, Eq b) => M.Map (M.Map a b) c -> Domain a -> M.Map a (Domain b) -> Domain a -> Maybe (SemiringValuation c a b)
+create :: (Ord a, Eq b) => M.Map (VariableArrangement (SemiringValuation c) a b) c -> Domain a -> M.Map a (Domain b) -> Domain a -> Maybe (SemiringValuation c a b)
 create x y z w
     | isWellFormed result = Just result
     | otherwise = Nothing
@@ -116,6 +121,8 @@ create x y z w
         result = Valuation x y z w
 
 instance (Show c, SemiringValue c) => Valuation (SemiringValuation c) where
+    type VariableArrangement (SemiringValuation c) a b = M.Map a b
+
     label x | assertIsWellFormed x = undefined
     label (Identity d) = d
     label (Valuation _ d _ e) = S.union d e
@@ -138,12 +145,18 @@ instance (Show c, SemiringValue c) => Valuation (SemiringValuation c) where
             unionAssert' :: (Ord a, Eq b) => M.Map a b -> M.Map a b -> M.Map a b
             unionAssert' = M.unionWith (\v1 v2 -> assert (v1 == v2) v1)
 
+    project :: forall a b . (Show a, Show b, Ord a, Ord b) => SemiringValuation c a b -> Domain a -> SemiringValuation c a b
     project x _ | assertIsWellFormed x = undefined
     project x y | assert (S.isSubsetOf y (label x)) False = undefined
     project (Identity _) y = Identity y
-    project (Valuation rMap d vD e) newD = Valuation (M.mapKeysWith add projectDomain rMap) (projectDomain' d) (projectDomain vD) (projectDomain' e)
+    project (Valuation rMap d vD e) newD = Valuation (M.mapKeysWith add projectDomain rMap) (projectDomain' d) (projectDomain2 vD) (projectDomain' e)
         where
+            projectDomain :: M.Map a b -> M.Map a b
             projectDomain = M.filterWithKey (\k _ -> k `elem` newD)
+
+            projectDomain2 :: M.Map a (Domain b) -> M.Map a (Domain b)
+            projectDomain2 = M.filterWithKey (\k _ -> k `elem` newD)
+
             projectDomain' = S.filter (\k -> k `elem` newD)
 
     identity = Identity
@@ -187,7 +200,7 @@ getRows vars ps = assert' isWellFormed $ Valuation rMap d valueDomains extension
         valueDomains = fromListAssertDisjoint (map (\(v, values) -> (v, fromListAssertDisjoint' values)) vars)
         extension = S.empty
 
-        vPermutations :: [(b, [c])] -> [VariableArrangement b c]
+        vPermutations :: [(b, [c])] -> [VariableArrangement (SemiringValuation c) b c]
         vPermutations xs = map fromListAssertDisjoint $ vPermutations' xs
             where
                 vPermutations' :: [(b, [c])] -> [[(b, c)]]
@@ -200,7 +213,7 @@ hasSameValueForSharedVariables xs ys = all (\k -> xs M.! k == ys M.! k) sharedKe
         sharedKeys = S.toList $ S.intersection (M.keysSet xs) (M.keysSet ys)
 
 -- | Returns the value of the given variable arrangement. Unsafe.
-findValue :: (Ord a, Ord b) => VariableArrangement a b -> SemiringValuation c a b -> c
+findValue :: (Ord a, Ord b) => VariableArrangement (SemiringValuation c) a b -> SemiringValuation c a b -> c
 findValue x (Valuation rowMap _ _ _) = rowMap M.! x
 findValue _ (Identity _) = error "findProbability: Attempted to read value from an identity valuation."
 
