@@ -59,7 +59,6 @@ tree' :: (V.Valuation v, Show (v a b), Ord a, Ord b, Show b, Show a)
     => SF.PreparedFont Double -> JT.Node (v a b) -> G.Graph (JT.Node (v a b)) -> Diagram B
 tree' chosenFont node g = vsep vgap [root.diagram, parents] # applyAll arrows
     where
-        -- root = text (show node.id) <> circle 1 # named node.id
         root = treeNode chosenFont node
 
         -- Horribly inefficent, constantly recalculated

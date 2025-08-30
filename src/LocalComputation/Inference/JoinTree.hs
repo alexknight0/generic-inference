@@ -9,6 +9,7 @@ module LocalComputation.Inference.JoinTree
     , baseJoinTree
     , node
     , NodeType (Valuation, Query, Union, Projection)
+    , redirectToQueryNode
     )
 where
 
@@ -25,6 +26,7 @@ import           GHC.Records                                    (HasField,
 import           LocalComputation.ValuationAlgebra
 
 import           Data.Binary                                    (Binary)
+import qualified Data.List                                      as L
 import           Data.Text.Lazy                                 (unpack)
 import           GHC.Generics                                   (Generic)
 import           Text.Pretty.Simple                             (pShow)
@@ -33,15 +35,17 @@ import           Type.Reflection                                (Typeable)
 
 -- TODO: investigate if union nodes are necessary.
 
+type Id = Integer
+
 data Node v = Node {
-      id :: Integer
+      id :: Id
     , v  :: v
     , t  :: NodeType
 } deriving (Generic, Typeable, Binary)
 
-data NodeType = Valuation | Query | Union | Projection deriving (Show, Generic, Binary, Enum, Bounded)
+data NodeType = Valuation | Query | Union | Projection deriving (Show, Generic, Binary, Enum, Bounded, Eq)
 
-node :: Integer -> v -> NodeType -> Node v
+node :: Id -> v -> NodeType -> Node v
 node = Node
 
 -- | Accessor for the domain of the valuation.  Equivalent to calling `label` on the valuation.
@@ -106,10 +110,10 @@ baseJoinTree vs queries = edges $ baseJoinTree' nextNodeId r d
         d = E.create $ map label vs
 
         r :: [Node (v a b)]
-        r = zipWith (\nid v -> Node nid v Valuation) [0 ..] vs
-            ++ zipWith (\nid q -> Node nid (identity q) Query) [fromIntegral (length vs) ..] queries
+        r =    zipWith (\nid v -> Node nid v            Valuation) [0                        ..] vs
+            ++ zipWith (\nid q -> Node nid (identity q) Query)     [fromIntegral (length vs) ..] queries
 
-        nextNodeId :: Integer
+        nextNodeId :: Id
         nextNodeId = fromIntegral $ length r
 
 {- | For a more general explanation of the overall algorithm see 'baseJoinTree'.
@@ -127,7 +131,7 @@ is a parameter such that there currently exists no nodes with id > 'nextNodeId' 
 create up to 2 nodes on each iteration, we make the recursive call with 'nextNodeId + 2'
 -}
 baseJoinTree' :: forall v a b. (Valuation v, Ord a, Show a, Show b, Ord b)
-    => Integer
+    => Id
     -> [Node (v a b)]
     -> E.EliminationSequence a
     -> [(Node (v a b), Node (v a b))]
@@ -161,4 +165,47 @@ baseJoinTree' nextNodeId r d
         nP = Node (nextNodeId + 1) (identity nPDomain) Projection
             where
                 nPDomain = (fromList $ setDifference (toList domainOfPhiX) [x])
+
+-- TODO: Untested.
+-- TODO: Could probably be optimized by caching the adjacencyList computation
+-- (but might have to make sure we update it).
+{-| Redirects a given **join** tree to reverse edges to face the node of the given id -}
+{- Works by traversing out from the given node, flipping any edges that it uses along its journey -}
+redirectTree :: forall a . Id -> Graph (Node a) -> Graph (Node a)
+redirectTree i g = foldr f g outgoingNodes
+    where
+        (this, outgoingNodes) = fromJust $ L.find (\(n, _) -> n.id == i) (adjacencyList g)
+
+        f :: Node a -> Graph (Node a) -> Graph (Node a)
+        f n acc = flipEdge this n $ redirectTree n.id acc
+
+-- | Redirects the given join tree to reverse edges to face a query node of the given domain.
+-- If multiple query nodes with this domain exist, one is chosen at random. This function only
+-- searches amongst nodes with a `NodeType` of `Query`.
+redirectToQueryNode :: (Valuation v, Ord a, Ord b, Show a, Show b)
+    => Domain a -> Graph (Node (v a b)) -> Graph (Node (v a b))
+redirectToQueryNode d g = redirectTree (queryNode.id) g
+    where
+        queryNode = head $ filter (\n -> n.d == d && n.t == Query) (vertexList g)
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
+
+-- | Flips an edge from x to y such that it now goes from y to x.
+flipEdge :: (Eq a) => a -> a -> Graph a -> Graph a
+flipEdge x y g
+    | hasEdge x y g = addEdge y x $ removeEdge x y $ g
+    | otherwise = g
+
+addEdge :: a -> a -> Graph a -> Graph a
+addEdge x y g = overlay (connect (vertex x) (vertex y)) g
+
+
+{- Returns the edge set required to reverse the edges of a **join tree** to face the node of the given id -}
+redirectTree' :: Id -> Graph (Node a) -> S.Set (Node a, Node a)
+redirectTree' i g = undefined
+    where
+        outgoingEdges = snd $ fromJust $ L.find (\(n, _) -> n.id == i) (adjacencyList g)
+
+
 

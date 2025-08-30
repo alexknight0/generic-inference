@@ -31,7 +31,7 @@ import           LocalComputation.ValuationAlgebra           (Valuation)
 
 data Error = QueryNotSubsetOfValuations deriving (NFData, Generic, Show)
 
-data Mode = BruteForce | Fusion | Shenoy deriving (Show)
+data Mode = BruteForce | Fusion | FusionMessagePassing | Shenoy deriving (Show)
 
 -- | Compute inference using the given mode to return valuations with the given domains.
 queries :: (
@@ -88,7 +88,8 @@ queriesDrawGraph :: (
  => FilePath -> Mode -> [v a b] -> [Domain a] -> Either Error (m [v a b])
 queriesDrawGraph _        _      vs qs
     | not $ queryIsCovered vs qs   = Left  $ QueryNotSubsetOfValuations
-queriesDrawGraph name Shenoy vs qs = Right $ run $ SS.answerQueriesDrawGraphM name vs qs
+queriesDrawGraph name FusionMessagePassing vs qs = Right $ run $ SS.answerQueriesDrawGraphM name vs qs
+queriesDrawGraph name Shenoy               vs qs = Right $ run $ SS.answerQueriesDrawGraphM name vs qs
 queriesDrawGraph _    _      _  _  = error "Not implemented"
 
 -- | Compute inference using the given mode to return a valuation with the given domain.
