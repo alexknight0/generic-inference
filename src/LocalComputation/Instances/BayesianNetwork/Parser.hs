@@ -21,14 +21,12 @@ import           Text.ParserCombinators.Parsec
 
 data NodeInfo = NodeInfo { name :: String, states :: [String] }
 
--- | Built to parse a network from a '.net' file that uses the second revision of the net language.
-
--- Although we said it is built to parse the second revision of the net language,
--- we may actually be parsing the first revision of the language. Information about
--- the first and second revisions could not be found, so this parser is based on
--- the .net files that this parser was built to parse, plus some information
--- read about the third revision. For information about the third revision,
--- see: <https://download.hugin.com/webdocs/manuals/8.9/htmlhelp/pages/Tutorials/CaseAndData/NetLanguage.html>
+-- | Built to parse a network from a '.net' file. The format specified seems it may be close to
+-- the second revision of the net language, but as no documentation could be found, this is uncertain.
+-- Notably does not allow potentials that have multiple conditioned variables.
+--
+-- For information about the net language, see:
+-- <https://download.hugin.com/webdocs/manuals/8.9/htmlhelp/pages/Tutorials/CaseAndData/NetLanguage.html>
 network :: GenParser Char st (Network String String)
 network = do
 
