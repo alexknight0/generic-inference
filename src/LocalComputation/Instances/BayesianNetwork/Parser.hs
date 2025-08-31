@@ -7,6 +7,10 @@ import           LocalComputation.Instances.BayesianNetwork
 import qualified LocalComputation.ValuationAlgebra.Semiring as S
 
 import           Data.Functor.Identity                      (Identity)
+import qualified Data.List                                  as L
+import qualified Data.Map                                   as M
+import qualified LocalComputation.Utils                     as M (fromListA)
+import           Numeric.Natural                            (Natural)
 import           Text.Parsec.Char                           (endOfLine)
 import           Text.Parsec.Language                       (haskellDef)
 import           Text.Parsec.Token                          (GenTokenParser,
@@ -15,15 +19,31 @@ import           Text.Parsec.Token                          (GenTokenParser,
 import           Text.ParserCombinators.Parsec
 
 
-network :: GenParser Char st (Network String Bool)
+data NodeInfo = NodeInfo { name :: String, states :: [String] }
+
+-- | Built to parse a network from a '.net' file that uses the second revision of the net language.
+
+-- Although we said it is built to parse the second revision of the net language,
+-- we may actually be parsing the first revision of the language. Information about
+-- the first and second revisions could not be found, so this parser is based on
+-- the .net files that this parser was built to parse, plus some information
+-- read about the third revision. For information about the third revision,
+-- see: <https://download.hugin.com/webdocs/manuals/8.9/htmlhelp/pages/Tutorials/CaseAndData/NetLanguage.html>
+network :: GenParser Char st (Network String String)
 network = do
-    emptyHeader
-    _ <- many node
-    potentials <- many potential
-    _ <- many spacesAndNewLine
+
+    s emptyHeader
+
+    nodeInfo   <- many $ s $ node
+    potentials <- many $ s $ potential (createLookup nodeInfo)
+
     eof
 
     pure potentials
+
+    where
+        createLookup :: [NodeInfo] -> M.Map String [String]
+        createLookup info = M.fromListA $ map (\n -> (n.name, n.states)) info
 
 spaces' :: GenParser Char st ()
 spaces' = skipMany (oneOf " \t")
@@ -44,80 +64,87 @@ notNewLineNorNoneOf xs = do
 lexer :: GenTokenParser String u Identity
 lexer = makeTokenParser haskellDef
 
+-- | Used for lexemes that ignores spaces
+s :: GenParser Char st a -> GenParser Char st a
+s p = spaces *> p <* spaces
 
 emptyHeader :: GenParser Char st ()
-emptyHeader = do
-        skipMany spacesAndNewLine
-        _ <- string "net"
-        _ <- spacesAndNewLine
-        _ <- char '{'
-        _ <- spacesAndNewLine
-        _ <- char '}'
-        _ <- spacesAndNewLine
-        pure ()
+emptyHeader = s (string "net") >> s (char '{') >> s (char '}') >> pure ()
     <?> "empty header"
 
+
+identifier :: GenParser Char st String
+identifier = do
+        firstChar <- letter <|> char '_'
+        rest <- many (alphaNum <|> char '_')
+        pure (firstChar : rest)
+
+escapedString :: GenParser Char st String
+escapedString = char '"' *> many notNewLineNorQuote <* char '"'
+        where
+                notNewLineNorQuote = notNewLineNorNoneOf "\""
+
+foobar :: ()
+foobar = undefined
+{-
+
+>>> parse (many $ notNewLineNorNoneOf "\"") "foo" $ "sff\"s\nfdfdf"
+Right "sff"
+
+-}
+
+{-
+
+>>> parse network "foo" $ "net \n{\n \n\nnode GOAL_2 \nstates = ( \"false\" \"true\" );"
+Left "foo" (line 5, column 1):
+unexpected "n"
+expecting space, white space or "}"
+
+-}
 
 {- | Parses a node. For example;
 
 \n{\n  states = ( \"yes\" \"no\" );\n}\n
 -}
-node :: GenParser Char st ()
+node :: GenParser Char st NodeInfo
 node = do
-        skipMany spacesAndNewLine
+        name <- s (string "node") *> s (identifier)
 
-        _ <- spaces' >> string "node " >> many1 (notNewLineNorNoneOf " ") >> spacesAndNewLine
+        _ <- s (char '{') >> s (string "states") >> s (char '=') >> s (char '(')
+        states <- many1 (s (escapedString))
+        _ <- s (char ')') >> s (char ';') >> s (char '}')
 
-        _ <- char '{' >> spacesAndNewLine
-
-        _ <- spaces' >> string "states" >> spaces' >> char '=' >> spaces' >> char '('
-        _ <- spaces' >> many1 (notNewLineNorNoneOf " ") >> spaces' >> many1 (notNewLineNorNoneOf " ")
-        _ <- spaces' >> char ')' >> spaces' >> char ';' >> spacesAndNewLine
-
-        _ <- char '}' >> spacesAndNewLine
-        pure ()
+        pure $ NodeInfo name states
     <?> "node"
 
 -- todo may not have conditional vars. i.e. terminators and initials.
-potential :: GenParser Char st (Valuation String Bool)
-potential = do
-        skipMany spacesAndNewLine
+potential :: M.Map String [String] -> GenParser Char st (Valuation String String)
+potential states = do
+        conditioned <- s (string "potential") >> s (char '(') >> identifier
 
-        _ <- string "potential" >> spaces' >> char '(' >> spaces'
-        conditionedVar <- many1 (notNewLineNorNoneOf " |)")
-        _ <- spaces' >> optionMaybe (char '|') >> spaces'
-        conditionalVars <- many $ do
-            _ <- spaces'
-            conditionalVar <- many1 (notNewLineNorNoneOf " |)")
-            _ <- spaces'
-            pure conditionalVar
-        _ <- char ')' >> spacesAndNewLine
+        conditional <- do
+                pipe <- s (optionMaybe (char ('|')))
+                vars <- case pipe of
+                                Just _  -> many1 (s identifier)
+                                Nothing -> pure []
+                _    <- s (char ')')
+                pure vars
 
-        _ <- char '{' >> spacesAndNewLine
-        _ <- spaces' >> string "data" >> spaces' >> char '=' >> spaces'
-        probabilities <- potentialData
-        _ <- spaces' >> char ';' >> spacesAndNewLine
+        _ <- s (char '{') >> s (string "data") >> s (char '=')
+        probabilities <- many floatFromData
+        _ <- s (char ';') >> s (char '}')
 
-        _ <- char '}' >> spacesAndNewLine
-        pure (S.getRows (map (\x -> (x, [False, True])) (conditionedVar : conditionalVars)) probabilities)
+        let vars = conditional ++ [conditioned]
+            varStates = map (\v -> (v, (M.!) states v)) vars
+
+        pure $ S.getRows varStates probabilities
     <?> "potential"
 
--- We don't worry about verifying the file is in the correct format here,
--- we simply throw away all brackets and just read the numbers sequentially.
-potentialData :: GenParser Char st [Probability]
-potentialData = do
-        probabilities <- many $ potentialDataEntry
+floatFromData :: GenParser Char st Probability
+floatFromData = fmap P (discardJunk (float lexer))
+    <?> "float inside data field"
+    where
+        discardJunk :: GenParser Char st a -> GenParser Char st a
+        discardJunk p = many junk *> p <* many junk
 
-        -- Convert to list that iterates probabilities like a truth table that starts at FFF.
-        pure (reverse $ map fst probabilities ++ map snd probabilities)
-    <?> "data"
-
-potentialDataEntry :: GenParser Char st (Probability, Probability)
-potentialDataEntry = do
-        _ <- many $ oneOf "( "
-        trueP <- float lexer
-        _ <- spaces'
-        falseP <- float lexer
-        _ <- many $ oneOf ") "
-        pure (P trueP, P falseP)
-    <?> "tuple inside data"
+        junk = oneOf "() "

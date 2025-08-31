@@ -92,6 +92,7 @@ conditionalP q p
     | otherwise                                                 =   p (M.union q.conditioned q.conditional)
                                                                   / p q.conditional
 
+-- TODO: Wait isn't this just M.intersectionWith const m1 m2  == M.intersectionWith (flip const) m1 m2
 sharedKeysHaveSameValue :: (Ord a, Ord b) => M.Map a b -> M.Map a b -> Bool
 sharedKeysHaveSameValue m1 m2 = allTrue $ M.intersectionWith f (withIndicator m1) (withIndicator m2)
     where

@@ -14,6 +14,7 @@ module LocalComputation.ValuationAlgebra.Semiring
     , Valuation
     , findValue
     , mapTableKeys
+    , mapVariableValues
     )
 where
 
@@ -211,6 +212,7 @@ getRows vars ps = assert' isWellFormed $ Valuation rMap d valueDomains extension
                 vPermutations' [] = [[]]
                 vPermutations' ((v, vVals) : vs) = [(v, vVal) : rest | vVal <- vVals, rest <- vPermutations' vs]
 
+-- TODO: Wait isn't this just M.intersectionWith const m1 m2  == M.intersectionWith (flip const) m1 m2
 hasSameValueForSharedVariables :: (Ord a, Eq b) => M.Map a b -> M.Map a b -> Bool
 hasSameValueForSharedVariables xs ys = all (\k -> xs M.! k == ys M.! k) sharedKeys
     where
@@ -224,6 +226,12 @@ findValue _ (Identity _) = error "findProbability: Attempted to read value from 
 mapTableKeys :: (Ord b, Ord c) => (a -> b) -> SemiringValuation d c a -> SemiringValuation d c b
 mapTableKeys f (Valuation rMap d vD e) = Valuation (M.mapKeys (M.mapKeys f) rMap) (setMap f d) (M.mapKeys f vD) (setMap f e)
 mapTableKeys f (Identity x) = Identity (setMap f x)
+
+mapVariableValues :: (Ord b, Ord c) => (a -> b) -> SemiringValuation d a c -> SemiringValuation d b c
+mapVariableValues _ v@Identity{}  = Identity v.d
+mapVariableValues f v@Valuation{} = v { _rows = M.mapKeys (M.map f) v._rows
+                                      , _valueDomains = M.map (S.map f) v._valueDomains
+                                     }
 
 normalize :: (Fractional c) => SemiringValuation c b a -> SemiringValuation c b a
 normalize (Identity x) = Identity x

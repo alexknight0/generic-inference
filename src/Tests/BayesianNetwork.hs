@@ -27,6 +27,7 @@ import           Tests.Utils                                       (checkAnswers
                                                                     unitTest)
 
 import           Control.DeepSeq                                   (NFData)
+import qualified Data.Char                                         as C
 import           LocalComputation.Inference                        (Mode (Shenoy),
                                                                     queriesDrawGraph)
 
@@ -58,7 +59,16 @@ parseNetwork'' filename = do
     parsed <- liftIO $ parseFile P.network filename
     case parsed of
         Left e        -> do annotateShow e; failure
-        Right network -> pure (network)
+        Right network -> pure (map (mapVariableValues readBool) network)
+    where
+        readBool xs = case lowercase xs of
+            "true"  -> True
+            "false" -> False
+            "yes"   -> True
+            "no"    -> False
+            _       -> error $ "Couldn't parse \"" ++ xs ++ "\" as a Bool."
+
+        lowercase xs = map C.toLower xs
 
 boolify :: a -> (a, [Bool])
 boolify x = (x, [False, True])

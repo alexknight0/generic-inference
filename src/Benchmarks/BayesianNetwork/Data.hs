@@ -23,7 +23,8 @@ where
 
 import qualified LocalComputation.Instances.BayesianNetwork as BN
 
--- Typeclasses
+import           Numeric.Natural                            (Natural)
+-- TODO: Create a type that exports NFData, Binary, and Generic to stop this repetition!
 import           Control.DeepSeq                            (NFData)
 import           Data.Binary                                (Binary)
 import           GHC.Generics                               (Generic)
@@ -38,9 +39,8 @@ import qualified Hedgehog.Gen                               as Gen
 genQuery :: H.Gen (BN.Query a b)
 genQuery = undefined
 
-
-
-
+genNetwork :: Natural -> Natural -> BN.Network Natural Natural
+genNetwork = undefined
 
 --------------------------------------------------------------------------------
 -- Manual test cases

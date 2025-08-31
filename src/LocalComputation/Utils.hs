@@ -14,6 +14,7 @@ module LocalComputation.Utils
     , unsafeFind
     , unionUnsafe
     , fromListAssertDisjoint
+    , fromListA
     , unionAssertDisjoint
     , unionAssertDisjoint'
     , unzipWith
@@ -111,6 +112,9 @@ unionAssertDisjoint' x y
 
 fromListAssertDisjoint :: (Ord a) => [(a, b)] -> Map a b
 fromListAssertDisjoint = M.fromListWith (\_ _ -> error "Attempted to create map from non disjoint assoc list")
+
+fromListA :: (Ord a) => [(a, b)] -> Map a b
+fromListA = fromListAssertDisjoint
 
 fromListAssertDisjoint' :: Ord a => [a] -> Set a
 fromListAssertDisjoint' xs = assert' (\ys -> length ys == length xs) (S.fromList xs)
