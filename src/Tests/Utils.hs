@@ -57,9 +57,5 @@ unitTest :: PropertyT IO a -> Property
 unitTest = withTests 1 . property . void
 
 checkAnswers :: (Show a, Show b) => (a -> b -> Bool) -> [a] -> [b] -> PropertyT IO ()
-checkAnswers f results answers = diff results (\rs as -> foobar rs as) answers
-    where
-        foobar rs as
-            | and (zipWithAssert f rs as) == False = False
-            | otherwise = True
+checkAnswers f results answers = diff results (\rs as -> and (zipWithAssert f rs as)) answers
 

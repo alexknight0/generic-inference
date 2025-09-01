@@ -2,6 +2,11 @@
 {-# LANGUAGE DeriveGeneric   #-}
 {-# LANGUAGE OverloadedLists #-}
 
+{- | Test cases and test case generation.
+
+Where answers have been manually entered, the values have been obtained
+using the 'R' script located in 'dataDirectory'.
+-}
 module Benchmarks.BayesianNetwork.Data
     ( asiaValuationsP1
     , asiaValuationsP2
@@ -12,12 +17,17 @@ module Benchmarks.BayesianNetwork.Data
     , asiaAnswersP1
     , asiaAnswersP2
     , asiaAnswersP3
+    , muninQueries
+    , muninAnswers
+    , alarmQueries
+    , alarmAnswers
     , AsiaVar (..)
     , minAsiaP1
     , maxAsiaP1
     , stringToAsiaVar
     , asiaFilepath
-    , andesFilepath
+    , alarmFilepath
+    , muninFilepath
     )
 where
 
@@ -52,8 +62,11 @@ dataDirectory = "src/Benchmarks/BayesianNetwork/Data/"
 asiaFilepath :: String
 asiaFilepath = dataDirectory ++ "asia.net"
 
-andesFilepath :: String
-andesFilepath = dataDirectory ++ "andes.net"
+alarmFilepath :: String
+alarmFilepath = dataDirectory ++ "alarm.net"
+
+muninFilepath :: String
+muninFilepath = dataDirectory ++ "munin.net"
 
 -- | Variables (AKA nodes) of the asia example. XRayResultAndDyspnea appears only in P3.
 -- If order is updated, also update minAsiaP1 and maxAsiaP1 to define the range of values
@@ -79,9 +92,8 @@ stringToAsiaVar "dysp"   = Dyspnea
 stringToAsiaVar _        = error "Unexpected string representing an asia var."
 
 
--- These match the ones used in NENOK and in https://online.bayesserver.com/
--- (Only difference from project proposal is smoker).
--- Note the probably values from https://online.bayesserver.com/ round to 1dp after %.
+-- These valuations match the commonly used probability potentials, which slightly differ from
+-- the example displayed in the thesis report in the values for 'Smoker'.
 asiaValuations :: [([AsiaVar], [BN.Probability])]
 asiaValuations = [
         ([VisitToAsia], [0.99, 0.01]),
@@ -122,7 +134,7 @@ asiaQueriesP1 = map BN.toQuery [
     ]
 
 asiaAnswersP1 :: [BN.Probability]
-asiaAnswersP1 = [0.05, 0.0595, 1, 0.01, 0.1855]
+asiaAnswersP1 = [0.05, 0.0595, 1, 0.01, 0.1854545]
 
 asiaValuationsP2 :: [([AsiaVar], [BN.Probability])]
 asiaValuationsP2 = asiaValuations
@@ -150,13 +162,13 @@ asiaQueriesP2 = map BN.toQuery [
             [(HasBronchitis, False), (HasLungCancer, True), (XRayResult, True), (Dyspnea, True)]
           )
         , (
-          [(XRayResult, True), (Dyspnea, True)],
-          [(HasBronchitis, False), (HasLungCancer, True), (XRayResult, True), (Dyspnea, False)]
+            [(XRayResult, True), (Dyspnea, True)],
+            [(HasBronchitis, False), (HasLungCancer, True), (XRayResult, True), (Dyspnea, False)]
           )
     ]
 
 asiaAnswersP2 :: [BN.Probability]
-asiaAnswersP2 = [0.099, 0.686, 0.98, 0.7, 1, 0]
+asiaAnswersP2 = [0.09882268, 0.686, 0.98, 0.7, 1, 0]
 
 asiaValuationsP3 :: [([AsiaVar], [BN.Probability])]
 asiaValuationsP3 = asiaValuations ++ [([XRayResultAndDyspnea, XRayResult, Dyspnea], [1, 1, 1, 0, 0, 0, 0, 1])]
@@ -170,5 +182,44 @@ asiaQueriesP3 = map BN.toQuery [
     ]
 
 asiaAnswersP3 :: [BN.Probability]
-asiaAnswersP3 = [0.099]
+asiaAnswersP3 = [0.09882268]
 
+muninQueries :: [BN.Query String String]
+muninQueries = map BN.toQuery [
+        -- Pretty sure we want underscores instead of '.'s here. Also may need to replace the dashes? idk. Maybe not.
+          (
+            [("R.MEDD2.DISP-WD", "NO")],
+            []
+          )
+        , (
+            [("R.MEDD2.DISP-WD", "NO")],
+            [("R.DIFFN.MEDD2.DIFSLOW", "NO")]
+          )
+    ]
+
+-- TODO: THESE ARE WRONG. NEED TO BE UPDATED.
+muninAnswers :: [BN.Probability]
+muninAnswers = [0.864, 0.874]
+
+alarmQueries  :: [BN.Query String String]
+alarmQueries = map BN.toQuery [
+          (
+            [("HRBP", "LOW")],
+            []
+          )
+        , (
+            [("HRBP", "LOW")],
+            [("HR", "LOW")]
+          )
+        , (
+            [("ARTCO2", "LOW")],
+            []
+          )
+        , (
+            [("ARTCO2", "LOW")],
+            [("EXPCO2", "LOW")]
+          )
+    ]
+
+alarmAnswers :: [BN.Probability]
+alarmAnswers = [0.17602606, 0.429, 0.18015254, 0.18262807]

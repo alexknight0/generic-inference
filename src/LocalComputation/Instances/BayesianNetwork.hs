@@ -11,6 +11,7 @@ module LocalComputation.Instances.BayesianNetwork
     , Probability (P)
     , Network
     , Valuation
+    , toInferenceQuery
     )
 where
 
@@ -86,11 +87,14 @@ approxEqual x y = abs (x - y) < threshold
 
 -- | Returns the conditional probability of a certain event.
 conditionalP :: (Ord a, Ord b) => Query a b -> (VarAssignment a b -> Probability) -> Probability
-conditionalP q p
+conditionalP q p = conditionalP' q p p
+
+conditionalP' :: (Ord a, Ord b) => Query a b -> (VarAssignment a b -> Probability) -> (VarAssignment a b -> Probability) -> Probability
+conditionalP' q p1 p2
     | not $ sharedKeysHaveSameValue q.conditioned q.conditional = 0
-    | p q.conditional `approxEqual` 0                           = 0
-    | otherwise                                                 =   p (M.union q.conditioned q.conditional)
-                                                                  / p q.conditional
+    | p2 q.conditional `approxEqual` 0                           = 0
+    | otherwise                                                 =   p1 (M.union q.conditioned q.conditional)
+                                                                  / p2 q.conditional
 
 -- TODO: Wait isn't this just M.intersectionWith const m1 m2  == M.intersectionWith (flip const) m1 m2
 sharedKeysHaveSameValue :: (Ord a, Ord b) => M.Map a b -> M.Map a b -> Bool
@@ -111,12 +115,14 @@ sharedKeysHaveSameValue m1 m2 = allTrue $ M.intersectionWith f (withIndicator m1
 -- | Returns the probability of a given event occuring, given a set of conditional variables.
 -- Takes a network (a list of conditional probability tables) as input.
 getProbabilityAlt :: forall a b. ( Show a, Show b, Serializable a, Serializable b, Ord a, Ord b, NFData a, NFData b)
-    =>[Query a b]
+    => [Query a b]
     -> Network a b
     -> Process [Probability]
 getProbabilityAlt qs network' = do
-    results <- fromRight $ I.queries I.Shenoy network' domains
-    pure $ zipWith (\q [top, bottom] -> S.findValue (unionAssertDisjoint q.conditioned q.conditional) top / S.findValue q.conditional bottom) qs (chunksOf 2 results)
+    results <- fromRight $ I.queries I.Fusion network' domains
+    pure $ zipWith (\q [top, bottom] -> conditionalP' q (\x -> S.findValue x top) (\x -> S.findValue x bottom))
+                   (qs)
+                   (chunksOf 2 results)
     -- let f vars = queryToProbability vars results
     -- pure $ map (\(vars, givenVars) -> conditionalProbability vars givenVars f) qs
 
@@ -139,11 +145,12 @@ getProbability :: forall a b. (Show a, Show b, Serializable a, Serializable b, O
     -> Network a b
     -> Process [Probability]
 getProbability qs network' = do
-    results <- inference network' queriesForInference
+    results <- inference network' (toInferenceQuery qs)
     let f vs = queryToProbability vs results
     pure $ map (\q -> conditionalP q f) qs
 
-    where
-        queriesForInference :: [V.Domain a]
-        queriesForInference = map (\q -> union (M.keysSet q.conditioned) (M.keysSet q.conditional)) qs
+-- | Converts a given probability query to an inference query. This inference query will allow inference
+-- to return the results necessary to answer the given probability query.
+toInferenceQuery :: (Ord a) => [Query a b] -> [V.Domain a]
+toInferenceQuery qs = map (\q -> union (M.keysSet q.conditioned) (M.keysSet q.conditional)) qs
 

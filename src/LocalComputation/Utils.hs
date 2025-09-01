@@ -37,6 +37,7 @@ module LocalComputation.Utils
     , infinity
     , neighbours
     , unusedArg
+    , Table (Table, heading, rows)
     )
 where
 
@@ -94,7 +95,7 @@ findAssertSingleMatch p xs
     | ys <- filter p xs = let numMatches = length (take 10000 ys) in
                                 error $ "findAssertSingleMatch found " ++ (if numMatches == 10000 then ">" else "") ++ show numMatches ++ " matches"
 
-unsafeFind :: Foldable t => (a -> Bool) -> t a -> a
+unsafeFind :: HasCallStack => Foldable t => (a -> Bool) -> t a -> a
 unsafeFind p xs
     | (Just y) <- Data.List.find p xs = y
     | otherwise = error "unsafeFind found nothing"
@@ -219,3 +220,10 @@ neighbours x g = do
     pure adjacent
 
 unusedArg = error "Argument should not be used"
+
+-- TODO: Implicit assumption that length of heading equals length of rows. Could assert this.
+data Table = Table {
+      heading :: [String]
+    , rows    :: [[String]]
+}
+

@@ -34,8 +34,10 @@ import           LocalComputation.Inference                        (Mode (Shenoy
 tests :: IO Bool
 tests = checkParallel $$(discover)
 
-probabilityApproxEqual :: Probability -> Probability -> Bool
-probabilityApproxEqual x y = abs (x - y) < 0.0002
+-- This value is not as precise as might be expected as the values entere for manual testcases
+-- are truncated to ~7 / 8 significant figures.
+approxEqual :: Probability -> Probability -> Bool
+approxEqual x y = abs (x - y) < 1 * 10 ^^ (-7 :: Integer)
 
 dataToValuations :: [([AsiaVar], [Probability])] -> Network AsiaVar Bool
 dataToValuations vs = map (uncurry getRows) withVariableDomains
@@ -43,7 +45,7 @@ dataToValuations vs = map (uncurry getRows) withVariableDomains
         withVariableDomains :: [([(AsiaVar, [Bool])], [Probability])]
         withVariableDomains = map (\(xs, ps) -> (map boolify xs, ps)) vs
 
-checkQueries :: (Show a, Show b, Serializable a, Serializable b, Ord a, Ord b)
+checkQueries :: (Show a, Show b, Serializable a, Serializable b, Ord a, Ord b, NFData a, NFData b)
     => [Query a b]
     -> [Probability]
     -> PropertyT IO (Network a b)
@@ -51,15 +53,22 @@ checkQueries :: (Show a, Show b, Serializable a, Serializable b, Ord a, Ord b)
 checkQueries qs ps getNetwork = do
     network <- getNetwork
     results <- run $ getProbability qs network
-    checkAnswers probabilityApproxEqual results ps
+    checkAnswers approxEqual results ps
     pure network
 
-parseNetwork'' :: FilePath -> PropertyT IO (Network String Bool)
-parseNetwork'' filename = do
+parseNetwork :: FilePath -> PropertyT IO (Network String String)
+parseNetwork filename = do
     parsed <- liftIO $ parseFile P.network filename
     case parsed of
         Left e        -> do annotateShow e; failure
-        Right network -> pure (map (mapVariableValues readBool) network)
+        Right network -> pure network
+
+
+convertToAsia :: Network String String -> Network AsiaVar Bool
+convertToAsia network = map (mapTableKeys stringToAsiaVar) . boolifyNet $ network
+
+boolifyNet :: Network String String -> Network String Bool
+boolifyNet = map (mapVariableValues readBool)
     where
         readBool xs = case lowercase xs of
             "true"  -> True
@@ -92,24 +101,24 @@ prop_inferenceAnswersP3 :: Property
 prop_inferenceAnswersP3 = inferenceAnswers asiaQueriesP3 asiaAnswersP3 asiaValuationsP3
 
 prop_inferenceAnswersAfterParsingP1 :: Property
-prop_inferenceAnswersAfterParsingP1 = unitTest $ checkQueries asiaQueriesP1 asiaAnswersP1 $ do
-    network <- parseNetwork'' asiaFilepath
-    pure $ map (mapTableKeys stringToAsiaVar) network
+prop_inferenceAnswersAfterParsingP1 = unitTest $ checkQueries asiaQueriesP1
+                                                              asiaAnswersP1
+                                                              (fmap convertToAsia $ parseNetwork asiaFilepath)
 
 prop_inferenceAnswersAfterParsingP2 :: Property
-prop_inferenceAnswersAfterParsingP2 = unitTest $ checkQueries asiaQueriesP2 asiaAnswersP2 $ do
-    network <- parseNetwork'' asiaFilepath
-    pure $ map (mapTableKeys stringToAsiaVar) network
+prop_inferenceAnswersAfterParsingP2 = unitTest $ checkQueries asiaQueriesP2
+                                                              asiaAnswersP2
+                                                              (fmap convertToAsia $ parseNetwork asiaFilepath)
 
 prop_prebuiltAnswersP1 :: Property
 prop_prebuiltAnswersP1 = unitTest $ do
     let results = runQueries (createNetwork asiaValuationsP1) asiaQueriesP1
-    checkAnswers probabilityApproxEqual results asiaAnswersP1
+    checkAnswers approxEqual results asiaAnswersP1
 
 prop_prebuiltAnswersP3 :: Property
 prop_prebuiltAnswersP3 = unitTest $ do
     let results = runQueries (createNetwork asiaValuationsP3) asiaQueriesP3
-    checkAnswers probabilityApproxEqual results asiaAnswersP3
+    checkAnswers approxEqual results asiaAnswersP3
 
 genQuery :: Gen (Query AsiaVar Bool)
 genQuery = do
@@ -135,6 +144,7 @@ prop_inferenceAnswersMatchPrebuilt :: Property
 prop_inferenceAnswersMatchPrebuilt = withTests 100 . property $ do
     qs <- forAll genQueries
     prebuiltResults' <- prebuiltResults qs
+    net <- fmap convertToAsia $ parseNetwork asiaFilepath
 
     case prebuiltResults' of
         -- Some queries result in underflow as when we incrementally impose conditions as in
@@ -143,16 +153,28 @@ prop_inferenceAnswersMatchPrebuilt = withTests 100 . property $ do
         Left (E.RatioZeroDenominator) -> discard
         Left _ -> failure
         Right prebuiltResults'' -> do
-            algebraResults' <- algebraResults qs
-            checkAnswers probabilityApproxEqual algebraResults' prebuiltResults''
+            algebraResults' <- algebraResults qs net
+            checkAnswers approxEqual algebraResults' prebuiltResults''
 
     where
         genQueries :: Gen ([Query AsiaVar Bool])
         genQueries = Gen.list (Range.linear 1 6) genQuery
 
-        algebraResults qs = run $ getProbability qs (dataToValuations asiaValuationsP1)
+        algebraResults qs net = run $ getProbability qs net
         prebuiltResults qs = liftIO $ E.try $ E.evaluate $ force $ runQueries (createNetwork asiaValuationsP1) qs
 
-prop_parsesAndes :: Property
-prop_parsesAndes = unitTest $ parseNetwork'' andesFilepath
+prop_drawAlarmGraph :: Property
+prop_drawAlarmGraph = unitTest $ do
+    net <- fmap convertToAsia $ parseNetwork asiaFilepath
+    fromRight $ queriesDrawGraph "asia.svg" Shenoy net (toInferenceQuery asiaQueriesP1)
+    pure ()
+
+prop_parsesAlarm :: Property
+prop_parsesAlarm = unitTest $ do
+    checkQueries alarmQueries alarmAnswers (parseNetwork alarmFilepath)
+
+-- prop_parsesMunin :: Property
+-- prop_parsesMunin = unitTest $ do
+--     checkQueries muninQueries muninAnswers (parseNetwork muninFilepath)
+
 

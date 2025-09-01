@@ -50,6 +50,7 @@ library
       LocalComputation.Instances.ShortestPath.SingleTarget
       LocalComputation.LabelledMatrix
       LocalComputation.LocalProcess
+      LocalComputation.Pretty
       LocalComputation.Utils
       LocalComputation.Utils.Set
       LocalComputation.ValuationAlgebra
@@ -81,6 +82,7 @@ library
     , base >=4.7 && <5
     , bimap
     , binary
+    , boxes
     , bytestring
     , cached-io
     , carray
@@ -130,6 +132,7 @@ executable localcomputation-exe
     , base >=4.7 && <5
     , bimap
     , binary
+    , boxes
     , bytestring
     , cached-io
     , carray
@@ -185,6 +188,7 @@ test-suite localcomputation-test
     , base >=4.7 && <5
     , bimap
     , binary
+    , boxes
     , bytestring
     , cached-io
     , carray
@@ -240,6 +244,7 @@ benchmark localcomputation-benchmark
     , base >=4.7 && <5
     , bimap
     , binary
+    , boxes
     , bytestring
     , cached-io
     , carray

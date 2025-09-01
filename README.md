@@ -92,3 +92,10 @@ This will output a `report.html` detailing some benchmarking details, as well as
 ## Missing Data Files
 If benchmarks or tests fail due to missing data files, please contact me and remind me to post links to where they can be found.
 
+## Diagrams
+The join tree diagrams produced can be **large**. If you are in need of a SVG viewer that can zoom in further than your browser, consider 'Nomacs'.
+
+## Guide to implementing a valuation algebra \[WIP\]
+Your show instance for a valuation algebra will be displayed in the graph. Make sure to use newlines on long output;
+otherwise the diagram will likely render so wide that nothing will be legible.
+

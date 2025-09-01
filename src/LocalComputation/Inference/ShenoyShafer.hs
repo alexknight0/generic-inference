@@ -34,6 +34,16 @@ import qualified LocalComputation.Inference.JoinTree.Diagram as D
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra
 
+-- TODO: [Hypothesis]... Due to the high serialization cost, using the Cloud Haskell library to represent
+-- the message passing process by treating each node as a seperate computer is not efficent.
+-- However as Cloud Haskell allows easy implementation of cross-machine message passing, there
+-- could still be value obtained from this approach if there does not exist a single
+-- computer with enough cores to provide the performance required to compute a certain result.
+-- In this case, the dream would be to minimize serialization and transportation cost by assigning
+-- groups of nodes who are 'close' to each other to one processor. That one processor could even then
+-- use a multi-threaded approach to avoid serialization costs entirely. This would require the subproblem
+-- of finding 'groups' of nodes in the larger graph.
+
 type InferredData v a = DG.Graph (Node (v a))
 
 -- TODO: safely handle invalid queries?

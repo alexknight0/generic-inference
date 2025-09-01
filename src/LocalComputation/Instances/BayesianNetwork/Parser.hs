@@ -6,6 +6,7 @@ where
 import           LocalComputation.Instances.BayesianNetwork
 import qualified LocalComputation.ValuationAlgebra.Semiring as S
 
+import           Control.Exception                          (assert)
 import           Data.Functor.Identity                      (Identity)
 import qualified Data.List                                  as L
 import qualified Data.Map                                   as M

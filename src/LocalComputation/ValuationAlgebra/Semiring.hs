@@ -24,10 +24,15 @@ import           LocalComputation.ValuationAlgebra
 import           Control.DeepSeq                                 (NFData)
 import           Control.Exception                               (assert)
 import           Data.Binary                                     (Binary)
+import qualified Data.List                                       as L
 import qualified Data.Map                                        as M
 import qualified Data.Set                                        as S
+import qualified Data.Text.Lazy                                  as LT
 import           GHC.Generics
+import qualified LocalComputation.Pretty                         as P
 import           LocalComputation.ValuationAlgebra.SemiringValue
+import           Text.Pretty.Simple                              (pShow,
+                                                                  pShowNoColor)
 
 {- | Valuation for a semiring valuation algebra.
 
@@ -121,6 +126,8 @@ create x y z w
     where
         result = Valuation x y z w
 
+-- TODO: Put asserts as a default wrappre for label, combine, project. Then the user
+-- instead implements label' combine' and project'.
 instance (Ord b, Show b, Show c, SemiringValue c) => Valuation (SemiringValuation c b) where
     type VarAssignment (SemiringValuation c b) a b = M.Map a b
 
@@ -167,18 +174,48 @@ instance (Ord b, Show b, Show c, SemiringValue c) => Valuation (SemiringValuatio
     identity = Identity
 
     -- TODO: Implement (probably can be implemented through a default implementation?)
-    eliminate = error "Not implemented."
+    eliminate x _ | assertIsWellFormed x = undefined
+    eliminate v x = project v (S.difference (label v) x)
 
     -- frame x | assertIsWellFormed x = undefined
     -- frame _ = error "Not implemented."
 
+toTable :: (Show a, Show b, Show c) => SemiringValuation a b c -> Table
+toTable Identity{}    = error "Not Implemented"
+toTable v@Valuation{} = Table headings rows
+    where
+        assignedValues a = map show $ M.elems a
+        keys a = map show $ M.keys a
+
+        headings = (head $ map (\(assignment, _) -> keys assignment) $ M.toAscList v._rows)
+                ++ ["Probability"]
+        rows     = map (\(assignment, value) -> assignedValues assignment ++ [show value]) $ M.toAscList v._rows
+
 instance (Show a, Show b, Show c) => Show (SemiringValuation a b c) where
-    show (Valuation rowMap _ _ _) = "\n------ SemiringValuation ------\n"
-                                 ++ show rowMap
-                                 ++ "\n-------------------------------\n"
-    show (Identity _) = "\n------ Table ------\n"
-                     ++ "Identity"
-                     ++ "\n-------------------\n"
+    show Identity{}    = "Identity"
+    show v@Valuation{} = P.showTable $ toTable v
+
+    -- show v@Valuation{} = L.intercalate "\n" [showAssignment assignment ++ " " ++ show value
+    --                                             | (assignment, value) <- M.toAscList v._rows]
+    --      where
+    --          showAssignment a = "["
+    --                          ++ L.intercalate ", " [show (var, value) | (var, value) <- M.toAscList a]
+    --                          ++ "]"
+
+-- show v@Valuation{} = concat $ L.intersperse "\n" $ map show $ M.elems v._rows
+
+foobar :: ()
+foobar = undefined
+{-
+
+>>> getRows [("Barry", [1, 2]), ("James", [3,4])] [2,4,5,6]
+"Barry" "James" Probability
+1       1       2
+1       2       2
+2       2
+2
+
+-}
 
 {-
 The first parameter is an association list mapping a variable to a list of values that the variable can take.
