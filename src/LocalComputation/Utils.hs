@@ -29,6 +29,7 @@ module LocalComputation.Utils
     , safeHead
     , fromListAssertDisjoint'
     , parseFile
+    , parseFile'
     , fromRight
     , lookupDefault
     , lookupDefaultR
@@ -38,6 +39,7 @@ module LocalComputation.Utils
     , neighbours
     , unusedArg
     , Table (Table, heading, rows)
+    , assertError
     )
 where
 
@@ -175,6 +177,12 @@ parseFile p filename = do
     contents <- hGetContents' handle
     pure $ P.parse p filename contents
 
+parseFile' :: P.GenParser Char () a -> FilePath -> IO a
+parseFile' p filename = do
+    handle <- openFile filename ReadMode
+    contents <- hGetContents' handle
+    pure $ fromRight $ P.parse p filename contents
+
 fromRight :: HasCallStack => Either a b -> b
 fromRight (Right x) = x
 fromRight _         = error "fromRight received a Left"
@@ -226,4 +234,6 @@ data Table = Table {
       heading :: [String]
     , rows    :: [[String]]
 }
+
+assertError = assert False undefined
 

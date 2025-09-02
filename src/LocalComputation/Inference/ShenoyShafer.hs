@@ -9,6 +9,7 @@ module LocalComputation.Inference.ShenoyShafer (
     , answerQueriesM, answerQueryM, answerQueriesDrawGraphM
     , answerQueries, answerQuery
     , inference
+    , answerQuery'
     , InferredData
 ) where
 
@@ -27,12 +28,18 @@ import           Type.Reflection                             (Typeable)
 
 
 import           Control.Exception                           (assert)
+import qualified Data.List                                   as L
+import qualified Data.Text.Lazy                              as LT
+import           Debug.Pretty.Simple                         (pTrace,
+                                                              pTraceShow)
 import           LocalComputation.Inference.JoinTree         (Node (..),
                                                               baseJoinTree)
 import qualified LocalComputation.Inference.JoinTree         as J
 import qualified LocalComputation.Inference.JoinTree.Diagram as D
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra
+import           Text.Pretty.Simple                          (pShow,
+                                                              pShowNoColor)
 
 -- TODO: [Hypothesis]... Due to the high serialization cost, using the Cloud Haskell library to represent
 -- the message passing process by treating each node as a seperate computer is not efficent.
@@ -54,9 +61,38 @@ answerQueries :: forall v a. (Show a, Valuation v, Ord a)
 answerQueries queryDomains results = map queryToAnswer queryDomains
     where
         queryToAnswer :: Domain a -> v a
-        queryToAnswer d = project (unsafeFind (\n -> d `isSubsetOf` n.d) (DG.vertexList results)).v d
+        queryToAnswer d = tmp.v
+            where
+                tmp = case L.find (\n -> d == n.d) (DG.vertexList results) of
+                            Just x -> x
+                            Nothing -> -- pTraceShow (showDomain d, map (showDomain . (.d)) $ DG.vertexList results, map showDomain queryDomains) $
+                                        error "Find failed."
+
+
+-- TODO: safely handle invalid queries?
+answerQueries' :: forall v a. (Show a, Valuation v, Ord a)
+    => [Domain a]
+    -> InferredData v a
+    -> [v a]
+answerQueries' queryDomains results = map queryToAnswer queryDomains
+    where
+        queryToAnswer :: Domain a -> v a
+        queryToAnswer d = project closest.v d
+            where
+                closest = head $ L.sortOn (\n -> length n.d) $ filter (\n -> d `isSubsetOf` n.d) (DG.vertexList results)
+
+                -- tmp = case L.find (\n -> d `isSubsetOf` n.d) (DG.vertexList results) of
+                --             Just x -> x
+                --             Nothing -> -- pTraceShow (showDomain d, map (showDomain . (.d)) $ DG.vertexList results, map showDomain queryDomains) $
+                --                         error "Find failed."
 
 -- TODO safely handle invalid queries?
+answerQuery' :: forall v a. (Show a, Valuation v, Ord a)
+    => Domain a
+    -> InferredData v a
+    -> v a
+answerQuery' q results = head $ answerQueries' [q] results
+
 answerQuery :: forall v a. (Show a, Valuation v, Ord a)
     => Domain a
     -> InferredData v a

@@ -33,6 +33,7 @@ data InvalidGraphFile =
 fromValid :: IO (Either P.ParseError (Either InvalidGraphFile a)) -> IO a
 fromValid = fmap (fromRight . fromRight)
 
+-- TODO: Handle spaces more elegantly like done in the bayesian network parser.
 graph :: P.GenParser Char st (Either InvalidGraphFile (G.Graph Natural Integer))
 graph = do
     P.skipMany $ P.choice [P.try comment, P.try blankLine]

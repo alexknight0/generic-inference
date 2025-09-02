@@ -15,6 +15,7 @@ module LocalComputation.ValuationAlgebra.Semiring
     , findValue
     , mapTableKeys
     , mapVariableValues
+    , valueDomains
     )
 where
 
@@ -278,6 +279,9 @@ normalize (Valuation rowMap d vD e) = Valuation (M.map (/ sumOfAllXs) rowMap) d 
 
 assertAllWellFormed :: (Foldable t, Ord a, Eq b) => t (SemiringValuation c b a) -> Bool
 assertAllWellFormed = any (\x -> assert (isWellFormed x) False)
+
+valueDomains :: SemiringValuation c b a -> M.Map a (Domain b)
+valueDomains = (._valueDomains)
 
 assertIsWellFormed :: (Ord a, Eq b) => SemiringValuation c b a -> Bool
 assertIsWellFormed x = assert (isWellFormed x) False

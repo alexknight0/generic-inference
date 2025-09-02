@@ -7,10 +7,11 @@
 module LocalComputation.Instances.BayesianNetwork
     ( getProbability, toQuery
     , getProbabilityAlt
-    , Query (conditioned, conditional)
+    , Query (conditioned, conditional, Query)
     , Probability (P)
     , Network
     , Valuation
+    , VarAssignment
     , toInferenceQuery
     )
 where
@@ -119,7 +120,7 @@ getProbabilityAlt :: forall a b. ( Show a, Show b, Serializable a, Serializable 
     -> Network a b
     -> Process [Probability]
 getProbabilityAlt qs network' = do
-    results <- fromRight $ I.queries I.Fusion network' domains
+    results <- fromRight $ I.queries I.Shenoy network' domains
     pure $ zipWith (\q [top, bottom] -> conditionalP' q (\x -> S.findValue x top) (\x -> S.findValue x bottom))
                    (qs)
                    (chunksOf 2 results)
@@ -135,7 +136,7 @@ getProbabilityAlt qs network' = do
 
 {- | Takes a query and returns the resulting probability. Assumes the query is covered by the network. -}
 queryToProbability :: (Ord a, Show a, Ord b, Show b) => VarAssignment a b -> InferredData (S.SemiringValuation Probability b) a -> Probability
-queryToProbability vars results = S.findValue vars (S.normalize $ answerQuery (M.keysSet vars) results)
+queryToProbability vars results = S.findValue vars (S.normalize $ answerQuery' (M.keysSet vars) results)
 
 toQuery :: (Ord a) => ([(a, b)], [(a, b)]) -> Query a b
 toQuery (x, y) = Query (fromListAssertDisjoint x) (fromListAssertDisjoint y)

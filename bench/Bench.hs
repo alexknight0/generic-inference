@@ -1,4 +1,4 @@
-import           Benchmark
+import           Benchmarks
 
 main :: IO ()
 main = allBenchmarks

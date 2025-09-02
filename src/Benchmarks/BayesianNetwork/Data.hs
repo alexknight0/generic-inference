@@ -28,6 +28,10 @@ module Benchmarks.BayesianNetwork.Data
     , asiaFilepath
     , alarmFilepath
     , muninFilepath
+    , genQueries
+    , genQueriesExact
+    , Gen.sample
+    , H.Gen
     )
 where
 
@@ -39,18 +43,85 @@ import           Control.DeepSeq                            (NFData)
 import           Data.Binary                                (Binary)
 import           GHC.Generics                               (Generic)
 
+import           Control.Exception                          (assert)
+import qualified Data.Map                                   as M
+import qualified Data.Set                                   as S
 import qualified Hedgehog                                   as H
 import qualified Hedgehog.Gen                               as Gen
+import qualified Hedgehog.Range                             as Range
+import qualified LocalComputation.Utils                     as U
+import qualified LocalComputation.ValuationAlgebra          as V
+import qualified LocalComputation.ValuationAlgebra.Semiring as S
 
 --------------------------------------------------------------------------------
 -- Test case generation
 --------------------------------------------------------------------------------
 
-genQuery :: H.Gen (BN.Query a b)
-genQuery = undefined
+-- | Range of a number. Used as a parameter over `Range.Range` as we want to
+-- ensure that we don't have a range that scales with a size parameter that we
+-- never change. The size parameter that we are trying to avoid can be seen here:
+-- <https://hackage.haskell.org/package/hedgehog-1.5/docs/Hedgehog-Range.html>
+data Range a = Range { lower :: a, upper :: a }
 
-genNetwork :: Natural -> Natural -> BN.Network Natural Natural
-genNetwork = undefined
+type Variables a b = M.Map a (V.Domain b)
+
+-- | Generates a variable assignment from a set of variables and their possible values.
+-- If the requested `numVars` exceeds the number of variables in `vars` then simply
+-- assigns as many as possible.
+genVarAssignment :: Int -> Variables String String -> H.Gen (BN.VarAssignment String String)
+genVarAssignment numVars vars
+    | numVars < 0           = U.assertError
+genVarAssignment numVars vars = do
+    randomSubMap <- fmap (M.fromList . take numVars) $ Gen.shuffle (M.toList vars)
+    sequence $ M.map (\possibleValues -> Gen.element possibleValues)
+                     randomSubMap
+
+-- | Generates a random query using the given naturals as upper bounds on the number
+-- of variables that can be found in the conditioned and conditional variables respectively.
+genQuery :: Int -> Int -> Variables String String -> H.Gen (BN.Query String String)
+genQuery maxConditioned maxConditional vars
+    | maxConditioned <= 0 = U.assertError
+    | maxConditional <  0 = U.assertError
+    | length vars == 0    = U.assertError
+genQuery maxConditioned maxConditional vars = do
+    numConditioned <- Gen.int $ Range.constant 1 maxConditioned
+    numConditional <- Gen.int $ Range.constant 0 maxConditional
+
+    genQueryExact numConditioned numConditional vars
+
+
+genQueryExact :: Int -> Int -> Variables String String -> H.Gen (BN.Query String String)
+genQueryExact numConditioned numConditional vars
+    | numConditioned <= 0 = U.assertError
+    | numConditional <  0 = U.assertError
+    | length vars == 0    = U.assertError
+genQueryExact numConditioned numConditional vars = do
+    conditioned <- genVarAssignment numConditioned vars
+    conditional <- genVarAssignment numConditional (M.difference vars conditioned)
+
+    pure $ BN.Query conditioned conditional
+
+
+genQueries :: BN.Network String String -> Int -> Int -> Int -> H.Gen ([BN.Query String String])
+genQueries valuations = genQueries' variables
+    where
+        variables = foldr M.union M.empty $ map S.valueDomains valuations
+
+genQueries' :: Variables String String -> Int -> Int -> Int -> H.Gen ([BN.Query String String])
+genQueries' _    numQueries _ _ | numQueries == 0 = U.assertError
+genQueries' vars numQueries maxConditioned maxConditional = Gen.list (Range.singleton numQueries)
+                                                                     (genQuery maxConditioned maxConditional vars)
+
+genQueriesExact :: BN.Network String String -> Int -> Int -> Int -> H.Gen ([BN.Query String String])
+genQueriesExact valuations = genQueriesExact' variables
+    where
+        variables = foldr M.union M.empty $ map S.valueDomains valuations
+
+genQueriesExact' :: Variables String String -> Int -> Int -> Int -> H.Gen ([BN.Query String String])
+genQueriesExact' _    numQueries _ _ | numQueries == 0 = U.assertError
+genQueriesExact' vars numQueries numConditioned numConditional = Gen.list (Range.singleton numQueries)
+                                                                          (genQueryExact numConditioned numConditional vars)
+
 
 --------------------------------------------------------------------------------
 -- Manual test cases

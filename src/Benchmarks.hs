@@ -15,7 +15,7 @@ allBenchmarks = do
                           --  FFT.benchmarks
                             BN.benchmarks
                           ]
-    defaultMain benchmarks
+    defaultMain (concat benchmarks)
 
 -- --    defaultMainWith customConfig [
 -- customConfig :: Config
