@@ -12,7 +12,6 @@ module LocalComputation.Inference.ShenoyShafer (
 ) where
 
 import           Control.Distributed.Process                 hiding (Message)
-import           Control.Distributed.Process.Serializable
 
 import qualified Algebra.Graph                               as DG
 import qualified Algebra.Graph.Undirected                    as UG
@@ -30,7 +29,7 @@ import           LocalComputation.Inference.JoinTree         (Node (..),
 import qualified LocalComputation.Inference.JoinTree         as J
 import qualified LocalComputation.Inference.JoinTree.Diagram as D
 import qualified LocalComputation.Inference.MessagePassing   as MP
-import           LocalComputation.Utils
+import           LocalComputation.Utils                      (findAssertSingleMatch)
 import           LocalComputation.ValuationAlgebra
 
 -- TODO: [Hypothesis]... Due to the high serialization cost, using the Cloud Haskell library to represent
@@ -147,7 +146,10 @@ nodeActions this neighbours resultPort = do
 
     --[[ Phase 1: Collect Phase ]]
     -- Wait for messages from all neighbours bar one
-    (phase1Postbox, neighbourWhoDidntSend) <- receivePhaseOne neighbours
+    phase1Postbox <- replicateM (length neighbours - 1) expect
+
+    let senders = map (.sender) phase1Postbox
+        neighbourWhoDidntSend = findAssertSingleMatch (\n -> n.id `notElem` senders) neighbours
 
     -- Combine messages into new message, and send to the only neighbour we didn't receive a message from.
     sendMessage' phase1Postbox this neighbourWhoDidntSend
@@ -171,7 +173,7 @@ nodeActions this neighbours resultPort = do
 
     where
         filterOut :: MP.NodeWithProcessId (v a) -> [MP.NodeWithProcessId (v a)] -> [MP.NodeWithProcessId (v a)]
-        filterOut neighbour neighbours = filter (\n -> n.id /= neighbour.id) neighbours
+        filterOut neighbour = filter (\n -> n.id /= neighbour.id)
 
 
 -- | Sends a message from the given sender to the given receiver.
@@ -202,21 +204,6 @@ sendMessage' postbox sender recipient = send recipient.id msg
     where
         msg = Message sender.id (project (combines1 (sender.node.v : map (.msg) postbox))
                                          (intersection sender.node.d recipient.node.d))
-
--- | Receives messages from all neighbours but one, returning the neighbour that it never
--- received a message from.
-receivePhaseOne :: Serializable a
-    => [MP.NodeWithProcessId a]
-    -> Process ([Message a], MP.NodeWithProcessId a)
-receivePhaseOne [] = error "receivePhaseOne: Attempted to receive from no port."
-receivePhaseOne neighbours = do
-
-    postbox <- replicateM (length neighbours - 1) expect
-
-    let senders = map (.sender) postbox
-        neighbourWhoDidntSend = findAssertSingleMatch (\n -> n.id `notElem` senders) neighbours
-
-    pure (postbox, neighbourWhoDidntSend)
 
 
 ------------------------------------------------------------------------------
