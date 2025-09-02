@@ -4,7 +4,7 @@ module LocalComputation.Inference.Fusion (
 import qualified Data.Set                          as S
 import           LocalComputation.ValuationAlgebra (Domain,
                                                     Valuation (eliminate, label),
-                                                    combines1, project)
+                                                    Var, combines1, project)
 import           Numeric.Natural                   (Natural)
 
 data WithId a = WithId {
@@ -33,7 +33,7 @@ instance Ord (WithId a) where
 --
 -- __Warning__: Assumes that the query is a subset of the covered domain - this should be checked
 -- by the caller.
-fusion :: (Valuation v, Show a, Ord a)
+fusion :: (Valuation v, Var a)
     => [v a]
     -> Domain a
     -> v a
@@ -45,7 +45,7 @@ fusion vs x = fusion' nextId vsWithIds (S.toList dPhiMinusX)
         vsWithIds = S.fromList $ zipWith WithId [0..] vs
         nextId = fromIntegral $ length vs
 
-fusion' :: (Valuation v, Show a, Ord a) => Natural -> S.Set (WithId (v a)) -> [a] -> v a
+fusion' :: (Valuation v, Var a) => Natural -> S.Set (WithId (v a)) -> [a] -> v a
 fusion' _        upperPsi []     = combines1 $ map (.content) $ S.toList upperPsi
 fusion' uniqueId upperPsi (y:ys) = fusion' (uniqueId + 1) upperPsi' ys
     where
@@ -59,5 +59,21 @@ fusion' uniqueId upperPsi (y:ys) = fusion' (uniqueId + 1) upperPsi' ys
 -- Fusion as a message passing scheme
 --------------------------------------------------------------------------------
 -- TODO: Our current join tree construction method does not set the root node as we desire.
+-- Wait i think we can use the join tree algorithm we just have to make sure the query doesn't get eliminated
+-- but everything else does?
+
+-- Current idea: fusion will expose a function that gives u 'inferreddata' for fusion. This
+-- will then be called by solution construction - then solution construction is the one that
+-- will have it's own implementation.
+
+fusionWithMessagePassing :: (Valuation v, Var a)
+    => [v a] -> Domain a -> v a
+fusionWithMessagePassing = undefined
+
+-- I think the approach is we use an elimination sequence; but ensure we never call 'eliminateNext' on a
+-- variable from the query.
+
+
+
 
 
