@@ -143,7 +143,7 @@ shenoyJoinTree :: forall v a. (Show a, Valuation v, Ord a)
     -> UG.Graph (Node (v a))
 shenoyJoinTree vs queryDomains = UG.toUndirected (baseJoinTree vs queryDomains)
 
-data NodeWithProcessId a = NodeWithProcessId { id :: ProcessId, node :: a } deriving (Generic, Binary)
+data NodeWithProcessId a = NodeWithProcessId { id :: ProcessId, node :: Node a } deriving (Generic, Binary)
 
 -- Initializes all nodes in the join tree for message passing according to the Shenoy-Shafer algorithm.
 initializeNodes :: forall v a. (Show a, Serializable (v a), Valuation v, Ord a)
@@ -181,7 +181,7 @@ initializeNodes directed = do
 
 
     where
-        initializeNodeAndMonitor :: Node (v a) -> Process (NodeWithProcessId (Node (v a)), ReceivePort (Node (v a)))
+        initializeNodeAndMonitor :: Node (v a) -> Process (NodeWithProcessId (v a), ReceivePort (Node (v a)))
         initializeNodeAndMonitor node = do
             (sendFinalResult, receiveFinalResult) <- newChan
 
@@ -208,8 +208,8 @@ initializeNode :: forall v a. (
     => SendPort (Node (v a))
     -> Process ProcessId
 initializeNode resultPort = spawnLocal $ do
-    this :: NodeWithProcessId (Node (v a)) <- expect
-    neighbours :: [NodeWithProcessId (Node (v a))] <- expect
+    this :: NodeWithProcessId (v a) <- expect
+    neighbours :: [NodeWithProcessId (v a)] <- expect
 
     --[[ Phase 1: Collect Phase ]]
     -- Wait for messages from all neighbours bar one
@@ -236,7 +236,7 @@ initializeNode resultPort = spawnLocal $ do
     sendChan resultPort (J.node this.node.id result this.node.t)
 
     where
-        filterOut :: NodeWithProcessId (Node (v a)) -> [NodeWithProcessId (Node (v a))] -> [NodeWithProcessId (Node (v a))]
+        filterOut :: NodeWithProcessId (v a) -> [NodeWithProcessId (v a)] -> [NodeWithProcessId (v a)]
         filterOut neighbour neighbours = filter (\n -> n.id /= neighbour.id) neighbours
 
 
@@ -249,8 +249,8 @@ initializeNode resultPort = spawnLocal $ do
 --  4. dispatching the resulting message to the recipient node.
 sendMessage :: (Show a, Serializable (v a), Valuation v, Ord a)
     => [Message (v a)]
-    -> NodeWithProcessId (Node (v a))
-    -> NodeWithProcessId (Node (v a))
+    -> NodeWithProcessId (v a)
+    -> NodeWithProcessId (v a)
     -> Process ()
 sendMessage postbox sender recipient = sendMessage' (filter (\msg -> msg.sender /= recipient.id) postbox)
                                                     sender
@@ -261,8 +261,8 @@ sendMessage postbox sender recipient = sendMessage' (filter (\msg -> msg.sender 
 -- from the recipient.
 sendMessage' :: (Show a, Serializable (v a), Valuation v, Ord a)
     => [Message (v a)]
-    -> NodeWithProcessId (Node (v a))
-    -> NodeWithProcessId (Node (v a))
+    -> NodeWithProcessId (v a)
+    -> NodeWithProcessId (v a)
     -> Process ()
 sendMessage' postbox sender recipient = send recipient.id msg
     where
@@ -272,8 +272,8 @@ sendMessage' postbox sender recipient = send recipient.id msg
 -- | Receives messages from all neighbours but one, returning the neighbour that it never
 -- received a message from.
 receivePhaseOne :: Serializable (v a)
-    => [NodeWithProcessId (Node (v a))]
-    -> Process ([Message (v a)], NodeWithProcessId (Node (v a)))
+    => [NodeWithProcessId (v a)]
+    -> Process ([Message (v a)], NodeWithProcessId (v a))
 receivePhaseOne [] = error "receivePhaseOne: Attempted to receive from no port."
 receivePhaseOne neighbours = do
 
