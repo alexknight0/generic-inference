@@ -4,8 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module LocalComputation.Inference.ShenoyShafer (
-      initializeNodes
-    , shenoyJoinTree
+      shenoyJoinTree
     , answerQueriesM, answerQueryM, answerQueriesDrawGraphM
     , answerQueries, answerQuery
     , inference
@@ -36,6 +35,7 @@ import           LocalComputation.Inference.JoinTree         (Node (..),
                                                               baseJoinTree)
 import qualified LocalComputation.Inference.JoinTree         as J
 import qualified LocalComputation.Inference.JoinTree.Diagram as D
+import qualified LocalComputation.Inference.MessagePassing   as MP
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra
 import           Text.Pretty.Simple                          (pShow,
@@ -46,10 +46,11 @@ import           Text.Pretty.Simple                          (pShow,
 -- However as Cloud Haskell allows easy implementation of cross-machine message passing, there
 -- could still be value obtained from this approach if there does not exist a single
 -- computer with enough cores to provide the performance required to compute a certain result.
--- In this case, the dream would be to minimize serialization and transportation cost by assigning
--- groups of nodes who are 'close' to each other to one processor. That one processor could even then
--- use a multi-threaded approach to avoid serialization costs entirely. This would require the subproblem
--- of finding 'groups' of nodes in the larger graph.
+-- In this case, however, ideally we would still not directly use Cloud Haskell to represent the
+-- message passing process - it would be much more efficent to minimize serialization and transportation
+-- costs by assigning groups of nodes who are 'close' to each other to one processor. That one processor
+-- could even then use a multi-threaded approach to avoid serialization costs entirely. This would require
+-- the subproblem of finding 'groups' of nodes in the larger graph.
 
 type InferredData v a = DG.Graph (Node (v a))
 
@@ -99,24 +100,24 @@ answerQuery :: forall v a. (Show a, Valuation v, Ord a)
     -> v a
 answerQuery q results = head $ answerQueries [q] results
 
-answerQueriesM :: forall v a . (Show a, Serializable (v a), Valuation v, Ord a)
+answerQueriesM :: forall v a . (Show a, Serializable (v a), Valuation v, Ord a, Typeable v, Typeable a)
     => [v a]
     -> [Domain a]
     -> Process [v a]
 answerQueriesM vs queryDomains = do
-    results <- initializeNodes (baseJoinTree vs queryDomains)
+    results <- MP.messagePassing (baseJoinTree vs queryDomains) nodeActions
     pure $ answerQueries queryDomains results
 
-answerQueryM :: forall v a . (Show a, Serializable (v a), Valuation v, Ord a)
+answerQueryM :: forall v a . (Show a, Serializable (v a), Valuation v, Ord a, Typeable v, Typeable a)
     => [v a]
     -> Domain a
     -> Process (v a)
 answerQueryM vs q = do
-    results <- initializeNodes (baseJoinTree vs [q])
+    results <- MP.messagePassing (baseJoinTree vs [q]) nodeActions
     pure $ answerQuery q results
 
 -- TODO: Right now visualises the after tree. We should have options for both i guess!
-answerQueriesDrawGraphM :: forall v a . (Show a, Show (v a), Serializable (v a), Valuation v, Ord a)
+answerQueriesDrawGraphM :: forall v a . (Valuation v, Ord a, Show (v a), Show a, Binary (v a), Typeable v, Typeable a)
     => FilePath
     -> [v a]
     -> [Domain a]
@@ -124,92 +125,33 @@ answerQueriesDrawGraphM :: forall v a . (Show a, Show (v a), Serializable (v a),
 answerQueriesDrawGraphM filename vs queryDomains = do
     let tree = baseJoinTree vs queryDomains
     liftIO $ D.draw filename tree
-    results <- initializeNodes tree
+    results <- MP.messagePassing tree nodeActions
     -- liftIO $ D.draw filename results
     pure $ answerQueries queryDomains results
 
-inference :: forall v a . (Show a, Serializable (v a), Valuation v, Ord a)
+inference :: forall v a . (Show a, Serializable (v a), Valuation v, Ord a, Typeable v, Typeable a)
     => [v a]
     -> [Domain a]
     -> Process (InferredData v a)
-inference vs queryDomains = initializeNodes (baseJoinTree vs queryDomains)
+inference vs queryDomains = MP.messagePassing (baseJoinTree vs queryDomains) nodeActions
 
 -- The base join tree must be transformed to an undirected graph.
 -- While mailboxes should be connected up for each neighbour, this happens in the
--- 'initializeNodes' function which also handles starting the message passing.
+-- 'MP.messagePassing' function which also handles starting the message passing.
 shenoyJoinTree :: forall v a. (Show a, Valuation v, Ord a)
     => [v a]
     -> [Domain a]
     -> UG.Graph (Node (v a))
 shenoyJoinTree vs queryDomains = UG.toUndirected (baseJoinTree vs queryDomains)
 
-data NodeWithProcessId a = NodeWithProcessId { id :: ProcessId, node :: Node a } deriving (Generic, Binary)
-
--- Initializes all nodes in the join tree for message passing according to the Shenoy-Shafer algorithm.
-initializeNodes :: forall v a. (Show a, Serializable (v a), Valuation v, Ord a)
-    => DG.Graph (Node (v a))
-    -> Process (DG.Graph (Node (v a)))
-initializeNodes directed = do
-
-    -- Initialize all nodes
-    let undirected = UG.toUndirected directed
-        vs         = UG.vertexList undirected
-    (nodesWithPid, resultPorts) <- fmap unzip $ mapM initializeNodeAndMonitor vs
-
-    -- Tell each node who it is and who it's neighbours are
-    forM_ nodesWithPid $ \nodeWithPid -> do
-        let neighbours = S.toList $ UG.neighbours nodeWithPid.node undirected
-            neighboursWithPid = filter (\n -> n.node `elem` neighbours) nodesWithPid
-        send nodeWithPid.id nodeWithPid
-        send nodeWithPid.id neighboursWithPid
-
-    -- Wait for normal termination
-    _ <- forM_ nodesWithPid $ \_ -> do
-        (ProcessMonitorNotification _ _ reasonForTermination) <- expect
-        case reasonForTermination of
-             DiedNormal      -> pure ()
-             DiedException e -> error $ "Error - DiedException (" ++ e ++ ")"
-             -- TODO: Does 'DiedUnknownId' indicate that the process died *before*
-             -- we got a chance to wait on it?
-             x               -> error $ "Error - " ++ show x
-
-    -- All should be terminated - receive all messages
-    newNodes <- mapM (\p -> fmap assertHasMessage $ receiveChanTimeout 0 p) resultPorts
-
-    -- Construct graph from new nodes
-    pure $ fmap (\oldNode -> unsafeFind (\newNode -> newNode.id == oldNode.id) newNodes) directed
-
-
-    where
-        initializeNodeAndMonitor :: Node (v a) -> Process (NodeWithProcessId (v a), ReceivePort (Node (v a)))
-        initializeNodeAndMonitor node = do
-            (sendFinalResult, receiveFinalResult) <- newChan
-
-            i <- initializeNode sendFinalResult
-            _ <- monitor i
-
-            pure (NodeWithProcessId i node, receiveFinalResult)
-
-assertHasMessage :: Maybe a -> a
-assertHasMessage (Just x) = x
-assertHasMessage Nothing = error "Error - a node terminated without sending a message on the result channel"
-
 data Message a = Message {
           sender :: ProcessId
         , msg    :: a
     } deriving (Generic, Binary)
 
-initializeNode :: forall v a. (
-      Show a
-    , Binary (v a), Typeable (v a)
-    , Valuation v
-    , Ord a
-    )
-    => SendPort (Node (v a))
-    -> Process ProcessId
-initializeNode resultPort = spawnLocal $ do
-    this :: NodeWithProcessId (v a) <- expect
-    neighbours :: [NodeWithProcessId (v a)] <- expect
+nodeActions :: (Valuation v, Ord a, Show a, Binary (v a), Typeable v, Typeable a)
+    => MP.NodeActions v a
+nodeActions this neighbours resultPort = do
 
     --[[ Phase 1: Collect Phase ]]
     -- Wait for messages from all neighbours bar one
@@ -236,7 +178,7 @@ initializeNode resultPort = spawnLocal $ do
     sendChan resultPort (J.node this.node.id result this.node.t)
 
     where
-        filterOut :: NodeWithProcessId (v a) -> [NodeWithProcessId (v a)] -> [NodeWithProcessId (v a)]
+        filterOut :: MP.NodeWithProcessId (v a) -> [MP.NodeWithProcessId (v a)] -> [MP.NodeWithProcessId (v a)]
         filterOut neighbour neighbours = filter (\n -> n.id /= neighbour.id) neighbours
 
 
@@ -249,8 +191,8 @@ initializeNode resultPort = spawnLocal $ do
 --  4. dispatching the resulting message to the recipient node.
 sendMessage :: (Show a, Serializable (v a), Valuation v, Ord a)
     => [Message (v a)]
-    -> NodeWithProcessId (v a)
-    -> NodeWithProcessId (v a)
+    -> MP.NodeWithProcessId (v a)
+    -> MP.NodeWithProcessId (v a)
     -> Process ()
 sendMessage postbox sender recipient = sendMessage' (filter (\msg -> msg.sender /= recipient.id) postbox)
                                                     sender
@@ -261,8 +203,8 @@ sendMessage postbox sender recipient = sendMessage' (filter (\msg -> msg.sender 
 -- from the recipient.
 sendMessage' :: (Show a, Serializable (v a), Valuation v, Ord a)
     => [Message (v a)]
-    -> NodeWithProcessId (v a)
-    -> NodeWithProcessId (v a)
+    -> MP.NodeWithProcessId (v a)
+    -> MP.NodeWithProcessId (v a)
     -> Process ()
 sendMessage' postbox sender recipient = send recipient.id msg
     where
@@ -272,8 +214,8 @@ sendMessage' postbox sender recipient = send recipient.id msg
 -- | Receives messages from all neighbours but one, returning the neighbour that it never
 -- received a message from.
 receivePhaseOne :: Serializable (v a)
-    => [NodeWithProcessId (v a)]
-    -> Process ([Message (v a)], NodeWithProcessId (v a))
+    => [MP.NodeWithProcessId (v a)]
+    -> Process ([Message (v a)], MP.NodeWithProcessId (v a))
 receivePhaseOne [] = error "receivePhaseOne: Attempted to receive from no port."
 receivePhaseOne neighbours = do
 

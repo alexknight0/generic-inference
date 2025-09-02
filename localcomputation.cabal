@@ -42,6 +42,7 @@ library
       LocalComputation.Inference.Fusion
       LocalComputation.Inference.JoinTree
       LocalComputation.Inference.JoinTree.Diagram
+      LocalComputation.Inference.MessagePassing
       LocalComputation.Inference.ShenoyShafer
       LocalComputation.Instances.BayesianNetwork
       LocalComputation.Instances.BayesianNetwork.Parser

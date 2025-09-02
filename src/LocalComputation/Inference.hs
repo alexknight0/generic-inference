@@ -1,7 +1,5 @@
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE DeriveAnyClass  #-}
-{-# LANGUAGE DeriveGeneric   #-}
-
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric  #-}
 
 {- | Exposes functions for computing inference. -}
 module LocalComputation.Inference (
@@ -14,27 +12,24 @@ module LocalComputation.Inference (
     , Mode (..)
     , Error (..)
 ) where
-import           Control.Monad.IO.Class                  (MonadIO)
-import qualified LocalComputation.Inference.ShenoyShafer as SS (answerQueriesDrawGraphM,
-                                                                answerQueriesM)
-import           LocalComputation.LocalProcess           (run)
-import           LocalComputation.ValuationAlgebra       (Domain, Valuation,
-                                                          Var, combines1, label,
-                                                          project)
+import           Control.Monad.IO.Class                    (MonadIO)
+import qualified LocalComputation.Inference.ShenoyShafer   as SS (answerQueriesDrawGraphM,
+                                                                  answerQueriesM)
+import           LocalComputation.LocalProcess             (run)
+import           LocalComputation.ValuationAlgebra         (Domain, Valuation,
+                                                            Var, combines1,
+                                                            label, project)
 
-import           Control.DeepSeq                         (NFData)
-import           Data.Binary                             (Binary)
-import           GHC.Generics                            (Generic)
-import           Type.Reflection                         (Typeable)
+import           Control.DeepSeq                           (NFData)
+import           GHC.Generics                              (Generic)
+import           LocalComputation.Inference.MessagePassing (SerializableValuation)
 
-import qualified Data.Set                                as S
-import qualified LocalComputation.Inference.Fusion       as F
+import qualified Data.Set                                  as S
+import qualified LocalComputation.Inference.Fusion         as F
 
 data Error = QueryNotSubsetOfValuations deriving (NFData, Generic, Show)
 
 data Mode = BruteForce | Fusion | FusionMessagePassing | Shenoy deriving (Show)
-
-type SerializableValuation v a = (Valuation v, Var a, NFData (v a), Binary a, Binary (v a), Typeable v, Typeable a)
 
 -- | Compute inference using the given mode to return valuations with the given domains.
 queries :: (SerializableValuation v a, MonadIO m)
