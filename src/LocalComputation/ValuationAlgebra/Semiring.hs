@@ -155,6 +155,8 @@ instance (Ord b, Show b, Show c, SemiringValue c) => Valuation (SemiringValuatio
             unionAssert' = M.unionWith (\v1 v2 -> assert (v1 == v2) v1)
 
             -- TODO: Fix redunant function
+            -- I think the reason it can't infer the type here properly is TypeFamilies implying MonoLocalBinds;
+            --  moving this up to the global scope should fix it if this is the case!
             unionAssert2' :: (Ord a) => M.Map a (Domain b) -> M.Map a (Domain b) -> M.Map a (Domain b)
             unionAssert2' = M.unionWith (\v1 v2 -> assert (v1 == v2) v1)
 

@@ -1,6 +1,5 @@
 {-# LANGUAGE DeriveAnyClass      #-}
 {-# LANGUAGE DeriveGeneric       #-}
-{-# LANGUAGE MonoLocalBinds      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module LocalComputation.Inference.ShenoyShafer (
@@ -17,20 +16,15 @@ import           Control.Distributed.Process.Serializable
 
 import qualified Algebra.Graph                               as DG
 import qualified Algebra.Graph.Undirected                    as UG
-import           Control.Monad                               (forM_, replicateM)
+import           Control.Monad                               (replicateM)
 import           Data.Binary                                 (Binary)
 import           Data.Set                                    (intersection,
                                                               isSubsetOf)
-import qualified Data.Set                                    as S
 import           GHC.Generics                                (Generic)
-import           Type.Reflection                             (Typeable)
 
 
 import           Control.Exception                           (assert)
 import qualified Data.List                                   as L
-import qualified Data.Text.Lazy                              as LT
-import           Debug.Pretty.Simple                         (pTrace,
-                                                              pTraceShow)
 import           LocalComputation.Inference.JoinTree         (Node (..),
                                                               baseJoinTree)
 import qualified LocalComputation.Inference.JoinTree         as J
@@ -38,8 +32,6 @@ import qualified LocalComputation.Inference.JoinTree.Diagram as D
 import qualified LocalComputation.Inference.MessagePassing   as MP
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra
-import           Text.Pretty.Simple                          (pShow,
-                                                              pShowNoColor)
 
 -- TODO: [Hypothesis]... Due to the high serialization cost, using the Cloud Haskell library to represent
 -- the message passing process by treating each node as a seperate computer is not efficent.
@@ -55,7 +47,7 @@ import           Text.Pretty.Simple                          (pShow,
 type InferredData v a = DG.Graph (Node (v a))
 
 -- TODO: safely handle invalid queries?
-answerQueries :: forall v a. (Show a, Valuation v, Ord a)
+answerQueries :: forall v a. (Valuation v, Var a)
     => [Domain a]
     -> InferredData v a
     -> [v a]
@@ -71,7 +63,7 @@ answerQueries queryDomains results = map queryToAnswer queryDomains
 
 
 -- TODO: safely handle invalid queries?
-answerQueries' :: forall v a. (Show a, Valuation v, Ord a)
+answerQueries' :: forall v a. (Valuation v, Var a)
     => [Domain a]
     -> InferredData v a
     -> [v a]
@@ -88,19 +80,19 @@ answerQueries' queryDomains results = map queryToAnswer queryDomains
                 --                         error "Find failed."
 
 -- TODO safely handle invalid queries?
-answerQuery' :: forall v a. (Show a, Valuation v, Ord a)
+answerQuery' :: forall v a. (Valuation v, Var a)
     => Domain a
     -> InferredData v a
     -> v a
 answerQuery' q results = head $ answerQueries' [q] results
 
-answerQuery :: forall v a. (Show a, Valuation v, Ord a)
+answerQuery :: forall v a. (Valuation v, Var a)
     => Domain a
     -> InferredData v a
     -> v a
 answerQuery q results = head $ answerQueries [q] results
 
-answerQueriesM :: forall v a . (Show a, Serializable (v a), Valuation v, Ord a, Typeable v, Typeable a)
+answerQueriesM :: (MP.SerializableValuation v a)
     => [v a]
     -> [Domain a]
     -> Process [v a]
@@ -108,7 +100,7 @@ answerQueriesM vs queryDomains = do
     results <- MP.messagePassing (baseJoinTree vs queryDomains) nodeActions
     pure $ answerQueries queryDomains results
 
-answerQueryM :: forall v a . (Show a, Serializable (v a), Valuation v, Ord a, Typeable v, Typeable a)
+answerQueryM :: (MP.SerializableValuation v a)
     => [v a]
     -> Domain a
     -> Process (v a)
@@ -117,7 +109,7 @@ answerQueryM vs q = do
     pure $ answerQuery q results
 
 -- TODO: Right now visualises the after tree. We should have options for both i guess!
-answerQueriesDrawGraphM :: forall v a . (Valuation v, Ord a, Show (v a), Show a, Binary (v a), Typeable v, Typeable a)
+answerQueriesDrawGraphM :: (MP.SerializableValuation v a, Show (v a))
     => FilePath
     -> [v a]
     -> [Domain a]
@@ -129,7 +121,7 @@ answerQueriesDrawGraphM filename vs queryDomains = do
     -- liftIO $ D.draw filename results
     pure $ answerQueries queryDomains results
 
-inference :: forall v a . (Show a, Serializable (v a), Valuation v, Ord a, Typeable v, Typeable a)
+inference :: (MP.SerializableValuation v a)
     => [v a]
     -> [Domain a]
     -> Process (InferredData v a)
@@ -138,7 +130,7 @@ inference vs queryDomains = MP.messagePassing (baseJoinTree vs queryDomains) nod
 -- The base join tree must be transformed to an undirected graph.
 -- While mailboxes should be connected up for each neighbour, this happens in the
 -- 'MP.messagePassing' function which also handles starting the message passing.
-shenoyJoinTree :: forall v a. (Show a, Valuation v, Ord a)
+shenoyJoinTree :: forall v a. (Valuation v, Var a)
     => [v a]
     -> [Domain a]
     -> UG.Graph (Node (v a))
@@ -149,7 +141,7 @@ data Message a = Message {
         , msg    :: a
     } deriving (Generic, Binary)
 
-nodeActions :: (Valuation v, Ord a, Show a, Binary (v a), Typeable v, Typeable a)
+nodeActions :: (MP.SerializableValuation v a)
     => MP.NodeActions v a
 nodeActions this neighbours resultPort = do
 
@@ -189,7 +181,7 @@ nodeActions this neighbours resultPort = do
 --  2. combining this result with the sender's valuation
 --  3. projecting the result to the intersection of the sender and recipient's domain
 --  4. dispatching the resulting message to the recipient node.
-sendMessage :: (Show a, Serializable (v a), Valuation v, Ord a)
+sendMessage :: (MP.SerializableValuation v a)
     => [Message (v a)]
     -> MP.NodeWithProcessId (v a)
     -> MP.NodeWithProcessId (v a)
@@ -201,7 +193,7 @@ sendMessage postbox sender recipient = sendMessage' (filter (\msg -> msg.sender 
 -- | Same as `sendMessage` except doesn't filter the given postbox for messages that don't come from the
 -- recipient. Hence should only be used when it is known that none of the messages in the postbox come
 -- from the recipient.
-sendMessage' :: (Show a, Serializable (v a), Valuation v, Ord a)
+sendMessage' :: (MP.SerializableValuation v a)
     => [Message (v a)]
     -> MP.NodeWithProcessId (v a)
     -> MP.NodeWithProcessId (v a)
@@ -213,9 +205,9 @@ sendMessage' postbox sender recipient = send recipient.id msg
 
 -- | Receives messages from all neighbours but one, returning the neighbour that it never
 -- received a message from.
-receivePhaseOne :: Serializable (v a)
-    => [MP.NodeWithProcessId (v a)]
-    -> Process ([Message (v a)], MP.NodeWithProcessId (v a))
+receivePhaseOne :: Serializable a
+    => [MP.NodeWithProcessId a]
+    -> Process ([Message a], MP.NodeWithProcessId a)
 receivePhaseOne [] = error "receivePhaseOne: Attempted to receive from no port."
 receivePhaseOne neighbours = do
 

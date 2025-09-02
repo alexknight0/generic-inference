@@ -1,7 +1,6 @@
 {-# LANGUAGE ConstraintKinds     #-}
 {-# LANGUAGE DeriveAnyClass      #-}
 {-# LANGUAGE DeriveGeneric       #-}
-{-# LANGUAGE MonoLocalBinds      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module LocalComputation.Inference.MessagePassing (
@@ -27,7 +26,7 @@ import qualified LocalComputation.ValuationAlgebra        as V
 import           Type.Reflection                          (Typeable)
 
 
-type SerializableValuation v a = (V.Valuation v, V.Var a, NFData (v a), Binary a, Binary (v a), Typeable v, Typeable a)
+type SerializableValuation v a = (V.Valuation v, V.Var a, Binary (v a), Typeable v, Typeable a)
 
 data NodeWithProcessId a = NodeWithProcessId { id :: ProcessId, node :: JT.Node a } deriving (Generic, Binary)
 
@@ -46,7 +45,7 @@ a result through a given `SendPort` that represents their state after the messag
 -}
 -- This function can be extended to work on directed graphs if required by seperating the neighbours
 -- sent to each node into 'incoming' and 'outgoing' neighbours
-messagePassing :: forall v a. (Serializable (v a), Typeable v, Typeable a)
+messagePassing :: forall v a. (SerializableValuation v a)
     => DG.Graph (JT.Node (v a))
     -> NodeActions v a
     -> Process (DG.Graph (JT.Node (v a)))
@@ -80,7 +79,7 @@ messagePassing directed nodeActions = do
     -- Construct graph from new nodes
     pure $ fmap (\oldNode -> U.unsafeFind (\newNode -> newNode.id == oldNode.id) newNodes) directed
 
-initializeNodeAndMonitor :: (Binary (v a), Typeable v, Typeable a)
+initializeNodeAndMonitor :: (SerializableValuation v a)
     => NodeActions v a
     -> JT.Node (v a)
     -> Process (NodeWithProcessId (v a), ReceivePort (JT.Node (v a)))
@@ -92,7 +91,7 @@ initializeNodeAndMonitor nodeActions node = do
 
     pure (NodeWithProcessId i node, receiveFinalResult)
 
-initializeNode :: (Binary (v a), Typeable (v a))
+initializeNode :: (SerializableValuation v a)
     => NodeActions v a
     -> SendPort (JT.Node (v a))
     -> Process ProcessId
@@ -102,7 +101,7 @@ initializeNode nodeActions resultPort = spawnLocal $ do
 
     nodeActions this neighbours resultPort
 
-receiveChanNowA :: (Binary a, Typeable a)
+receiveChanNowA :: (Serializable a)
     => ReceivePort a -> Process a
 receiveChanNowA p = do
     result <- receiveChanTimeout 0 p

@@ -1,11 +1,15 @@
 module LocalComputation.Inference.Fusion (
     fusion
 ) where
-import qualified Data.Set                          as S
-import           LocalComputation.ValuationAlgebra (Domain,
-                                                    Valuation (eliminate, label),
-                                                    Var, combines1, project)
-import           Numeric.Natural                   (Natural)
+import           Control.Distributed.Process               (expect)
+import           Control.Monad                             (replicateM)
+import qualified Data.Set                                  as S
+import qualified LocalComputation.Inference.MessagePassing as MP
+import           LocalComputation.ValuationAlgebra         (Domain,
+                                                            Valuation (eliminate, label),
+                                                            Var, combines1,
+                                                            project)
+import           Numeric.Natural                           (Natural)
 
 data WithId a = WithId {
       id      :: Natural
@@ -69,6 +73,14 @@ fusion' uniqueId upperPsi (y:ys) = fusion' (uniqueId + 1) upperPsi' ys
 fusionWithMessagePassing :: (Valuation v, Var a)
     => [v a] -> Domain a -> v a
 fusionWithMessagePassing = undefined
+
+nodeActions :: MP.NodeActions v a
+nodeActions this neighbours resultPort = do
+
+    -- postbox <- replicateM (length neighbours - 1) expect
+
+
+    undefined
 
 -- I think the approach is we use an elimination sequence; but ensure we never call 'eliminateNext' on a
 -- variable from the query.
