@@ -71,10 +71,7 @@ instance (Show c, Q.QuasiRegularSemiringValue c) => Valuation (QuasiRegularValua
 
     identity d = Identity d
 
-    eliminate v x = project v (S.difference (label v) x)
-
     satisfiesInvariants = isWellFormed
-
 
 
 

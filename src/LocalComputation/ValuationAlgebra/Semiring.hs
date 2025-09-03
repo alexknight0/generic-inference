@@ -170,8 +170,6 @@ instance (Ord b, Show b, Show c, SemiringValue c) => Valuation (SemiringValuatio
 
     identity = Identity
 
-    eliminate v x = project v (S.difference (label v) x)
-
     satisfiesInvariants = isWellFormed
 
 toTable :: (Show a, Show b, Show c) => SemiringValuation a b c -> Table

@@ -9,10 +9,12 @@
 {-# LANGUAGE TypeFamilies           #-}
 
 module LocalComputation.ValuationAlgebra
-    ( Valuation (label, combine, combine_, project, project_, identity, eliminate, satisfiesInvariants, VarAssignment)
+    ( Valuation (label, combine_, project_, identity, eliminate, satisfiesInvariants, VarAssignment)
+    , combine
+    , project
+    , combines1
     , Domain
     , Var
-    , combines1
     , showDomain
     )
 where
@@ -36,30 +38,28 @@ class Valuation v where
     type VarAssignment v a b
 
     label      :: Var a => v a -> Domain a
-
-    combine    :: Var a => v a -> v a      -> v a
-    combine v1 v2 = U.assertP satisfiesInvariants $ combine_ v1 v2
-
     combine_   :: Var a => v a -> v a      -> v a
-
-    project    :: Var a => v a -> Domain a -> v a
-    project v d
-        -- Domain projected to must be subset.
-        | assert (d `S.isSubsetOf` label v) False = undefined
-        -- If current domain is domain of projection skip projection call for efficency.
-        | label v == d = v
-        -- Delegate call to project_ but check invariants on return
-        | otherwise = U.assertP satisfiesInvariants $ project_ v d
     project_   :: Var a => v a -> Domain a -> v a
 
-    -- TODO: Default implementation of eliminate
     eliminate  :: Var a => v a -> Domain a -> v a
+    eliminate v d = project v (S.difference (label v) d)
 
     identity  :: Domain a -> v a
 
     satisfiesInvariants :: Var a => v a -> Bool
     satisfiesInvariants _ = True
 
+combine :: (Valuation v, Var a) => v a -> v a      -> v a
+combine v1 v2 = U.assertP satisfiesInvariants $ combine_ v1 v2
+
+project :: (Valuation v, Var a) => v a -> Domain a -> v a
+project v d
+    -- Domain projected to must be subset.
+    | assert (d `S.isSubsetOf` label v) False = undefined
+    -- If current domain is domain of projection skip projection call for efficency.
+    | label v == d = v
+    -- Delegate call to project_ but check invariants on return
+    | otherwise = U.assertP satisfiesInvariants $ project_ v d
 
 combines1 :: (Foldable f, Valuation v, Var a) => f (v a) -> v a
 combines1 = foldr1 combine
