@@ -145,7 +145,6 @@ nodeActions this neighbours resultPort = do
     assert (this.node.d == label result) (pure ())
     sendChan resultPort $ J.changeContent this.node result
 
-
 -- | Computes a message to send to the given neighbour.
 --
 -- Computing this message consists of:
@@ -156,7 +155,7 @@ computeMessage :: (Valuation v, Var a)
     => [MP.Message (v a)]
     -> MP.NodeWithProcessId (v a)
     -> MP.NodeWithProcessId (v a)
-    -> MP.Message (v a)
+    -> v a
 computeMessage postbox sender recipient = computeMessage' (filter (\msg -> msg.sender /= recipient.id) postbox)
                                                           sender
                                                           recipient
@@ -168,11 +167,10 @@ computeMessage' :: (Valuation v, Var a)
     => [MP.Message (v a)]
     -> MP.NodeWithProcessId (v a)
     -> MP.NodeWithProcessId (v a)
-    -> MP.Message (v a)
-computeMessage' postbox sender recipient = MP.Message sender.id msg
-    where
-        msg = project (combines1 (sender.node.v : map (.msg) postbox))
-                      (intersection sender.node.d recipient.node.d)
+    -> v a
+computeMessage' postbox sender recipient = project (combines1 (sender.node.v : map (.msg) postbox))
+                                                   (intersection sender.node.d recipient.node.d)
+
 
 
 ------------------------------------------------------------------------------

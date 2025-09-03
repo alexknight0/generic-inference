@@ -120,7 +120,7 @@ data Message a = Message {
         , msg    :: a
 } deriving (Generic, Binary)
 
-type ComputeMessage a = [Message a] -> NodeWithProcessId a -> NodeWithProcessId a -> Message a
+type ComputeMessage a = [Message a] -> NodeWithProcessId a -> NodeWithProcessId a -> a
 
 data CollectResults a = CollectResults {
       target  :: NodeWithProcessId a
@@ -144,7 +144,7 @@ collect this neighbours action = do
         target = U.findAssertSingleMatch (\n -> n.id `notElem` senders) neighbours
 
     -- Perform some action with these messages and send to remaining neighbour
-    send target.id (action postbox this target)
+    sendMsg this target (action postbox this target)
 
     -- Return results
     pure $ CollectResults target postbox
@@ -171,7 +171,10 @@ distribute collectResults this neighbours action = do
         targets        = filter (\n -> n.id /= collectResults.target.id) neighbours
 
     -- Send out messages to remaining neighbours (which we now have enough information to send messages to)
-    mapM_ (\target -> send target.id $ action postbox this target)
+    mapM_ (\target -> sendMsg this target $ action postbox this target)
           targets
 
     pure $ DistributeResults postbox
+
+sendMsg :: Serializable a => NodeWithProcessId a -> NodeWithProcessId a -> a -> Process ()
+sendMsg sender target = send target.id . Message sender.id

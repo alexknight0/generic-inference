@@ -1,9 +1,12 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module LocalComputation.Inference.Fusion (
     fusion
 ) where
 import           Control.Distributed.Process               (expect)
 import           Control.Monad                             (replicateM)
 import qualified Data.Set                                  as S
+import qualified LocalComputation.Inference.JoinTree       as JT
 import qualified LocalComputation.Inference.MessagePassing as MP
 import           LocalComputation.ValuationAlgebra         (Domain,
                                                             Valuation (eliminate, label),
@@ -93,8 +96,15 @@ nodeActions this neighbours resultPort = do
 --  1. combining all messages in the sender's postbox that don't come from the neighbour
 --  2. combining this result with the sender's valuation
 --  3. projecting the result to the intersection of the sender and neighbour's domain
--- computeMessage :: (MP.ser
-
+-- computeMessage :: forall v a . (Valuation v, Var a)
+--     => [MP.Message (v a)]
+--     -> MP.NodeWithProcessId (v a)
+--     -> MP.NodeWithProcessId (v a)
+--     -> MP.Message (v a)
+-- computeMessage postbox sender recipient = combines1 (sender.node.v : map (.msg) postbox)
+--     where
+--         test :: v a
+--         test = sender.node.v
 
 
 
