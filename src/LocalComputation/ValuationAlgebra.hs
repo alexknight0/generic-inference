@@ -9,13 +9,14 @@
 {-# LANGUAGE TypeFamilies           #-}
 
 module LocalComputation.ValuationAlgebra
-    ( Valuation (label, combine_, project_, identity, eliminate, satisfiesInvariants, VarAssignment)
+    ( Valuation (label, _combine, _project, identity, eliminate, satisfiesInvariants, VarAssignment)
     , combine
     , project
     , combines1
     , Domain
     , Var
     , showDomain
+    , assertInvariants
     )
 where
 
@@ -38,8 +39,8 @@ class Valuation v where
     type VarAssignment v a b
 
     label      :: Var a => v a -> Domain a
-    combine_   :: Var a => v a -> v a      -> v a
-    project_   :: Var a => v a -> Domain a -> v a
+    _combine   :: Var a => v a -> v a      -> v a
+    _project   :: Var a => v a -> Domain a -> v a
 
     eliminate  :: Var a => v a -> Domain a -> v a
     eliminate v d = project v (S.difference (label v) d)
@@ -50,7 +51,7 @@ class Valuation v where
     satisfiesInvariants _ = True
 
 combine :: (Valuation v, Var a) => v a -> v a      -> v a
-combine v1 v2 = U.assertP satisfiesInvariants $ combine_ v1 v2
+combine v1 v2 = assertInvariants $ _combine v1 v2
 
 project :: (Valuation v, Var a) => v a -> Domain a -> v a
 project v d
@@ -59,7 +60,10 @@ project v d
     -- If current domain is domain of projection skip projection call for efficency.
     | label v == d = v
     -- Delegate call to project_ but check invariants on return
-    | otherwise = U.assertP satisfiesInvariants $ project_ v d
+    | otherwise = assertInvariants $ _project v d
+
+assertInvariants :: (Valuation v, Var a) => v a -> v a
+assertInvariants v = U.assertP satisfiesInvariants v
 
 combines1 :: (Foldable f, Valuation v, Var a) => f (v a) -> v a
 combines1 = foldr1 combine

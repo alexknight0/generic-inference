@@ -33,6 +33,7 @@ import           LocalComputation.Graph                                       as
 import qualified LocalComputation.Inference                                   as I
 import qualified LocalComputation.Inference.Fusion                            as F
 import           LocalComputation.Utils                                       (fromRight)
+import qualified LocalComputation.ValuationAlgebra                            as V
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue as Q (TropicalSemiringValue (..),
                                                                                     toDouble)
 import           Type.Reflection                                              (Typeable)
@@ -48,7 +49,7 @@ data Error = InferenceError I.Error | MissingZeroCostSelfLoops deriving (NFData,
 -- If distance of a location to itself is not recorded, it will be recorded as the 'zero'
 -- element of the tropical semiring (i.e. infinity). Regarding self loops, see the documentation
 -- of `singleTarget`.
-knowledgeBase :: forall a . (H.Hashable a, Ord a) => [Graph a Q.TropicalSemiringValue] -> a -> Knowledgebase a
+knowledgeBase :: forall a . (H.Hashable a, V.Var a) => [Graph a Q.TropicalSemiringValue] -> a -> Knowledgebase a
 knowledgeBase gs target = map f gs
     where
         f g = fromJust $ Q.create m b

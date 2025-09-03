@@ -306,7 +306,7 @@ multiplys zero addElems multiplyElems ms
 
 This formula is detailed in "Generic Inference" (Pouly and Kohlas, 2012).
 -}
-quasiInverse :: (Ord a, Q.QuasiRegularSemiringValue c, Show a, Show c)
+quasiInverse :: (Ord a, Q.QSemiringValue c, Show a, Show c)
     => LabelledMatrix a a c
     -> Maybe (LabelledMatrix a a c)
 quasiInverse x | assertIsWellFormed x = undefined

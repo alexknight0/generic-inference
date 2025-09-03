@@ -14,6 +14,12 @@ module LocalComputation.Inference.MessagePassing (
     , CollectResults (target, postbox)
     , distribute
     , DistributeResults (postbox)
+
+    -- Serialization related typeclasses
+    , Binary   -- Must be derived for serialization
+    , Typeable -- Must be derived for serialization
+    , Generic  -- Must be derived to derive Binary
+    , NFData   -- Must be derived for to allow returning as a result of 'Process'.
 ) where
 
 import           Control.Distributed.Process              hiding (Message)
@@ -23,12 +29,14 @@ import qualified Algebra.Graph                            as DG
 import qualified Algebra.Graph.Undirected                 as UG
 import           Control.Exception                        (assert)
 import           Control.Monad                            (forM_, replicateM)
-import           Data.Binary                              (Binary)
 import qualified Data.Set                                 as S
-import           GHC.Generics                             (Generic)
 import qualified LocalComputation.Inference.JoinTree      as JT
 import qualified LocalComputation.Utils                   as U
 import qualified LocalComputation.ValuationAlgebra        as V
+
+import           Control.DeepSeq                          (NFData)
+import           Data.Binary                              (Binary)
+import           GHC.Generics                             (Generic)
 import           Type.Reflection                          (Typeable)
 
 

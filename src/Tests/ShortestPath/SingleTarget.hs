@@ -9,39 +9,34 @@ module Tests.ShortestPath.SingleTarget
     ( tests )
 where
 
-import qualified Benchmarks.ShortestPath.SingleTarget.Baseline                as H
+import qualified Benchmarks.ShortestPath.SingleTarget.Baseline        as H
 import           Benchmarks.ShortestPath.SingleTarget.Data
-import qualified LocalComputation.Graph                                       as G
-import qualified LocalComputation.Instances.ShortestPath.SingleTarget         as ST
+import qualified LocalComputation.Graph                               as G
+import qualified LocalComputation.Instances.ShortestPath.SingleTarget as ST
 import           LocalComputation.Utils
-import           LocalComputation.ValuationAlgebra.QuasiRegular
 
 import           Hedgehog
-import qualified Hedgehog.Gen                                                 as Gen
-import qualified Hedgehog.Internal.Property                                   as Hedgehog (PropertyName (..))
-import qualified Hedgehog.Range                                               as Range
+import qualified Hedgehog.Gen                                         as Gen
+import qualified Hedgehog.Internal.Property                           as Hedgehog (PropertyName (..))
+import qualified Hedgehog.Range                                       as Range
 
-import           Control.Distributed.Process                                  (Process,
-                                                                               liftIO)
-import           Control.Monad                                                (forM,
-                                                                               forM_,
-                                                                               zipWithM,
-                                                                               zipWithM_)
-import qualified Data.Set                                                     as S
-import qualified LocalComputation.Instances.ShortestPath.Parser               as P
-import qualified Text.Parsec                                                  as P
+import           Control.Distributed.Process                          (Process,
+                                                                       liftIO)
+import           Control.Monad                                        (forM,
+                                                                       forM_)
+import qualified LocalComputation.Instances.ShortestPath.Parser       as P
+import qualified Text.Parsec                                          as P
 
 -- Typeclasses
-import           Control.DeepSeq                                              (NFData)
-import           Control.Monad.IO.Class                                       (MonadIO)
-import           Data.Binary                                                  (Binary)
-import qualified Data.Hashable                                                as H
-import qualified LocalComputation.Inference                                   as I
-import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue (toDouble)
-import           Numeric.Natural                                              (Natural)
-import           Tests.Utils                                                  (checkAnswers,
-                                                                               unitTest)
-import           Type.Reflection                                              (Typeable)
+import           Control.DeepSeq                                      (NFData)
+import           Control.Monad.IO.Class                               (MonadIO)
+import           Data.Binary                                          (Binary)
+import qualified Data.Hashable                                        as H
+import qualified LocalComputation.Inference                           as I
+import           Numeric.Natural                                      (Natural)
+import           Tests.Utils                                          (checkAnswers,
+                                                                       unitTest)
+import           Type.Reflection                                      (Typeable)
 
 tests :: IO Bool
 tests = fmap and $ sequence [

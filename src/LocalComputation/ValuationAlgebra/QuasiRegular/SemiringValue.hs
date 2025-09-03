@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
-    ( QuasiRegularSemiringValue (quasiInverse)
+    ( QSemiringValue (quasiInverse)
     , SemiringValue (add, multiply, zero, one)
     , TropicalSemiringValue (T)
     , toDouble
@@ -17,9 +17,10 @@ import           Data.Binary                                (Binary)
 import           GHC.Generics                               (Generic)
 
 -- | A Quasi-regular semiring is also known as a 'closed' semiring
-class (SemiringValue a) => QuasiRegularSemiringValue a where
+class (SemiringValue a) => QSemiringValue a where
     quasiInverse :: a -> a
 
+    -- TODO:
     -- zero and one also has to satisfy some special laws with
     -- respect to idempotency and monotonicity to
     -- work for path problems? pdf page 257 gen. inf.
@@ -36,14 +37,7 @@ instance SemiringValue TropicalSemiringValue where
     zero = T (read "Infinity" :: Double)
     one = 0
 
-instance QuasiRegularSemiringValue TropicalSemiringValue where
+instance QSemiringValue TropicalSemiringValue where
     quasiInverse x
         | x >= 0 = 0
         | otherwise = T (read "-Infinity" :: Double)
-
--- instance Binary (TropicalSemiringValue) where
---     put (T x) = put x
---
---     get = do
---         x <- get
---         pure (T x)

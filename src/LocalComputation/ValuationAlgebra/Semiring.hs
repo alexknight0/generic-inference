@@ -31,6 +31,7 @@ import qualified Data.Set                                        as S
 import qualified Data.Text.Lazy                                  as LT
 import           GHC.Generics
 import qualified LocalComputation.Pretty                         as P
+import qualified LocalComputation.Utils                          as U
 import           LocalComputation.ValuationAlgebra.SemiringValue
 import           Text.Pretty.Simple                              (pShow,
                                                                   pShowNoColor)
@@ -133,10 +134,10 @@ instance (Ord b, Show b, Show c, SemiringValue c) => Valuation (SemiringValuatio
     label i@Identity{}  = i.d
     label s@Valuation{} = S.union s.d s._e
 
-    combine_ i1@Identity{} i2@Identity{} = Identity { d = S.union i1.d i2.d }
-    combine_ i@Identity{}  t@Valuation{} = t { _e = (S.difference (S.union i.d t._e) t.d) }
-    combine_ t@Valuation{} i@Identity{}  = t { _e = (S.difference (S.union i.d t._e) t.d) }
-    combine_ t1@Valuation{} t2@Valuation{} -- (Valuation rowMap1 d1 vD1 e1) (Valuation rowMap2 d2 vD2 e2)
+    _combine i1@Identity{} i2@Identity{} = Identity { d = S.union i1.d i2.d }
+    _combine i@Identity{}  t@Valuation{} = t { _e = (S.difference (S.union i.d t._e) t.d) }
+    _combine t@Valuation{} i@Identity{}  = t { _e = (S.difference (S.union i.d t._e) t.d) }
+    _combine t1@Valuation{} t2@Valuation{} -- (Valuation rowMap1 d1 vD1 e1) (Valuation rowMap2 d2 vD2 e2)
         | null t1._rows = t2 { _e = S.difference (S.union t1._e t2._e) t2.d }
         | null t2._rows = t1 { _e = S.difference (S.union t1._e t2._e) t2.d }
         | otherwise = Valuation newRows newDomain newValueDomain newExtension
@@ -156,8 +157,8 @@ instance (Ord b, Show b, Show c, SemiringValue c) => Valuation (SemiringValuatio
             unionAssert2' :: (Ord a) => M.Map a (Domain b) -> M.Map a (Domain b) -> M.Map a (Domain b)
             unionAssert2' = M.unionWith (\v1 v2 -> assert (v1 == v2) v1)
 
-    project_ i@Identity{}  d = i { d = d }
-    project_ t@Valuation{} d = t { _rows         = M.mapKeysWith add projectDomain1 t._rows
+    _project i@Identity{}  d = i { d = d }
+    _project t@Valuation{} d = t { _rows         = M.mapKeysWith add projectDomain1 t._rows
                                 , d             = projectDomain3 t.d
                                 , _valueDomains = projectDomain2 t._valueDomains
                                 , _e            = projectDomain3 t._e
@@ -205,11 +206,14 @@ with the values of the second parameter. For example:
     < Korea          Water           8
 -}
 getRows :: forall c b a. (Ord a, Ord b) => [(a, [b])] -> [c] -> SemiringValuation c b a
-getRows vars ps = assert' isWellFormed $ Valuation rMap d valueDomains extension
+getRows vars ps = U.assertP isWellFormed $ _getRows vars ps
+
+_getRows :: forall c b a. (Ord a, Ord b) => [(a, [b])] -> [c] -> SemiringValuation c b a
+_getRows vars ps = Valuation rMap d varToPossibleValues extension
     where
         rMap = fromListAssertDisjoint $ zipAssert (vPermutations vars) ps
         d = fromListAssertDisjoint' $ map fst vars
-        valueDomains = fromListAssertDisjoint (map (\(v, values) -> (v, fromListAssertDisjoint' values)) vars)
+        varToPossibleValues = fromListAssertDisjoint (map (\(v, values) -> (v, fromListAssertDisjoint' values)) vars)
         extension = S.empty
 
         vPermutations :: [(a, [b])] -> [VarAssignment (SemiringValuation c b) a b]
@@ -233,26 +237,30 @@ findValue x (Valuation rowMap _ _ _) = rowMap M.! x
 findValue _ (Identity _) = error "findProbability: Attempted to read value from an identity valuation."
 
 mapTableKeys :: (Ord b, Ord c) => (a -> b) -> SemiringValuation d c a -> SemiringValuation d c b
-mapTableKeys f (Valuation rMap d vD e) = Valuation (M.mapKeys (M.mapKeys f) rMap) (setMap f d) (M.mapKeys f vD) (setMap f e)
-mapTableKeys f (Identity x) = Identity (setMap f x)
+mapTableKeys f v = U.assertP isWellFormed $ _mapTableKeys f v
+
+_mapTableKeys :: (Ord b, Ord c) => (a -> b) -> SemiringValuation d c a -> SemiringValuation d c b
+_mapTableKeys f (Valuation rMap d vD e) = Valuation (M.mapKeys (M.mapKeys f) rMap) (setMap f d) (M.mapKeys f vD) (setMap f e)
+_mapTableKeys f (Identity x)            = Identity (setMap f x)
 
 mapVariableValues :: (Ord b, Ord c) => (a -> b) -> SemiringValuation d a c -> SemiringValuation d b c
-mapVariableValues _ v@Identity{}  = Identity v.d
-mapVariableValues f v@Valuation{} = v { _rows = M.mapKeys (M.map f) v._rows
-                                      , _valueDomains = M.map (S.map f) v._valueDomains
-                                     }
+mapVariableValues f v = U.assertP isWellFormed $ _mapVariableValues f v
 
-normalize :: (Fractional c) => SemiringValuation c b a -> SemiringValuation c b a
-normalize (Identity x) = Identity x
-normalize (Valuation rowMap d vD e) = Valuation (M.map (/ sumOfAllXs) rowMap) d vD e
+_mapVariableValues :: (Ord b, Ord c) => (a -> b) -> SemiringValuation d a c -> SemiringValuation d b c
+_mapVariableValues _ v@Identity{}  = Identity v.d
+_mapVariableValues f v@Valuation{} = v { _rows = M.mapKeys (M.map f) v._rows
+                                      , _valueDomains = M.map (S.map f) v._valueDomains
+                                      }
+
+normalize :: (Var a, Show b, Ord b, Show c, SemiringValue c, Fractional c)
+    => SemiringValuation c b a -> SemiringValuation c b a
+normalize v = assertInvariants $ _normalize v
+
+_normalize :: (Fractional c) => SemiringValuation c b a -> SemiringValuation c b a
+_normalize (Identity x) = Identity x
+_normalize (Valuation rowMap d vD e) = Valuation (M.map (/ sumOfAllXs) rowMap) d vD e
     where
         sumOfAllXs = sum $ M.elems rowMap
 
-assertAllWellFormed :: (Foldable t, Ord a, Eq b) => t (SemiringValuation c b a) -> Bool
-assertAllWellFormed = any (\x -> assert (isWellFormed x) False)
-
 valueDomains :: SemiringValuation c b a -> M.Map a (Domain b)
 valueDomains = (._valueDomains)
-
-assertIsWellFormed :: (Ord a, Eq b) => SemiringValuation c b a -> Bool
-assertIsWellFormed x = assert (isWellFormed x) False
