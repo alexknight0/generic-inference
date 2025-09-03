@@ -74,10 +74,12 @@ fusionWithMessagePassing :: (Valuation v, Var a)
     => [v a] -> Domain a -> v a
 fusionWithMessagePassing = undefined
 
-nodeActions :: MP.NodeActions v a
+nodeActions :: (MP.SerializableValuation v a) => MP.NodeActions v a
 nodeActions this neighbours resultPort = do
 
     -- postbox <- replicateM (length neighbours - 1) expect
+
+
 
 
     undefined

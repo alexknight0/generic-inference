@@ -16,10 +16,8 @@ import           Control.Distributed.Process                 hiding (Message)
 import qualified Algebra.Graph                               as DG
 import qualified Algebra.Graph.Undirected                    as UG
 import           Control.Monad                               (replicateM)
-import           Data.Binary                                 (Binary)
 import           Data.Set                                    (intersection,
                                                               isSubsetOf)
-import           GHC.Generics                                (Generic)
 
 
 import           Control.Exception                           (assert)
@@ -135,75 +133,45 @@ shenoyJoinTree :: forall v a. (Valuation v, Var a)
     -> UG.Graph (Node (v a))
 shenoyJoinTree vs queryDomains = UG.toUndirected (baseJoinTree vs queryDomains)
 
-data Message a = Message {
-          sender :: ProcessId
-        , msg    :: a
-    } deriving (Generic, Binary)
-
 nodeActions :: (MP.SerializableValuation v a)
     => MP.NodeActions v a
 nodeActions this neighbours resultPort = do
 
-    --[[ Phase 1: Collect Phase ]]
-    -- Wait for messages from all neighbours bar one
-    phase1Postbox <- replicateM (length neighbours - 1) expect
+    collectResults    <- MP.collect                   this neighbours computeMessage'
+    distributeResults <- MP.distribute collectResults this neighbours computeMessage
 
-    let senders = map (.sender) phase1Postbox
-        neighbourWhoDidntSend = findAssertSingleMatch (\n -> n.id `notElem` senders) neighbours
-
-    -- Combine messages into new message, and send to the only neighbour we didn't receive a message from.
-    sendMessage' phase1Postbox this neighbourWhoDidntSend
-
-    --[[ Phase 2: Distribute Phase ]]
-    -- Wait for response from neighbour we just sent a message to
-    message :: Message (v a) <- expect
-
-    let phase2Postbox = message : phase1Postbox
-    assert (message.sender == neighbourWhoDidntSend.id) (pure ())
-
-    -- Send out messages to remaining neighbours (which we now have enough information to send messages to)
-    sequence_ $ map (\n -> sendMessage phase2Postbox this n)
-                    (filterOut neighbourWhoDidntSend neighbours)
-
-    --[[ Sending Results ]]
     -- Send result back to parent process
-    let result = combines1 (this.node.v : map (.msg) phase2Postbox)
+    let result = combines1 (this.node.v : map (.msg) distributeResults.postbox)
     assert (this.node.d == label result) (pure ())
-    sendChan resultPort (J.node this.node.id result this.node.t)
-
-    where
-        filterOut :: MP.NodeWithProcessId (v a) -> [MP.NodeWithProcessId (v a)] -> [MP.NodeWithProcessId (v a)]
-        filterOut neighbour = filter (\n -> n.id /= neighbour.id)
+    sendChan resultPort $ J.changeContent this.node result
 
 
--- | Sends a message from the given sender to the given receiver.
+-- | Computes a message to send to the given neighbour.
 --
--- Sending a message consists of:
---  1. combining all messages in the sender's postbox that don't come from the recipient
+-- Computing this message consists of:
+--  1. combining all messages in the sender's postbox that don't come from the neighbour
 --  2. combining this result with the sender's valuation
---  3. projecting the result to the intersection of the sender and recipient's domain
---  4. dispatching the resulting message to the recipient node.
-sendMessage :: (MP.SerializableValuation v a)
-    => [Message (v a)]
+--  3. projecting the result to the intersection of the sender and neighbour's domain
+computeMessage :: (MP.SerializableValuation v a)
+    => [MP.Message (v a)]
     -> MP.NodeWithProcessId (v a)
     -> MP.NodeWithProcessId (v a)
-    -> Process ()
-sendMessage postbox sender recipient = sendMessage' (filter (\msg -> msg.sender /= recipient.id) postbox)
+    -> MP.Message (v a)
+computeMessage postbox sender recipient = computeMessage' (filter (\msg -> msg.sender /= recipient.id) postbox)
                                                     sender
                                                     recipient
 
--- | Same as `sendMessage` except doesn't filter the given postbox for messages that don't come from the
+-- | Same as `computeMessage` except doesn't filter the given postbox for messages that don't come from the
 -- recipient. Hence should only be used when it is known that none of the messages in the postbox come
 -- from the recipient.
-sendMessage' :: (MP.SerializableValuation v a)
-    => [Message (v a)]
+computeMessage' :: (MP.SerializableValuation v a)
+    => [MP.Message (v a)]
     -> MP.NodeWithProcessId (v a)
     -> MP.NodeWithProcessId (v a)
-    -> Process ()
-sendMessage' postbox sender recipient = send recipient.id msg
-    where
-        msg = Message sender.id (project (combines1 (sender.node.v : map (.msg) postbox))
-                                         (intersection sender.node.d recipient.node.d))
+    -> MP.Message (v a)
+computeMessage' postbox sender recipient = MP.Message sender.id
+                                                      (project (combines1 (sender.node.v : map (.msg) postbox))
+                                                               (intersection sender.node.d recipient.node.d))
 
 
 ------------------------------------------------------------------------------

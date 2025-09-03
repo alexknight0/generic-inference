@@ -8,6 +8,12 @@ module LocalComputation.Inference.MessagePassing (
     , NodeWithProcessId (id, node)
     , NodeActions
     , SerializableValuation
+    , Message (msg, sender, Message)
+    , ComputeMessage
+    , collect
+    , CollectResults (target, postbox)
+    , distribute
+    , DistributeResults (postbox)
 ) where
 
 import           Control.Distributed.Process              hiding (Message)
@@ -15,8 +21,8 @@ import           Control.Distributed.Process.Serializable
 
 import qualified Algebra.Graph                            as DG
 import qualified Algebra.Graph.Undirected                 as UG
-import           Control.DeepSeq                          (NFData)
-import           Control.Monad                            (forM_)
+import           Control.Exception                        (assert)
+import           Control.Monad                            (forM_, replicateM)
 import           Data.Binary                              (Binary)
 import qualified Data.Set                                 as S
 import           GHC.Generics                             (Generic)
@@ -109,3 +115,61 @@ receiveChanNowA p = do
                 Just x -> x
                 Nothing -> error "A node terminated without sending a message on the result channel"
 
+data Message a = Message {
+          sender :: ProcessId
+        , msg    :: a
+} deriving (Generic, Binary)
+
+type ComputeMessage a = [Message a] -> NodeWithProcessId a -> NodeWithProcessId a -> Message a
+
+data CollectResults a = CollectResults {
+      target  :: NodeWithProcessId a
+    , postbox :: [Message a]
+}
+
+-- | The collect phase of a message passing process where each node waits for every neighbour bar one
+-- to send the node a message before the node sends off a message to the neighbour that didn't send it
+-- a message.
+collect :: (SerializableValuation v a)
+    => NodeWithProcessId (v a)
+    -> [NodeWithProcessId (v a)]
+    -> ComputeMessage (v a)
+    -> Process (CollectResults (v a))
+collect this neighbours action = do
+    -- Wait for messages from all neighbours bar one
+    postbox <- replicateM (length neighbours - 1) expect
+
+    let senders = map (.sender) postbox
+        -- The target neighbour is the neighbour who didn't send a message to us
+        target = U.findAssertSingleMatch (\n -> n.id `notElem` senders) neighbours
+
+    -- Perform some action with these messages and send to remaining neighbour
+    send target.id (action postbox this target)
+
+    -- Return results
+    pure $ CollectResults target postbox
+
+data DistributeResults a = DistributeResults {
+    postbox :: [Message a]
+}
+
+distribute :: (SerializableValuation v a)
+    => CollectResults (v a)
+    -> NodeWithProcessId (v a)
+    -> [NodeWithProcessId (v a)]
+    -> ComputeMessage (v a)
+    -> Process (DistributeResults (v a))
+distribute collectResults this neighbours action = do
+    -- Wait for response from neighbour we just sent a message to
+    message :: Message (v a) <- expect
+    assert (message.sender == collectResults.target.id) (pure ())
+
+    let postbox        = message : collectResults.postbox
+        -- The target neighbours are the neighbours who were not the target of the collect phase
+        targets        = filter (\n -> n.id /= collectResults.target.id) neighbours
+
+    -- Send out messages to remaining neighbours (which we now have enough information to send messages to)
+    mapM_ (\target -> send target.id $ action postbox this target)
+          targets
+
+    pure $ DistributeResults postbox

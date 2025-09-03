@@ -8,6 +8,7 @@ module LocalComputation.Inference.JoinTree
     ( Node (id, v, t)
     , baseJoinTree
     , node
+    , changeContent
     , NodeType (Valuation, Query, Union, Projection)
     , redirectToQueryNode
     )
@@ -47,6 +48,9 @@ data NodeType = Valuation | Query | Union | Projection deriving (Show, Generic, 
 
 node :: Id -> v -> NodeType -> Node v
 node = Node
+
+changeContent :: Node a -> a -> Node a
+changeContent n v = n { v = v }
 
 -- | Accessor for the domain of the valuation.  Equivalent to calling `label` on the valuation.
 -- __Warning__: Not necessarily O(1).
