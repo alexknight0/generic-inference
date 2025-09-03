@@ -154,8 +154,8 @@ nodeActions this neighbours resultPort = do
 --  3. projecting the result to the intersection of the sender and neighbour's domain
 computeMessage :: (Valuation v, Var a)
     => [MP.Message (v a)]
-    -> MP.NodeWithProcessId (v a)
-    -> MP.NodeWithProcessId (v a)
+    -> MP.NodeWithPid (v a)
+    -> MP.NodeWithPid (v a)
     -> v a
 computeMessage postbox sender recipient = computeMessage' (filter (\msg -> msg.sender /= recipient.id) postbox)
                                                           sender
@@ -166,8 +166,8 @@ computeMessage postbox sender recipient = computeMessage' (filter (\msg -> msg.s
 -- from the recipient.
 computeMessage' :: (Valuation v, Var a)
     => [MP.Message (v a)]
-    -> MP.NodeWithProcessId (v a)
-    -> MP.NodeWithProcessId (v a)
+    -> MP.NodeWithPid (v a)
+    -> MP.NodeWithPid (v a)
     -> v a
 computeMessage' postbox sender recipient = project (combines1 (sender.node.v : map (.msg) postbox))
                                                    (intersection sender.node.d recipient.node.d)

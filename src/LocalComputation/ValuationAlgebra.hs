@@ -59,7 +59,7 @@ project v d
     | assert (d `S.isSubsetOf` label v) False = undefined
     -- If current domain is domain of projection skip projection call for efficency.
     | label v == d = v
-    -- Delegate call to project_ but check invariants on return
+    -- Delegate call to _project but check invariants on return
     | otherwise = assertInvariants $ _project v d
 
 assertInvariants :: (Valuation v, Var a) => v a -> v a

@@ -5,7 +5,7 @@
 
 module LocalComputation.Inference.MessagePassing (
       messagePassing
-    , NodeWithProcessId (id, node)
+    , NodeWithPid (id, node)
     , NodeActions
     , SerializableValuation
     , Message (msg, sender, Message)
@@ -42,9 +42,9 @@ import           Type.Reflection                          (Typeable)
 
 type SerializableValuation v a = (V.Valuation v, V.Var a, Binary (v a), Typeable v, Typeable a)
 
-data NodeWithProcessId a = NodeWithProcessId { id :: ProcessId, node :: JT.Node a } deriving (Generic, Binary)
+data NodeWithPid a = NodeWithPid { id :: ProcessId, node :: JT.Node a } deriving (Generic, Binary)
 
-type NodeActions v a = NodeWithProcessId (v a) -> [NodeWithProcessId (v a)] -> SendPort (JT.Node (v a)) -> Process ()
+type NodeActions v a = NodeWithPid (v a) -> [NodeWithPid (v a)] -> SendPort (JT.Node (v a)) -> Process ()
 
 -- TODO: This function shouldn't burden itself with the responsibility of taking a directed graph as input
 -- and returning a directed graph as output. The message passing algorithm at this stage treats its graph
@@ -53,7 +53,7 @@ type NodeActions v a = NodeWithProcessId (v a) -> [NodeWithProcessId (v a)] -> S
 {- | Executes a message passing algorithm on a given join tree by spinning up each node in a join tree as
 a seperate process and allowing each process to execute the given `nodeActions`.
 
-Each node is respresented by a `NodeWithProcessId`. Each node is given the `NodeWithProcessId` of itself as
+Each node is respresented by a `NodeWithPid`. Each node is given the `NodeWithPid` of itself as
 well as its neighbours and can communicate with them by `send` and `expect`. All nodes are expected to send
 a result through a given `SendPort` that represents their state after the message passing is completed.
 -}
@@ -96,22 +96,22 @@ messagePassing directed nodeActions = do
 initializeNodeAndMonitor :: (SerializableValuation v a)
     => NodeActions v a
     -> JT.Node (v a)
-    -> Process (NodeWithProcessId (v a), ReceivePort (JT.Node (v a)))
+    -> Process (NodeWithPid (v a), ReceivePort (JT.Node (v a)))
 initializeNodeAndMonitor nodeActions node = do
     (sendFinalResult, receiveFinalResult) <- newChan
 
     i <- initializeNode nodeActions sendFinalResult
     _ <- monitor i
 
-    pure (NodeWithProcessId i node, receiveFinalResult)
+    pure (NodeWithPid i node, receiveFinalResult)
 
 initializeNode :: (SerializableValuation v a)
     => NodeActions v a
     -> SendPort (JT.Node (v a))
     -> Process ProcessId
 initializeNode nodeActions resultPort = spawnLocal $ do
-    this :: NodeWithProcessId (v a) <- expect
-    neighbours :: [NodeWithProcessId (v a)] <- expect
+    this :: NodeWithPid (v a) <- expect
+    neighbours :: [NodeWithPid (v a)] <- expect
 
     nodeActions this neighbours resultPort
 
@@ -128,10 +128,10 @@ data Message a = Message {
         , msg    :: a
 } deriving (Generic, Binary)
 
-type ComputeMessage a = [Message a] -> NodeWithProcessId a -> NodeWithProcessId a -> a
+type ComputeMessage a = [Message a] -> NodeWithPid a -> NodeWithPid a -> a
 
 data CollectResults a = CollectResults {
-      target  :: NodeWithProcessId a
+      target  :: NodeWithPid a
     , postbox :: [Message a]
 }
 
@@ -139,8 +139,8 @@ data CollectResults a = CollectResults {
 -- to send the node a message before the node sends off a message to the neighbour that didn't send it
 -- a message.
 collect :: (SerializableValuation v a)
-    => NodeWithProcessId (v a)
-    -> [NodeWithProcessId (v a)]
+    => NodeWithPid (v a)
+    -> [NodeWithPid (v a)]
     -> ComputeMessage (v a)
     -> Process (CollectResults (v a))
 collect this neighbours action = do
@@ -165,8 +165,8 @@ data DistributeResults a = DistributeResults {
 -- and then distributes messages to all nodes it has not previously sent messages to.
 distribute :: (SerializableValuation v a)
     => CollectResults (v a)
-    -> NodeWithProcessId (v a)
-    -> [NodeWithProcessId (v a)]
+    -> NodeWithPid (v a)
+    -> [NodeWithPid (v a)]
     -> ComputeMessage (v a)
     -> Process (DistributeResults (v a))
 distribute collectResults this neighbours action = do
@@ -184,5 +184,5 @@ distribute collectResults this neighbours action = do
 
     pure $ DistributeResults postbox
 
-sendMsg :: Serializable a => NodeWithProcessId a -> NodeWithProcessId a -> a -> Process ()
+sendMsg :: Serializable a => NodeWithPid a -> NodeWithPid a -> a -> Process ()
 sendMsg sender target = send target.id . Message sender.id

@@ -80,10 +80,9 @@ fusionWithMessagePassing = undefined
 nodeActions :: (MP.SerializableValuation v a) => MP.NodeActions v a
 nodeActions this neighbours resultPort = do
 
-    -- Uses the property that the root node is the only node whose label is larger
-    -- than all its neighbours
-    -- case isRootNode this of
-    --     False -> MP.collect this neighbours
+    case isRootNode this neighbours of
+        False -> pure () -- MP.collect this neighbours
+        True  -> pure ()
 
 
 
@@ -102,7 +101,9 @@ nodeActions this neighbours resultPort = do
 
     where
 
-isRootNode :: MP.NodeWithProcessId a -> [MP.NodeWithProcessId a] -> Bool
+-- Uses the property that the root node is the only node whose label is larger
+-- than all its neighbours
+isRootNode :: MP.NodeWithPid a -> [MP.NodeWithPid a] -> Bool
 isRootNode node neighbours = all (\n -> node.id > n.id) neighbours
 
 
@@ -114,8 +115,8 @@ isRootNode node neighbours = all (\n -> node.id > n.id) neighbours
 --  3. projecting the result to the intersection of the sender and neighbour's domain
 -- computeMessage :: forall v a . (Valuation v, Var a)
 --     => [MP.Message (v a)]
---     -> MP.NodeWithProcessId (v a)
---     -> MP.NodeWithProcessId (v a)
+--     -> MP.NodeWithPid (v a)
+--     -> MP.NodeWithPid (v a)
 --     -> v a
 -- computeMessage postbox sender recipient = eliminate combines1 (sender.node.v : map (.msg) postbox)
 --     where
