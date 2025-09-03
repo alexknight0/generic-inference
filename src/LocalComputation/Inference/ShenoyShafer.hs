@@ -145,6 +145,7 @@ nodeActions this neighbours resultPort = do
     assert (this.node.d == label result) (pure ())
     sendChan resultPort $ J.changeContent this.node result
 
+-- TODO: Update
 -- | Computes a message to send to the given neighbour.
 --
 -- Computing this message consists of:

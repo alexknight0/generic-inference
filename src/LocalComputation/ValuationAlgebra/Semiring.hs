@@ -162,6 +162,8 @@ instance (Ord b, Show b, Show c, SemiringValue c) => Valuation (SemiringValuatio
 
     project x _ | assertIsWellFormed x = undefined
     project x y | assert (S.isSubsetOf y (label x)) False = undefined
+    project x             d
+        | label x == d      = x
     project i@Identity{}  d = i { d = d }
     project t@Valuation{} d = t { _rows         = M.mapKeysWith add projectDomain1 t._rows
                                 , d             = projectDomain3 t.d
@@ -169,7 +171,7 @@ instance (Ord b, Show b, Show c, SemiringValue c) => Valuation (SemiringValuatio
                                 , _e            = projectDomain3 t._e
                                 }
         where
-            -- I know. Try change it.
+            -- TODO: Issue likely due to implied mono-binds. Fix by moving function to a top bind.
             projectDomain1 = M.filterWithKey (\k _ -> k `elem` d)
             projectDomain2 = M.filterWithKey (\k _ -> k `elem` d)
             projectDomain3 = S.filter (\k -> k `elem` d)
@@ -253,6 +255,8 @@ getRows vars ps = assert' isWellFormed $ Valuation rMap d valueDomains extension
                 vPermutations' ((v, vVals) : vs) = [(v, vVal) : rest | vVal <- vVals, rest <- vPermutations' vs]
 
 -- TODO: Wait isn't this just M.intersectionWith const m1 m2  == M.intersectionWith (flip const) m1 m2
+-- Answer: Yes, but computing that actually appears empirically less efficent.
+-- TODO: Avoid recomputation of 'shared keys' on every loop where this function is used...
 hasSameValueForSharedVariables :: (Ord a, Eq b) => M.Map a b -> M.Map a b -> Bool
 hasSameValueForSharedVariables xs ys = all (\k -> xs M.! k == ys M.! k) sharedKeys
     where

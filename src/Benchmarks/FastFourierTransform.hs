@@ -11,9 +11,9 @@ import           Criterion.Main
 import           LocalComputation.Instances.FastFourierTransform (query, query')
 import           LocalComputation.LocalProcess                   (runProcessLocal)
 
-benchmarks :: IO Benchmark
+benchmarks :: IO [Benchmark]
 benchmarks = do
-    pure $ bgroup "Fast_Fourier_Transform" [
+    pure $ pure $ bgroup "Fast_Fourier_Transform" [
                       bench "localcomputation" $ nfIO $ runProcessLocal $ query' fftInput [0 .. (fromIntegral $ length fftInput - 1)]
                     , bench "FFTW"             $ nfIO $ dft fftInput
                 ]

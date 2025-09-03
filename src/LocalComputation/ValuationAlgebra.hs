@@ -33,16 +33,26 @@ class Valuation v where
 
     type VarAssignment v a b
 
-    label     :: Var a => v a -> Domain a
-    combine   :: Var a => v a -> v a      -> v a
-    project   :: Var a => v a -> Domain a -> v a
-    eliminate :: Var a => v a -> Domain a -> v a
-    identity  ::                   Domain a -> v a
-    -- frame     :: (Ord a, Eq b, Show a) => v a b -> Set (VariableArrangement a b)
+    label      :: Var a => v a -> Domain a
+    --_label     :: Var a => v a -> Domain a
 
-    -- What if we force the implementer to implement a data structure for the frame,
-    -- where that data structure provides a series of functions that achieves a mapping?
-    -- Edit: Well then don't we just have a map?
+    combine    :: Var a => v a -> v a      -> v a
+    --_combine   :: Var a => v a -> Domain a
+
+    project    :: Var a => v a -> Domain a -> v a
+    --_project   :: Var a => v a -> Domain a
+
+    eliminate  :: Var a => v a -> Domain a -> v a
+    --_eliminate :: Var a => v a -> Domain a -> v a
+
+    identity  ::                   Domain a -> v a
+
+-- label :: (Valuation v, Var a) => v a -> Domain a
+-- label x = _label x
+--
+-- combine :: (Valuation v, Var a) => v a -> Domain a
+-- _combine x = _label x
+
 
 
 combines1 :: (Foldable f, Valuation v, Var a) => f (v a) -> v a

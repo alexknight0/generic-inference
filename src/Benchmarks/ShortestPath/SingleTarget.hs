@@ -42,7 +42,7 @@ foobar = undefined
 
 -- TODO: split the problem up across graphs before giving it to the algorithms.
 
-benchmarks :: IO Benchmark
+benchmarks :: IO [Benchmark]
 benchmarks = do
     -- p3Small <- D.p3SmallGraph'
     graph <- sample $ D.genGraph 50 200
@@ -55,7 +55,7 @@ benchmarks = do
     shenoy      <- singleTarget (Local I.Shenoy)     [graph] queries
     baseline    <- singleTarget (Baseline)           [graph] queries
 
-    pure $ bgroup "Shortest Path" [
+    pure $ pure $ bgroup "Shortest Path" [
 
                   --bench "inparlell-shenoy"     $ nfIO $ fromRight $ ST.singleTarget (I.Shenoy) [p3Medium] (head tmp).sources (head tmp).target
                   bench "localcomputation-bruteForce" $ nfIO bruteForce

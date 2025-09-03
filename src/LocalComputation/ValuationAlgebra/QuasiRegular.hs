@@ -57,6 +57,8 @@ instance (Show c, Q.QuasiRegularSemiringValue c) => Valuation (QuasiRegularValua
 
     project x _ | assertIsWellFormed x = undefined
     project x y | assert (S.isSubsetOf y (label x)) False = undefined
+    project x d
+        | label x == d        = x
     project (Identity _) newD = Identity newD
     project (Valuation m b) t = fromJust $ create newM newB
         where

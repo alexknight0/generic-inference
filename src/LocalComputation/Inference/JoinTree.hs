@@ -69,6 +69,9 @@ instance (Valuation v, Ord a, Show a) => Show (Node (v a)) where
 setDifference :: (Eq a) => [a] -> [a] -> [a]
 setDifference xs ys = filter (\x -> not $ x `elem` ys) xs
 
+-- TODO: A seperate type for join trees that guarantees properties such as the root
+-- node having the largest label (a property currently used by fusion message passing)
+-- should be utilised.
 {- | The core join tree construction algorithm that all required join trees are built from.
 This is precisely the join tree construction algorithm described on page 22 of
 "A Generic Architecture for Local Computation" by Marc Pouly.

@@ -80,6 +80,17 @@ fusionWithMessagePassing = undefined
 nodeActions :: (MP.SerializableValuation v a) => MP.NodeActions v a
 nodeActions this neighbours resultPort = do
 
+    -- Uses the property that the root node is the only node whose label is larger
+    -- than all its neighbours
+    -- case isRootNode this of
+    --     False -> MP.collect this neighbours
+
+
+
+    -- ... because the root node never sends out a message, messages will naturally propagate
+    -- down to the root node as each node will always send its message to the neighbour that
+    -- didn't send it a message.
+
     -- MP.collect this neighbours
 
 
@@ -88,6 +99,11 @@ nodeActions this neighbours resultPort = do
 
 
     undefined
+
+    where
+
+isRootNode :: MP.NodeWithProcessId a -> [MP.NodeWithProcessId a] -> Bool
+isRootNode node neighbours = all (\n -> node.id > n.id) neighbours
 
 
 -- | Computes a message to send to the given neighbour.
@@ -100,8 +116,8 @@ nodeActions this neighbours resultPort = do
 --     => [MP.Message (v a)]
 --     -> MP.NodeWithProcessId (v a)
 --     -> MP.NodeWithProcessId (v a)
---     -> MP.Message (v a)
--- computeMessage postbox sender recipient = combines1 (sender.node.v : map (.msg) postbox)
+--     -> v a
+-- computeMessage postbox sender recipient = eliminate combines1 (sender.node.v : map (.msg) postbox)
 --     where
 --         test :: v a
 --         test = sender.node.v
