@@ -77,15 +77,23 @@ fusionWithMessagePassing = undefined
 nodeActions :: (MP.SerializableValuation v a) => MP.NodeActions v a
 nodeActions this neighbours resultPort = do
 
-    -- postbox <- replicateM (length neighbours - 1) expect
+    -- MP.collect this neighbours
+
+
 
 
 
 
     undefined
 
--- I think the approach is we use an elimination sequence; but ensure we never call 'eliminateNext' on a
--- variable from the query.
+
+-- | Computes a message to send to the given neighbour.
+--
+-- Computing this message consists of:
+--  1. combining all messages in the sender's postbox that don't come from the neighbour
+--  2. combining this result with the sender's valuation
+--  3. projecting the result to the intersection of the sender and neighbour's domain
+-- computeMessage :: (MP.ser
 
 
 

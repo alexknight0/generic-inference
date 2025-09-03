@@ -15,7 +15,6 @@ import           Control.Distributed.Process                 hiding (Message)
 
 import qualified Algebra.Graph                               as DG
 import qualified Algebra.Graph.Undirected                    as UG
-import           Control.Monad                               (replicateM)
 import           Data.Set                                    (intersection,
                                                               isSubsetOf)
 
@@ -27,7 +26,6 @@ import           LocalComputation.Inference.JoinTree         (Node (..),
 import qualified LocalComputation.Inference.JoinTree         as J
 import qualified LocalComputation.Inference.JoinTree.Diagram as D
 import qualified LocalComputation.Inference.MessagePassing   as MP
-import           LocalComputation.Utils                      (findAssertSingleMatch)
 import           LocalComputation.ValuationAlgebra
 
 -- TODO: [Hypothesis]... Due to the high serialization cost, using the Cloud Haskell library to represent
@@ -124,6 +122,8 @@ inference :: (MP.SerializableValuation v a)
     -> Process (InferredData v a)
 inference vs queryDomains = MP.messagePassing (baseJoinTree vs queryDomains) nodeActions
 
+-- TODO: Is `shenoyJoinTree` still used?
+
 -- The base join tree must be transformed to an undirected graph.
 -- While mailboxes should be connected up for each neighbour, this happens in the
 -- 'MP.messagePassing' function which also handles starting the message passing.
@@ -152,26 +152,27 @@ nodeActions this neighbours resultPort = do
 --  1. combining all messages in the sender's postbox that don't come from the neighbour
 --  2. combining this result with the sender's valuation
 --  3. projecting the result to the intersection of the sender and neighbour's domain
-computeMessage :: (MP.SerializableValuation v a)
+computeMessage :: (Valuation v, Var a)
     => [MP.Message (v a)]
     -> MP.NodeWithProcessId (v a)
     -> MP.NodeWithProcessId (v a)
     -> MP.Message (v a)
 computeMessage postbox sender recipient = computeMessage' (filter (\msg -> msg.sender /= recipient.id) postbox)
-                                                    sender
-                                                    recipient
+                                                          sender
+                                                          recipient
 
 -- | Same as `computeMessage` except doesn't filter the given postbox for messages that don't come from the
 -- recipient. Hence should only be used when it is known that none of the messages in the postbox come
 -- from the recipient.
-computeMessage' :: (MP.SerializableValuation v a)
+computeMessage' :: (Valuation v, Var a)
     => [MP.Message (v a)]
     -> MP.NodeWithProcessId (v a)
     -> MP.NodeWithProcessId (v a)
     -> MP.Message (v a)
-computeMessage' postbox sender recipient = MP.Message sender.id
-                                                      (project (combines1 (sender.node.v : map (.msg) postbox))
-                                                               (intersection sender.node.d recipient.node.d))
+computeMessage' postbox sender recipient = MP.Message sender.id msg
+    where
+        msg = project (combines1 (sender.node.v : map (.msg) postbox))
+                      (intersection sender.node.d recipient.node.d)
 
 
 ------------------------------------------------------------------------------
