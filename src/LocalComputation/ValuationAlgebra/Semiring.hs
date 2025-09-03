@@ -127,20 +127,16 @@ create x y z w
     where
         result = Valuation x y z w
 
--- TODO: Put asserts as a default wrappre for label, combine, project. Then the user
--- instead implements label' combine' and project'.
 instance (Ord b, Show b, Show c, SemiringValue c) => Valuation (SemiringValuation c b) where
     type VarAssignment (SemiringValuation c b) a b = M.Map a b
 
-    label x | assertIsWellFormed x = undefined
     label i@Identity{}  = i.d
     label s@Valuation{} = S.union s.d s._e
 
-    combine x y | assertAllWellFormed [x, y] = undefined
-    combine i1@Identity{} i2@Identity{} = Identity { d = S.union i1.d i2.d }
-    combine i@Identity{}  t@Valuation{} = t { _e = (S.difference (S.union i.d t._e) t.d) }
-    combine t@Valuation{} i@Identity{}  = t { _e = (S.difference (S.union i.d t._e) t.d) }
-    combine t1@Valuation{} t2@Valuation{} -- (Valuation rowMap1 d1 vD1 e1) (Valuation rowMap2 d2 vD2 e2)
+    combine_ i1@Identity{} i2@Identity{} = Identity { d = S.union i1.d i2.d }
+    combine_ i@Identity{}  t@Valuation{} = t { _e = (S.difference (S.union i.d t._e) t.d) }
+    combine_ t@Valuation{} i@Identity{}  = t { _e = (S.difference (S.union i.d t._e) t.d) }
+    combine_ t1@Valuation{} t2@Valuation{} -- (Valuation rowMap1 d1 vD1 e1) (Valuation rowMap2 d2 vD2 e2)
         | null t1._rows = t2 { _e = S.difference (S.union t1._e t2._e) t2.d }
         | null t2._rows = t1 { _e = S.difference (S.union t1._e t2._e) t2.d }
         | otherwise = Valuation newRows newDomain newValueDomain newExtension
@@ -160,12 +156,8 @@ instance (Ord b, Show b, Show c, SemiringValue c) => Valuation (SemiringValuatio
             unionAssert2' :: (Ord a) => M.Map a (Domain b) -> M.Map a (Domain b) -> M.Map a (Domain b)
             unionAssert2' = M.unionWith (\v1 v2 -> assert (v1 == v2) v1)
 
-    project x _ | assertIsWellFormed x = undefined
-    project x y | assert (S.isSubsetOf y (label x)) False = undefined
-    project x             d
-        | label x == d      = x
-    project i@Identity{}  d = i { d = d }
-    project t@Valuation{} d = t { _rows         = M.mapKeysWith add projectDomain1 t._rows
+    project_ i@Identity{}  d = i { d = d }
+    project_ t@Valuation{} d = t { _rows         = M.mapKeysWith add projectDomain1 t._rows
                                 , d             = projectDomain3 t.d
                                 , _valueDomains = projectDomain2 t._valueDomains
                                 , _e            = projectDomain3 t._e
@@ -178,12 +170,9 @@ instance (Ord b, Show b, Show c, SemiringValue c) => Valuation (SemiringValuatio
 
     identity = Identity
 
-    -- TODO: Implement (probably can be implemented through a default implementation?)
-    eliminate x _ | assertIsWellFormed x = undefined
     eliminate v x = project v (S.difference (label v) x)
 
-    -- frame x | assertIsWellFormed x = undefined
-    -- frame _ = error "Not implemented."
+    satisfiesInvariants = isWellFormed
 
 toTable :: (Show a, Show b, Show c) => SemiringValuation a b c -> Table
 toTable Identity{}    = error "Not Implemented"
@@ -199,28 +188,6 @@ toTable v@Valuation{} = Table headings rows
 instance (Show a, Show b, Show c) => Show (SemiringValuation a b c) where
     show Identity{}    = "Identity"
     show v@Valuation{} = P.showTable $ toTable v
-
-    -- show v@Valuation{} = L.intercalate "\n" [showAssignment assignment ++ " " ++ show value
-    --                                             | (assignment, value) <- M.toAscList v._rows]
-    --      where
-    --          showAssignment a = "["
-    --                          ++ L.intercalate ", " [show (var, value) | (var, value) <- M.toAscList a]
-    --                          ++ "]"
-
--- show v@Valuation{} = concat $ L.intersperse "\n" $ map show $ M.elems v._rows
-
-foobar :: ()
-foobar = undefined
-{-
-
->>> getRows [("Barry", [1, 2]), ("James", [3,4])] [2,4,5,6]
-"Barry" "James" Probability
-1       1       2
-1       2       2
-2       2
-2
-
--}
 
 {-
 The first parameter is an association list mapping a variable to a list of values that the variable can take.

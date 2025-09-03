@@ -44,23 +44,18 @@ create m b
     | otherwise = Nothing
 
 instance (Show c, Q.QuasiRegularSemiringValue c) => Valuation (QuasiRegularValuation c) where
-    label x | assertIsWellFormed x = undefined
+
     label (Identity d)    = d
     label (Valuation _ b) = fst (M.domain b)
 
-    combine x y | assertIsWellFormed x || assertIsWellFormed y = undefined
-    combine (Identity d) x = extension x (S.union (label x) d)
-    combine x (Identity d) = extension x (S.union (label x) d)
-    combine v1 v2 = valuationAdd (extension v1 sUnionT) (extension v2 sUnionT)
+    combine_ (Identity d) x = extension x (S.union (label x) d)
+    combine_ x (Identity d) = extension x (S.union (label x) d)
+    combine_ v1 v2 = valuationAdd (extension v1 sUnionT) (extension v2 sUnionT)
         where
             sUnionT = S.union (label v1) (label v2)
 
-    project x _ | assertIsWellFormed x = undefined
-    project x y | assert (S.isSubsetOf y (label x)) False = undefined
-    project x d
-        | label x == d        = x
-    project (Identity _) newD = Identity newD
-    project (Valuation m b) t = fromJust $ create newM newB
+    project_ (Identity _) newD = Identity newD
+    project_ (Valuation m b) t = fromJust $ create newM newB
         where
             newM = matrixAdd (matrixProject m t t)
                              (matrixMultiply (x)
@@ -76,13 +71,11 @@ instance (Show c, Q.QuasiRegularSemiringValue c) => Valuation (QuasiRegularValua
 
     identity d = Identity d
 
-    eliminate x _ | assertIsWellFormed x = undefined
     eliminate v x = project v (S.difference (label v) x)
 
-    -- TODO: Can't define this as need to provide a 'b' and we don't have access to a 'b'.
-    -- Edit: Well we could define a 'maybe b' in the declaration... or a 'Left set | Right map'?
+    satisfiesInvariants = isWellFormed
 
-    -- frame x = S.singleton $ Map.fromList $ [(x, ()) | x <- S.toList $ label x]
+
 
 
 -- | Returns a product useful for the solution of fixpoint systems. Detailed page 367 of "Generic Inference" (Pouly & Kohlas, 2012)

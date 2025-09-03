@@ -9,7 +9,7 @@
 {-# LANGUAGE TypeFamilies           #-}
 
 module LocalComputation.ValuationAlgebra
-    ( Valuation (label, combine, project, identity, eliminate, VarAssignment)
+    ( Valuation (label, combine, combine_, project, project_, identity, eliminate, satisfiesInvariants, VarAssignment)
     , Domain
     , Var
     , combines1
@@ -17,11 +17,13 @@ module LocalComputation.ValuationAlgebra
     )
 where
 
-import qualified Data.Hashable as H
-import qualified Data.List     as L
-import qualified Data.Map.Lazy as M
-import qualified Data.Set      as S
-import           GHC.Base      (Constraint)
+import           Control.Exception      (assert)
+import qualified Data.Hashable          as H
+import qualified Data.List              as L
+import qualified Data.Map.Lazy          as M
+import qualified Data.Set               as S
+import           GHC.Base               (Constraint)
+import qualified LocalComputation.Utils as U
 
 type Domain a = S.Set a
 
@@ -34,25 +36,29 @@ class Valuation v where
     type VarAssignment v a b
 
     label      :: Var a => v a -> Domain a
-    --_label     :: Var a => v a -> Domain a
 
     combine    :: Var a => v a -> v a      -> v a
-    --_combine   :: Var a => v a -> Domain a
+    combine v1 v2 = U.assertP satisfiesInvariants $ combine_ v1 v2
+
+    combine_   :: Var a => v a -> v a      -> v a
 
     project    :: Var a => v a -> Domain a -> v a
-    --_project   :: Var a => v a -> Domain a
+    project v d
+        -- Domain projected to must be subset.
+        | assert (d `S.isSubsetOf` label v) False = undefined
+        -- If current domain is domain of projection skip projection call for efficency.
+        | label v == d = v
+        -- Delegate call to project_ but check invariants on return
+        | otherwise = U.assertP satisfiesInvariants $ project_ v d
+    project_   :: Var a => v a -> Domain a -> v a
 
+    -- TODO: Default implementation of eliminate
     eliminate  :: Var a => v a -> Domain a -> v a
-    --_eliminate :: Var a => v a -> Domain a -> v a
 
-    identity  ::                   Domain a -> v a
+    identity  :: Domain a -> v a
 
--- label :: (Valuation v, Var a) => v a -> Domain a
--- label x = _label x
---
--- combine :: (Valuation v, Var a) => v a -> Domain a
--- _combine x = _label x
-
+    satisfiesInvariants :: Var a => v a -> Bool
+    satisfiesInvariants _ = True
 
 
 combines1 :: (Foldable f, Valuation v, Var a) => f (v a) -> v a

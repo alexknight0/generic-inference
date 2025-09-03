@@ -24,6 +24,7 @@ module LocalComputation.Utils
     , toBinary
     , toBinaryLeadingZeroes
     , assert'
+    , assertP
     , integerLogBase2
     , listOfPowersOfTwo
     , safeHead
@@ -58,6 +59,7 @@ import           Text.Printf                   (printf)
 import qualified Text.ParserCombinators.Parsec as P
 
 import           Control.Exception             (assert)
+import           Control.Monad                 (MonadPlus, mzero)
 import           GHC.Stack                     (HasCallStack)
 import           Numeric.Natural
 import           System.IO                     (IOMode (ReadMode),
@@ -150,8 +152,13 @@ toBinaryLeadingZeroes totalDigits x = take numLeadingZeroes (repeat False) ++ bi
         binary = toBinary x
         numLeadingZeroes = assert' (>=0) (fromIntegral totalDigits - length binary)
 
+-- TODO: Remove all calls and replace with assertId
 assert' :: HasCallStack => (a -> Bool) -> a -> a
 assert' p x = assert (p x) x
+
+-- | Asserts a given predicate holds for a given value.
+assertP :: HasCallStack => (a -> Bool) -> a -> a
+assertP p x = assert (p x) x
 
 integerLogBase2 :: Natural -> Maybe Natural
 integerLogBase2 x = integerLogBase2' 0 x
