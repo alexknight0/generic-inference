@@ -74,7 +74,7 @@ singleTarget (Local mode)  graphs sources target
     | Left _ <- result = failure
     | Right r <- result = r
     where
-        result = ST.singleTarget mode graphs sources target
+        result = ST.singleTargetConfigSet mode graphs sources target
 
 -- | Tests that graphs that are missing zero cost self loops throw an error.
 -- For the reason behind this behaviour, see the documentation of `ST.singleTarget`
@@ -104,7 +104,7 @@ prop_p1_drawGraph = unitTest $ do
 
 prop_p2_drawGraph :: Property
 prop_p2_drawGraph = unitTest $ do
-    case ST.singleTargetTmp "p2.svg" p2.graphs p2.q.sources p2.q.target of
+    case ST.singleTargetConfigSetDraw "p2.svg" undefined p2.graphs p2.q.sources p2.q.target of
         Left _ -> failure
         Right results -> do
             results' <- results

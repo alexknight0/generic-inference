@@ -11,6 +11,7 @@ module LocalComputation.ValuationAlgebra.QuasiRegular
     , create
     , solution
     , Q.TropicalSemiringValue (T)
+    , singleSolutionCompute
     )
 where
 
@@ -30,6 +31,7 @@ import qualified Algebra.Graph                                                as
 import           Data.List                                                    (maximumBy)
 import qualified Data.Map                                                     as Map
 import           LocalComputation.Inference.JoinTree                          (Node (id, v))
+import qualified LocalComputation.Inference.JoinTree                          as JT
 import           LocalComputation.Inference.ShenoyShafer                      (InferredData)
 import           LocalComputation.Utils                                       (findAssertSingleMatch,
                                                                                unsafeFind,
@@ -158,16 +160,19 @@ multiqueryCompute g results = go rootNode.id rootConfigSet rootNode.d
                 phiI = unsafeFind (\n -> n.id == i) vertices
 
 
+-- TODO: NEED to fix ordering for this function as the 'go' function relies on ids.
+
 -- the 'r' in the psi indicates that the 'fusion algorithm' was executed with 'r' as the root node.
-singleSolutionCompute :: forall a c . (Eq a, Q.QSemiringValue c, Show a, Show c, Ord a, Ord c)
-    => InferredData (QuasiRegularValuation c) a
-    -> M.LabelledMatrix a () c
+singleSolutionCompute :: forall a b . (Var a, Q.QSemiringValue b, Show b, Ord b)
+    => InferredData (QuasiRegularValuation b) a
+    -> M.LabelledMatrix a () b
 singleSolutionCompute g = go (rootNode.id - 1) initialX
     where
         vertices = DG.vertexList g
 
-        rootNode :: Node ((QuasiRegularValuation c) a)
-        rootNode = maximum vertices
+        -- TODO: Fix.
+        rootNode :: Node ((QuasiRegularValuation b) a)
+        rootNode = unsafeFind (\n -> n.t == JT.Query) vertices -- maximum $ U.assertP ((>0) . length) vertices
 
         initialX = S.findMin $ fromJust $ configSet rootNode.v S.empty empty
 

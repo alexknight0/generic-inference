@@ -39,6 +39,14 @@ import           LocalComputation.ValuationAlgebra
 -- could even then use a multi-threaded approach to avoid serialization costs entirely. This would require
 -- the subproblem of finding 'groups' of nodes in the larger graph.
 
+-- TODO:
+-- The idea that seemed to come out on top for the interface was to allow the user to
+-- perform a query that is a subset of an existing node; but thinking about that that
+-- still requires InferredData. Perhaps we don't need to ever expose InferredData;
+-- thinking about it again, it seems the implementation for bayesian or whatever it's called
+-- can be done by simply manually projecting the result of the query after you get the result back.
+
+
 type InferredData v a = DG.Graph (Node (v a))
 
 -- TODO: safely handle invalid queries?

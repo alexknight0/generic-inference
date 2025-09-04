@@ -20,6 +20,7 @@ import qualified Data.List.Extra                     as L (splitOn)
 import           Data.Maybe                          (fromJust)
 import qualified Graphics.SVGFonts.ReadFont          as SF
 import qualified LocalComputation.Inference.JoinTree as JT
+import           LocalComputation.Utils              (unsafeFind)
 import qualified LocalComputation.ValuationAlgebra   as V
 
 data DiagramWithBorder a = DiagramWithBorder {
@@ -50,7 +51,8 @@ tree :: (V.Valuation v, Show (v a), Ord a, Show a)
 tree chosenFont g = assert (length rootOutgoingEdges == 0) $
                            tree' chosenFont root g
     where
-        root = L.maximumBy (\x y -> x.id `compare` y.id) $ G.vertexList g
+        -- TODO: Fix
+        root = unsafeFind (\x -> x.t == JT.Query) $ G.vertexList g -- L.maximumBy (\x y -> x.id `compare` y.id) $ G.vertexList g
 
         rootOutgoingEdges = snd . fromJust . L.find (\(x, _) -> x.id == root.id) . G.adjacencyList $ g
 

@@ -161,6 +161,9 @@ data DistributeResults a = DistributeResults {
     postbox :: [Message a]
 }
 
+-- TODO: There is likely a smarter way to do combines here to reduce duplication, but it seems
+-- very difficult
+
 -- | The distribute phase of a message passing process where each node waits to receive a final message
 -- and then distributes messages to all nodes it has not previously sent messages to.
 distribute :: (SerializableValuation v a)

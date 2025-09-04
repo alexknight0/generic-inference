@@ -8,6 +8,8 @@ module LocalComputation.Instances.ShortestPath.SingleTarget
     , singleTargetTmp
     , Error (MissingZeroCostSelfLoops)
     , Query (..)
+    , singleTargetConfigSet
+    , singleTargetConfigSetDraw
     )
 where
 
@@ -22,21 +24,28 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular               as
                                                                                     SemiringValue (one, zero),
                                                                                     TropicalSemiringValue,
                                                                                     create,
+                                                                                    singleSolutionCompute,
                                                                                     solution)
 -- Typeclasses
 import           Control.DeepSeq                                              (NFData)
-import           Control.Monad.IO.Class                                       (MonadIO)
+import           Control.Monad.IO.Class                                       (MonadIO,
+                                                                               liftIO)
 import           Data.Binary                                                  (Binary)
 import qualified Data.Hashable                                                as H
 import           GHC.Generics                                                 (Generic)
 import           LocalComputation.Graph                                       as G
 import qualified LocalComputation.Inference                                   as I
 import qualified LocalComputation.Inference.Fusion                            as F
+import qualified LocalComputation.Inference.JoinTree.Diagram                  as D
+import           LocalComputation.LocalProcess                                (run)
 import           LocalComputation.Utils                                       (fromRight)
 import qualified LocalComputation.ValuationAlgebra                            as V
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue as Q (TropicalSemiringValue (..),
                                                                                     toDouble)
 import           Type.Reflection                                              (Typeable)
+
+-- TODO: A notable property here seems to be that we don't need to find the shortest path from 'all' nodes;
+-- by restricting the domain we can find the shortest path from a few targets.
 
 type Result a = M.LabelledMatrix a () Q.TropicalSemiringValue
 type Knowledgebase a = [Q.QuasiRegularValuation Q.TropicalSemiringValue a]
@@ -121,6 +130,65 @@ singleTarget' mode vs sources target
 
         solutionMM = fmap (fmap Q.solution) $ I.query mode k domain
 
+singleTargetConfigSet :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+    => I.Mode
+    -> [Graph a Double]
+    -> [a]
+    -> a
+    -> Either Error (m [Double])
+singleTargetConfigSet mode vs sources target = fmap (fmap (map Q.toDouble)) $ singleTargetConfigSet' mode (map (fmap Q.T) vs) sources target
+
+
+singleTargetConfigSet' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+    => I.Mode
+    -> [Graph a Q.TropicalSemiringValue]
+    -> [a]
+    -> a
+    -> Either Error (m [Q.TropicalSemiringValue])
+singleTargetConfigSet' mode vs sources target
+    | any (not . G.hasZeroCostSelfLoops) vs = Left  $ MissingZeroCostSelfLoops
+    | otherwise = Right $ do
+        solution <- liftIO $ run solutionM
+        pure $ map (\s -> getDistance solution (s, target)) sources
+
+    where
+        k = knowledgeBase vs target
+        domain = S.fromList (target : sources)
+
+        solutionM = fmap Q.singleSolutionCompute $ F.fusionWithMessagePassing k domain
+
+-- TODO: For single target drawing graphs. Remove once interface is better.
+singleTargetConfigSetDraw :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+    => FilePath
+    -> I.Mode
+    -> [Graph a Double]
+    -> [a]
+    -> a
+    -> Either Error (m [Double])
+singleTargetConfigSetDraw filepath mode vs sources target = fmap (fmap (map Q.toDouble)) $ singleTargetConfigSetDraw' filepath mode (map (fmap Q.T) vs) sources target
+
+
+-- TODO: For single target drawing graphs. Remove once interface is better.
+singleTargetConfigSetDraw' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+    => FilePath
+    -> I.Mode
+    -> [Graph a Q.TropicalSemiringValue]
+    -> [a]
+    -> a
+    -> Either Error (m [Q.TropicalSemiringValue])
+singleTargetConfigSetDraw' filepath mode vs sources target
+    | any (not . G.hasZeroCostSelfLoops) vs = Left  $ MissingZeroCostSelfLoops
+    | otherwise = Right $ do
+        solution <- liftIO $ run solutionM
+        pure $ map (\s -> getDistance solution (s, target)) sources
+
+    where
+        k = knowledgeBase vs target
+        domain = S.fromList (target : sources)
+
+        solutionM = fmap Q.singleSolutionCompute $ F.fusionWithMessagePassingDraw filepath k domain
+
+-- TODO: Used for drawing graphs. Remove once our interface is better.
 singleTargetTmp :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
     => FilePath
     -> [Graph a Double]
@@ -130,6 +198,7 @@ singleTargetTmp :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashabl
 singleTargetTmp filepath vs sources target = fmap (fmap (map Q.toDouble)) $ singleTargetTmp' filepath (map (fmap Q.T) vs) sources target
 
 
+-- TODO: Used for drawing graphs. Remove once our interface is better.
 singleTargetTmp' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
     => FilePath
     -> [Graph a Q.TropicalSemiringValue]
@@ -151,23 +220,6 @@ singleTargetTmp' filepath vs sources target
 
 -- TODO: How do we get 'inferred results' from fusion?
 --
--- singleTarget'' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
---     => [Graph a Q.TropicalSemiringValue]
---     -> [a]
---     -> a
---     -> Either Error (m [Q.TropicalSemiringValue])
--- singleTarget'' vs sources target
---     | any (not . G.hasZeroCostSelfLoops) vs = Left  $ MissingZeroCostSelfLoops
---     | otherwise                             = Right $ do
---         solution <- solutionM
---         pure $ map (\s -> getDistance solution (s, target)) sources
---
---     where
---         k = knowledgeBase vs target
---         domains = map (\s -> S.fromList [s, target]) sources
---
---         solutionMM = undefined
---         test = mapM (\q -> F.fusion vs q) domains
 
 
 -- | Old single target algorithm that utilizes shenoy shafer and multiple single-target queries to return the result.

@@ -32,6 +32,15 @@ type Domain a = S.Set a
 
 type Var a = (Show a, Ord a)
 
+-- TODO: Do we want to undo the _fusion _combine change?
+-- Answer: No, because of the assumption we check on 'project'
+-- TODO: If the above is the case, then we should have the same
+-- for eliminate as it also has an assumption case; and we don't
+-- want that overridden if eliminate is overridden.
+-- TODO: Is there any way we can get automatic property checking here?
+-- Answer: Probably yes, but it would require an implementation of a Gen
+-- for the given type, which can be hard its self.
+
 -- TODO: document choice of having two types 'a' and 'b'
 -- TODO: Could use 'data' constructor inside class declaration...
 class Valuation v where
