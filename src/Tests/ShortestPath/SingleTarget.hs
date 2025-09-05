@@ -112,7 +112,7 @@ singleTarget (Local mode)  graphs sources target
     | Left _ <- result = failure
     | Right r <- result = r
     where
-        result = ST.singleTargetConfigSet mode graphs sources target
+        result = ST.singleTargetConfigSet D.def mode graphs sources target
 
 -- | Tests that graphs that are missing zero cost self loops throw an error.
 -- For the reason behind this behaviour, see the documentation of `ST.singleTarget`

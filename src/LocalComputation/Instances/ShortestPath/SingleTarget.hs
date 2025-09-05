@@ -9,7 +9,6 @@ module LocalComputation.Instances.ShortestPath.SingleTarget
     , Error (MissingZeroCostSelfLoops)
     , Query (..)
     , singleTargetConfigSet
-    , singleTargetConfigSetDraw
     )
 where
 
@@ -130,21 +129,23 @@ singleTarget' mode vs sources target
         solutionMM = fmap (fmap Q.solution) $ I.query mode k domain
 
 singleTargetConfigSet :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => I.Mode
+    => D.DrawSettings
+    -> I.Mode
     -> [Graph a Double]
     -> [a]
     -> a
     -> Either Error (m [Double])
-singleTargetConfigSet mode vs sources target = fmap (fmap (map Q.toDouble)) $ singleTargetConfigSet' mode (map (fmap Q.T) vs) sources target
+singleTargetConfigSet s mode vs sources target = fmap (fmap (map Q.toDouble)) $ singleTargetConfigSet' s mode (map (fmap Q.T) vs) sources target
 
 
 singleTargetConfigSet' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => I.Mode
+    => D.DrawSettings
+    -> I.Mode
     -> [Graph a Q.TropicalSemiringValue]
     -> [a]
     -> a
     -> Either Error (m [Q.TropicalSemiringValue])
-singleTargetConfigSet' mode vs sources target
+singleTargetConfigSet' s mode vs sources target
     | any (not . G.hasZeroCostSelfLoops) vs = Left  $ MissingZeroCostSelfLoops
     | otherwise = Right $ do
         solution <- liftIO $ run solutionM
@@ -154,38 +155,7 @@ singleTargetConfigSet' mode vs sources target
         k = knowledgeBase vs target
         domain = S.fromList (target : sources)
 
-        solutionM = fmap Q.singleSolutionCompute $ F.fusionWithMessagePassing k domain
-
--- TODO: For single target drawing graphs. Remove once interface is better.
-singleTargetConfigSetDraw :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => FilePath
-    -> I.Mode
-    -> [Graph a Double]
-    -> [a]
-    -> a
-    -> Either Error (m [Double])
-singleTargetConfigSetDraw filepath mode vs sources target = fmap (fmap (map Q.toDouble)) $ singleTargetConfigSetDraw' filepath mode (map (fmap Q.T) vs) sources target
-
-
--- TODO: For single target drawing graphs. Remove once interface is better.
-singleTargetConfigSetDraw' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => FilePath
-    -> I.Mode
-    -> [Graph a Q.TropicalSemiringValue]
-    -> [a]
-    -> a
-    -> Either Error (m [Q.TropicalSemiringValue])
-singleTargetConfigSetDraw' filepath mode vs sources target
-    | any (not . G.hasZeroCostSelfLoops) vs = Left  $ MissingZeroCostSelfLoops
-    | otherwise = Right $ do
-        solution <- liftIO $ run solutionM
-        pure $ map (\s -> getDistance solution (s, target)) sources
-
-    where
-        k = knowledgeBase vs target
-        domain = S.fromList (target : sources)
-
-        solutionM = fmap Q.singleSolutionCompute $ F.fusionWithMessagePassingDraw filepath k domain
+        solutionM = fmap Q.singleSolutionCompute $ F.fusionPass s k domain
 
 -- TODO: Used for drawing graphs. Remove once our interface is better.
 singleTargetTmp :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)

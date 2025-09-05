@@ -39,6 +39,7 @@ library
       LocalComputation.Inference
       LocalComputation.Inference.Collect
       LocalComputation.Inference.EliminationSequence
+      LocalComputation.Inference.ExtensionSets
       LocalComputation.Inference.Fusion
       LocalComputation.Inference.JoinTree
       LocalComputation.Inference.JoinTree.Diagram

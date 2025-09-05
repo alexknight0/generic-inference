@@ -131,15 +131,21 @@ configSet phi@(Valuation m b) t x = Just $ S.singleton result
         s = label phi
         sMinusT = S.difference s t
 
--- TODO: Having the function detect an invalid graph? (Bad numbering)
+-- TODO: Have the function detect an invalid graph? (Bad numbering)
 
--- the 'r' in the psi indicates that the 'fusion algorithm' was executed with 'r' as the root node.
-singleSolutionCompute :: forall a b . (Var a, Q.QSemiringValue b, Show b, Ord b)
+
+
+-- | Computes a single solution from the solution set by repeatedly extending a solution set
+-- until it encompasses the whole query. In this case there is only one possible solution,
+-- so this algorithm finds the only solution.
+--
+-- Based off the pseudocode for algorithm 8.3 in Marc Pouly's "Generic Inference".
+-- Note: in the pseudocode for algorithm 8.3, the 'r' subscript of psi indicates that
+-- the 'fusion algorithm' was executed with 'r' as the root node.
+singleSolutionCompute :: forall a b . (Var a, Q.QSemiringValue b, Show b)
     => InferredData (QuasiRegularValuation b) a
     -> M.LabelledMatrix a () b
-singleSolutionCompute g = --fromJust $ M.extension M.empty (initialX.rowLabelSet) (initialX.colLabelSet) Q.one
-                        go (rootNode.id - 1) initialX
-                        -- go (rootNode.id - 1) initialX
+singleSolutionCompute g = go (rootNode.id - 1) initialX
     where
         vertices = DG.vertexList g
 

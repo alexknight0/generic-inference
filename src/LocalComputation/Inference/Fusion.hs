@@ -2,8 +2,7 @@
 
 module LocalComputation.Inference.Fusion (
       fusion
-    , fusionWithMessagePassing
-    , fusionWithMessagePassingDraw
+    , fusionPass
 ) where
 import qualified Algebra.Graph                               as DG
 import           Control.Distributed.Process                 (Process, expect,
@@ -83,17 +82,25 @@ fusion' uniqueId upperPsi (y:ys) = fusion' (uniqueId + 1) upperPsi' ys
 -- TODO: Add:
 -- __Warning__: Doesn't work on problems that have disconnected join trees
 
-fusionWithMessagePassing :: (MP.SerializableValuation v a, Show (v a))
-    => [v a] -> Domain a -> Process (DG.Graph (JT.Node (v a)))
-fusionWithMessagePassing vs queryDomain = MP.messagePassing (JT.redirectToQueryNode queryDomain $ JT.baseJoinTree vs [queryDomain]) nodeActions
+-- | Takes a join tree and returns the join tree after a fusion pass over a given join tree.
+--
+-- __Warning__: will fail if a disconnected join tree is given.
+fusionPass :: (MP.SerializableValuation v a, Show (v a))
+    => D.DrawSettings -> [v a] -> Domain a -> Process (DG.Graph (JT.Node (v a)))
+fusionPass settings vs queryDomain = do
+    drawTree settings.beforeInference treeBeforeInference
 
-fusionWithMessagePassingDraw :: (MP.SerializableValuation v a, Show (v a))
-    => FilePath -> [v a] -> Domain a -> Process (DG.Graph (JT.Node (v a)))
-fusionWithMessagePassingDraw filename vs queryDomain = do
-    results <- MP.messagePassing (JT.redirectToQueryNode queryDomain $ JT.baseJoinTree vs [queryDomain]) nodeActions
-    liftIO $ D.draw filename results
-    pure results
+    treeAfterInference <- MP.messagePassing treeBeforeInference nodeActions
 
+    drawTree settings.afterInference treeAfterInference
+
+    pure treeAfterInference
+
+    where
+        treeBeforeInference = JT.redirectToQueryNode queryDomain $ JT.baseJoinTree vs [queryDomain]
+
+        drawTree Nothing         _    = pure ()
+        drawTree (Just filename) tree = liftIO $ D.draw filename tree
 
 nodeActions :: (MP.SerializableValuation v a) => MP.NodeActions v a
 nodeActions this neighbours resultPort = do
@@ -115,10 +122,8 @@ nodeActions this neighbours resultPort = do
 
 -- Uses the property that the root node is the only node whose label is larger
 -- than all its neighbours
--- TODO: Fix
 isRootNode :: MP.NodeWithPid a -> [MP.NodeWithPid a] -> Bool
-isRootNode node neighbours = node.node.t == JT.Query -- all (\n -> node.id > n.id) neighbours
-
+isRootNode node neighbours = all (\n -> node.id > n.id) neighbours
 
 -- TODO: Update doc.
 
