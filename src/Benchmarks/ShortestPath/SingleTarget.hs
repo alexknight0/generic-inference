@@ -24,7 +24,7 @@ import           Control.DeepSeq                                      (NFData,
 import           Control.Monad                                        (forM)
 import qualified Data.Map.Lazy                                        as M
 
-data Implementation = Baseline | Local I.Mode deriving Show
+data Implementation = Baseline | Local I.Implementation deriving Show
 
 --------------------------------------------------------------------------------
 -- Benchmarks

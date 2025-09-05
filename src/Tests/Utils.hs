@@ -6,7 +6,7 @@ as well as general utilities used by the test library.
 -}
 module Tests.Utils (
       tests
-    , genMode
+    , genImplementation
     , unitTest
     , checkAnswers
 ) where
@@ -50,8 +50,8 @@ prop_assertsAreStillPresent = withTests 100 . property $ do
 -- Utils                                                                     --
 -------------------------------------------------------------------------------
 
-genMode :: Gen I.Mode
-genMode = Gen.element [I.BruteForce, I.Fusion, I.Shenoy]
+genImplementation :: Gen I.Implementation
+genImplementation = Gen.element [I.BruteForce, I.Fusion, I.Shenoy]
 
 unitTest :: PropertyT IO a -> Property
 unitTest = withTests 1 . property . void
