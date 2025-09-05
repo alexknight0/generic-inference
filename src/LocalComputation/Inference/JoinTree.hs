@@ -43,7 +43,8 @@ import           Type.Reflection                                (Typeable)
 -- also potentially get better performance for operations such as
 -- "find a node with *this* id".
 
--- TODO: investigate if union nodes are necessary.
+-- TODO: A join tree is really a join forest. Once we create a proper data
+-- structure for join trees with invariants, this will be more evident.
 
 type Id = Integer
 
