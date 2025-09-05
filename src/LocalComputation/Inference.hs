@@ -40,18 +40,15 @@ data Mode = BruteForce | Fusion | Shenoy deriving (Show)
 -- | Compute inference using the given mode to return valuations with the given domains.
 queries :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a))
     => Mode -> [v a] -> [Domain a] -> Either Error (m [v a])
-queries _ vs qs
-    | not $ queryIsCovered vs qs = Left  $ QueryNotSubsetOfValuations
-queries BruteForce vs qs         = Right $ pure $ bruteForces vs qs
-queries Fusion     vs qs         = Right $ mapM (\q -> pure $ F.fusion vs q) qs
-queries Shenoy     vs qs         = Right $ run $ SS.queries D.def vs qs
+queries = queriesDrawGraph D.def
 
 queriesDrawGraph :: (SerializableValuation v a, Show (v a), NFData (v a), MonadIO m)
     => D.DrawSettings -> Mode -> [v a] -> [Domain a] -> Either Error (m [v a])
 queriesDrawGraph _ _ vs qs
-    | not $ queryIsCovered vs qs = Left $ QueryNotSubsetOfValuations
-queriesDrawGraph s Shenoy vs qs  = Right $ run $ SS.queries s vs qs
-queriesDrawGraph _    _   _  _   = error "Given mode does not produce a join tree."
+    | not $ queryIsCovered vs qs    = Left  $ QueryNotSubsetOfValuations
+queriesDrawGraph _ BruteForce vs qs = Right $ pure $ bruteForces vs qs
+queriesDrawGraph _ Fusion     vs qs = Right $ mapM (\q -> pure $ F.fusion vs q) qs
+queriesDrawGraph s Shenoy     vs qs = Right $ run $ SS.queries s vs qs
 
 queryIsCovered :: (Foldable t, Valuation v, Var a)
     => [v a]

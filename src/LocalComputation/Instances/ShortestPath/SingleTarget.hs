@@ -7,7 +7,7 @@ module LocalComputation.Instances.ShortestPath.SingleTarget
       singleTarget
     , singleTargetTmp
     , Query (..)
-    , singleTargetConfigSet
+    , singleTargetDP
     )
 where
 
@@ -79,75 +79,85 @@ knowledgeBase gs target = map f gs
 getDistance :: (Ord a) => Result a -> (a, a) -> Q.TropicalSemiringValue
 getDistance x (source, _) = fromJust $ M.find (source, ()) x
 
+-- TODO: Can this handle negative weights?
+
 {- | Returns the shortest distance between a single target and multiple sources.
 
 __Warning__ : The shortest path from a vertex to itself is 0 (the trivial path).
 -}
 singleTarget :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => I.Mode
+    => D.DrawSettings
+    -> I.Mode
     -> [Graph a Double]
-    -> [a]
-    -> a
+    -> Query a
     -> Either I.Error (m [Double])
-singleTarget mode vs sources target = fmap (fmap (map Q.toDouble)) $ singleTarget' mode (map (fmap Q.T) vs) sources target
+singleTarget = _usingDouble singleTarget'
+
+singleTarget' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+    => D.DrawSettings
+    -> I.Mode
+    -> [Graph a Q.TropicalSemiringValue]
+    -> Query a
+    -> Either I.Error (m [Q.TropicalSemiringValue])
+singleTarget' s mode vs q = do
+    solutionM <- solutionMOrError
+
+    pure $ do
+        solution <- solutionM
+        pure $ map (\s -> getDistance solution (s, q.target)) q.sources
+
+    where
+        k = knowledgeBase vs q.target
+        domain = S.fromList (q.target : q.sources)
+
+        solutionMOrError = fmap (fmap Q.solution) $ I.queryDrawGraph s mode k domain
+
+singleTargetDP :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+    => D.DrawSettings
+    -> I.Mode
+    -> [Graph a Double]
+    -> Query a
+    -> Either I.Error (m [Double])
+singleTargetDP = _usingDouble singleTargetDP'
+
+
+singleTargetDP' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+    => D.DrawSettings
+    -> I.Mode
+    -> [Graph a Q.TropicalSemiringValue]
+    -> Query a
+    -> Either I.Error (m [Q.TropicalSemiringValue])
+singleTargetDP' s mode vs q = do
+    solutionM <- solutionMOrError
+
+    pure $ do
+        solution <- solutionM
+        pure $ map (\s -> getDistance solution (s, q.target)) q.sources
+
+    where
+        k = knowledgeBase vs q.target
+        domain = S.fromList (q.target : q.sources)
+
+        solutionMOrError = I.queryDPDrawGraph s k domain
+
+
+
+--------------------------------------------------------------------------------
+-- Multiple query variants
+--------------------------------------------------------------------------------
 
 -- | Returns the answers to multiple single-target queries.
 --
 -- Computes the solution by performing multiple seperate single target computations, even in the shenoy case;
 -- using shenoy here allows computing multiple sources in one inference sweep, but not computing multiple targets.
 singleTargets :: forall a m . (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => I.Mode
+    => D.DrawSettings
+    -> I.Mode
     -> [Graph a Double]
     -> [Query a]
     -> Either I.Error (m [[Double]])
-singleTargets mode gs qs = fmap sequence $ mapM (\q -> singleTarget mode gs q.sources q.target) qs
+singleTargets s mode gs qs = fmap sequence $ mapM (\q -> singleTarget s mode gs q) qs
 
--- TODO: Can this handle negative weights?
-singleTarget' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => I.Mode
-    -> [Graph a Q.TropicalSemiringValue]
-    -> [a]
-    -> a
-    -> Either I.Error (m [Q.TropicalSemiringValue])
-singleTarget' mode vs sources target
-    | Left e          <- solutionMM         = Left e
-    | Right solutionM <- solutionMM         = Right $ do
-        solution <- solutionM
-        pure $ map (\s -> getDistance solution (s, target)) sources
-
-    where
-        k = knowledgeBase vs target
-        domain = S.fromList (target : sources)
-
-        solutionMM = fmap (fmap Q.solution) $ I.query mode k domain
-
-singleTargetConfigSet :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => D.DrawSettings
-    -> I.Mode
-    -> [Graph a Double]
-    -> [a]
-    -> a
-    -> Either I.Error (m [Double])
-singleTargetConfigSet s mode vs sources target = fmap (fmap (map Q.toDouble)) $ singleTargetConfigSet' s mode (map (fmap Q.T) vs) sources target
-
-
-singleTargetConfigSet' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => D.DrawSettings
-    -> I.Mode
-    -> [Graph a Q.TropicalSemiringValue]
-    -> [a]
-    -> a
-    -> Either I.Error (m [Q.TropicalSemiringValue])
-singleTargetConfigSet' s mode vs sources target
-    | otherwise = Right $ do
-        solution <- liftIO $ run solutionM
-        pure $ map (\s -> getDistance solution (s, target)) sources
-
-    where
-        k = knowledgeBase vs target
-        domain = S.fromList (target : sources)
-
-        solutionM = fmap D.solution $ F.fusionPass s k domain
 
 -- TODO: Used for drawing graphs. Remove once our interface is better.
 singleTargetTmp :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
@@ -177,4 +187,11 @@ singleTargetTmp' settings vs sources target
         domain = S.fromList (target : sources)
 
         solutionMM = fmap (fmap Q.solution) $ I.queryDrawGraph settings I.Shenoy k domain
+
+
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
+
+_usingDouble f s mode vs qs = fmap (fmap (map Q.toDouble)) $ f s mode (map (fmap Q.T) vs) qs
 

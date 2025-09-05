@@ -23,6 +23,7 @@ import           Control.DeepSeq                                      (NFData,
                                                                        rnf)
 import           Control.Monad                                        (forM)
 import qualified Data.Map.Lazy                                        as M
+import qualified LocalComputation.Inference.JoinTree.Diagram          as D
 
 data Implementation = Baseline | Local I.Mode deriving Show
 
@@ -80,7 +81,7 @@ singleTarget Baseline gs qs = do
 
         -- Compute solutions
         pure $ map (\q -> H.singleSource g q.target q.sources infinity) qs
-singleTarget (Local mode) gs qs = pure $ mapM (\q -> fromRight $ ST.singleTarget mode gs q.sources q.target) qs
+singleTarget (Local mode) gs qs = pure $ mapM (\q -> fromRight $ ST.singleTarget D.def mode gs q) qs
 
 -- singleTargetWithRandomQuery :: Implementation -> G.Graph Natural Double -> [(Natural, [Natural])] -> IO [Double]
 -- singleTargetWithRandomQuery mode graph reverseAdjacencyList = do
