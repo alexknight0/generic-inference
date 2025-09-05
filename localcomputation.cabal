@@ -99,6 +99,7 @@ library
     , distributed-process ==0.7.8
     , extra
     , fft
+    , filepath
     , hashable
     , heap
     , hedgehog
@@ -149,6 +150,7 @@ executable localcomputation-exe
     , distributed-process ==0.7.8
     , extra
     , fft
+    , filepath
     , hashable
     , heap
     , hedgehog
@@ -205,6 +207,7 @@ test-suite localcomputation-test
     , distributed-process ==0.7.8
     , extra
     , fft
+    , filepath
     , hashable
     , heap
     , hedgehog
@@ -261,6 +264,7 @@ benchmark localcomputation-benchmark
     , distributed-process ==0.7.8
     , extra
     , fft
+    , filepath
     , hashable
     , heap
     , hedgehog

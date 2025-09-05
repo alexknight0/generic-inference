@@ -24,10 +24,12 @@ import qualified Graphics.SVGFonts.ReadFont          as SF
 import qualified LocalComputation.Inference.JoinTree as JT
 import           LocalComputation.Utils              (unsafeFind)
 import qualified LocalComputation.ValuationAlgebra   as V
+import           System.Directory.Extra              (createDirectoryIfMissing)
+import           System.FilePath                     (takeDirectory)
 
 data DrawSettings = DrawSettings {
-      beforeInference :: Maybe String
-    , afterInference  :: Maybe String
+      beforeInference :: Maybe FilePath
+    , afterInference  :: Maybe FilePath
 }
 
 def = DrawSettings {
@@ -47,11 +49,17 @@ data DiagramWithBorder a = DiagramWithBorder {
 draw :: (V.Valuation v, Show (v a), Ord a, Show a)
     => FilePath -> G.Graph (JT.Node (v a)) -> IO ()
 draw name g = do
+    -- Create directory for file if necessary
+    createDirectoryIfMissing True (takeDirectory name)
+
+    -- Load the chosen font
     chosenFont <- SF.bit
 
+    -- Create the diagram
     let diagram = cat (r2 (2, 3)) [legend chosenFont # scaleProportional 0.2 t, t]
         t = tree chosenFont g
 
+    -- Render the diagram
     renderSVG name (dims2D 1400 1400) (diagram # framePadding 0.05)
 
 -- | Produces a diagram of a tree out of a given graph.

@@ -141,17 +141,21 @@ prop_p1_drawGraph = unitTest $ do
             checkAnswers approx results' p1.answers
 
     where
-        settings = D.def { D.beforeInference = Just "p1_before.svg"
-                         , D.afterInference  = Just "p1_after.svg"
+        settings = D.def { D.beforeInference = Just "diagrams/p1_before.svg"
+                         , D.afterInference  = Just "diagrams/p1_after.svg"
                         }
 
--- prop_p2_drawGraph :: Property
--- prop_p2_drawGraph = unitTest $ do
---     case ST.singleTargetConfigSetDraw "p2.svg" undefined p2.graphs p2.q.sources p2.q.target of
---         Left _ -> failure
---         Right results -> do
---             results' <- results
---             checkAnswers approx results' p2.answers
+prop_p2_drawGraph :: Property
+prop_p2_drawGraph = unitTest $ do
+    case ST.singleTargetTmp settings p2.graphs p2.q.sources p2.q.target of
+        Left _ -> failure
+        Right results -> do
+            results' <- results
+            checkAnswers approx results' p2.answers
+    where
+        settings = D.def { D.beforeInference = Just "diagrams/p2_before.svg"
+                         , D.afterInference  = Just "diagrams/p2_after.svg"
+                        }
 
 -- | Tests that the all implementations work for a set problem where one graph is given.
 prop_p1 :: Property

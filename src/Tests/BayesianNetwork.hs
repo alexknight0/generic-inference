@@ -87,11 +87,6 @@ boolify x = (x, [False, True])
 inferenceAnswers :: [Query AsiaVar Bool] -> [Probability] -> [([AsiaVar], [Probability])] -> Property
 inferenceAnswers qs as vs = unitTest $ checkQueries qs as (pure $ dataToValuations vs)
 
--- prop_drawGraph :: Property
--- prop_drawGraph = unitTest $ do
---     fromRight $ queriesDrawGraph "test.svg" Shenoy (dataToValuations asiaValuationsP1) asiaQueriesP1
---     pure ()
-
 prop_inferenceAnswersP1 :: Property
 prop_inferenceAnswersP1 = inferenceAnswers asiaQueriesP1 asiaAnswersP1 asiaValuationsP1
 
@@ -165,17 +160,17 @@ prop_inferenceAnswersMatchPrebuilt = withTests 100 . property $ do
         algebraResults qs net = run $ getProbabilityAlt qs net
         prebuiltResults qs = liftIO $ E.try $ E.evaluate $ force $ runQueries (createNetwork asiaValuationsP1) qs
 
-prop_drawAlarmGraph :: Property
-prop_drawAlarmGraph = unitTest $ do
+prop_drawAsiaGraph :: Property
+prop_drawAsiaGraph = unitTest $ do
     net <- fmap convertToAsia $ parseNetwork asiaFilepath
     fromRight $ queriesDrawGraph settings Shenoy net (toInferenceQuery asiaQueriesP1)
 
-    where settings = D.def { D.beforeInference = Just "asia_before.svg"
-                           , D.afterInference = Just "asia_after.svg"
+    where settings = D.def { D.beforeInference = Just "diagrams/asia_before.svg"
+                           , D.afterInference = Just "diagrams/asia_after.svg"
                           }
 
-prop_parsesAlarm :: Property
-prop_parsesAlarm = unitTest $ do
+prop_alarm :: Property
+prop_alarm = unitTest $ do
     checkQueries alarmQueries alarmAnswers (parseNetwork alarmFilepath)
 
 -- prop_parsesMunin :: Property

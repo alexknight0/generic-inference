@@ -58,6 +58,7 @@ dependencies:
 - SVGFonts
 - colour
 - boxes
+- filepath
 
 ghc-options:
 - -Wall

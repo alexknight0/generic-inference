@@ -111,7 +111,7 @@ answerQueryM vs q = do
     results <- MP.messagePassing (baseJoinTree vs [q]) nodeActions
     pure $ answerQuery q results
 
--- TODO: Right now visualises the after tree. We should have options for both i guess!
+-- TODO: use a single master method
 answerQueriesDrawGraphM :: (MP.SerializableValuation v a, Show (v a))
     => D.DrawSettings
     -> [v a]
@@ -121,7 +121,13 @@ answerQueriesDrawGraphM settings vs queryDomains = do
     case settings.beforeInference of
         Nothing       -> pure ()
         Just filename -> liftIO $ D.draw filename treeBeforeInference
+
     treeAfterInference <- MP.messagePassing treeBeforeInference nodeActions
+
+    case settings.afterInference of
+        Nothing       -> pure ()
+        Just filename -> liftIO $ D.draw filename treeAfterInference
+
     pure $ answerQueries queryDomains treeAfterInference
 
     where
