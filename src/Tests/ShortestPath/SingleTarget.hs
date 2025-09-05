@@ -52,7 +52,7 @@ p3MatchesBaseline = do
     checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map (getTest p3VerySmall) [I.BruteForce, I.Fusion, I.Shenoy]
 
     where
-        getTest :: G.Graph Natural Double -> I.Implementation -> (PropertyName, Property)
+        getTest :: G.Graph Natural Double -> I.Mode -> (PropertyName, Property)
         getTest g mode = (Hedgehog.PropertyName $ "prop_p3VerySmall_MatchesBaseline_" ++ show mode
                          , matchesBaseline mode g 100)
 
@@ -62,12 +62,12 @@ randomMatchesBaseline = do
     checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map getTest [I.BruteForce, I.Fusion, I.Shenoy]
 
     where
-        getTest :: I.Implementation -> (PropertyName, Property)
+        getTest :: I.Mode -> (PropertyName, Property)
         getTest mode = (Hedgehog.PropertyName $ "prop_random_MatchesBaseline_" ++ show mode
                       , randomMatchesBaseline' mode 100)
 
 -- TODO: Something doesn't like empty graphs...
-randomMatchesBaseline' :: I.Implementation -> TestLimit -> Property
+randomMatchesBaseline' :: I.Mode -> TestLimit -> Property
 randomMatchesBaseline' mode numTests = withTests numTests . property $ do
     nodes <- forAll $ Gen.int (Range.linear 2 200)
     edges <- forAll $ Gen.int (Range.linear 2 2000)
@@ -103,7 +103,7 @@ approx x y
 
 -- | Choice between either a `Baseline` inference implementation taken from hackage,
 -- or a inference implementation from the `Local` computation library.
-data Implementation = Baseline | Local I.Implementation
+data Implementation = Baseline | Local I.Mode
 
 singleTarget :: (MonadTest m, NFData a,  MonadIO m, Show a, Binary a, Typeable a,  H.Hashable a, Ord a) => Implementation -> [G.Graph a Double] -> [a] -> a -> m [Double]
 singleTarget Baseline      graphs sources target = pure $ H.singleTarget graphs sources target infinity
@@ -157,7 +157,7 @@ prop_p2 = pX p2
 
 -- | Checks the output of the local computation algorithms and the baseline algorithm match for a set of random queries.
 matchesBaseline :: forall a . (NFData a, H.Hashable a, Binary a, Typeable a, Show a, Ord a)
-    => I.Implementation
+    => I.Mode
     -> G.Graph a Double
     -> TestLimit
     -> Property

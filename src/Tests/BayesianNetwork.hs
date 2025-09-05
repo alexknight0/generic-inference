@@ -28,7 +28,7 @@ import           Tests.Utils                                       (checkAnswers
 
 import           Control.DeepSeq                                   (NFData)
 import qualified Data.Char                                         as C
-import           LocalComputation.Inference                        (Implementation (Shenoy),
+import           LocalComputation.Inference                        (Mode (Shenoy),
                                                                     queriesDrawGraph)
 
 tests :: IO Bool

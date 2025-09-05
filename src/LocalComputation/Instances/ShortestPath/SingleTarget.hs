@@ -92,7 +92,7 @@ for `Q.solution` and the quasi-inverse definition of a `Q.TropicalSemiringValue`
 To make this assumption explicit, returns `Left InvalidGraph` if a graph that does not have 0 cost self loops is given.
 -}
 singleTarget :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => I.Implementation
+    => I.Mode
     -> [Graph a Double]
     -> [a]
     -> a
@@ -104,7 +104,7 @@ singleTarget mode vs sources target = fmap (fmap (map Q.toDouble)) $ singleTarge
 -- Computes the solution by performing multiple seperate single target computations, even in the shenoy case;
 -- using shenoy here allows computing multiple sources in one inference sweep, but not computing multiple targets.
 singleTargets :: forall a m . (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => I.Implementation
+    => I.Mode
     -> [Graph a Double]
     -> [Query a]
     -> Either Error (m [[Double]])
@@ -112,7 +112,7 @@ singleTargets mode gs qs = fmap sequence $ mapM (\q -> singleTarget mode gs q.so
 
 -- TODO: Can this handle negative weights?
 singleTarget' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => I.Implementation
+    => I.Mode
     -> [Graph a Q.TropicalSemiringValue]
     -> [a]
     -> a
@@ -131,7 +131,7 @@ singleTarget' mode vs sources target
         solutionMM = fmap (fmap Q.solution) $ I.query mode k domain
 
 singleTargetConfigSet :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => I.Implementation
+    => I.Mode
     -> [Graph a Double]
     -> [a]
     -> a
@@ -140,7 +140,7 @@ singleTargetConfigSet mode vs sources target = fmap (fmap (map Q.toDouble)) $ si
 
 
 singleTargetConfigSet' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => I.Implementation
+    => I.Mode
     -> [Graph a Q.TropicalSemiringValue]
     -> [a]
     -> a
@@ -160,7 +160,7 @@ singleTargetConfigSet' mode vs sources target
 -- TODO: For single target drawing graphs. Remove once interface is better.
 singleTargetConfigSetDraw :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
     => FilePath
-    -> I.Implementation
+    -> I.Mode
     -> [Graph a Double]
     -> [a]
     -> a
@@ -171,7 +171,7 @@ singleTargetConfigSetDraw filepath mode vs sources target = fmap (fmap (map Q.to
 -- TODO: For single target drawing graphs. Remove once interface is better.
 singleTargetConfigSetDraw' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
     => FilePath
-    -> I.Implementation
+    -> I.Mode
     -> [Graph a Q.TropicalSemiringValue]
     -> [a]
     -> a

@@ -9,7 +9,7 @@ module LocalComputation.Inference (
     , queries
     , queries'
     , queriesDrawGraph
-    , Implementation (..)
+    , Mode (..)
     , Error (..)
 ) where
 import           Control.Monad.IO.Class                    (MonadIO)
@@ -29,11 +29,11 @@ import qualified LocalComputation.Inference.Fusion         as F
 
 data Error = QueryNotSubsetOfValuations deriving (NFData, Generic, Show)
 
-data Implementation = BruteForce | Fusion | FusionMessagePassing | Shenoy deriving (Show)
+data Mode = BruteForce | Fusion | FusionMessagePassing | Shenoy deriving (Show)
 
 -- | Compute inference using the given mode to return valuations with the given domains.
 queries :: (SerializableValuation v a, NFData (v a), MonadIO m)
-    => Implementation -> [v a] -> [Domain a] -> Either Error (m [v a])
+    => Mode -> [v a] -> [Domain a] -> Either Error (m [v a])
 queries _          vs qs
     | not $ queryIsCovered vs qs = Left  $ QueryNotSubsetOfValuations
 queries BruteForce vs qs         = Right $ pure $ baselines vs qs
@@ -52,32 +52,33 @@ queryIsCovered vs qs = not $ any (\q -> not $ S.isSubsetOf q coveredDomain) qs
 -- | Unsafe variant of `queries` - will throw if a query is not subset of the
 -- domain the given valuations cover.
 queries' :: (SerializableValuation v a, NFData (v a), MonadIO m)
-    => Implementation -> [v a] -> [Domain a] -> m [v a]
+    => Mode -> [v a] -> [Domain a] -> m [v a]
 queries' mode vs qs = case queries mode vs qs of
                             Left e  -> error (show e)
                             Right r -> r
 
 -- TODO: Draw graph might function better as a 'mode'. i.e. make 'mode' a record that includes a 'drawgraph' property.
 queriesDrawGraph :: (SerializableValuation v a, Show (v a), NFData (v a), MonadIO m)
-    => FilePath -> Implementation -> [v a] -> [Domain a] -> Either Error (m [v a])
+    => FilePath -> Mode -> [v a] -> [Domain a] -> Either Error (m [v a])
 queriesDrawGraph _        _      vs qs
     | not $ queryIsCovered vs qs   = Left  $ QueryNotSubsetOfValuations
+queriesDrawGraph name FusionMessagePassing vs qs = Right $ run $ SS.answerQueriesDrawGraphM name vs qs
 queriesDrawGraph name Shenoy               vs qs = Right $ run $ SS.answerQueriesDrawGraphM name vs qs
 queriesDrawGraph _    _                    _  _  = error "Not implemented"
 
 -- | Compute inference using the given mode to return a valuation with the given domain.
 query :: (SerializableValuation v a, NFData (v a), MonadIO m)
-    => Implementation -> [v a] -> Domain a -> Either Error (m (v a))
+    => Mode -> [v a] -> Domain a -> Either Error (m (v a))
 query mode vs q = fmap (fmap head) $ queries mode vs [q]
 
 -- | Unsafe variant of `query` - will throw if query is not subset of the
 -- domain the given valuations cover.
 query' :: (SerializableValuation v a, NFData (v a), MonadIO m)
- => Implementation -> [v a] -> Domain a -> m (v a)
+ => Mode -> [v a] -> Domain a -> m (v a)
 query' mode vs q = fmap head $ queries' mode vs [q]
 
 queryDrawGraph :: (SerializableValuation v a, Show (v a), NFData (v a), MonadIO m)
-    => FilePath -> Implementation -> [v a] -> Domain a -> Either Error (m (v a))
+    => FilePath -> Mode -> [v a] -> Domain a -> Either Error (m (v a))
 queryDrawGraph name mode vs q = fmap (fmap head) $ queriesDrawGraph name mode vs [q]
 
 --------------------------------------------------------------------------------
