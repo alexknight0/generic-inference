@@ -14,12 +14,6 @@ module LocalComputation.Inference.MessagePassing (
     , CollectResults (target, postbox)
     , distribute
     , DistributeResults (postbox)
-
-    -- Serialization related typeclasses
-    , Binary   -- Must be derived for serialization
-    , Typeable -- Must be derived for serialization
-    , Generic  -- Must be derived to derive Binary
-    , NFData   -- Must be derived for to allow returning as a result of 'Process'.
 ) where
 
 import           Control.Distributed.Process              hiding (Message)
@@ -32,12 +26,9 @@ import           Control.Monad                            (forM_, replicateM)
 import qualified Data.Set                                 as S
 import qualified LocalComputation.Inference.JoinTree      as JT
 import qualified LocalComputation.Utils                   as U
+import           LocalComputation.ValuationAlgebra        (Binary, Generic,
+                                                           Typeable)
 import qualified LocalComputation.ValuationAlgebra        as V
-
-import           Control.DeepSeq                          (NFData)
-import           Data.Binary                              (Binary)
-import           GHC.Generics                             (Generic)
-import           Type.Reflection                          (Typeable)
 
 
 type SerializableValuation v a = (V.Valuation v, V.Var a, Binary (v a), Typeable v, Typeable a)

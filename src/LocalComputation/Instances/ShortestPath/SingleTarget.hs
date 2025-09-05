@@ -22,7 +22,6 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular               as
                                                                                     SemiringValue (one, zero),
                                                                                     TropicalSemiringValue,
                                                                                     create,
-                                                                                    singleSolutionCompute,
                                                                                     solution)
 -- Typeclasses
 import           Control.DeepSeq                                              (NFData)
@@ -33,6 +32,7 @@ import qualified Data.Hashable                                                as
 import           GHC.Generics                                                 (Generic)
 import           LocalComputation.Graph                                       as G
 import qualified LocalComputation.Inference                                   as I
+import qualified LocalComputation.Inference.DynamicProgramming                as D
 import qualified LocalComputation.Inference.Fusion                            as F
 import qualified LocalComputation.Inference.JoinTree.Diagram                  as D
 import           LocalComputation.LocalProcess                                (run)
@@ -155,7 +155,7 @@ singleTargetConfigSet' s mode vs sources target
         k = knowledgeBase vs target
         domain = S.fromList (target : sources)
 
-        solutionM = fmap Q.singleSolutionCompute $ F.fusionPass s k domain
+        solutionM = fmap D.solution $ F.fusionPass s k domain
 
 -- TODO: Used for drawing graphs. Remove once our interface is better.
 singleTargetTmp :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)

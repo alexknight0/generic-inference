@@ -11,11 +11,10 @@ module LocalComputation.ValuationAlgebra.QuasiRegular
     , create
     , solution
     , Q.TropicalSemiringValue (T)
-    , singleSolutionCompute
+    , configSet
     )
 where
 
-import           Control.Exception                                            (assert)
 import           Data.Maybe                                                   (fromJust)
 import qualified Data.Set                                                     as S
 import qualified LocalComputation.LabelledMatrix                              as M
@@ -27,19 +26,6 @@ import           Control.DeepSeq                                              (N
 import           Data.Binary                                                  (Binary)
 import           GHC.Generics                                                 (Generic)
 
-import qualified Algebra.Graph                                                as DG
-import           Data.List                                                    (maximumBy)
-import qualified Data.Map                                                     as Map
-import           Debug.Trace                                                  (trace,
-                                                                               traceShowId)
-import           LocalComputation.Inference.JoinTree                          (Node (id, v))
-import qualified LocalComputation.Inference.JoinTree                          as JT
-import           LocalComputation.Inference.ShenoyShafer                      (InferredData)
-import           LocalComputation.Utils                                       (findAssertSingleMatch,
-                                                                               unsafeFind,
-                                                                               unusedArg)
-import qualified LocalComputation.Utils                                       as DG (neighbours)
-import qualified LocalComputation.Utils                                       as U
 
 type Foo a = (Binary a, NFData a, Generic a)
 
@@ -130,51 +116,6 @@ configSet phi@(Valuation m b) t x = Just $ S.singleton result
 
         s = label phi
         sMinusT = S.difference s t
-
--- TODO: Have the function detect an invalid graph? (Bad numbering)
-
-
-
--- | Computes a single solution from the solution set by repeatedly extending a solution set
--- until it encompasses the whole query. In this case there is only one possible solution,
--- so this algorithm finds the only solution.
---
--- Based off the pseudocode for algorithm 8.3 in Marc Pouly's "Generic Inference".
--- Note: in the pseudocode for algorithm 8.3, the 'r' subscript of psi indicates that
--- the 'fusion algorithm' was executed with 'r' as the root node.
-singleSolutionCompute :: forall a b . (Var a, Q.QSemiringValue b, Show b)
-    => InferredData (QuasiRegularValuation b) a
-    -> M.LabelledMatrix a () b
-singleSolutionCompute g = go (rootNode.id - 1) initialX
-    where
-        vertices = DG.vertexList g
-
-        rootNode :: Node ((QuasiRegularValuation b) a)
-        rootNode = U.assertP isQueryNode $ maximum vertices
-
-        isQueryNode :: Node (QuasiRegularValuation b a) -> Bool
-        isQueryNode n = n.t == JT.Query
-
-        initialX = S.findMin $ fromJust $ configSet rootNode.v S.empty empty
-
-        empty = M.reshape unusedArg M.empty S.empty (S.singleton ())
-
-        go 0 x = x
-        go i x = go (i - 1) (fromJust $ M.appendRows x y')
-            where
-                -- TODO: Does our join tree construction algorithm provide a graph that has a complete numbering?
-                -- If not it's actually dead easy to ensure it does; we just have to renumber the nodes in a topological
-                -- ordering (as join tree does for 'renumberTree')
-                nodeI      = unsafeFind (\n -> n.id == i) vertices
-                nodeChildI = head $ fromJust $ DG.neighbours nodeI g
-
-                y' = S.findMin $ fromJust y
-
-                y = configSet nodeI.v
-                              intersectionOfIAndChildI
-                              (matrixProject x intersectionOfIAndChildI (S.singleton ()))
-
-                intersectionOfIAndChildI = S.intersection nodeI.d nodeChildI.d
 
 ------------------------------------------------------------------------------
 -- Unsafe & quasiregular variants of matrix operations.                     --

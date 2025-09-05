@@ -17,6 +17,12 @@ module LocalComputation.ValuationAlgebra
     , Var
     , showDomain
     , assertInvariants
+
+    -- Serialization related typeclasses
+    , Binary   -- Must be derived for serialization
+    , Typeable -- Must be derived for serialization
+    , Generic  -- Must be derived to derive Binary
+    , NFData   -- Must be derived for to allow returning as a result of 'Process'.
     )
 where
 
@@ -27,6 +33,11 @@ import qualified Data.Map.Lazy          as M
 import qualified Data.Set               as S
 import           GHC.Base               (Constraint)
 import qualified LocalComputation.Utils as U
+
+import           Control.DeepSeq        (NFData)
+import           Data.Binary            (Binary)
+import           GHC.Generics           (Generic)
+import           Type.Reflection        (Typeable)
 
 type Domain a = S.Set a
 

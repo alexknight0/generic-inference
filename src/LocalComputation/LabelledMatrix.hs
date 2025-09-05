@@ -18,11 +18,15 @@ module LocalComputation.LabelledMatrix
     , toSquare
     , extension
     , project
+    , unsafeProject
     , find
     , add
+    , unsafeAdd
     , multiply
+    , unsafeMultiply
     , multiplys
     , quasiInverse
+    , unsafeQuasiInverse
     , decompose
     , joinSquare
     , isWellFormed
@@ -61,6 +65,8 @@ import           Debug.Trace                                                  (t
 import qualified LocalComputation.Pretty                                      as P
 import qualified LocalComputation.Utils                                       as U
 
+-- TODO: Change asserts to take place *after* the function is called;
+-- much safer this way.
 
 data InvalidFormat = DuplicateKeys | NotTotalMapping
 
@@ -85,15 +91,6 @@ instance (Show a, Show b, Show c) => Show (LabelledMatrix a b c) where
             headings = "" : colLabels
             rows     = zipWith (:) rowLabels matrixRows
 
-
-foobar :: ()
-foobar = undefined
-{-
-
->>> replicate 10 "foo"
-["foo","foo","foo","foo","foo","foo","foo","foo","foo","foo"]
-
--}
 
 -- | O(1) accessor for number of rows
 instance HasField "numRows" (LabelledMatrix a b c) M.Ix1 where
@@ -338,18 +335,17 @@ quasiInverse m
     | otherwise = assert' isJust $ joinSquare newB newC newD newE
     where
         (b, c, d, e) = fromJust $ decompose m
-        f = add' e (multiplys' [d, bStar, c])
-        bStar = quasiInverse' b
-        fStar = quasiInverse' f
+        f = addQ e (multiplys' [d, bStar, c])
+        bStar = unsafeQuasiInverse b
+        fStar = unsafeQuasiInverse f
 
-        newB = add' bStar (multiplys' [bStar, c, fStar, d, bStar])
+        newB = addQ bStar (multiplys' [bStar, c, fStar, d, bStar])
         newC = multiplys' [bStar, c, fStar]
         newD = multiplys' [fStar, d, bStar]
         newE = fStar
 
-        add' x y = fromJust $ add Q.add x y
+        addQ x y = unsafeAdd Q.add x y
         multiplys' xs = fromJust $ multiplys Q.zero Q.add Q.multiply xs
-        quasiInverse' x = fromJust $ quasiInverse x
 
 -- TODO: This function could probably be made a lot faster by not calling project.
 -- for example we could have a new function that just operates on indices and splits on them.
@@ -438,10 +434,18 @@ appendRows m1 m2
 
         append = ((M.computeAs M.B .) .) . M.append'
 
+empty :: LabelledMatrix a b c
+empty = Matrix M.empty BM.empty BM.empty
 
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
 enumerate :: (Ord a) => S.Set a -> BM.Bimap M.Ix1 a
 enumerate xs = (BM.fromAscPairList . assert' checkIsAscPairList) $ zip [M.Ix1 0..] (S.toAscList xs)
 
+--------------------------------------------------------------------------------
+-- Invariants
+--------------------------------------------------------------------------------
 {- | Returns true if the matrix satisfies a set of invariants that we wish
 to maintain between operations.
 
@@ -470,6 +474,30 @@ checkIsAscPairList :: (Ord a, Ord b) => [(a, b)] -> Bool
 checkIsAscPairList []            = True
 checkIsAscPairList ((x, y) : zs) = all (\(x', y') -> x < x' && y < y') zs
 
-empty :: LabelledMatrix a b c
-empty = Matrix M.empty BM.empty BM.empty
+--------------------------------------------------------------------------------
+-- Unsafe variants
+--------------------------------------------------------------------------------
+unsafeProject :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> LabelledMatrix a b c
+unsafeProject = ((fromJust .) .) . project
 
+unsafeQuasiInverse :: (Ord a, Q.QSemiringValue c, Show a, Show c)
+    => LabelledMatrix a a c
+    -> LabelledMatrix a a c
+unsafeQuasiInverse = fromJust . quasiInverse
+
+-- | Basic addition on two matrices. Returns Nothing if the provided matrices have different shapes.
+unsafeAdd :: (Ord a, Ord b)
+    => (c -> c -> c)
+    -> LabelledMatrix a b c
+    -> LabelledMatrix a b c
+    -> LabelledMatrix a b c
+unsafeAdd = ((fromJust .) .) . add
+
+unsafeMultiply :: forall a b c d . (Eq a, Eq b, Eq c)
+    => d
+    -> (d -> d -> d)
+    -> (d -> d -> d)
+    -> LabelledMatrix a b d
+    -> LabelledMatrix b c d
+    -> LabelledMatrix a c d
+unsafeMultiply = ((((fromJust .) .) .) .) . multiply

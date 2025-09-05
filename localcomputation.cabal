@@ -38,8 +38,8 @@ library
       LocalComputation.Graph
       LocalComputation.Inference
       LocalComputation.Inference.Collect
+      LocalComputation.Inference.DynamicProgramming
       LocalComputation.Inference.EliminationSequence
-      LocalComputation.Inference.ExtensionSets
       LocalComputation.Inference.Fusion
       LocalComputation.Inference.JoinTree
       LocalComputation.Inference.JoinTree.Diagram

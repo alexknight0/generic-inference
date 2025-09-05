@@ -38,6 +38,10 @@ import qualified LocalComputation.Utils                         as U
 import           Text.Pretty.Simple                             (pShow)
 import           Type.Reflection                                (Typeable)
 
+-- TODO: Should have a seperate data structure for join trees. That way we
+-- not only can better assert the tree is in a set structure, but we can
+-- also potentially get better performance for operations such as
+-- "find a node with *this* id".
 
 -- TODO: investigate if union nodes are necessary.
 
