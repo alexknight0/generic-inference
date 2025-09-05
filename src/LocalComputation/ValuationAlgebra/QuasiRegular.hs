@@ -113,8 +113,6 @@ _extension (Valuation m b) t = fromJust $ create (fromJust $ M.extension m t t Q
 -- QuasiRegularValuation Extension Sets
 ------------------------------------------------------------------------------
 
--- TODO: should we replace the operations of project here with variable elimination?
---
 -- | Produces the configuration set. See page 368 of Marc Pouly's "Generic Inference"
 configSet :: (Q.QSemiringValue c, Show a, Show c, Ord a)
     => QuasiRegularValuation c a
@@ -131,61 +129,9 @@ configSet phi@(Valuation m b) t x = Just $ S.singleton result
                                            (matrixProject b sMinusT (S.singleton ())))
 
         s = label phi
-        sMinusT = -- trace ("S_MINUS_T " ++ show (S.difference s t)) $
-                    S.difference s t
+        sMinusT = S.difference s t
 
-getValuation :: (Eq a) => a -> [(a, b)] -> b
-getValuation x results = snd $ unsafeFind (\(d, v) -> d == x) results
-
--- TODO: need child info.
-
--- TODO: We should take one of the following approaches
--- 1. Check if there is a way to perform this algorithm without the notion of labels
---      (might be hard because it seems to use child(..))
--- 2. Provide node id information inside inferred data so we don't have to stitch it back together afterward.
---      (If we get asserts failing here, we actually can't stitch it back together accurately!)
-multiqueryCompute :: forall a c . (Eq a, Q.QSemiringValue c, Show a, Show c, Ord a, Ord c)
-    => DG.Graph (Node ((QuasiRegularValuation c) a))
-    -> InferredData (QuasiRegularValuation c) a
-    -> S.Set (M.LabelledMatrix a () c)
-multiqueryCompute g results = go rootNode.id rootConfigSet rootNode.d
-    where
-        vertices = DG.vertexList results
-
-        rootNode :: Node ((QuasiRegularValuation c) a)
-        rootNode = maximum vertices
-
-        rootConfigSet :: Maybe (S.Set (M.LabelledMatrix a () c))
-        rootConfigSet = configSet rootNode.v S.empty M.empty
-
-        go i c s = undefined
-            where
-                -- This doesn't exactly follow the mathematical definition as doing so
-                -- appears to require enumerating an infinite set.
-                c' = undefined
-
-                s' = S.union s phiI.d
-                phiI = unsafeFind (\n -> n.id == i) vertices
-
-
--- TODO:
--- We were getting the correct solutions because:
---
---  1. In singleSolutionCompute the querynode is popped first (as we desire).
---     However the query node always contained the whole set of variables, so instead
---     of slowly building up the solution we got it in the first go.
---
---  2. We didn't have multiple graphs, which meant our join trees always got
---     constructed in such a way that we ended up getting the right result
---     I think.
-
--- TODO: NEED to fix ordering for this function as the 'go' function relies on ids.
-
--- TODO: I think the reason is we only actually have a very werid looking small graph.
--- Answer: nope?
-
--- TODO: Study the outputs of 'singleSolutionCompute' - namely how we are calling 'appendRow' on something
--- that already is the solution???????
+-- TODO: Having the function detect an invalid graph? (Bad numbering)
 
 -- the 'r' in the psi indicates that the 'fusion algorithm' was executed with 'r' as the root node.
 singleSolutionCompute :: forall a b . (Var a, Q.QSemiringValue b, Show b, Ord b)
@@ -197,34 +143,19 @@ singleSolutionCompute g = --fromJust $ M.extension M.empty (initialX.rowLabelSet
     where
         vertices = DG.vertexList g
 
-        -- TODO: Fix.
         rootNode :: Node ((QuasiRegularValuation b) a)
-        rootNode = -- U.assertP (isMax)  $
-                    unsafeFind (\n -> n.t == JT.Query) vertices -- maximum $ U.assertP ((>0) . length) vertices
+        rootNode = U.assertP isQueryNode $ maximum vertices
 
-        isMax :: Node (QuasiRegularValuation b a) -> Bool
-        isMax n = maximum vertices == n
+        isQueryNode :: Node (QuasiRegularValuation b a) -> Bool
+        isQueryNode n = n.t == JT.Query
 
         initialX = S.findMin $ fromJust $ configSet rootNode.v S.empty empty
 
         empty = M.reshape unusedArg M.empty S.empty (S.singleton ())
 
         go 0 x = x
-        go i x = result
+        go i x = go (i - 1) (fromJust $ M.appendRows x y')
             where
-                result = go (i - 1) (fromJust $ M.appendRows x y')
-                msg = "------------------\n\
-                      \i: " ++ show i ++ "\n\
-                      \------------------\n\
-                      \         X        \n\
-                      \------------------\n\
-                      \" ++ show x ++   "\
-                      \------------------\n\
-                      \         Y        \n\
-                      \------------------\n\
-                      \" ++ show y' ++  "\
-                      \------------------\n"
-
                 -- TODO: Does our join tree construction algorithm provide a graph that has a complete numbering?
                 -- If not it's actually dead easy to ensure it does; we just have to renumber the nodes in a topological
                 -- ordering (as join tree does for 'renumberTree')
@@ -233,19 +164,11 @@ singleSolutionCompute g = --fromJust $ M.extension M.empty (initialX.rowLabelSet
 
                 y' = S.findMin $ fromJust y
 
-                y = -- trace ("-----------------\nPROJECTED\n---------------\n" ++ show projected) $
-                    configSet nodeI.v
+                y = configSet nodeI.v
                               intersectionOfIAndChildI
-                              projected
-                    where
-                        projected = matrixProject x intersectionOfIAndChildI (S.singleton ())
-                intersectionOfIAndChildI = -- trace ("INTERSECTION: " ++ show result2)
-                                            result2
-                    where
-                        result2 = S.intersection nodeI.d nodeChildI.d
+                              (matrixProject x intersectionOfIAndChildI (S.singleton ()))
 
-
-
+                intersectionOfIAndChildI = S.intersection nodeI.d nodeChildI.d
 
 ------------------------------------------------------------------------------
 -- Unsafe & quasiregular variants of matrix operations.                     --

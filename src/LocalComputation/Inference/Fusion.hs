@@ -110,14 +110,8 @@ nodeActions this neighbours resultPort = do
 
     -- TODO: In the non-root-node case, we duplicated a 'combines' operation here.
     let result = combines1 (this.node.v : map (.msg) postbox)
-    -- trace (foo result) (pure ())
     assert (this.node.d == label result) (pure ())
     sendChan resultPort $ JT.changeContent this.node result
-
-    where
-        -- foo x
-        --     | this.node.d /= label x = LT.unpack $ pShow (this.node.d, label x)
-        --     | otherwise = ""
 
 -- Uses the property that the root node is the only node whose label is larger
 -- than all its neighbours
@@ -139,10 +133,7 @@ computeMessage :: forall v a . (Valuation v, Var a)
     -> MP.NodeWithPid (v a)
     -> MP.NodeWithPid (v a)
     -> v a
-computeMessage postbox sender recipient
--- TODO: fix
-    | recipient.node.t `elem` [JT.Projection, JT.Query] = eliminate combined varsToEliminate
-    | otherwise                         = combined
+computeMessage postbox sender recipient = eliminate combined varsToEliminate
     where
         varsToEliminate = S.difference sender.node.d recipient.node.d
 

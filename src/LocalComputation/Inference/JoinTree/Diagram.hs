@@ -51,8 +51,7 @@ tree :: (V.Valuation v, Show (v a), Ord a, Show a)
 tree chosenFont g = assert (length rootOutgoingEdges == 0) $
                            tree' chosenFont root g
     where
-        -- TODO: Fix
-        root = unsafeFind (\x -> x.t == JT.Query) $ G.vertexList g -- L.maximumBy (\x y -> x.id `compare` y.id) $ G.vertexList g
+        root = L.maximumBy (\x y -> x.id `compare` y.id) $ G.vertexList g
 
         rootOutgoingEdges = snd . fromJust . L.find (\(x, _) -> x.id == root.id) . G.adjacencyList $ g
 
