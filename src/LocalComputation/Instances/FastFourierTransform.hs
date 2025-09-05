@@ -32,6 +32,7 @@ import qualified Data.Hashable                              as H
 import           GHC.Generics                               (Generic)
 
 import           Data.Maybe                                 (fromJust)
+import qualified LocalComputation.Inference                 as I
 import           LocalComputation.Inference.Fusion          (fusion)
 
 newtype FourierComplex = FourierComplex (C.Complex Double) deriving newtype (Num, Fractional, Binary, Show, NFData, Eq, Generic)
@@ -43,7 +44,7 @@ newtype FourierComplex = FourierComplex (C.Complex Double) deriving newtype (Num
 (X i) and (Y j) are variables indicating the i_th and j_th bits in the binary number representation of x and y respectively.
 (F i) is a variable representing the i_th sample of a function representing the sampled signal.
 -}
-data FastFourierVariable = X Natural | Y Natural deriving (Eq, Ord, Binary, Generic, Show, H.Hashable)
+data FastFourierVariable = X Natural | Y Natural deriving (Eq, Ord, Binary, Generic, Show, H.Hashable, NFData)
 
 type FastFourierValuation = SemiringValuation FourierComplex Natural FastFourierVariable
 
@@ -102,7 +103,7 @@ query samples qs = case integerLogBase2 (fromIntegral $ length samples) of
         let queryDomain = S.fromList $ map Y $ [0 .. m-1]
 
         -- let result = fromRight $ fusion (getKnowledgebase samples) queryDomain
-        result <- answerQueryM (getKnowledgebase samples) queryDomain
+        result <- I.query' I.Shenoy (getKnowledgebase samples) queryDomain
         pure $ map (findBinaryValue result m) qs
 
 -- | An unsafe version of `query` - throws when `query` would return `Nothing`.

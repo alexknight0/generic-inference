@@ -4,10 +4,7 @@
 
 module LocalComputation.Inference.ShenoyShafer (
       shenoyJoinTree
-    , answerQueriesM, answerQueryM, answerQueriesDrawGraphM
-    , answerQueries, answerQuery
-    , inference
-    , answerQuery'
+    , queries
     , InferredData
 ) where
 
@@ -21,6 +18,7 @@ import           Data.Set                                    (intersection,
 
 import           Control.Exception                           (assert)
 import qualified Data.List                                   as L
+import           Data.Maybe                                  (fromJust)
 import           LocalComputation.Inference.JoinTree         (Node (..),
                                                               baseJoinTree)
 import qualified LocalComputation.Inference.JoinTree         as J
@@ -39,107 +37,47 @@ import           LocalComputation.ValuationAlgebra
 -- could even then use a multi-threaded approach to avoid serialization costs entirely. This would require
 -- the subproblem of finding 'groups' of nodes in the larger graph.
 
--- TODO:
--- The idea that seemed to come out on top for the interface was to allow the user to
--- perform a query that is a subset of an existing node; but thinking about that that
--- still requires InferredData. Perhaps we don't need to ever expose InferredData;
--- thinking about it again, it seems the implementation for bayesian or whatever it's called
--- can be done by simply manually projecting the result of the query after you get the result back.
-
-
+-- TODO: Rename ResultingTree; stop exporting
 type InferredData v a = DG.Graph (Node (v a))
 
--- TODO: safely handle invalid queries?
-answerQueries :: forall v a. (Valuation v, Var a)
+-- | Extracts a given query from the query results.
+--
+-- Assumes query is subset of the domain the given valuations cover.
+extractQueryResult :: forall v a. (Valuation v, Var a)
     => [Domain a]
     -> InferredData v a
     -> [v a]
-answerQueries queryDomains results = map queryToAnswer queryDomains
+extractQueryResult queryDomains results = map f queryDomains
     where
-        queryToAnswer :: Domain a -> v a
-        queryToAnswer d = tmp.v
-            where
-                tmp = case L.find (\n -> d == n.d) (DG.vertexList results) of
-                            Just x -> x
-                            Nothing -> -- pTraceShow (showDomain d, map (showDomain . (.d)) $ DG.vertexList results, map showDomain queryDomains) $
-                                        error "Find failed."
+        -- Find valuation with domain equal to query then get the valuation
+        f :: Domain a -> v a
+        f q = (.v) $ fromJust $ L.find (\n -> q == n.d) (DG.vertexList results)
 
 
--- TODO: safely handle invalid queries?
-answerQueries' :: forall v a. (Valuation v, Var a)
-    => [Domain a]
-    -> InferredData v a
-    -> [v a]
-answerQueries' queryDomains results = map queryToAnswer queryDomains
-    where
-        queryToAnswer :: Domain a -> v a
-        queryToAnswer d = project closest.v d
-            where
-                closest = head $ L.sortOn (\n -> length n.d) $ filter (\n -> d `isSubsetOf` n.d) (DG.vertexList results)
-
-                -- tmp = case L.find (\n -> d `isSubsetOf` n.d) (DG.vertexList results) of
-                --             Just x -> x
-                --             Nothing -> -- pTraceShow (showDomain d, map (showDomain . (.d)) $ DG.vertexList results, map showDomain queryDomains) $
-                --                         error "Find failed."
-
--- TODO safely handle invalid queries?
-answerQuery' :: forall v a. (Valuation v, Var a)
-    => Domain a
-    -> InferredData v a
-    -> v a
-answerQuery' q results = head $ answerQueries' [q] results
-
-answerQuery :: forall v a. (Valuation v, Var a)
-    => Domain a
-    -> InferredData v a
-    -> v a
-answerQuery q results = head $ answerQueries [q] results
-
-answerQueriesM :: (MP.SerializableValuation v a)
-    => [v a]
-    -> [Domain a]
-    -> Process [v a]
-answerQueriesM vs queryDomains = do
-    results <- MP.messagePassing (baseJoinTree vs queryDomains) nodeActions
-    pure $ answerQueries queryDomains results
-
-answerQueryM :: (MP.SerializableValuation v a)
-    => [v a]
-    -> Domain a
-    -> Process (v a)
-answerQueryM vs q = do
-    results <- MP.messagePassing (baseJoinTree vs [q]) nodeActions
-    pure $ answerQuery q results
-
--- TODO: use a single master method
-answerQueriesDrawGraphM :: (MP.SerializableValuation v a, Show (v a))
+-- | Performs shenoy shafer inference.
+--
+-- Assumes query is subset of the domain the given valuations cover.
+queries :: (MP.SerializableValuation v a, Show (v a))
     => D.DrawSettings
     -> [v a]
     -> [Domain a]
     -> Process [v a]
-answerQueriesDrawGraphM settings vs queryDomains = do
-    case settings.beforeInference of
-        Nothing       -> pure ()
-        Just filename -> liftIO $ D.draw filename treeBeforeInference
+queries settings vs queryDomains = do
+    drawTree settings.beforeInference treeBeforeInference
 
     treeAfterInference <- MP.messagePassing treeBeforeInference nodeActions
 
-    case settings.afterInference of
-        Nothing       -> pure ()
-        Just filename -> liftIO $ D.draw filename treeAfterInference
+    drawTree settings.afterInference treeAfterInference
 
-    pure $ answerQueries queryDomains treeAfterInference
+    pure $ extractQueryResult queryDomains treeAfterInference
 
     where
         treeBeforeInference = baseJoinTree vs queryDomains
 
--- TODO: We were going to get rid of this by doing making bayesian simply do a manual projection on the result.
+        drawTree Nothing         _    = pure ()
+        drawTree (Just filename) tree = liftIO $ D.draw filename tree
 
-inference :: (MP.SerializableValuation v a)
-    => [v a]
-    -> [Domain a]
-    -> Process (InferredData v a)
-inference vs queryDomains = MP.messagePassing (baseJoinTree vs queryDomains) nodeActions
+
 
 -- TODO: Is `shenoyJoinTree` still used?
 

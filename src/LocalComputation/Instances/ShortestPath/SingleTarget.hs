@@ -18,7 +18,6 @@ import           Data.Maybe                                                   (f
 import qualified Data.Set                                                     as S
 
 import qualified Data.Map                                                     as MP
-import           LocalComputation.Inference.ShenoyShafer                      (answerQueriesM)
 import qualified LocalComputation.LabelledMatrix                              as M
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular               as Q (QuasiRegularValuation,
                                                                                     SemiringValue (one, zero),
@@ -218,18 +217,3 @@ singleTargetTmp' settings vs sources target
 
         solutionMM = fmap (fmap Q.solution) $ I.queryDrawGraph settings I.Shenoy k domain
 
--- TODO: How do we get 'inferred results' from fusion?
---
-
-
--- | Old single target algorithm that utilizes shenoy shafer and multiple single-target queries to return the result.
-oldSingleTarget :: (H.Hashable a, Binary a, Typeable a, Ord a, Show a) => [Graph a Q.TropicalSemiringValue] -> [a] -> a -> Process (Either Error [Q.TropicalSemiringValue])
-oldSingleTarget vs sources target
-    | any (not . G.hasZeroCostSelfLoops) vs = pure $ Left MissingZeroCostSelfLoops
-    | otherwise = do
-        results <- answerQueriesM k domains
-        pure $ Right $ map (\(s, r) -> getDistance r (s, target)) $ zip sources (map Q.solution results)
-
-        where
-            k = knowledgeBase vs target
-            domains = map (\s -> S.fromList [s, target]) sources

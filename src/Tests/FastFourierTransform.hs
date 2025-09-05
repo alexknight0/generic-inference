@@ -5,10 +5,10 @@ module Tests.FastFourierTransform
 where
 
 import           Benchmarks.FastFourierTransform.Baseline
+import           Benchmarks.FastFourierTransform.Data
 import           LocalComputation.Instances.FastFourierTransform
 import           LocalComputation.LocalProcess
 import           LocalComputation.Utils
-import           Benchmarks.FastFourierTransform.Data
 
 import           Hedgehog
 import qualified Hedgehog.Gen                                    as Gen
@@ -31,6 +31,7 @@ tolerableError = 0.00000001
 approximateEquals :: FourierComplex -> FourierComplex -> Bool
 approximateEquals (FourierComplex x) (FourierComplex y) = abs (realPart x - realPart y) < tolerableError && abs (imagPart x - imagPart y) < tolerableError
 
+-- | Tests implementation a random test case.
 prop_queryMatchesKnownAnswers :: Property
 prop_queryMatchesKnownAnswers = unitTest $ do
 
@@ -40,6 +41,7 @@ prop_queryMatchesKnownAnswers = unitTest $ do
             results <- run resultsM
             checkAnswers approximateEquals results fourierP1Answers
 
+-- | Tests implementation on random samples.
 prop_matchesHackagePackage :: Property
 prop_matchesHackagePackage = withTests 100 . property $ do
 
@@ -58,6 +60,7 @@ prop_matchesHackagePackage = withTests 100 . property $ do
             results <- run resultsM
             checkAnswers approximateEquals results (map FourierComplex answers)
 
+-- | Tests implementation on [0..]
 prop_matchesHackagePackage2 :: Property
 prop_matchesHackagePackage2 = unitTest $ do
 

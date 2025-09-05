@@ -1,6 +1,13 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric  #-}
 
+{-
+Functions performing inference may impose many constraints on the caller
+that are not actually necessary for the mode selected. For example, it is not
+necessary that the valuations provided are 'Serializable' for the caller to use
+the 'BruteForce' mode. This is done for simplicity, but could change if undesired.
+-}
+
 {- | Exposes functions for computing inference. -}
 module LocalComputation.Inference (
       query
@@ -13,8 +20,7 @@ module LocalComputation.Inference (
     , Error (..)
 ) where
 import           Control.Monad.IO.Class                      (MonadIO)
-import qualified LocalComputation.Inference.ShenoyShafer     as SS (answerQueriesDrawGraphM,
-                                                                    answerQueriesM)
+import qualified LocalComputation.Inference.ShenoyShafer     as SS (queries)
 import           LocalComputation.LocalProcess               (run)
 import           LocalComputation.ValuationAlgebra           (Domain, Valuation,
                                                               Var, combines1,
@@ -33,14 +39,14 @@ data Error = QueryNotSubsetOfValuations deriving (NFData, Generic, Show)
 data Mode = BruteForce | Fusion { _messagePassing :: Bool } | Shenoy deriving (Show)
 
 -- | Compute inference using the given mode to return valuations with the given domains.
-queries :: (SerializableValuation v a, NFData (v a), MonadIO m)
+queries :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a))
     => Mode -> [v a] -> [Domain a] -> Either Error (m [v a])
 queries _                           vs qs
     | not $ queryIsCovered vs qs          = Left  $ QueryNotSubsetOfValuations
 queries BruteForce                  vs qs = Right $ pure $ baselines vs qs
 queries (Fusion False)              vs qs = Right $ mapM (\q -> pure $ F.fusion vs q) qs
 queries (Fusion True)               _  _  = error "Not implemented"
-queries Shenoy                      vs qs = Right $ run $ SS.answerQueriesM vs qs
+queries Shenoy                      vs qs = Right $ run $ SS.queries D.def vs qs
 
 queryIsCovered :: (Foldable t, Valuation v, Var a)
     => [v a]
@@ -53,7 +59,7 @@ queryIsCovered vs qs = not $ any (\q -> not $ S.isSubsetOf q coveredDomain) qs
 
 -- | Unsafe variant of `queries` - will throw if a query is not subset of the
 -- domain the given valuations cover.
-queries' :: (SerializableValuation v a, NFData (v a), MonadIO m)
+queries' :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a))
     => Mode -> [v a] -> [Domain a] -> m [v a]
 queries' mode vs qs = case queries mode vs qs of
                             Left e  -> error (show e)
@@ -63,7 +69,7 @@ queriesDrawGraph :: (SerializableValuation v a, Show (v a), NFData (v a), MonadI
     => D.DrawSettings -> Mode -> [v a] -> [Domain a] -> Either Error (m [v a])
 queriesDrawGraph _ _ vs qs
     | not $ queryIsCovered vs qs = Left $ QueryNotSubsetOfValuations
-queriesDrawGraph s Shenoy vs qs = Right $ run $ SS.answerQueriesDrawGraphM s vs qs
+queriesDrawGraph s Shenoy vs qs = Right $ run $ SS.queries s vs qs
 queriesDrawGraph _    _   _  _  = error "Not implemented"
 
 queryDrawGraph :: (SerializableValuation v a, Show (v a), NFData (v a), MonadIO m)
@@ -71,13 +77,13 @@ queryDrawGraph :: (SerializableValuation v a, Show (v a), NFData (v a), MonadIO 
 queryDrawGraph s mode vs q = fmap (fmap head) $ queriesDrawGraph s mode vs [q]
 
 -- | Compute inference using the given mode to return a valuation with the given domain.
-query :: (SerializableValuation v a, NFData (v a), MonadIO m)
+query :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a))
     => Mode -> [v a] -> Domain a -> Either Error (m (v a))
 query mode vs q = fmap (fmap head) $ queries mode vs [q]
 
 -- | Unsafe variant of `query` - will throw if query is not subset of the
 -- domain the given valuations cover.
-query' :: (SerializableValuation v a, NFData (v a), MonadIO m)
+query' :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a))
  => Mode -> [v a] -> Domain a -> m (v a)
 query' mode vs q = fmap head $ queries' mode vs [q]
 
