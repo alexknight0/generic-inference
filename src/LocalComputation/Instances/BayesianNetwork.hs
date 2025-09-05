@@ -5,7 +5,7 @@
 {-# LANGUAGE UndecidableInstances       #-}
 
 module LocalComputation.Instances.BayesianNetwork
-    ( getProbability, toQuery
+    ( getProbability, toQueryA
     , Query (conditioned, conditional, Query)
     , Probability (P)
     , Network
@@ -16,6 +16,7 @@ module LocalComputation.Instances.BayesianNetwork
 where
 
 import           LocalComputation.Utils
+import qualified LocalComputation.Utils                     as M (fromListA)
 import qualified LocalComputation.ValuationAlgebra          as V
 import qualified LocalComputation.ValuationAlgebra.Semiring as S
 
@@ -63,9 +64,6 @@ instance S.SemiringValue Probability where
 
 type Network a b = [Valuation a b]
 
--- TODO: See if can handle conditioned being in conditional and vice versa - will allow us to eliminate
--- 'disjoint union' checks.
-
 -- | A query for a bayesian network is a query for the conditional probability of some event.
 -- In other words, a query for \(P(\text{conditioned} | \text{conditional})\) where
 -- 'conditioned' and 'conditional' are sets of variables.
@@ -89,6 +87,7 @@ conditionalP q p1 p2
                                                                 / p2 q.conditional
 
 -- TODO: Wait isn't this just M.intersectionWith const m1 m2  == M.intersectionWith (flip const) m1 m2
+-- Edit: Simply replace with whatever the efficent way is of doing this, as we will find out when optimizing semiring.
 sharedKeysHaveSameValue :: (Ord a, Ord b) => M.Map a b -> M.Map a b -> Bool
 sharedKeysHaveSameValue m1 m2 = allTrue $ M.intersectionWith f (withIndicator m1) (withIndicator m2)
     where
@@ -118,8 +117,9 @@ getProbability qs network' = do
         probability q r = conditionalP q (\x -> S.findValue x r)
                                          (\x -> S.findValue x (V.project r (M.keysSet q.conditional)))
 
-toQuery :: (Ord a) => ([(a, b)], [(a, b)]) -> Query a b
-toQuery (x, y) = Query (fromListAssertDisjoint x) (fromListAssertDisjoint y)
+-- TODO: Unsafe don't export.
+toQueryA :: (Ord a) => ([(a, b)], [(a, b)]) -> Query a b
+toQueryA (x, y) = Query (M.fromListA x) (M.fromListA y)
 
 -- | Converts a given probability query to an inference query. This inference query will allow inference
 -- to return the results necessary to answer the given probability query.

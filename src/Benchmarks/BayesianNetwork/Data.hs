@@ -181,7 +181,7 @@ asiaValuationsP1 :: [([AsiaVar], [BN.Probability])]
 asiaValuationsP1 = asiaValuations
 
 asiaQueriesP1 :: [BN.Query AsiaVar Bool]
-asiaQueriesP1 = map BN.toQuery [
+asiaQueriesP1 = map BN.toQueryA [
           (
            [(HasTuberculosis, True)],
            [(VisitToAsia, True)]
@@ -211,7 +211,7 @@ asiaValuationsP2 :: [([AsiaVar], [BN.Probability])]
 asiaValuationsP2 = asiaValuations
 
 asiaQueriesP2 :: [BN.Query AsiaVar Bool]
-asiaQueriesP2 = map BN.toQuery [
+asiaQueriesP2 = map BN.toQueryA [
           (
             [(XRayResult, True), (Dyspnea, True)],
             [(VisitToAsia, True)]
@@ -245,7 +245,7 @@ asiaValuationsP3 :: [([AsiaVar], [BN.Probability])]
 asiaValuationsP3 = asiaValuations ++ [([XRayResultAndDyspnea, XRayResult, Dyspnea], [1, 1, 1, 0, 0, 0, 0, 1])]
 
 asiaQueriesP3 :: [BN.Query AsiaVar Bool]
-asiaQueriesP3 = map BN.toQuery [
+asiaQueriesP3 = map BN.toQueryA [
         (
           [(XRayResultAndDyspnea, True)],
           [(VisitToAsia, True)]
@@ -256,7 +256,7 @@ asiaAnswersP3 :: [BN.Probability]
 asiaAnswersP3 = [0.09882268]
 
 muninQueries :: [BN.Query String String]
-muninQueries = map BN.toQuery [
+muninQueries = map BN.toQueryA [
         -- Pretty sure we want underscores instead of '.'s here. Also may need to replace the dashes? idk. Maybe not.
           (
             [("R.MEDD2.DISP-WD", "NO")],
@@ -273,7 +273,7 @@ muninAnswers :: [BN.Probability]
 muninAnswers = [0.864, 0.874]
 
 alarmQueries  :: [BN.Query String String]
-alarmQueries = map BN.toQuery [
+alarmQueries = map BN.toQueryA [
           (
             [("HRBP", "LOW")],
             []
