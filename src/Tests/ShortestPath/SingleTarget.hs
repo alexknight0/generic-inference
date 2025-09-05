@@ -47,45 +47,45 @@ tests = fmap and $ sequence [
       , randomMatchesBaseline
    ]
 
+
 p3MatchesBaseline :: IO Bool
 p3MatchesBaseline = do
     p3VerySmall <- P.fromValid p3VerySmallGraph
-    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map (getTest p3VerySmall) [I.BruteForce, I.Fusion, I.Shenoy]
+    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map (getTest p3VerySmall) [Local I.BruteForce, Local I.Fusion, Local I.Shenoy, DP]
 
     where
-        getTest :: G.Graph Natural Double -> I.Mode -> (PropertyName, Property)
+        getTest :: G.Graph Natural Double -> Implementation -> (PropertyName, Property)
         getTest g mode = (Hedgehog.PropertyName $ "prop_p3VerySmall_MatchesBaseline_" ++ show mode
                          , matchesBaseline mode g 100)
 
 -- TODO: Clean up
 randomMatchesBaseline :: IO Bool
 randomMatchesBaseline = do
-    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map getTest [I.BruteForce, I.Fusion, I.Shenoy]
+    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map getTest [Local I.BruteForce, Local I.Fusion, Local I.Shenoy, DP]
 
     where
-        getTest :: I.Mode -> (PropertyName, Property)
+        getTest :: Implementation -> (PropertyName, Property)
         getTest mode = (Hedgehog.PropertyName $ "prop_random_MatchesBaseline_" ++ show mode
                       , randomMatchesBaseline' mode 100)
 
 -- TODO: Something doesn't like empty graphs...
-randomMatchesBaseline' :: I.Mode -> TestLimit -> Property
+randomMatchesBaseline' :: Implementation -> TestLimit -> Property
 randomMatchesBaseline' mode numTests = withTests numTests . property $ do
     nodes <- forAll $ Gen.int (Range.linear 2 200)
     edges <- forAll $ Gen.int (Range.linear 2 2000)
     graphs <- forAll $ genGraphs (fromIntegral nodes) (fromIntegral edges)
 
-    case G.isConnected (G.merges1 graphs) of
-        False -> discard
-        True -> do
-            case G.nodeList (G.merges1 graphs) of
-                []     -> discard
-                merged -> do
-                    query <- forAll $ genConnectedQuery (G.reverseAdjacencyList (G.merges1 graphs))
+    if not $ G.isConnected (G.merges1 graphs) then discard else pure ()
 
-                    baseline  <- go Baseline query graphs
-                    local     <- go (Local mode) query graphs
+    case G.nodeList (G.merges1 graphs) of
+        []     -> discard
+        merged -> do
+            query <- forAll $ genConnectedQuery (G.reverseAdjacencyList (G.merges1 graphs))
 
-                    checkAnswers approx local baseline
+            baseline  <- go Baseline query graphs
+            local     <- go mode query graphs
+
+            checkAnswers approx local baseline
 
     where
         go :: (MonadTest m, MonadIO m) => Implementation -> ST.Query Natural -> [G.Graph Natural Double] -> m [Double]
@@ -104,15 +104,16 @@ approx x y
 
 -- | Choice between either a `Baseline` inference implementation taken from hackage,
 -- or a inference implementation from the `Local` computation library.
-data Implementation = Baseline | Local I.Mode
+data Implementation = Baseline | Local I.Mode | DP deriving Show
 
 singleTarget :: (MonadTest m, NFData a,  MonadIO m, Show a, Binary a, Typeable a,  H.Hashable a, Ord a) => Implementation -> [G.Graph a Double] -> [a] -> a -> m [Double]
 singleTarget Baseline      graphs sources target = pure $ H.singleTarget graphs sources target infinity
-singleTarget (Local mode)  graphs sources target
-    | Left _ <- result = failure
-    | Right r <- result = r
-    where
-        result = ST.singleTargetDP D.def graphs (ST.Query sources target)
+singleTarget (Local mode)  graphs sources target = case ST.singleTarget D.def mode graphs (ST.Query sources target) of
+                                                        Left _  -> failure
+                                                        Right x -> x
+singleTarget DP            graphs sources target = case ST.singleTargetDP D.def graphs (ST.Query sources target) of
+                                                        Left _  -> failure
+                                                        Right x -> x
 
 pX :: Problem -> Property
 pX p = unitTest $ do
@@ -122,7 +123,7 @@ pX p = unitTest $ do
 
 prop_p1_drawGraph :: Property
 prop_p1_drawGraph = unitTest $ do
-    case ST.singleTargetTmp settings p1.graphs p1.q.sources p1.q.target of
+    case ST.singleTarget settings I.Shenoy p1.graphs p1.q of
         Left _ -> failure
         Right results -> do
             results' <- results
@@ -135,7 +136,7 @@ prop_p1_drawGraph = unitTest $ do
 
 prop_p2_drawGraph :: Property
 prop_p2_drawGraph = unitTest $ do
-    case ST.singleTargetTmp settings p2.graphs p2.q.sources p2.q.target of
+    case ST.singleTargetDP settings p2.graphs p2.q of
         Left _ -> failure
         Right results -> do
             results' <- results
@@ -155,7 +156,7 @@ prop_p2 = pX p2
 
 -- | Checks the output of the local computation algorithms and the baseline algorithm match for a set of random queries.
 matchesBaseline :: forall a . (NFData a, H.Hashable a, Binary a, Typeable a, Show a, Ord a)
-    => I.Mode
+    => Implementation
     -> G.Graph a Double
     -> TestLimit
     -> Property
@@ -163,7 +164,7 @@ matchesBaseline mode g numTests = withTests numTests . property $ do
     query <- forAll $ genConnectedQuery reverseAdjacencyList
 
     baseline  <- go Baseline query
-    local     <- go (Local mode) query
+    local     <- go mode query
 
     checkAnswers approx local baseline
 

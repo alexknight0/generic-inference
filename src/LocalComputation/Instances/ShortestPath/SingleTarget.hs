@@ -5,7 +5,6 @@
 module LocalComputation.Instances.ShortestPath.SingleTarget
     (
       singleTarget
-    , singleTargetTmp
     , Query (..)
     , singleTargetDP
     )
@@ -44,6 +43,10 @@ import           Type.Reflection                                              (T
 -- TODO: A notable property here seems to be that we don't need to find the shortest path from 'all' nodes;
 -- by restricting the domain we can find the shortest path from a few targets - something you can't do with
 -- djikstra?
+
+-- TODO: For performance:
+--      1. Properly split up the graph before inference
+--      2. ....okay thats all i got :p
 
 type Result a = M.LabelledMatrix a () Q.TropicalSemiringValue
 type Knowledgebase a = [Q.QuasiRegularValuation Q.TropicalSemiringValue a]
@@ -138,37 +141,6 @@ singleTargets :: forall a m . (NFData a, MonadIO m, Show a, Binary a, Typeable a
     -> [Query a]
     -> Either I.Error (m [[Double]])
 singleTargets s mode gs qs = fmap sequence $ mapM (\q -> singleTarget s mode gs q) qs
-
-
--- TODO: Used for drawing graphs. Remove once our interface is better.
-singleTargetTmp :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => D.DrawSettings
-    -> [Graph a Double]
-    -> [a]
-    -> a
-    -> Either I.Error (m [Double])
-singleTargetTmp s vs sources target = fmap (fmap (map Q.toDouble)) $ singleTargetTmp' s (map (fmap Q.T) vs) sources target
-
-
--- TODO: Used for drawing graphs. Remove once our interface is better.
-singleTargetTmp' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => D.DrawSettings
-    -> [Graph a Q.TropicalSemiringValue]
-    -> [a]
-    -> a
-    -> Either I.Error (m [Q.TropicalSemiringValue])
-singleTargetTmp' settings vs sources target
-    | Left e          <- solutionMM         = Left  e
-    | Right solutionM <- solutionMM         = Right $ do
-        solution <- solutionM
-        pure $ map (\s -> getDistance solution (s, target)) sources
-
-    where
-        k = knowledgeBase vs target
-        domain = S.fromList (target : sources)
-
-        solutionMM = fmap (fmap Q.solution) $ I.queryDrawGraph settings I.Shenoy k domain
-
 
 --------------------------------------------------------------------------------
 -- Utilities
