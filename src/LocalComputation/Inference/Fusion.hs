@@ -17,7 +17,6 @@ import           Debug.Trace                                 (trace, traceId,
                                                               traceShowId)
 import qualified LocalComputation.Inference.JoinTree         as JT
 import qualified LocalComputation.Inference.JoinTree.Diagram as D
-import qualified LocalComputation.Inference.JoinTree.Diagram as JT
 import qualified LocalComputation.Inference.MessagePassing   as MP
 import           LocalComputation.ValuationAlgebra           (Domain,
                                                               Valuation (eliminate, label),
@@ -77,35 +76,7 @@ fusion' uniqueId upperPsi (y:ys) = fusion' (uniqueId + 1) upperPsi' ys
 --------------------------------------------------------------------------------
 -- Fusion as a message passing scheme
 --------------------------------------------------------------------------------
--- TODO: Our current join tree construction method does not set the root node as we desire.
--- Wait i think we can use the join tree algorithm we just have to make sure the query doesn't get eliminated
--- but everything else does?
-
--- Current idea: fusion will expose a function that gives u 'inferreddata' for fusion. This
--- will then be called by solution construction - then solution construction is the one that
--- will have it's own implementation.
-
--- TODO: I'm thinking we are supposed to create our own fusion join tree; i just don't get how we do so
--- if there are no variables we want to eliminate.
--- Is the answer just that if we have our query equal to the set of all variables that we essentially
--- have a brute force approach?
--- Wait thats probably pretty true anyway. First of all, consider the fact that for one query
--- the shenoy architecture is strictly worse than collect since theres only one query. So let
--- us now consider collect for one large query vs brute force. Now, the complexity of the collect
--- process is proportional to the max node width which is the query width; but the complexity of brute
--- force is also proportional to the query width as we combine them all and end up with the query width.
--- Alternatively, one could consider that the brute force approach of combining all the valuations together
--- is literally what traversing the collect tree is doing in this case, as the query node lies above
--- all other nodes which are some-way-or-another being unioned together as it's built up. In fact,
--- I wouldn't be suprised if there were no projections performed (Future work; count projections and combinations??).
--- In fact, I would be suprised if there WERE projections performed; due to the join tree property
--- each variable has to be connected to all other nodes that have that variable (you know what i mean)
--- and since every variable goes through to the query node we never 'lose' a variable. The join tree
--- approach still may be more efficent since we combine them in a better order though; consider
--- the fact that we could be brute forcing 10 valuations together, but after combining the first
--- two end up with either the full domain, or a really small domain, so the order of combinations matters.
---
--- TLDR I think for fusion we want a new join tree construction algorithm that will help us ensure
+-- TODO: I think for fusion we want a new join tree construction algorithm that will help us ensure
 -- only one variable is eliminated at a time. We accept the fact that fusion with a query equal
 -- to the full set of variables is equal to brute force. We could even check this fact with Naso.
 

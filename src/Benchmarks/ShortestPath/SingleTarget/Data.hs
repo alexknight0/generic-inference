@@ -160,7 +160,7 @@ genGraphs nodes arcs = do
     pure $ map (G.addSelfLoops 0)
          $ map G.fromList
          -- $ map (withoutFirstVertex . G.fromList)
-         $ L.chunksOf 5
+         $ L.chunksOf (max 1 $ div (fromIntegral nodes) 5)
          $ G.toList original
 
     where
