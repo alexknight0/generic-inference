@@ -16,23 +16,22 @@ module LocalComputation.Inference (
     , queries
     , unsafeQueries
     , queriesDrawGraph
+    , queryDPDrawGraph
     , Mode (..)
     , Error (..)
 ) where
-import           Control.Monad.IO.Class                      (MonadIO)
-import qualified LocalComputation.Inference.ShenoyShafer     as SS (queries)
-import           LocalComputation.LocalProcess               (run)
-import           LocalComputation.ValuationAlgebra           (Domain, Valuation,
-                                                              Var, combines1,
-                                                              label, project)
+import           Control.Monad.IO.Class                         (MonadIO)
+import           LocalComputation.Inference.MessagePassing      (SerializableValuation)
+import qualified LocalComputation.Inference.ShenoyShafer        as SS (queries)
+import           LocalComputation.LocalProcess                  (run)
+import           LocalComputation.ValuationAlgebra
 
-import           Control.DeepSeq                             (NFData)
-import           GHC.Generics                                (Generic)
-import           LocalComputation.Inference.MessagePassing   (SerializableValuation)
-
-import qualified Data.Set                                    as S
-import qualified LocalComputation.Inference.Fusion           as F
-import qualified LocalComputation.Inference.JoinTree.Diagram as D
+import qualified Data.Set                                       as S
+import qualified LocalComputation.Inference.DynamicProgramming  as D
+import qualified LocalComputation.Inference.Fusion              as F
+import qualified LocalComputation.Inference.JoinTree.Diagram    as D
+import qualified LocalComputation.LabelledMatrix                as M
+import qualified LocalComputation.ValuationAlgebra.QuasiRegular as Q
 
 data Error = QueryNotSubsetOfValuations deriving (NFData, Generic, Show)
 
@@ -51,8 +50,8 @@ queriesDrawGraph :: (SerializableValuation v a, Show (v a), NFData (v a), MonadI
     => D.DrawSettings -> Mode -> [v a] -> [Domain a] -> Either Error (m [v a])
 queriesDrawGraph _ _ vs qs
     | not $ queryIsCovered vs qs = Left $ QueryNotSubsetOfValuations
-queriesDrawGraph s Shenoy vs qs = Right $ run $ SS.queries s vs qs
-queriesDrawGraph _    _   _  _  = error "Not implemented"
+queriesDrawGraph s Shenoy vs qs  = Right $ run $ SS.queries s vs qs
+queriesDrawGraph _    _   _  _   = error "Given mode does not produce a join tree."
 
 queryIsCovered :: (Foldable t, Valuation v, Var a)
     => [v a]
@@ -61,6 +60,17 @@ queryIsCovered :: (Foldable t, Valuation v, Var a)
 queryIsCovered vs qs = not $ any (\q -> not $ S.isSubsetOf q coveredDomain) qs
     where
         coveredDomain = foldr S.union S.empty (map label vs)
+
+-- | Perform a [query] using a [D]ynamic [P]rogramming implementation and draw a graph
+-- of the join tree used during inference.
+queryDPDrawGraph :: (MonadIO m, Q.QSemiringValue b, Show b, Var a, NFData a, NFData b, Serializable a, Serializable b)
+    => D.DrawSettings
+    -> [Q.QuasiRegularValuation b a]
+    -> Domain a
+    -> Either Error (m (M.LabelledMatrix a () b))
+queryDPDrawGraph _ vs q
+    | not $ queryIsCovered vs [q] = Left $ QueryNotSubsetOfValuations
+queryDPDrawGraph s vs q           = Right $ run $ fmap D.solution $ F.fusionPass s vs q
 
 --------------------------------------------------------------------------------
 -- Singular variants
@@ -74,7 +84,6 @@ query mode vs q = fmap (fmap head) $ queries mode vs [q]
 queryDrawGraph :: (SerializableValuation v a, Show (v a), NFData (v a), MonadIO m)
     => D.DrawSettings -> Mode -> [v a] -> Domain a -> Either Error (m (v a))
 queryDrawGraph s mode vs q = fmap (fmap head) $ queriesDrawGraph s mode vs [q]
-
 
 --------------------------------------------------------------------------------
 -- Unsafe variants

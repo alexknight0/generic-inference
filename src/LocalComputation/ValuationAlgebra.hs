@@ -23,21 +23,23 @@ module LocalComputation.ValuationAlgebra
     , Typeable -- Must be derived for serialization
     , Generic  -- Must be derived to derive Binary
     , NFData   -- Must be derived for to allow returning as a result of 'Process'.
+    , Serializable
     )
 where
 
-import           Control.Exception      (assert)
-import qualified Data.Hashable          as H
-import qualified Data.List              as L
-import qualified Data.Map.Lazy          as M
-import qualified Data.Set               as S
-import           GHC.Base               (Constraint)
-import qualified LocalComputation.Utils as U
+import           Control.Exception                        (assert)
+import qualified Data.Hashable                            as H
+import qualified Data.List                                as L
+import qualified Data.Map.Lazy                            as M
+import qualified Data.Set                                 as S
+import           GHC.Base                                 (Constraint)
+import qualified LocalComputation.Utils                   as U
 
-import           Control.DeepSeq        (NFData)
-import           Data.Binary            (Binary)
-import           GHC.Generics           (Generic)
-import           Type.Reflection        (Typeable)
+import           Control.DeepSeq                          (NFData)
+import           Control.Distributed.Process.Serializable (Serializable)
+import           Data.Binary                              (Binary)
+import           GHC.Generics                             (Generic)
+import           Type.Reflection                          (Typeable)
 
 type Domain a = S.Set a
 

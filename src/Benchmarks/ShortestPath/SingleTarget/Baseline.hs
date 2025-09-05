@@ -45,6 +45,8 @@ singleSource graph source targets unreachable = map (\t -> M.findWithDefault unr
     where
         shortest = shortestPaths graph source
 
+-- TODO: Add 0 cost weights here. Then we never have to worry about discrepencies :))
+
 {- | Returns the single target shortest path solutions for a graph that has been broken up into smaller graphs.
 
 __Warning__: This function should not be used for benhmarking purposes as it includes the overhead of switching

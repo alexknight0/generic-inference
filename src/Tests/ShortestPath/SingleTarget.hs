@@ -114,18 +114,6 @@ singleTarget (Local mode)  graphs sources target
     where
         result = ST.singleTargetConfigSet D.def mode graphs sources target
 
--- | Tests that graphs that are missing zero cost self loops throw an error.
--- For the reason behind this behaviour, see the documentation of `ST.singleTarget`
-prop_p0 :: Property
-prop_p0 = unitTest $ do
-    forM_ p0Graphs $ \g -> do
-        case results g of
-            Left ST.MissingZeroCostSelfLoops -> success
-            _                                -> failure
-    where
-        results :: G.Graph Integer Double -> Either ST.Error (Process [Double])
-        results graph = ST.singleTarget I.Shenoy [graph] p0Queries.sources p0Queries.target
-
 pX :: Problem -> Property
 pX p = unitTest $ do
     forM [Baseline, Local I.BruteForce, Local I.Fusion, Local I.Shenoy] $ \mode -> do

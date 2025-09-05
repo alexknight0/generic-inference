@@ -6,7 +6,6 @@ module LocalComputation.Instances.ShortestPath.SingleTarget
     (
       singleTarget
     , singleTargetTmp
-    , Error (MissingZeroCostSelfLoops)
     , Query (..)
     , singleTargetConfigSet
     )
@@ -43,15 +42,14 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue as
 import           Type.Reflection                                              (Typeable)
 
 -- TODO: A notable property here seems to be that we don't need to find the shortest path from 'all' nodes;
--- by restricting the domain we can find the shortest path from a few targets.
+-- by restricting the domain we can find the shortest path from a few targets - something you can't do with
+-- djikstra?
 
 type Result a = M.LabelledMatrix a () Q.TropicalSemiringValue
 type Knowledgebase a = [Q.QuasiRegularValuation Q.TropicalSemiringValue a]
 
 -- | Query for a multiple-source single-target problem.
 data Query a = Query { sources :: [a], target :: a } deriving Show
-
-data Error = InferenceError I.Error | MissingZeroCostSelfLoops deriving (NFData, Generic, Show)
 
 -- If distance of a location to itself is not recorded, it will be recorded as the 'zero'
 -- element of the tropical semiring (i.e. infinity). Regarding self loops, see the documentation
@@ -83,18 +81,14 @@ getDistance x (source, _) = fromJust $ M.find (source, ()) x
 
 {- | Returns the shortest distance between a single target and multiple sources.
 
-Assumes that every graph node can reach itself with 0 cost. This is a limitation of the inference process using quasi regular valuations;
-consider the result of `Q.solution` on a `Q.LabelledMatrix (fromList [(0, 0), T 1]) (fromList [(0, ()), 0)`. Here, following the formula
-for `Q.solution` and the quasi-inverse definition of a `Q.TropicalSemiringValue` the edge cost `T 1` becomes `T 0`.
-
-To make this assumption explicit, returns `Left InvalidGraph` if a graph that does not have 0 cost self loops is given.
+__Warning__ : The shortest path from a vertex to itself is 0 (the trivial path).
 -}
 singleTarget :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
     => I.Mode
     -> [Graph a Double]
     -> [a]
     -> a
-    -> Either Error (m [Double])
+    -> Either I.Error (m [Double])
 singleTarget mode vs sources target = fmap (fmap (map Q.toDouble)) $ singleTarget' mode (map (fmap Q.T) vs) sources target
 
 -- | Returns the answers to multiple single-target queries.
@@ -105,7 +99,7 @@ singleTargets :: forall a m . (NFData a, MonadIO m, Show a, Binary a, Typeable a
     => I.Mode
     -> [Graph a Double]
     -> [Query a]
-    -> Either Error (m [[Double]])
+    -> Either I.Error (m [[Double]])
 singleTargets mode gs qs = fmap sequence $ mapM (\q -> singleTarget mode gs q.sources q.target) qs
 
 -- TODO: Can this handle negative weights?
@@ -114,10 +108,9 @@ singleTarget' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable 
     -> [Graph a Q.TropicalSemiringValue]
     -> [a]
     -> a
-    -> Either Error (m [Q.TropicalSemiringValue])
+    -> Either I.Error (m [Q.TropicalSemiringValue])
 singleTarget' mode vs sources target
-    | any (not . G.hasZeroCostSelfLoops) vs = Left  $ MissingZeroCostSelfLoops
-    | Left e          <- solutionMM         = Left  $ InferenceError e
+    | Left e          <- solutionMM         = Left e
     | Right solutionM <- solutionMM         = Right $ do
         solution <- solutionM
         pure $ map (\s -> getDistance solution (s, target)) sources
@@ -134,7 +127,7 @@ singleTargetConfigSet :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.H
     -> [Graph a Double]
     -> [a]
     -> a
-    -> Either Error (m [Double])
+    -> Either I.Error (m [Double])
 singleTargetConfigSet s mode vs sources target = fmap (fmap (map Q.toDouble)) $ singleTargetConfigSet' s mode (map (fmap Q.T) vs) sources target
 
 
@@ -144,9 +137,8 @@ singleTargetConfigSet' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.
     -> [Graph a Q.TropicalSemiringValue]
     -> [a]
     -> a
-    -> Either Error (m [Q.TropicalSemiringValue])
+    -> Either I.Error (m [Q.TropicalSemiringValue])
 singleTargetConfigSet' s mode vs sources target
-    | any (not . G.hasZeroCostSelfLoops) vs = Left  $ MissingZeroCostSelfLoops
     | otherwise = Right $ do
         solution <- liftIO $ run solutionM
         pure $ map (\s -> getDistance solution (s, target)) sources
@@ -163,7 +155,7 @@ singleTargetTmp :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashabl
     -> [Graph a Double]
     -> [a]
     -> a
-    -> Either Error (m [Double])
+    -> Either I.Error (m [Double])
 singleTargetTmp s vs sources target = fmap (fmap (map Q.toDouble)) $ singleTargetTmp' s (map (fmap Q.T) vs) sources target
 
 
@@ -173,10 +165,9 @@ singleTargetTmp' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashab
     -> [Graph a Q.TropicalSemiringValue]
     -> [a]
     -> a
-    -> Either Error (m [Q.TropicalSemiringValue])
+    -> Either I.Error (m [Q.TropicalSemiringValue])
 singleTargetTmp' settings vs sources target
-    | any (not . G.hasZeroCostSelfLoops) vs = Left  $ MissingZeroCostSelfLoops
-    | Left e          <- solutionMM         = Left  $ InferenceError e
+    | Left e          <- solutionMM         = Left  e
     | Right solutionM <- solutionMM         = Right $ do
         solution <- solutionM
         pure $ map (\s -> getDistance solution (s, target)) sources
