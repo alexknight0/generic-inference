@@ -11,10 +11,10 @@ the 'BruteForce' mode. This is done for simplicity, but could change if undesire
 {- | Exposes functions for computing inference. -}
 module LocalComputation.Inference (
       query
-    , query'
+    , unsafeQuery
     , queryDrawGraph
     , queries
-    , queries'
+    , unsafeQueries
     , queriesDrawGraph
     , Mode (..)
     , Error (..)
@@ -43,9 +43,16 @@ queries :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a))
     => Mode -> [v a] -> [Domain a] -> Either Error (m [v a])
 queries _ vs qs
     | not $ queryIsCovered vs qs = Left  $ QueryNotSubsetOfValuations
-queries BruteForce vs qs         = Right $ pure $ baselines vs qs
+queries BruteForce vs qs         = Right $ pure $ bruteForces vs qs
 queries Fusion     vs qs         = Right $ mapM (\q -> pure $ F.fusion vs q) qs
 queries Shenoy     vs qs         = Right $ run $ SS.queries D.def vs qs
+
+queriesDrawGraph :: (SerializableValuation v a, Show (v a), NFData (v a), MonadIO m)
+    => D.DrawSettings -> Mode -> [v a] -> [Domain a] -> Either Error (m [v a])
+queriesDrawGraph _ _ vs qs
+    | not $ queryIsCovered vs qs = Left $ QueryNotSubsetOfValuations
+queriesDrawGraph s Shenoy vs qs = Right $ run $ SS.queries s vs qs
+queriesDrawGraph _    _   _  _  = error "Not implemented"
 
 queryIsCovered :: (Foldable t, Valuation v, Var a)
     => [v a]
@@ -59,41 +66,37 @@ queryIsCovered vs qs = not $ any (\q -> not $ S.isSubsetOf q coveredDomain) qs
 -- Singular variants
 --------------------------------------------------------------------------------
 
-
-
-
--- | Unsafe variant of `queries` - will throw if a query is not subset of the
--- domain the given valuations cover.
-queries' :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a))
-    => Mode -> [v a] -> [Domain a] -> m [v a]
-queries' mode vs qs = case queries mode vs qs of
-                            Left e  -> error (show e)
-                            Right r -> r
-
-queriesDrawGraph :: (SerializableValuation v a, Show (v a), NFData (v a), MonadIO m)
-    => D.DrawSettings -> Mode -> [v a] -> [Domain a] -> Either Error (m [v a])
-queriesDrawGraph _ _ vs qs
-    | not $ queryIsCovered vs qs = Left $ QueryNotSubsetOfValuations
-queriesDrawGraph s Shenoy vs qs = Right $ run $ SS.queries s vs qs
-queriesDrawGraph _    _   _  _  = error "Not implemented"
-
-queryDrawGraph :: (SerializableValuation v a, Show (v a), NFData (v a), MonadIO m)
-    => D.DrawSettings -> Mode -> [v a] -> Domain a -> Either Error (m (v a))
-queryDrawGraph s mode vs q = fmap (fmap head) $ queriesDrawGraph s mode vs [q]
-
 -- | Compute inference using the given mode to return a valuation with the given domain.
 query :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a))
     => Mode -> [v a] -> Domain a -> Either Error (m (v a))
 query mode vs q = fmap (fmap head) $ queries mode vs [q]
 
--- | Unsafe variant of `query` - will throw if query is not subset of the
--- domain the given valuations cover.
-query' :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a))
- => Mode -> [v a] -> Domain a -> m (v a)
-query' mode vs q = fmap head $ queries' mode vs [q]
+queryDrawGraph :: (SerializableValuation v a, Show (v a), NFData (v a), MonadIO m)
+    => D.DrawSettings -> Mode -> [v a] -> Domain a -> Either Error (m (v a))
+queryDrawGraph s mode vs q = fmap (fmap head) $ queriesDrawGraph s mode vs [q]
+
 
 --------------------------------------------------------------------------------
--- Baseline (brute force implementation)
+-- Unsafe variants
+--------------------------------------------------------------------------------
+
+-- | Unsafe variant of `queries` - will throw if a query is not subset of the
+-- domain the given valuations cover.
+unsafeQueries :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a))
+    => Mode -> [v a] -> [Domain a] -> m [v a]
+unsafeQueries mode vs qs = case queries mode vs qs of
+                            Left e  -> error (show e)
+                            Right r -> r
+
+
+-- | Unsafe variant of `query` - will throw if query is not subset of the
+-- domain the given valuations cover.
+unsafeQuery :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a))
+ => Mode -> [v a] -> Domain a -> m (v a)
+unsafeQuery mode vs q = fmap head $ unsafeQueries mode vs [q]
+
+--------------------------------------------------------------------------------
+-- Brute force (simpliest possible inference implementation)
 --------------------------------------------------------------------------------
 
 -- | Basic brute force computation, does not use local computation.
@@ -102,11 +105,11 @@ query' mode vs q = fmap head $ queries' mode vs [q]
 -- by the caller.
 --
 -- __Warning__: Assumes the given list of valuations is not empty.
-baseline :: (Valuation v, Var a)
+bruteForce :: (Valuation v, Var a)
     => [v a]
     -> Domain a
     -> v a
-baseline vs q = head $ baselines vs [q]
+bruteForce vs q = head $ bruteForces vs [q]
 
 -- | Basic brute force computation, does not use local computation.
 --
@@ -114,10 +117,10 @@ baseline vs q = head $ baselines vs [q]
 -- by the caller.
 --
 -- __Warning__: Assumes the given list of valuations is not empty.
-baselines :: (Valuation v, Var a)
+bruteForces :: (Valuation v, Var a)
     => [v a]
     -> [Domain a]
     -> [v a]
-baselines vs qs = map (\q -> project combined q) qs
+bruteForces vs qs = map (\q -> project combined q) qs
     where
         combined = combines1 vs

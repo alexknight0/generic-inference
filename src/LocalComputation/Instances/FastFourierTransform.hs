@@ -103,7 +103,7 @@ query samples qs = case integerLogBase2 (fromIntegral $ length samples) of
         let queryDomain = S.fromList $ map Y $ [0 .. m-1]
 
         -- let result = fromRight $ fusion (getKnowledgebase samples) queryDomain
-        result <- I.query' I.Shenoy (getKnowledgebase samples) queryDomain
+        result <- I.unsafeQuery I.Shenoy (getKnowledgebase samples) queryDomain
         pure $ map (findBinaryValue result m) qs
 
 -- | An unsafe version of `query` - throws when `query` would return `Nothing`.
