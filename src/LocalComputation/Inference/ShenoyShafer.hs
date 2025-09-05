@@ -3,8 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module LocalComputation.Inference.ShenoyShafer (
-      shenoyJoinTree
-    , queries
+      queries
     , InferredData
 ) where
 
@@ -78,18 +77,6 @@ queries settings vs queryDomains = do
         drawTree (Just filename) tree = liftIO $ D.draw filename tree
 
 
-
--- TODO: Is `shenoyJoinTree` still used?
-
--- The base join tree must be transformed to an undirected graph.
--- While mailboxes should be connected up for each neighbour, this happens in the
--- 'MP.messagePassing' function which also handles starting the message passing.
-shenoyJoinTree :: forall v a. (Valuation v, Var a)
-    => [v a]
-    -> [Domain a]
-    -> UG.Graph (Node (v a))
-shenoyJoinTree vs queryDomains = UG.toUndirected (baseJoinTree vs queryDomains)
-
 nodeActions :: (MP.SerializableValuation v a)
     => MP.NodeActions v a
 nodeActions this neighbours resultPort = do
@@ -102,7 +89,6 @@ nodeActions this neighbours resultPort = do
     assert (this.node.d == label result) (pure ())
     sendChan resultPort $ J.changeContent this.node result
 
--- TODO: Update
 -- | Computes a message to send to the given neighbour.
 --
 -- Computing this message consists of:
@@ -129,87 +115,3 @@ computeMessage' :: (Valuation v, Var a)
 computeMessage' postbox sender recipient = project (combines1 (sender.node.v : map (.msg) postbox))
                                                    (intersection sender.node.d recipient.node.d)
 
-
-
-------------------------------------------------------------------------------
--- Solution Construction                                                    --
-------------------------------------------------------------------------------
-
--- configSet :: (Valuation v, Show a, Ord a)
---     => v a
---     -> Domain a
---     -> VariableArrangement v a b
---     -> Maybe (S.Set (VariableArrangement v a b))
--- configSet phi t x
---     | not $ S.isSubsetOf t (label phi) = Nothing
---     | otherwise = undefined
-
-
-
--- type SolutionSet v a = ConfigurationExtensionSet v a
---
--- -- | The configuration extension set.
--- --
--- -- This is detailed in page 294 of Marc Pouly's "Generic Inference". In short, this is an intermediate
--- -- product in a larger computation and is related to the set of variables that have not yet been assigned
--- -- values.
--- data ConfigurationExtensionSet v a = ConfigurationExtensionSet {
---           t   :: Domain a
---         , phi :: v a
---         , f   :: VariableArrangement a b -> S.Set (VariableArrangement a b)
---     }
---
--- instance (Valuation v, Ord a, Ord b, Show a, Show b) => HasField "s" (ConfigurationExtensionSet v a) (Domain a) where
---     getField w = label w.phi
---
--- -- | Compute all solutions.
--- --
--- -- Note this function does not require a complete run of the specifically the shenoy shafer architecture,
--- -- but rather any multi-query local computation architecture should suffice.
--- -- This algorithm is based off page 299 of Marc Pouly's "Generic Inference".
--- computeSolutions ::
---        InferredData v a
---     -> ConfigurationExtensionSet v a
--- computeSolutions = undefined
---
--- isValidConfigurationExtensionSet :: (Valuation v, Ord a, Ord b, Show a, Show b)
---     => ConfigurationExtensionSet v a
---     -> VariableArrangement a b
---     -> Bool
--- isValidConfigurationExtensionSet w x
---     -- Fits definition of configuration set from `t` to `s`
---     | not $ S.isSubsetOf w.t w.s = False
---     | not $ all elemOfOmegaSMinusT (w.f x) = False
---
---     where
---         elemOfOmegaSMinusT y = S.isSubsetOf (M.keysSet y) (S.difference w.s w.t)
---
-
---
--- instance (Valuation v, Ord a, Ord b, Show a, Show b) => HasField "s" (ConfigurationExtensionSet v a) (Domain a) where
---     getField w = label w.phi
---
--- -- TODO: Add the final property
---
--- isValidConfigurationExtensionSet :: (Valuation v, Ord a, Ord b, Show a, Show b)
---     => ConfigurationExtensionSet v a
---     -> VariableArrangement a b
---     -> Bool
--- isValidConfigurationExtensionSet w x
---     -- Fits definition of configuration set from `t` to `s`
---     | not $ S.isSubsetOf w.t w.s = False
---     | not $ all elemOfOmegaSMinusT (w.f x) = False
---     | otherwise = True
---
---     where
---         elemOfOmegaSMinusT y = S.isSubsetOf (Map.keysSet y) (S.difference w.s w.t)
---
--- | Compute all solutions.
---
--- Note this function does not require a complete run of the specifically the shenoy shafer architecture,
--- but rather any multi-query local computation architecture should suffice.
--- This algorithm is based off page 299 of Marc Pouly's "Generic Inference".
--- computeSolutions ::
---        [(Domain a, v a)]
---     -> ConfigurationExtensionSet v a
--- computeSolutions = undefined
