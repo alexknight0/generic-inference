@@ -5,6 +5,7 @@ module Benchmarks.ShortestPath.SingleTarget.Data (
     , genConnectedQuery
     , genConnectedQueries
     , genGraph
+    , genGraphs
     , sample
     , p0Graphs
     , p0Queries
@@ -26,6 +27,7 @@ import           LocalComputation.Utils                               (fromRight
 import           Numeric.Natural                                      (Natural)
 import qualified Text.Parsec                                          as P (ParseError)
 
+import qualified Data.List.Extra                                      as L
 import qualified Data.Set                                             as S
 import           Hedgehog
 import qualified Hedgehog.Gen                                         as Gen
@@ -65,8 +67,11 @@ genQuery vertices
 -- | Generates a random connected query given a reverse adjacency list.
 genConnectedQuery :: [(a, [a])] -> Gen (Query a)
 genConnectedQuery reverseAdjacencyList = do
-    (target, sources) <- Gen.element reverseAdjacencyList
+    (target, possibleSources) <- Gen.element reverseAdjacencyList
+    sources <- Gen.subsequence possibleSources
     pure $ Query sources target
+
+-- TODO: Update as we did to genConnectedQuery
 
 -- | Generates a random list of queries given a graph and a number of queries to generate.
 genConnectedQueries :: (Ord a) => Natural -> G.Graph a b -> Gen ([Query a])
@@ -104,13 +109,67 @@ genGraph nodes arcs = do
         -- present in the graph.
         selfLoops = [G.Edge x x 0 | x <- [0 .. nodes - 1]]
 
+-- 'nodes' is an upper limit on the number of nodes
+-- genConnectedGraph :: Natural -> Natural -> Gen (G.Graph Natural Double)
+-- genConnectedGraph 0     _    = pure G.empty
+-- genConnectedGraph nodes arcs = do
+--     undefined
+--
+--     where
+--         genConnectedGraph' graph 0        numArcs possibleNodes = graph
+--         genConnectedGraph' graph numNodes 0       possibleNodes = graph
+--         genConnectedGraph' graph numNodes numArcs possibleNodes = undefined
+
+
+
+
+-- TODO: Allow user to choose number of graphs
+
 foobar :: ()
 foobar = undefined
 {-
 
->>> sample $ genGraph 5 2
+>>> L.chunksOf 3 [1..50]
+[[1,2,3],[4,5,6],[7,8,9],[10,11,12],[13,14,15],[16,17,18],[19,20,21],[22,23,24],[25,26,27],[28,29,30],[31,32,33],[34,35,36],[37,38,39],[40,41,42],[43,44,45],[46,47,48],[49,50]]
 
 -}
+
+-- genConnectedGraph :: Natural -> Natural -> Gen (G.Graph Natural Double)
+-- genConnectedGraph nodes minArcs = do
+--     undefined
+--
+--
+--     where
+--         genConnectedGraph' graph 0             _       _             = graph
+--         genConnectedGraph' graph _             0       _             = graph
+--         genConnectedGraph' graph numNodesToAdd numArcs possibleNodes = do
+--             newNode        <- Gen.element possibleNodes
+--             nodeToAttachTo <- Gen.element $ G.nodeList graph
+--             pure $
+
+
+
+
+
+genGraphs :: Natural -> Natural -> Gen [G.Graph Natural Double]
+genGraphs nodes arcs = do
+    original <- genGraph nodes arcs
+
+    -- Core goal at this point for testing is to ensure not all nodes are in all graphs
+    -- so we delete some nodes at random
+    pure $ map (G.addSelfLoops 0)
+         $ map G.fromList
+         -- $ map (withoutFirstVertex . G.fromList)
+         $ L.chunksOf 5
+         $ G.toList original
+
+    where
+        withoutFirstVertex g = case G.nodeList g of
+                                        []    -> g
+                                        (x:_) -> G.deleteVertex x g
+
+
+
 
 
 -- | Takes a hedgehog generator and generates a random sample.
@@ -200,8 +259,18 @@ p1 = Problem {
 p2 :: Problem
 p2 = Problem {
       graphs = map (G.addSelfLoops 0 . G.fromList' . (:[])) p1AndP2Basis
-    , q = p1.q
-    , answers = p1.answers
+    , q = Query [ 0
+                , 5
+                , 6
+                , 7
+                , 8
+               ] 0
+    , answers = [ 0
+                , 11
+                , 9
+                , 8
+                , 14
+               ]
 }
 
 -- | A test on a small graph of 78 nodes and 93 arcs.
@@ -212,6 +281,8 @@ p3 = BenchmarkProblem {
 }
 
 p3Graphs = fmap (:[]) $ parseGraph' (dataDirectory ++ "Small-USA-road-d.NY.gr")
+
+-- TODO: Remove?
 
 -- Randomly generated (but fixed) query. See 'HLS eval plugin' if unsure how to regenerate.
 --

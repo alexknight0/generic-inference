@@ -53,10 +53,13 @@ import           GHC.Generics                                                 (G
 import           GHC.Records                                                  (HasField,
                                                                                getField)
 
+import qualified Data.List                                                    as L
 import           Data.Massiv.Array                                            (Ix2 ((:.)))
 import qualified Data.Massiv.Array                                            as M
 import qualified Data.Tuple.Extra                                             as T
 import           Debug.Trace                                                  (trace)
+import qualified LocalComputation.Pretty                                      as P
+import qualified LocalComputation.Utils                                       as U
 
 
 data InvalidFormat = DuplicateKeys | NotTotalMapping
@@ -71,8 +74,26 @@ data LabelledMatrix a b c = Matrix {
     , colLabels :: BM.Bimap M.Ix1 b
 } deriving (Eq, NFData, Ord, Generic)
 
-instance (Show c) => Show (LabelledMatrix a b c) where
-    show m = show m.matrix
+instance (Show a, Show b, Show c) => Show (LabelledMatrix a b c) where
+    show m = P.showTable $ U.Table headings rows
+        where
+            matrixRows = M.toLists $ fmap show $ m.matrix
+
+            rowLabels = map (show . snd) $ BM.toAscList m.rowLabels
+            colLabels = map (show . snd) $ BM.toAscList m.colLabels
+
+            headings = "" : colLabels
+            rows     = zipWith (:) rowLabels matrixRows
+
+
+foobar :: ()
+foobar = undefined
+{-
+
+>>> replicate 10 "foo"
+["foo","foo","foo","foo","foo","foo","foo","foo","foo","foo"]
+
+-}
 
 -- | O(1) accessor for number of rows
 instance HasField "numRows" (LabelledMatrix a b c) M.Ix1 where
@@ -399,7 +420,8 @@ joinSquare a b c d
 
         append = ((M.computeAs M.B .) .) . M.append'
 
-
+-- TODO: Because of (unnecesary?) assumption about both the indexes and labels being sorted
+-- such that both ascend simultaenously, this function is a lot more complicated than it needs to be.
 appendRows :: (Ord a, Eq b) => LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
 appendRows m1 m2 | assertAllWellFormed  [m1, m2] = undefined
 appendRows m1 m2
@@ -407,10 +429,12 @@ appendRows m1 m2
     | not $ S.disjoint m1.rowLabelSet m2.rowLabelSet = Nothing
     | otherwise = Just $ Matrix matrix rowLabels m1.colLabels
     where
-        matrix = append 2 m1.matrix m2.matrix
+        rows = L.sortOn fst $ zip (map snd $ BM.toAscList m1.rowLabels ++ BM.toAscList m2.rowLabels)
+                                  (M.toLists $ append 2 m1.matrix m2.matrix)
 
-        rowLabels = BM.fromAscPairList $ (++) (BM.toAscList m1.rowLabels)
-                                              (BM.toAscList $ BM.mapMonotonic (+ m1.numRows) m2.rowLabels)
+        matrix = M.fromLists' s $ map snd rows
+
+        rowLabels = enumerate $ S.union (m1.rowLabelSet) (m2.rowLabelSet)
 
         append = ((M.computeAs M.B .) .) . M.append'
 

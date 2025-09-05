@@ -11,7 +11,8 @@ module LocalComputation.Inference.JoinTree
     , node
     , changeContent
     , NodeType (Valuation, Query, Union, Projection)
-    , redirectToQueryNode
+    , Id
+    , flipEdge
     )
 where
 
@@ -27,10 +28,15 @@ import           GHC.Records                                    (HasField,
                                                                  getField)
 import           LocalComputation.ValuationAlgebra
 
+import qualified Algebra.Graph.ToGraph                          as AM
 import           Data.Binary                                    (Binary)
 import qualified Data.List                                      as L
+import qualified Data.Map                                       as M
 import           Data.Text.Lazy                                 (unpack)
+import           Debug.Trace                                    (trace)
 import           GHC.Generics                                   (Generic)
+import           GHC.IO                                         (unsafePerformIO)
+import qualified LocalComputation.Utils                         as U
 import           Text.Pretty.Simple                             (pShow)
 import           Type.Reflection                                (Typeable)
 
@@ -65,7 +71,7 @@ instance Ord (Node v) where
     x <= y = x.id <= y.id
 
 instance (Valuation v, Ord a, Show a) => Show (Node (v a)) where
-    show n = unpack $ pShow (n.id, n.d)
+    show n = show n.id -- unpack $ pShow (n.id, n.d)
 
 setDifference :: (Eq a) => [a] -> [a] -> [a]
 setDifference xs ys = filter (\x -> not $ x `elem` ys) xs
@@ -193,27 +199,7 @@ baseJoinTree' nextNodeId r d
             where
                 nPDomain = (fromList $ setDifference (toList domainOfPhiX) [x])
 
--- TODO: Untested.
--- TODO: Could probably be optimized by caching the adjacencyList computation
--- (but might have to make sure we update it).
-{-| Redirects a given **join** tree to reverse edges to face the node of the given id -}
-{- Works by traversing out from the given node, flipping any edges that it uses along its journey -}
-redirectTree :: forall a . Id -> Graph (Node a) -> Graph (Node a)
-redirectTree i g = foldr f g outgoingNodes
-    where
-        (this, outgoingNodes) = fromJust $ L.find (\(n, _) -> n.id == i) (adjacencyList g)
 
-        f :: Node a -> Graph (Node a) -> Graph (Node a)
-        f n acc = flipEdge this n $ redirectTree n.id acc
-
--- | Redirects the given join tree to reverse edges to face a query node of the given domain.
--- If multiple query nodes with this domain exist, one is chosen at random. This function only
--- searches amongst nodes with a `NodeType` of `Query`.
-redirectToQueryNode :: (Valuation v, Ord a, Show a)
-    => Domain a -> Graph (Node (v a)) -> Graph (Node (v a))
-redirectToQueryNode d g = redirectTree (queryNode.id) g
-    where
-        queryNode = head $ filter (\n -> n.d == d && n.t == Query) (vertexList g)
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------

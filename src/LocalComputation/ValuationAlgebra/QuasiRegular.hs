@@ -30,6 +30,8 @@ import           GHC.Generics                                                 (G
 import qualified Algebra.Graph                                                as DG
 import           Data.List                                                    (maximumBy)
 import qualified Data.Map                                                     as Map
+import           Debug.Trace                                                  (trace,
+                                                                               traceShowId)
 import           LocalComputation.Inference.JoinTree                          (Node (id, v))
 import qualified LocalComputation.Inference.JoinTree                          as JT
 import           LocalComputation.Inference.ShenoyShafer                      (InferredData)
@@ -41,14 +43,19 @@ import qualified LocalComputation.Utils                                       as
 
 type Foo a = (Binary a, NFData a, Generic a)
 
-data QuasiRegularValuation b a = Valuation (M.LabelledMatrix a a b) (M.LabelledMatrix a () b) | Identity (Domain a) deriving (Binary, NFData, Ord, Eq, Generic, Show)
+data QuasiRegularValuation b a = Valuation (M.LabelledMatrix a a b) (M.LabelledMatrix a () b) | Identity (Domain a) deriving (Binary, NFData, Ord, Eq, Generic)
+
+instance (Show b, Show a) => Show (QuasiRegularValuation b a) where
+    show (Identity _)    = "Identity"
+    show (Valuation m b) = show m ++ "\n" ++ show b
 
 create :: (Var a, Show b, Q.QSemiringValue b) => M.LabelledMatrix a a b -> M.LabelledMatrix a () b -> Maybe (QuasiRegularValuation b a)
 create m b
     | satisfiesInvariants (Valuation m b) = Just (Valuation m b)
     | otherwise = Nothing
 
-instance (Show c, Q.QSemiringValue c) => Valuation (QuasiRegularValuation c) where
+-- TODO: Probably can remove instance of Show? It doens't contribute to the 'label', 'combine', 'project' functionality no?
+instance (Show b, Q.QSemiringValue b) => Valuation (QuasiRegularValuation b) where
 
     label (Identity d)    = d
     label (Valuation _ b) = fst (M.domain b)
@@ -124,7 +131,8 @@ configSet phi@(Valuation m b) t x = Just $ S.singleton result
                                            (matrixProject b sMinusT (S.singleton ())))
 
         s = label phi
-        sMinusT = S.difference s t
+        sMinusT = -- trace ("S_MINUS_T " ++ show (S.difference s t)) $
+                    S.difference s t
 
 getValuation :: (Eq a) => a -> [(a, b)] -> b
 getValuation x results = snd $ unsafeFind (\(d, v) -> d == x) results
@@ -160,36 +168,82 @@ multiqueryCompute g results = go rootNode.id rootConfigSet rootNode.d
                 phiI = unsafeFind (\n -> n.id == i) vertices
 
 
+-- TODO:
+-- We were getting the correct solutions because:
+--
+--  1. In singleSolutionCompute the querynode is popped first (as we desire).
+--     However the query node always contained the whole set of variables, so instead
+--     of slowly building up the solution we got it in the first go.
+--
+--  2. We didn't have multiple graphs, which meant our join trees always got
+--     constructed in such a way that we ended up getting the right result
+--     I think.
+
 -- TODO: NEED to fix ordering for this function as the 'go' function relies on ids.
+
+-- TODO: I think the reason is we only actually have a very werid looking small graph.
+-- Answer: nope?
+
+-- TODO: Study the outputs of 'singleSolutionCompute' - namely how we are calling 'appendRow' on something
+-- that already is the solution???????
 
 -- the 'r' in the psi indicates that the 'fusion algorithm' was executed with 'r' as the root node.
 singleSolutionCompute :: forall a b . (Var a, Q.QSemiringValue b, Show b, Ord b)
     => InferredData (QuasiRegularValuation b) a
     -> M.LabelledMatrix a () b
-singleSolutionCompute g = go (rootNode.id - 1) initialX
+singleSolutionCompute g = --fromJust $ M.extension M.empty (initialX.rowLabelSet) (initialX.colLabelSet) Q.one
+                        go (rootNode.id - 1) initialX
+                        -- go (rootNode.id - 1) initialX
     where
         vertices = DG.vertexList g
 
         -- TODO: Fix.
         rootNode :: Node ((QuasiRegularValuation b) a)
-        rootNode = unsafeFind (\n -> n.t == JT.Query) vertices -- maximum $ U.assertP ((>0) . length) vertices
+        rootNode = -- U.assertP (isMax)  $
+                    unsafeFind (\n -> n.t == JT.Query) vertices -- maximum $ U.assertP ((>0) . length) vertices
+
+        isMax :: Node (QuasiRegularValuation b a) -> Bool
+        isMax n = maximum vertices == n
 
         initialX = S.findMin $ fromJust $ configSet rootNode.v S.empty empty
 
         empty = M.reshape unusedArg M.empty S.empty (S.singleton ())
 
         go 0 x = x
-        go i x = go (i - 1) (fromJust $ M.appendRows x y')
+        go i x = result
             where
+                result = go (i - 1) (fromJust $ M.appendRows x y')
+                msg = "------------------\n\
+                      \i: " ++ show i ++ "\n\
+                      \------------------\n\
+                      \         X        \n\
+                      \------------------\n\
+                      \" ++ show x ++   "\
+                      \------------------\n\
+                      \         Y        \n\
+                      \------------------\n\
+                      \" ++ show y' ++  "\
+                      \------------------\n"
+
+                -- TODO: Does our join tree construction algorithm provide a graph that has a complete numbering?
+                -- If not it's actually dead easy to ensure it does; we just have to renumber the nodes in a topological
+                -- ordering (as join tree does for 'renumberTree')
                 nodeI      = unsafeFind (\n -> n.id == i) vertices
                 nodeChildI = head $ fromJust $ DG.neighbours nodeI g
 
                 y' = S.findMin $ fromJust y
 
-                y = configSet nodeI.v
+                y = -- trace ("-----------------\nPROJECTED\n---------------\n" ++ show projected) $
+                    configSet nodeI.v
                               intersectionOfIAndChildI
-                              (matrixProject x intersectionOfIAndChildI (S.singleton ()))
-                intersectionOfIAndChildI = (S.intersection nodeI.d nodeChildI.d)
+                              projected
+                    where
+                        projected = matrixProject x intersectionOfIAndChildI (S.singleton ())
+                intersectionOfIAndChildI = -- trace ("INTERSECTION: " ++ show result2)
+                                            result2
+                    where
+                        result2 = S.intersection nodeI.d nodeChildI.d
+
 
 
 

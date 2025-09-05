@@ -1,10 +1,12 @@
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TypeFamilies              #-}
 
 -- TODO: Add to future work: fully animating the diagram (showing changing animations and everything) through using a GIF.
 module LocalComputation.Inference.JoinTree.Diagram (
     draw
+    , redirectToQueryNode
 ) where
 
 import qualified Data.Colour                         as C
@@ -14,14 +16,95 @@ import           Diagrams.Prelude
 import qualified Graphics.SVGFonts                   as SF
 
 import qualified Algebra.Graph                       as G
+import qualified Algebra.Graph.ToGraph               as AM
 import           Control.Exception                   (assert)
 import qualified Data.List                           as L
 import qualified Data.List.Extra                     as L (splitOn)
+import qualified Data.Map                            as M
 import           Data.Maybe                          (fromJust)
+import qualified Data.Text.Lazy                      as LT
+import qualified Debug.Trace                         as D
+import           GHC.IO                              (unsafePerformIO)
 import qualified Graphics.SVGFonts.ReadFont          as SF
 import qualified LocalComputation.Inference.JoinTree as JT
 import           LocalComputation.Utils              (unsafeFind)
+import qualified LocalComputation.Utils              as U
 import qualified LocalComputation.ValuationAlgebra   as V
+import           System.IO
+import           Text.Pretty.Simple                  (pShow, pShowNoColor)
+
+-- TODO: Move
+
+-- TODO: Untested.
+-- TODO: Could probably be optimized by caching the adjacencyList computation
+-- (but might have to make sure we update it).
+{-| Redirects a given **join** tree to reverse edges to face the node of the given id -}
+{- Works by traversing out from the given node, flipping any edges that it uses along its journey -}
+redirectTree :: forall a . JT.Id -> G.Graph (JT.Node a) -> G.Graph (JT.Node a)
+redirectTree i g = foldr f g outgoingNodes
+    where
+        (this, outgoingNodes) = fromJust $ L.find (\(n, _) -> n.id == i) (G.adjacencyList g)
+
+        f :: JT.Node a -> G.Graph (JT.Node a) -> G.Graph (JT.Node a)
+        f n acc = JT.flipEdge this n $ redirectTree n.id acc
+
+-- testGraph = path $ map (\i -> JT.node i undefined Query) [1,2,3,4]
+{-
+
+>>> edgeList $ fmap (.id) $ redirectTree 1 testGraph
+[(2,1),(3,2),(4,3)]
+
+-}
+
+data NewNumbering = NewNumbering { oldId :: JT.Id , newId :: JT.Id }
+
+renumberTree :: (V.Valuation v, Ord a, Show a, Show (v a)) => G.Graph (JT.Node (v a)) -> (G.Graph (JT.Node (v a)), Bool)
+renumberTree g = unsafePerformIO foo
+    where
+        result = fmap (\n -> changeId n $ (M.!) newNumbering n.id) g
+
+        topologicalOrdering = U.assertP (\l -> (last l).t == JT.Query) $
+                              U.fromRight $ AM.topSort $ AM.toAdjacencyMap g
+        newNumbering = M.fromList $ zip (map (.id) topologicalOrdering) [0..]
+
+        changeId n newId = n { JT.id = newId }
+
+        foo = do
+            case (\l -> (last l).t == JT.Query) topologicalOrdering of
+                True -> pure (result, True)
+                False -> do
+                    -- D.trace ("TOP_ORDERING: " ++ (show $ map (\n -> (n.id, n.t)) topologicalOrdering)) (pure ())
+                    -- draw "UNSAFE_BEFORE.svg" g
+                    -- draw "UNSAFE_AFTER.svg" result
+                    pure (result, False)
+            -- | not $ (\l -> (last l).t == Query) tmp = trace ("TOP SORT: " ++ (show $ map (\x -> (x.id, x.t)) tmp)) tmp
+            -- | otherwise = tmp
+
+
+
+-- | Redirects the given join tree to reverse edges to face a query node of the given domain.
+-- If multiple query nodes with this domain exist, one is chosen at random. This function only
+-- searches amongst nodes with a `NodeType` of `Query`.
+redirectToQueryNode :: (V.Valuation v, Ord a, Show a, Show (v a))
+    => V.Domain a -> G.Graph (JT.Node (v a)) -> G.Graph (JT.Node (v a))
+redirectToQueryNode d g = unsafePerformIO result
+    where
+        queryNode = head $ filter (\n -> n.d == d && n.t == JT.Query) (G.vertexList g)
+
+        redirected = redirectTree (queryNode.id) g
+
+        result = case renumberTree redirected of
+                    (x, True) -> pure x
+                    (x, False) -> do
+                        D.trace ("BEFORE: " ++ (LT.unpack $ pShow $ G.edgeList g) ++ "\n" ++ "AFTER: " ++ (LT.unpack $ pShow $ G.edgeList redirected)) (pure ())
+                        draw "UNSAFE_BEFORE.svg" g
+                        draw "UNSAFE_AFTER.svg" redirected
+                        pure x
+
+
+
+
+
 
 data DiagramWithBorder a = DiagramWithBorder {
     diagram     :: Diagram a,

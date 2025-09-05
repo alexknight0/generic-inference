@@ -5,6 +5,8 @@ module LocalComputation.Pretty (
 import qualified LocalComputation.Utils as U
 import           Text.PrettyPrint.Boxes as B
 
+-- TODO: cant we put U.table here?
+
 table :: U.Table -> Box
 table (U.Table [] _) = nullBox
 table t              = hsep 2 left [column, table rest]

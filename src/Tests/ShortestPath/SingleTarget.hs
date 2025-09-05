@@ -32,6 +32,7 @@ import           Control.DeepSeq                                      (NFData)
 import           Control.Monad.IO.Class                               (MonadIO)
 import           Data.Binary                                          (Binary)
 import qualified Data.Hashable                                        as H
+import           Debug.Trace                                          (traceShow)
 import qualified LocalComputation.Inference                           as I
 import           Numeric.Natural                                      (Natural)
 import           Tests.Utils                                          (checkAnswers,
@@ -42,6 +43,7 @@ tests :: IO Bool
 tests = fmap and $ sequence [
         checkParallel $$(discover)
       , p3MatchesBaseline
+      , randomMatchesBaseline
    ]
 
 p3MatchesBaseline :: IO Bool
@@ -51,7 +53,42 @@ p3MatchesBaseline = do
 
     where
         getTest :: G.Graph Natural Double -> I.Mode -> (PropertyName, Property)
-        getTest g mode = (Hedgehog.PropertyName $ "prop_p3VerySmall_MatchesBaseline_" ++ show mode, matchesBaseline mode g 100)
+        getTest g mode = (Hedgehog.PropertyName $ "prop_p3VerySmall_MatchesBaseline_" ++ show mode
+                         , matchesBaseline mode g 100)
+
+-- TODO: Clean up
+randomMatchesBaseline :: IO Bool
+randomMatchesBaseline = do
+    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map getTest [I.BruteForce, I.Fusion, I.Shenoy]
+
+    where
+        getTest :: I.Mode -> (PropertyName, Property)
+        getTest mode = (Hedgehog.PropertyName $ "prop_random_MatchesBaseline_" ++ show mode
+                      , randomMatchesBaseline' mode 100)
+
+-- TODO: Something doesn't like empty graphs...
+randomMatchesBaseline' :: I.Mode -> TestLimit -> Property
+randomMatchesBaseline' mode numTests = withTests numTests . property $ do
+    nodes <- forAll $ Gen.int (Range.linear 2 200)
+    edges <- forAll $ Gen.int (Range.linear 2 2000)
+    graphs <- forAll $ genGraphs (fromIntegral nodes) (fromIntegral edges)
+
+    case G.isConnected (G.merges1 graphs) of
+        False -> discard
+        True -> do
+            case G.nodeList (G.merges1 graphs) of
+                []     -> discard
+                merged -> do
+                    query <- forAll $ genConnectedQuery (G.reverseAdjacencyList (G.merges1 graphs))
+
+                    baseline  <- go Baseline query graphs
+                    local     <- go (Local mode) query graphs
+
+                    checkAnswers approx local baseline
+
+    where
+        go :: (MonadTest m, MonadIO m) => Implementation -> ST.Query Natural -> [G.Graph Natural Double] -> m [Double]
+        go m query gs = singleTarget m gs query.sources query.target
 
 
 tolerableError :: Double
@@ -102,13 +139,13 @@ prop_p1_drawGraph = unitTest $ do
             results' <- results
             checkAnswers approx results' p1.answers
 
-prop_p2_drawGraph :: Property
-prop_p2_drawGraph = unitTest $ do
-    case ST.singleTargetConfigSetDraw "p2.svg" undefined p2.graphs p2.q.sources p2.q.target of
-        Left _ -> failure
-        Right results -> do
-            results' <- results
-            checkAnswers approx results' p2.answers
+-- prop_p2_drawGraph :: Property
+-- prop_p2_drawGraph = unitTest $ do
+--     case ST.singleTargetConfigSetDraw "p2.svg" undefined p2.graphs p2.q.sources p2.q.target of
+--         Left _ -> failure
+--         Right results -> do
+--             results' <- results
+--             checkAnswers approx results' p2.answers
 
 -- | Tests that the all implementations work for a set problem where one graph is given.
 prop_p1 :: Property

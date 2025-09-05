@@ -24,20 +24,25 @@ module LocalComputation.Graph
     , adjacencyList
     , reverseAdjacencyList
     , empty
+    , deleteVertex
+    , isConnected
     )
 where
 
-import qualified Algebra.Graph      as AG
-import           Control.Monad      (guard)
-import qualified Data.List          as L
-import qualified Data.Map           as M
-import           Data.Maybe         (isJust)
-import qualified Data.Set           as S
-import qualified Data.Text.Lazy     as LT
-import           Text.Pretty.Simple (pShow, pShowNoColor)
+import qualified Algebra.Graph              as AG
+import qualified Algebra.Graph.Undirected   as UAG
+import           Control.Monad              (guard)
+import qualified Data.List                  as L
+import qualified Data.Map                   as M
+import           Data.Maybe                 (isJust)
+import qualified Data.Set                   as S
+import qualified Data.Text.Lazy             as LT
+import           Text.Pretty.Simple         (pShow, pShowNoColor)
 
-import           Control.DeepSeq    (NFData)
-import           GHC.Generics       (Generic)
+import qualified Algebra.Graph.AdjacencyMap as AM
+import qualified Algebra.Graph.ToGraph      as AM
+import           Control.DeepSeq            (NFData)
+import           GHC.Generics               (Generic)
 
 newtype Graph a b = Graph (M.Map a [(a, b)]) deriving (Generic, NFData)
 
@@ -142,3 +147,17 @@ reverseAdjacencyList = adjacencyList . flipArcDirections
 
 empty :: Graph a b
 empty = Graph M.empty
+
+deleteVertex :: (Ord a) => a -> Graph a b -> Graph a b
+deleteVertex x g = fromList $ filter (\e -> e.arcHead /= x && e.arcTail /= x) $ toList g
+
+makeUndirected :: (Ord a) => AG.Graph a -> AG.Graph a
+makeUndirected g = AM.toGraph $ AM.overlay g' (AM.transpose g')
+    where
+        g' = AM.toAdjacencyMap g
+
+isConnected :: (Ord a) => Graph a b -> Bool
+isConnected g = all (\x -> length (AM.reachable undirected x) == length vertices) vertices
+    where
+        undirected = makeUndirected $ toAlgebraGraph g
+        vertices = AG.vertexList $ toAlgebraGraph g
