@@ -73,7 +73,7 @@ fusion' uniqueId upperPsi (y:ys) = fusion' (uniqueId + 1) upperPsi' ys
 
 
 --------------------------------------------------------------------------------
--- Fusion as a message passing scheme
+-- Fusion applied to a join tree (used for dynamic programming)
 --------------------------------------------------------------------------------
 -- TODO: I think for fusion we want a new join tree construction algorithm that will help us ensure
 -- only one variable is eliminated at a time. We accept the fact that fusion with a query equal

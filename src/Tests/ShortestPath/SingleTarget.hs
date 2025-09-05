@@ -50,7 +50,7 @@ tests = fmap and $ sequence [
 p3MatchesBaseline :: IO Bool
 p3MatchesBaseline = do
     p3VerySmall <- P.fromValid p3VerySmallGraph
-    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map (getTest p3VerySmall) [I.BruteForce, I.Fusion False, I.Shenoy]
+    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map (getTest p3VerySmall) [I.BruteForce, I.Fusion, I.Shenoy]
 
     where
         getTest :: G.Graph Natural Double -> I.Mode -> (PropertyName, Property)
@@ -60,7 +60,7 @@ p3MatchesBaseline = do
 -- TODO: Clean up
 randomMatchesBaseline :: IO Bool
 randomMatchesBaseline = do
-    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map getTest [I.BruteForce, I.Fusion False, I.Shenoy]
+    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map getTest [I.BruteForce, I.Fusion, I.Shenoy]
 
     where
         getTest :: I.Mode -> (PropertyName, Property)
@@ -128,7 +128,7 @@ prop_p0 = unitTest $ do
 
 pX :: Problem -> Property
 pX p = unitTest $ do
-    forM [Baseline, Local I.BruteForce, Local (I.Fusion False), Local I.Shenoy] $ \mode -> do
+    forM [Baseline, Local I.BruteForce, Local I.Fusion, Local I.Shenoy] $ \mode -> do
         results <- singleTarget mode p.graphs p.q.sources p.q.target
         checkAnswers approx (results) p.answers
 

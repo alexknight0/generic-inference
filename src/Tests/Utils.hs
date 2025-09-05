@@ -51,7 +51,7 @@ prop_assertsAreStillPresent = withTests 100 . property $ do
 -------------------------------------------------------------------------------
 
 genMode :: Gen I.Mode
-genMode = Gen.element [I.BruteForce, I.Fusion False, I.Shenoy]
+genMode = Gen.element [I.BruteForce, I.Fusion, I.Shenoy]
 
 unitTest :: PropertyT IO a -> Property
 unitTest = withTests 1 . property . void

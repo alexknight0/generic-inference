@@ -36,17 +36,16 @@ import qualified LocalComputation.Inference.JoinTree.Diagram as D
 
 data Error = QueryNotSubsetOfValuations deriving (NFData, Generic, Show)
 
-data Mode = BruteForce | Fusion { _messagePassing :: Bool } | Shenoy deriving (Show)
+data Mode = BruteForce | Fusion | Shenoy deriving (Show)
 
 -- | Compute inference using the given mode to return valuations with the given domains.
 queries :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a))
     => Mode -> [v a] -> [Domain a] -> Either Error (m [v a])
-queries _                           vs qs
-    | not $ queryIsCovered vs qs          = Left  $ QueryNotSubsetOfValuations
-queries BruteForce                  vs qs = Right $ pure $ baselines vs qs
-queries (Fusion False)              vs qs = Right $ mapM (\q -> pure $ F.fusion vs q) qs
-queries (Fusion True)               _  _  = error "Not implemented"
-queries Shenoy                      vs qs = Right $ run $ SS.queries D.def vs qs
+queries _ vs qs
+    | not $ queryIsCovered vs qs = Left  $ QueryNotSubsetOfValuations
+queries BruteForce vs qs         = Right $ pure $ baselines vs qs
+queries Fusion     vs qs         = Right $ mapM (\q -> pure $ F.fusion vs q) qs
+queries Shenoy     vs qs         = Right $ run $ SS.queries D.def vs qs
 
 queryIsCovered :: (Foldable t, Valuation v, Var a)
     => [v a]
@@ -55,6 +54,12 @@ queryIsCovered :: (Foldable t, Valuation v, Var a)
 queryIsCovered vs qs = not $ any (\q -> not $ S.isSubsetOf q coveredDomain) qs
     where
         coveredDomain = foldr S.union S.empty (map label vs)
+
+--------------------------------------------------------------------------------
+-- Singular variants
+--------------------------------------------------------------------------------
+
+
 
 
 -- | Unsafe variant of `queries` - will throw if a query is not subset of the
@@ -101,7 +106,7 @@ baseline :: (Valuation v, Var a)
     => [v a]
     -> Domain a
     -> v a
-baseline vs q = project (combines1 vs) q
+baseline vs q = head $ baselines vs [q]
 
 -- | Basic brute force computation, does not use local computation.
 --
@@ -116,12 +121,3 @@ baselines :: (Valuation v, Var a)
 baselines vs qs = map (\q -> project combined q) qs
     where
         combined = combines1 vs
-
--- TODO: The above function is untested. The below function seemed to be the one that passed tests,
--- but it seems wrong?
---
--- baseline vs x = project (combines1 vs) dPhi
---     where
---         dPhi = foldr (S.union . label) S.empty vs
---
-
