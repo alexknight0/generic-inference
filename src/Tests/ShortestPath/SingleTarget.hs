@@ -112,7 +112,7 @@ singleTarget (Local mode)  graphs sources target
     | Left _ <- result = failure
     | Right r <- result = r
     where
-        result = ST.singleTargetDP D.def mode graphs (ST.Query sources target)
+        result = ST.singleTargetDP D.def graphs (ST.Query sources target)
 
 pX :: Problem -> Property
 pX p = unitTest $ do

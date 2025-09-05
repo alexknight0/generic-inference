@@ -79,6 +79,8 @@ knowledgeBase gs target = map f gs
 getDistance :: (Ord a) => Result a -> (a, a) -> Q.TropicalSemiringValue
 getDistance x (source, _) = fromJust $ M.find (source, ()) x
 
+type ComputeInference m a = D.DrawSettings -> [Q.QuasiRegularValuation Q.TropicalSemiringValue a] -> V.Domain a -> Either I.Error (m (M.LabelledMatrix a () Q.TropicalSemiringValue))
+
 -- TODO: Can this handle negative weights?
 
 {- | Returns the shortest distance between a single target and multiple sources.
@@ -91,15 +93,17 @@ singleTarget :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a
     -> [Graph a Double]
     -> Query a
     -> Either I.Error (m [Double])
-singleTarget = _usingDouble singleTarget'
+singleTarget settings mode gs q = usingDouble (singleTarget' inference) settings gs q
+    where
+        inference s k domain = fmap (fmap Q.solution) $ I.queryDrawGraph s mode k domain
 
-singleTarget' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => D.DrawSettings
-    -> I.Mode
+singleTarget' :: ( MonadIO m, Show a, H.Hashable a, Ord a)
+    => ComputeInference m a
+    -> D.DrawSettings
     -> [Graph a Q.TropicalSemiringValue]
     -> Query a
     -> Either I.Error (m [Q.TropicalSemiringValue])
-singleTarget' s mode vs q = do
+singleTarget' inference settings vs q = do
     solutionM <- solutionMOrError
 
     pure $ do
@@ -110,37 +114,14 @@ singleTarget' s mode vs q = do
         k = knowledgeBase vs q.target
         domain = S.fromList (q.target : q.sources)
 
-        solutionMOrError = fmap (fmap Q.solution) $ I.queryDrawGraph s mode k domain
+        solutionMOrError = inference settings k domain
 
 singleTargetDP :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
     => D.DrawSettings
-    -> I.Mode
     -> [Graph a Double]
     -> Query a
     -> Either I.Error (m [Double])
-singleTargetDP = _usingDouble singleTargetDP'
-
-
-singleTargetDP' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => D.DrawSettings
-    -> I.Mode
-    -> [Graph a Q.TropicalSemiringValue]
-    -> Query a
-    -> Either I.Error (m [Q.TropicalSemiringValue])
-singleTargetDP' s mode vs q = do
-    solutionM <- solutionMOrError
-
-    pure $ do
-        solution <- solutionM
-        pure $ map (\s -> getDistance solution (s, q.target)) q.sources
-
-    where
-        k = knowledgeBase vs q.target
-        domain = S.fromList (q.target : q.sources)
-
-        solutionMOrError = I.queryDPDrawGraph s k domain
-
-
+singleTargetDP = usingDouble (singleTarget' I.queryDPDrawGraph)
 
 --------------------------------------------------------------------------------
 -- Multiple query variants
@@ -193,5 +174,9 @@ singleTargetTmp' settings vs sources target
 -- Utilities
 --------------------------------------------------------------------------------
 
-_usingDouble f s mode vs qs = fmap (fmap (map Q.toDouble)) $ f s mode (map (fmap Q.T) vs) qs
+-- | Converts a function that operates using tropical semiring values to operate using doubles
+usingDouble :: (Functor m)
+    => (D.DrawSettings -> [Graph a Q.TropicalSemiringValue] -> Query a -> Either I.Error (m [Q.TropicalSemiringValue]))
+    -> (D.DrawSettings -> [Graph a Double]                  -> Query a -> Either I.Error (m [Double]))
+usingDouble f s vs qs = fmap (fmap (map Q.toDouble)) $ f s (map (fmap Q.T) vs) qs
 
