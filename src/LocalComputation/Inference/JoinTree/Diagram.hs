@@ -4,13 +4,15 @@
 
 -- TODO: Add to future work: fully animating the diagram (showing changing animations and everything) through using a GIF.
 module LocalComputation.Inference.JoinTree.Diagram (
-    draw
+      draw
+    , DrawSettings (beforeInference, afterInference)
+    , def
 ) where
 
 import qualified Data.Colour                         as C
 import           Diagrams.Backend.SVG                (renderSVG)
 import           Diagrams.Backend.SVG.CmdLine
-import           Diagrams.Prelude
+import           Diagrams.Prelude                    hiding (def)
 import qualified Graphics.SVGFonts                   as SF
 
 import qualified Algebra.Graph                       as G
@@ -22,6 +24,16 @@ import qualified Graphics.SVGFonts.ReadFont          as SF
 import qualified LocalComputation.Inference.JoinTree as JT
 import           LocalComputation.Utils              (unsafeFind)
 import qualified LocalComputation.ValuationAlgebra   as V
+
+data DrawSettings = DrawSettings {
+      beforeInference :: Maybe String
+    , afterInference  :: Maybe String
+}
+
+def = DrawSettings {
+      beforeInference = Nothing
+    , afterInference = Nothing
+}
 
 data DiagramWithBorder a = DiagramWithBorder {
     diagram     :: Diagram a,

@@ -51,7 +51,7 @@ benchmarks = do
     queries <- sample $ genConnectedQueries 10 graph
 
     bruteForce  <- singleTarget (Local I.BruteForce) [graph] queries
-    fusion      <- singleTarget (Local I.Fusion)     [graph] queries
+    fusion      <- singleTarget (Local (I.Fusion False))     [graph] queries
     shenoy      <- singleTarget (Local I.Shenoy)     [graph] queries
     baseline    <- singleTarget (Baseline)           [graph] queries
 

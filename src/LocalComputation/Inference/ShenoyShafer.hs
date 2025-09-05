@@ -113,16 +113,21 @@ answerQueryM vs q = do
 
 -- TODO: Right now visualises the after tree. We should have options for both i guess!
 answerQueriesDrawGraphM :: (MP.SerializableValuation v a, Show (v a))
-    => FilePath
+    => D.DrawSettings
     -> [v a]
     -> [Domain a]
     -> Process [v a]
-answerQueriesDrawGraphM filename vs queryDomains = do
-    let tree = baseJoinTree vs queryDomains
-    liftIO $ D.draw filename tree
-    results <- MP.messagePassing tree nodeActions
-    -- liftIO $ D.draw filename results
-    pure $ answerQueries queryDomains results
+answerQueriesDrawGraphM settings vs queryDomains = do
+    case settings.beforeInference of
+        Nothing       -> pure ()
+        Just filename -> liftIO $ D.draw filename treeBeforeInference
+    treeAfterInference <- MP.messagePassing treeBeforeInference nodeActions
+    pure $ answerQueries queryDomains treeAfterInference
+
+    where
+        treeBeforeInference = baseJoinTree vs queryDomains
+
+-- TODO: We were going to get rid of this by doing making bayesian simply do a manual projection on the result.
 
 inference :: (MP.SerializableValuation v a)
     => [v a]

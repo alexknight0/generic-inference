@@ -24,6 +24,7 @@ import           Control.Distributed.Process                          (Process,
                                                                        liftIO)
 import           Control.Monad                                        (forM,
                                                                        forM_)
+import qualified LocalComputation.Inference.JoinTree.Diagram          as D
 import qualified LocalComputation.Instances.ShortestPath.Parser       as P
 import qualified Text.Parsec                                          as P
 
@@ -49,7 +50,7 @@ tests = fmap and $ sequence [
 p3MatchesBaseline :: IO Bool
 p3MatchesBaseline = do
     p3VerySmall <- P.fromValid p3VerySmallGraph
-    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map (getTest p3VerySmall) [I.BruteForce, I.Fusion, I.Shenoy]
+    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map (getTest p3VerySmall) [I.BruteForce, I.Fusion False, I.Shenoy]
 
     where
         getTest :: G.Graph Natural Double -> I.Mode -> (PropertyName, Property)
@@ -59,7 +60,7 @@ p3MatchesBaseline = do
 -- TODO: Clean up
 randomMatchesBaseline :: IO Bool
 randomMatchesBaseline = do
-    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map getTest [I.BruteForce, I.Fusion, I.Shenoy]
+    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map getTest [I.BruteForce, I.Fusion False, I.Shenoy]
 
     where
         getTest :: I.Mode -> (PropertyName, Property)
@@ -127,17 +128,22 @@ prop_p0 = unitTest $ do
 
 pX :: Problem -> Property
 pX p = unitTest $ do
-    forM [Baseline, Local I.BruteForce, Local I.Fusion, Local I.Shenoy] $ \mode -> do
+    forM [Baseline, Local I.BruteForce, Local (I.Fusion False), Local I.Shenoy] $ \mode -> do
         results <- singleTarget mode p.graphs p.q.sources p.q.target
         checkAnswers approx (results) p.answers
 
 prop_p1_drawGraph :: Property
 prop_p1_drawGraph = unitTest $ do
-    case ST.singleTargetTmp "p1.svg" p1.graphs p1.q.sources p1.q.target of
+    case ST.singleTargetTmp settings p1.graphs p1.q.sources p1.q.target of
         Left _ -> failure
         Right results -> do
             results' <- results
             checkAnswers approx results' p1.answers
+
+    where
+        settings = D.def { D.beforeInference = Just "p1_before.svg"
+                         , D.afterInference  = Just "p1_after.svg"
+                        }
 
 -- prop_p2_drawGraph :: Property
 -- prop_p2_drawGraph = unitTest $ do

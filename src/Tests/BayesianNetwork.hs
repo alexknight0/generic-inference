@@ -20,7 +20,7 @@ import           Control.DeepSeq                                   (force)
 import           Control.Distributed.Process
 import           Control.Distributed.Process.Serializable          (Serializable)
 import qualified Control.Exception                                 as E
-import           Control.Monad                                     (forM)
+import           Control.Monad                                     (forM, void)
 import qualified Data.Hashable                                     as H
 import qualified Data.Set                                          as S
 import           Tests.Utils                                       (checkAnswers,
@@ -30,6 +30,8 @@ import           Control.DeepSeq                                   (NFData)
 import qualified Data.Char                                         as C
 import           LocalComputation.Inference                        (Mode (Shenoy),
                                                                     queriesDrawGraph)
+
+import qualified LocalComputation.Inference.JoinTree.Diagram       as D
 
 tests :: IO Bool
 tests = checkParallel $$(discover)
@@ -166,8 +168,11 @@ prop_inferenceAnswersMatchPrebuilt = withTests 100 . property $ do
 prop_drawAlarmGraph :: Property
 prop_drawAlarmGraph = unitTest $ do
     net <- fmap convertToAsia $ parseNetwork asiaFilepath
-    fromRight $ queriesDrawGraph "asia.svg" Shenoy net (toInferenceQuery asiaQueriesP1)
-    pure ()
+    fromRight $ queriesDrawGraph settings Shenoy net (toInferenceQuery asiaQueriesP1)
+
+    where settings = D.def { D.beforeInference = Just "asia_before.svg"
+                           , D.afterInference = Just "asia_after.svg"
+                          }
 
 prop_parsesAlarm :: Property
 prop_parsesAlarm = unitTest $ do

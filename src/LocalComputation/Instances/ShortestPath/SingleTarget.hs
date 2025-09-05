@@ -190,22 +190,22 @@ singleTargetConfigSetDraw' filepath mode vs sources target
 
 -- TODO: Used for drawing graphs. Remove once our interface is better.
 singleTargetTmp :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => FilePath
+    => D.DrawSettings
     -> [Graph a Double]
     -> [a]
     -> a
     -> Either Error (m [Double])
-singleTargetTmp filepath vs sources target = fmap (fmap (map Q.toDouble)) $ singleTargetTmp' filepath (map (fmap Q.T) vs) sources target
+singleTargetTmp s vs sources target = fmap (fmap (map Q.toDouble)) $ singleTargetTmp' s (map (fmap Q.T) vs) sources target
 
 
 -- TODO: Used for drawing graphs. Remove once our interface is better.
 singleTargetTmp' :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => FilePath
+    => D.DrawSettings
     -> [Graph a Q.TropicalSemiringValue]
     -> [a]
     -> a
     -> Either Error (m [Q.TropicalSemiringValue])
-singleTargetTmp' filepath vs sources target
+singleTargetTmp' settings vs sources target
     | any (not . G.hasZeroCostSelfLoops) vs = Left  $ MissingZeroCostSelfLoops
     | Left e          <- solutionMM         = Left  $ InferenceError e
     | Right solutionM <- solutionMM         = Right $ do
@@ -216,7 +216,7 @@ singleTargetTmp' filepath vs sources target
         k = knowledgeBase vs target
         domain = S.fromList (target : sources)
 
-        solutionMM = fmap (fmap Q.solution) $ I.queryDrawGraph filepath I.Shenoy k domain
+        solutionMM = fmap (fmap Q.solution) $ I.queryDrawGraph settings I.Shenoy k domain
 
 -- TODO: How do we get 'inferred results' from fusion?
 --
