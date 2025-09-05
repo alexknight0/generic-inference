@@ -59,7 +59,6 @@ queries' mode vs qs = case queries mode vs qs of
                             Left e  -> error (show e)
                             Right r -> r
 
--- TODO: Draw graph might function better as a 'mode'. i.e. make 'mode' a record that includes a 'drawgraph' property.
 queriesDrawGraph :: (SerializableValuation v a, Show (v a), NFData (v a), MonadIO m)
     => D.DrawSettings -> Mode -> [v a] -> [Domain a] -> Either Error (m [v a])
 queriesDrawGraph _ _ vs qs

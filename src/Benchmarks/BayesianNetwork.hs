@@ -40,7 +40,6 @@ benchmark net queryGen = do
 
     pure $ bgroup ("Bayesian/" ++ net.name ++ "/" ++ queryGen.name) [
                   bench "localcomputation-current"   $ nfIO $ P.run $ BN.getProbability    queries net.value
-                , bench "localcomputation-alternate" $ nfIO $ P.run $ BN.getProbabilityAlt queries net.value
             ]
 
 {-

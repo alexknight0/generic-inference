@@ -20,8 +20,7 @@ import           Control.DeepSeq                                   (force)
 import           Control.Distributed.Process
 import           Control.Distributed.Process.Serializable          (Serializable)
 import qualified Control.Exception                                 as E
-import           Control.Monad                                     (forM, void)
-import qualified Data.Hashable                                     as H
+import           Control.Monad                                     (forM)
 import qualified Data.Set                                          as S
 import           Tests.Utils                                       (checkAnswers,
                                                                     unitTest)
@@ -54,7 +53,7 @@ checkQueries :: (Show a, Show b, Serializable a, Serializable b, Ord a, Ord b, N
     -> PropertyT IO (Network a b)
 checkQueries qs ps getNetwork = do
     network <- getNetwork
-    results <- run $ getProbabilityAlt qs network
+    results <- run $ getProbability qs network
     checkAnswers approxEqual results ps
     pure network
 
@@ -157,7 +156,7 @@ prop_inferenceAnswersMatchPrebuilt = withTests 100 . property $ do
         genQueries :: Gen ([Query AsiaVar Bool])
         genQueries = Gen.list (Range.linear 1 6) genQuery
 
-        algebraResults qs net = run $ getProbabilityAlt qs net
+        algebraResults qs net = run $ getProbability qs net
         prebuiltResults qs = liftIO $ E.try $ E.evaluate $ force $ runQueries (createNetwork asiaValuationsP1) qs
 
 prop_drawAsiaGraph :: Property

@@ -45,6 +45,8 @@ data DiagramWithBorder a = DiagramWithBorder {
 -- TODO: A different data structure for the graph could be better here. Additionally, we might want
 -- to unite all graphs under one data structure to prevent confusion.
 
+-- TODO: Add more options to draw (such as size)
+
 -- Draws a tree from the given graph, outputting the drawing into a file of the given name. Has the same assumptions as `tree`.
 draw :: (V.Valuation v, Show (v a), Ord a, Show a)
     => FilePath -> G.Graph (JT.Node (v a)) -> IO ()

@@ -6,7 +6,6 @@
 
 module LocalComputation.Instances.BayesianNetwork
     ( getProbability, toQuery
-    , getProbabilityAlt
     , Query (conditioned, conditional, Query)
     , Probability (P)
     , Network
@@ -16,24 +15,19 @@ module LocalComputation.Instances.BayesianNetwork
     )
 where
 
-import           LocalComputation.Inference.ShenoyShafer
 import           LocalComputation.Utils
 import qualified LocalComputation.ValuationAlgebra          as V
 import qualified LocalComputation.ValuationAlgebra.Semiring as S
 
 import           Control.DeepSeq                            (NFData)
-import           Control.Exception                          (assert)
 import           Data.Binary                                (Binary)
-import qualified Data.Hashable                              as H
 import qualified Data.Map                                   as M
 import           Data.Set                                   (union)
-import qualified Data.Set                                   as S
 import           GHC.Generics                               (Generic)
 
 
 import           Control.Distributed.Process
 import           Control.Distributed.Process.Serializable
-import           Data.List.Extra                            (chunksOf)
 import qualified LocalComputation.Inference                 as I
 
 {- | Valuation for the valuation algebra of probability potentials.
@@ -87,15 +81,12 @@ approxEqual :: Probability -> Probability -> Bool
 approxEqual x y = abs (x - y) < threshold
 
 -- | Returns the conditional probability of a certain event.
-conditionalP :: (Ord a, Ord b) => Query a b -> (VarAssignment a b -> Probability) -> Probability
-conditionalP q p = conditionalP' q p p
-
-conditionalP' :: (Ord a, Ord b) => Query a b -> (VarAssignment a b -> Probability) -> (VarAssignment a b -> Probability) -> Probability
-conditionalP' q p1 p2
+conditionalP :: (Ord a, Ord b) => Query a b -> (VarAssignment a b -> Probability) -> (VarAssignment a b -> Probability) -> Probability
+conditionalP q p1 p2
     | not $ sharedKeysHaveSameValue q.conditioned q.conditional = 0
-    | p2 q.conditional `approxEqual` 0                           = 0
-    | otherwise                                                 =   p1 (M.union q.conditioned q.conditional)
-                                                                  / p2 q.conditional
+    | p2 q.conditional `approxEqual` 0                          = 0
+    | otherwise                                                 = p1 (M.union q.conditioned q.conditional)
+                                                                / p2 q.conditional
 
 -- TODO: Wait isn't this just M.intersectionWith const m1 m2  == M.intersectionWith (flip const) m1 m2
 sharedKeysHaveSameValue :: (Ord a, Ord b) => M.Map a b -> M.Map a b -> Bool
@@ -110,45 +101,25 @@ sharedKeysHaveSameValue m1 m2 = allTrue $ M.intersectionWith f (withIndicator m1
 
         allTrue = all ((== True) . snd . snd) . M.toList
 
--- TODO: I thought we had to normalize, but this is passing all tests?
--- TODO: Below uses more generic inference, but appears to perform slower?
-
 -- | Returns the probability of a given event occuring, given a set of conditional variables.
 -- Takes a network (a list of conditional probability tables) as input.
-getProbabilityAlt :: forall a b. ( Show a, Show b, Serializable a, Serializable b, Ord a, Ord b, NFData a, NFData b)
-    => [Query a b]
-    -> Network a b
-    -> Process [Probability]
-getProbabilityAlt qs network' = do
-    results <- fromRight $ I.queries I.Shenoy network' domains
-    pure $ zipWith (\q [top, bottom] -> conditionalP' q (\x -> S.findValue x top) (\x -> S.findValue x bottom))
-                   (qs)
-                   (chunksOf 2 results)
-    -- let f vars = queryToProbability vars results
-    -- pure $ map (\(vars, givenVars) -> conditionalProbability vars givenVars f) qs
-
-    where
-        -- The two queries we need
-        domains :: [V.Domain a]
-        domains = concatMap (\q -> [union (M.keysSet q.conditioned) (M.keysSet q.conditional)
-                                  , M.keysSet q.conditional
-                                             ]) qs
-
-{- | Takes a query and returns the resulting probability. Assumes the query is covered by the network. -}
-queryToProbability :: (Ord a, Show a, Ord b, Show b) => VarAssignment a b -> InferredData (S.SemiringValuation Probability b) a -> Probability
-queryToProbability vars results = S.findValue vars (S.normalize $ answerQuery' (M.keysSet vars) results)
-
-toQuery :: (Ord a) => ([(a, b)], [(a, b)]) -> Query a b
-toQuery (x, y) = Query (fromListAssertDisjoint x) (fromListAssertDisjoint y)
-
-getProbability :: forall a b. (Show a, Show b, Serializable a, Serializable b, Ord a, Ord b)
+getProbability :: forall a b. ( Show a, Show b, Serializable a, Serializable b, Ord a, Ord b, NFData a, NFData b)
     => [Query a b]
     -> Network a b
     -> Process [Probability]
 getProbability qs network' = do
-    results <- inference network' (toInferenceQuery qs)
-    let f vs = queryToProbability vs results
-    pure $ map (\q -> conditionalP q f) qs
+    results <- fromRight $ I.queries I.Shenoy network' domains
+    pure $ zipWith probability qs results
+
+    where
+        domains :: [V.Domain a]
+        domains = map (\q -> union (M.keysSet q.conditioned) (M.keysSet q.conditional)) qs
+
+        probability q r = conditionalP q (\x -> S.findValue x r)
+                                         (\x -> S.findValue x (V.project r (M.keysSet q.conditional)))
+
+toQuery :: (Ord a) => ([(a, b)], [(a, b)]) -> Query a b
+toQuery (x, y) = Query (fromListAssertDisjoint x) (fromListAssertDisjoint y)
 
 -- | Converts a given probability query to an inference query. This inference query will allow inference
 -- to return the results necessary to answer the given probability query.
