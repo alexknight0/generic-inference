@@ -59,7 +59,6 @@ import           Text.Printf                   (printf)
 import qualified Text.ParserCombinators.Parsec as P
 
 import           Control.Exception             (assert)
-import           Control.Monad                 (MonadPlus, mzero)
 import           GHC.Stack                     (HasCallStack)
 import           Numeric.Natural
 import           System.IO                     (IOMode (ReadMode),
@@ -234,6 +233,7 @@ neighbours x g = do
     (_, adjacent) <- find (\(y, _) -> y == x) $ DG.adjacencyList g
     pure adjacent
 
+unusedArg :: a
 unusedArg = error "Argument should not be used"
 
 -- TODO: Implicit assumption that length of heading equals length of rows. Could assert this.
@@ -242,5 +242,6 @@ data Table = Table {
     , rows    :: [[String]]
 }
 
+assertError :: a
 assertError = assert False undefined
 

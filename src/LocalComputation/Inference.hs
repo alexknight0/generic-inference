@@ -107,18 +107,6 @@ unsafeQuery mode vs q = fmap head $ unsafeQueries mode vs [q]
 
 -- | Basic brute force computation, does not use local computation.
 --
--- __Warning__: Assumes that the query is a subset of the covered domain - this should be checked
--- by the caller.
---
--- __Warning__: Assumes the given list of valuations is not empty.
-bruteForce :: (Valuation v, Var a)
-    => [v a]
-    -> Domain a
-    -> v a
-bruteForce vs q = head $ bruteForces vs [q]
-
--- | Basic brute force computation, does not use local computation.
---
 -- __Warning__: Assumes that the given queries are subsets of the covered domain - this should be checked
 -- by the caller.
 --

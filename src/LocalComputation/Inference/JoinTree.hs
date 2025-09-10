@@ -28,15 +28,12 @@ import           GHC.Records                                    (HasField,
 import           LocalComputation.ValuationAlgebra
 
 import qualified Algebra.Graph.ToGraph                          as AM
-import           Data.Binary                                    (Binary)
 import qualified Data.List                                      as L
 import qualified Data.Map                                       as M
 import           Data.Text.Lazy                                 (unpack)
 import           Debug.Trace                                    (trace)
-import           GHC.Generics                                   (Generic)
 import qualified LocalComputation.Utils                         as U
 import           Text.Pretty.Simple                             (pShow)
-import           Type.Reflection                                (Typeable)
 
 -- TODO: Should have a seperate data structure for join trees. That way we
 -- not only can better assert the tree is in a set structure, but we can
@@ -215,17 +212,6 @@ redirectTree i g = foldr f g outgoingNodes
         f :: Node a -> Graph (Node a) -> Graph (Node a)
         f n acc = flipEdge this n $ redirectTree n.id acc
 
-testGraph = path $ map (\i -> Node i undefined Query) [1,2,3,4]
-{-
-
->>> edgeList $ fmap (.id) $ redirectTree 1 testGraph
-[(2,1),(3,2),(4,3)]
-
--}
-
-
-data NewNumbering = NewNumbering { oldId :: Id , newId :: Id }
-
 renumberTree :: Graph (Node a) -> Graph (Node a)
 renumberTree g = fmap (\n -> changeId n $ (M.!) newNumbering n.id) g
     where
@@ -263,13 +249,4 @@ flipEdge x y g
 
 addEdge :: a -> a -> Graph a -> Graph a
 addEdge x y g = overlay (connect (vertex x) (vertex y)) g
-
-
-{- Returns the edge set required to reverse the edges of a **join tree** to face the node of the given id -}
-redirectTree' :: Id -> Graph (Node a) -> S.Set (Node a, Node a)
-redirectTree' i g = undefined
-    where
-        outgoingEdges = snd $ fromJust $ L.find (\(n, _) -> n.id == i) (adjacencyList g)
-
-
 

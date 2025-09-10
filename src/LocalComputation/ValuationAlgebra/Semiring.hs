@@ -22,19 +22,12 @@ where
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra
 
-import           Control.DeepSeq                                 (NFData)
 import           Control.Exception                               (assert)
-import           Data.Binary                                     (Binary)
-import qualified Data.List                                       as L
 import qualified Data.Map                                        as M
 import qualified Data.Set                                        as S
-import qualified Data.Text.Lazy                                  as LT
-import           GHC.Generics
 import qualified LocalComputation.Pretty                         as P
 import qualified LocalComputation.Utils                          as U
 import           LocalComputation.ValuationAlgebra.SemiringValue
-import           Text.Pretty.Simple                              (pShow,
-                                                                  pShowNoColor)
 
 {- | Valuation for a semiring valuation algebra.
 

@@ -20,10 +20,8 @@ import qualified Hedgehog.Gen                                         as Gen
 import qualified Hedgehog.Internal.Property                           as Hedgehog (PropertyName (..))
 import qualified Hedgehog.Range                                       as Range
 
-import           Control.Distributed.Process                          (Process,
-                                                                       liftIO)
-import           Control.Monad                                        (forM,
-                                                                       forM_)
+import           Control.Distributed.Process                          (liftIO)
+import           Control.Monad                                        (forM)
 import qualified LocalComputation.Inference.JoinTree.Diagram          as D
 import qualified LocalComputation.Instances.ShortestPath.Parser       as P
 import qualified Text.Parsec                                          as P
@@ -33,7 +31,6 @@ import           Control.DeepSeq                                      (NFData)
 import           Control.Monad.IO.Class                               (MonadIO)
 import           Data.Binary                                          (Binary)
 import qualified Data.Hashable                                        as H
-import           Debug.Trace                                          (traceShow)
 import qualified LocalComputation.Inference                           as I
 import           Numeric.Natural                                      (Natural)
 import           Tests.Utils                                          (checkAnswers,
@@ -77,15 +74,14 @@ randomMatchesBaseline' mode numTests = withTests numTests . property $ do
 
     if not $ G.isConnected (G.merges1 graphs) then discard else pure ()
 
-    case G.nodeList (G.merges1 graphs) of
-        []     -> discard
-        merged -> do
-            query <- forAll $ genConnectedQuery (G.reverseAdjacencyList (G.merges1 graphs))
+    if G.nodeList (G.merges1 graphs) == [] then discard else pure ()
 
-            baseline  <- go Baseline query graphs
-            local     <- go mode query graphs
+    query <- forAll $ genConnectedQuery (G.reverseAdjacencyList (G.merges1 graphs))
 
-            checkAnswers approx local baseline
+    baseline  <- go Baseline query graphs
+    local     <- go mode query graphs
+
+    checkAnswers approx local baseline
 
     where
         go :: (MonadTest m, MonadIO m) => Implementation -> ST.Query Natural -> [G.Graph Natural Double] -> m [Double]

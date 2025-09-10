@@ -138,7 +138,7 @@ genQuery = do
 
 prop_inferenceAnswersMatchPrebuilt :: Property
 prop_inferenceAnswersMatchPrebuilt = withTests 100 . property $ do
-    qs <- forAll genQueries
+    qs <- forAll genQueries'
     prebuiltResults' <- prebuiltResults qs
     net <- fmap convertToAsia $ parseNetwork asiaFilepath
 
@@ -153,8 +153,8 @@ prop_inferenceAnswersMatchPrebuilt = withTests 100 . property $ do
             checkAnswers approxEqual algebraResults' prebuiltResults''
 
     where
-        genQueries :: Gen ([Query AsiaVar Bool])
-        genQueries = Gen.list (Range.linear 1 6) genQuery
+        genQueries' :: Gen ([Query AsiaVar Bool])
+        genQueries' = Gen.list (Range.linear 1 6) genQuery
 
         algebraResults qs net = run $ getProbability qs net
         prebuiltResults qs = liftIO $ E.try $ E.evaluate $ force $ runQueries (createNetwork asiaValuationsP1) qs

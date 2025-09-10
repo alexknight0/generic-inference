@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveAnyClass      #-}
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies        #-}
 
 module LocalComputation.ValuationAlgebra.QuasiRegular
     ( Q.QSemiringValue (quasiInverse)
@@ -15,19 +16,13 @@ module LocalComputation.ValuationAlgebra.QuasiRegular
     )
 where
 
+import qualified Data.Map                                                     as M
 import           Data.Maybe                                                   (fromJust)
 import qualified Data.Set                                                     as S
 import qualified LocalComputation.LabelledMatrix                              as M
 import           LocalComputation.ValuationAlgebra
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue as Q
 
--- Typeclasses
-import           Control.DeepSeq                                              (NFData)
-import           Data.Binary                                                  (Binary)
-import           GHC.Generics                                                 (Generic)
-
-
-type Foo a = (Binary a, NFData a, Generic a)
 
 data QuasiRegularValuation b a = Valuation (M.LabelledMatrix a a b) (M.LabelledMatrix a () b) | Identity (Domain a) deriving (Binary, NFData, Ord, Eq, Generic)
 
@@ -42,6 +37,8 @@ create m b
 
 -- TODO: Probably can remove instance of Show? It doens't contribute to the 'label', 'combine', 'project' functionality no?
 instance (Show b, Q.QSemiringValue b) => Valuation (QuasiRegularValuation b) where
+
+    type VarAssignment (QuasiRegularValuation b) a b = M.Map a b
 
     label (Identity d)    = d
     label (Valuation _ b) = fst (M.domain b)

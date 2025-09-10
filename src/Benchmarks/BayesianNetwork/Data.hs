@@ -36,16 +36,10 @@ module Benchmarks.BayesianNetwork.Data
 where
 
 import qualified LocalComputation.Instances.BayesianNetwork as BN
+import           LocalComputation.ValuationAlgebra          (Binary, Generic,
+                                                             NFData)
 
-import           Numeric.Natural                            (Natural)
--- TODO: Create a type that exports NFData, Binary, and Generic to stop this repetition!
-import           Control.DeepSeq                            (NFData)
-import           Data.Binary                                (Binary)
-import           GHC.Generics                               (Generic)
-
-import           Control.Exception                          (assert)
 import qualified Data.Map                                   as M
-import qualified Data.Set                                   as S
 import qualified Hedgehog                                   as H
 import qualified Hedgehog.Gen                               as Gen
 import qualified Hedgehog.Range                             as Range
@@ -57,19 +51,13 @@ import qualified LocalComputation.ValuationAlgebra.Semiring as S
 -- Test case generation
 --------------------------------------------------------------------------------
 
--- | Range of a number. Used as a parameter over `Range.Range` as we want to
--- ensure that we don't have a range that scales with a size parameter that we
--- never change. The size parameter that we are trying to avoid can be seen here:
--- <https://hackage.haskell.org/package/hedgehog-1.5/docs/Hedgehog-Range.html>
-data Range a = Range { lower :: a, upper :: a }
-
 type Variables a b = M.Map a (V.Domain b)
 
 -- | Generates a variable assignment from a set of variables and their possible values.
 -- If the requested `numVars` exceeds the number of variables in `vars` then simply
 -- assigns as many as possible.
 genVarAssignment :: Int -> Variables String String -> H.Gen (BN.VarAssignment String String)
-genVarAssignment numVars vars
+genVarAssignment numVars _
     | numVars < 0           = U.assertError
 genVarAssignment numVars vars = do
     randomSubMap <- fmap (M.fromList . take numVars) $ Gen.shuffle (M.toList vars)

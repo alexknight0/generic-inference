@@ -6,12 +6,9 @@ where
 import           LocalComputation.Instances.BayesianNetwork
 import qualified LocalComputation.ValuationAlgebra.Semiring as S
 
-import           Control.Exception                          (assert)
 import           Data.Functor.Identity                      (Identity)
-import qualified Data.List                                  as L
 import qualified Data.Map                                   as M
 import qualified LocalComputation.Utils                     as M (fromListA)
-import           Numeric.Natural                            (Natural)
 import           Text.Parsec.Char                           (endOfLine)
 import           Text.Parsec.Language                       (haskellDef)
 import           Text.Parsec.Token                          (GenTokenParser,
@@ -44,15 +41,6 @@ network = do
         createLookup :: [NodeInfo] -> M.Map String [String]
         createLookup info = M.fromListA $ map (\n -> (n.name, n.states)) info
 
-spaces' :: GenParser Char st ()
-spaces' = skipMany (oneOf " \t")
-
-spacesAndNewLine :: GenParser Char st ()
-spacesAndNewLine = do
-    spaces'
-    _ <- endOfLine
-    pure ()
-
 notNewLineNorNoneOf :: String -> GenParser Char st Char
 notNewLineNorNoneOf xs = do
     notFollowedBy endOfLine
@@ -82,24 +70,6 @@ escapedString :: GenParser Char st String
 escapedString = char '"' *> many notNewLineNorQuote <* char '"'
         where
                 notNewLineNorQuote = notNewLineNorNoneOf "\""
-
-foobar :: ()
-foobar = undefined
-{-
-
->>> parse (many $ notNewLineNorNoneOf "\"") "foo" $ "sff\"s\nfdfdf"
-Right "sff"
-
--}
-
-{-
-
->>> parse network "foo" $ "net \n{\n \n\nnode GOAL_2 \nstates = ( \"false\" \"true\" );"
-Left "foo" (line 5, column 1):
-unexpected "n"
-expecting space, white space or "}"
-
--}
 
 {- | Parses a node. For example;
 

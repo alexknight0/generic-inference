@@ -12,7 +12,6 @@ import qualified LocalComputation.Instances.BayesianNetwork        as BN
 import qualified LocalComputation.Instances.BayesianNetwork.Parser as P
 import qualified LocalComputation.LocalProcess                     as P
 import qualified LocalComputation.Utils                            as U
-import           Text.Pretty.Simple                                (pShowNoColor)
 
 data WithName a = WithName {
       name  :: String
@@ -41,30 +40,3 @@ benchmark net queryGen = do
     pure $ bgroup ("Bayesian/" ++ net.name ++ "/" ++ queryGen.name) [
                   bench "localcomputation-current"   $ nfIO $ P.run $ BN.getProbability    queries net.value
             ]
-
-{-
-
->>> U.parseFile' P.network D.alarmFilepath >>= (\x -> D.sample $ D.genQueries x 10 2 3)
-[
-Query {conditioned = fromList [("INSUFFANESTH","FALSE")], conditional = fromList [("KINKEDTUBE","FALSE")]},
-Query {conditioned = fromList [("LVFAILURE","FALSE")], conditional = fromList [("EXPCO2","ZERO"),("PAP","NORMAL"),("VENTLUNG","LOW")]},
-Query {conditioned = fromList [("PCWP","NORMAL")], conditional = fromList []},
-Query {conditioned = fromList [("ERRLOWOUTPUT","FALSE"),("TPR","NORMAL")], conditional = fromList [("CO","NORMAL")]},
-Query {conditioned = fromList [("PAP","LOW")], conditional = fromList []},
-Query {conditioned = fromList [("INSUFFANESTH","FALSE")], conditional = fromList []},
-Query {conditioned = fromList [("INSUFFANESTH","TRUE")], conditional = fromList [("TPR","HIGH")]},
-Query {conditioned = fromList [("HYPOVOLEMIA","TRUE")], conditional = fromList [("ARTCO2","HIGH"),("SHUNT","HIGH"),("VENTMACH","NORMAL")]},
-Query {conditioned = fromList [("MINVOLSET","HIGH")], conditional = fromList []},
-Query {conditioned = fromList [("ERRLOWOUTPUT","FALSE"),("TPR","LOW")], conditional = fromList [("INSUFFANESTH","TRUE"),("SHUNT","NORMAL")]}]
-
--}
-
-
--- bayesianNetwork = fmap fromRight $ parseFile P.network B.asiaFilepath
--- bayesianQuery = (M.fromList [("either", True)], M.fromList [("asia", True), ("tub", False), ("smoke", False), ("bronc", True)])
---
--- bayesian n = run $ do
---     result <- B.getProbability [bayesianQuery] n
---     -- pTraceShow result (pure result)
---     pure result
---

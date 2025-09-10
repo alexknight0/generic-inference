@@ -5,12 +5,12 @@
 module LocalComputation.Instances.ShortestPath.SingleTarget
     (
       singleTarget
-    , Query (..)
     , singleTargetDP
+    , singleTargets
+    , Query (..)
     )
 where
 
-import           Control.Distributed.Process                                  (Process)
 import           Data.Maybe                                                   (fromJust)
 import qualified Data.Set                                                     as S
 
@@ -23,17 +23,12 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular               as
                                                                                     solution)
 -- Typeclasses
 import           Control.DeepSeq                                              (NFData)
-import           Control.Monad.IO.Class                                       (MonadIO,
-                                                                               liftIO)
+import           Control.Monad.IO.Class                                       (MonadIO)
 import           Data.Binary                                                  (Binary)
 import qualified Data.Hashable                                                as H
-import           GHC.Generics                                                 (Generic)
 import           LocalComputation.Graph                                       as G
 import qualified LocalComputation.Inference                                   as I
-import qualified LocalComputation.Inference.DynamicProgramming                as D
-import qualified LocalComputation.Inference.Fusion                            as F
 import qualified LocalComputation.Inference.JoinTree.Diagram                  as D
-import           LocalComputation.LocalProcess                                (run)
 import           LocalComputation.Utils                                       (fromRight)
 import qualified LocalComputation.ValuationAlgebra                            as V
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue as Q (TropicalSemiringValue (..),

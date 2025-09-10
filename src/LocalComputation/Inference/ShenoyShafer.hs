@@ -10,9 +10,7 @@ module LocalComputation.Inference.ShenoyShafer (
 import           Control.Distributed.Process                 hiding (Message)
 
 import qualified Algebra.Graph                               as DG
-import qualified Algebra.Graph.Undirected                    as UG
-import           Data.Set                                    (intersection,
-                                                              isSubsetOf)
+import           Data.Set                                    (intersection)
 
 
 import           Control.Exception                           (assert)

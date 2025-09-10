@@ -22,7 +22,6 @@ import qualified Data.List.Extra                     as L (splitOn)
 import           Data.Maybe                          (fromJust)
 import qualified Graphics.SVGFonts.ReadFont          as SF
 import qualified LocalComputation.Inference.JoinTree as JT
-import           LocalComputation.Utils              (unsafeFind)
 import qualified LocalComputation.ValuationAlgebra   as V
 import           System.Directory.Extra              (createDirectoryIfMissing)
 import           System.FilePath                     (takeDirectory)
@@ -32,6 +31,7 @@ data DrawSettings = DrawSettings {
     , afterInference  :: Maybe FilePath
 }
 
+def :: DrawSettings
 def = DrawSettings {
       beforeInference = Nothing
     , afterInference = Nothing

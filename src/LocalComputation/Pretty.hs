@@ -19,14 +19,3 @@ table t              = hsep 2 left [column, table rest]
 showTable :: U.Table -> String
 showTable = render . table
 
-
-foobar :: ()
-foobar = undefined
-{-
->>> render $ (//) (text "foo") (text "foobar")
-"foo   \nfoobar\n"
-
->>> render $ vcat left $ map text ["foo", "foooest", "f", "fass"]
-"foo    \nfoooest\nf      \nfass   \n"
-
--}

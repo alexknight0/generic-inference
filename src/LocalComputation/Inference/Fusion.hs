@@ -8,21 +8,15 @@ import qualified Algebra.Graph                               as DG
 import           Control.Distributed.Process                 (Process, expect,
                                                               liftIO, sendChan)
 import           Control.Exception                           (assert)
-import           Control.Monad                               (replicateM, void)
+import           Control.Monad                               (replicateM)
 import qualified Data.Set                                    as S
-import qualified Data.Text.Lazy                              as LT
-import           Debug.Trace                                 (trace, traceId,
-                                                              traceShow,
-                                                              traceShowId)
 import qualified LocalComputation.Inference.JoinTree         as JT
 import qualified LocalComputation.Inference.JoinTree.Diagram as D
 import qualified LocalComputation.Inference.MessagePassing   as MP
 import           LocalComputation.ValuationAlgebra           (Domain,
                                                               Valuation (eliminate, label),
-                                                              Var, combines1,
-                                                              project)
+                                                              Var, combines1)
 import           Numeric.Natural                             (Natural)
-import           Text.Pretty.Simple                          (pShow)
 
 data WithId a = WithId {
       id      :: Natural

@@ -109,68 +109,15 @@ genGraph nodes arcs = do
         -- present in the graph.
         selfLoops = [G.Edge x x 0 | x <- [0 .. nodes - 1]]
 
--- 'nodes' is an upper limit on the number of nodes
--- genConnectedGraph :: Natural -> Natural -> Gen (G.Graph Natural Double)
--- genConnectedGraph 0     _    = pure G.empty
--- genConnectedGraph nodes arcs = do
---     undefined
---
---     where
---         genConnectedGraph' graph 0        numArcs possibleNodes = graph
---         genConnectedGraph' graph numNodes 0       possibleNodes = graph
---         genConnectedGraph' graph numNodes numArcs possibleNodes = undefined
-
-
-
-
--- TODO: Allow user to choose number of graphs
-
-foobar :: ()
-foobar = undefined
-{-
-
->>> L.chunksOf 3 [1..50]
-[[1,2,3],[4,5,6],[7,8,9],[10,11,12],[13,14,15],[16,17,18],[19,20,21],[22,23,24],[25,26,27],[28,29,30],[31,32,33],[34,35,36],[37,38,39],[40,41,42],[43,44,45],[46,47,48],[49,50]]
-
--}
-
--- genConnectedGraph :: Natural -> Natural -> Gen (G.Graph Natural Double)
--- genConnectedGraph nodes minArcs = do
---     undefined
---
---
---     where
---         genConnectedGraph' graph 0             _       _             = graph
---         genConnectedGraph' graph _             0       _             = graph
---         genConnectedGraph' graph numNodesToAdd numArcs possibleNodes = do
---             newNode        <- Gen.element possibleNodes
---             nodeToAttachTo <- Gen.element $ G.nodeList graph
---             pure $
-
-
-
-
 
 genGraphs :: Natural -> Natural -> Gen [G.Graph Natural Double]
 genGraphs nodes arcs = do
     original <- genGraph nodes arcs
 
-    -- Core goal at this point for testing is to ensure not all nodes are in all graphs
-    -- so we delete some nodes at random
     pure $ map (G.addSelfLoops 0)
          $ map G.fromList
-         -- $ map (withoutFirstVertex . G.fromList)
          $ L.chunksOf (max 1 $ div (fromIntegral nodes) 5)
          $ G.toList original
-
-    where
-        withoutFirstVertex g = case G.nodeList g of
-                                        []    -> g
-                                        (x:_) -> G.deleteVertex x g
-
-
-
-
 
 -- | Takes a hedgehog generator and generates a random sample.
 sample :: Gen a -> IO a
@@ -280,14 +227,14 @@ p3 = BenchmarkProblem {
     , qs = p3Queries
 }
 
+p3Graphs :: IO [G.Graph Natural Double]
 p3Graphs = fmap (:[]) $ parseGraph' (dataDirectory ++ "Small-USA-road-d.NY.gr")
-
--- TODO: Remove?
 
 -- Randomly generated (but fixed) query. See 'HLS eval plugin' if unsure how to regenerate.
 --
 -- >>> let reverseAdjacencyList = G.reverseAdjacencyList p3Graphs
 -- >>> sample $ genConnectedQuery (reverseAdjacencyList)
+p3Queries :: a
 p3Queries = undefined
 
 -------------------------------------------------------------------------------

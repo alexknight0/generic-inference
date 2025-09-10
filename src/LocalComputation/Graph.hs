@@ -30,14 +30,13 @@ module LocalComputation.Graph
 where
 
 import qualified Algebra.Graph              as AG
-import qualified Algebra.Graph.Undirected   as UAG
 import           Control.Monad              (guard)
 import qualified Data.List                  as L
 import qualified Data.Map                   as M
 import           Data.Maybe                 (isJust)
 import qualified Data.Set                   as S
 import qualified Data.Text.Lazy             as LT
-import           Text.Pretty.Simple         (pShow, pShowNoColor)
+import           Text.Pretty.Simple         (pShowNoColor)
 
 import qualified Algebra.Graph.AdjacencyMap as AM
 import qualified Algebra.Graph.ToGraph      as AM

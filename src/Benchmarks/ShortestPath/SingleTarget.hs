@@ -18,11 +18,7 @@ import           LocalComputation.Utils                               (fromRight
                                                                        infinity)
 import           Numeric.Natural                                      (Natural)
 
-import           Control.DeepSeq                                      (NFData,
-                                                                       deepseq,
-                                                                       rnf)
-import           Control.Monad                                        (forM)
-import qualified Data.Map.Lazy                                        as M
+import           Control.DeepSeq                                      (deepseq)
 import qualified LocalComputation.Inference.JoinTree.Diagram          as D
 
 data Implementation = Baseline | Local I.Mode deriving Show
@@ -30,16 +26,6 @@ data Implementation = Baseline | Local I.Mode deriving Show
 --------------------------------------------------------------------------------
 -- Benchmarks
 --------------------------------------------------------------------------------
-
-foobar :: ()
-foobar = undefined
-{-
-
->>> p3Small <- D.p3SmallGraph'
->>> sample $ genConnectedQueries 10 p3Small
-[Query {sources = [9,10], target = 10},Query {sources = [16,17], target = 17},Query {sources = [25,26], target = 26},Query {sources = [54,55], target = 54},Query {sources = [64,65], target = 64},Query {sources = [27,28], target = 28},Query {sources = [20,21], target = 21},Query {sources = [60,61,68,69], target = 60},Query {sources = [18,19], target = 18},Query {sources = [43,44], target = 43}]
-
--}
 
 -- TODO: split the problem up across graphs before giving it to the algorithms.
 

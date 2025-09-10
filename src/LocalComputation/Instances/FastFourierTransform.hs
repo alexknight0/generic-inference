@@ -13,7 +13,6 @@ module LocalComputation.Instances.FastFourierTransform
     )
 where
 
-import           LocalComputation.Inference.ShenoyShafer
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra.Semiring
 
@@ -33,7 +32,6 @@ import           GHC.Generics                               (Generic)
 
 import           Data.Maybe                                 (fromJust)
 import qualified LocalComputation.Inference                 as I
-import           LocalComputation.Inference.Fusion          (fusion)
 
 newtype FourierComplex = FourierComplex (C.Complex Double) deriving newtype (Num, Fractional, Binary, Show, NFData, Eq, Generic)
 
@@ -65,11 +63,11 @@ getE' m j l nj kl = exp $ negate $ (/) (2 * pi * i * nj' * kl') (2 ^ (m - j - l)
 
 -- Variables X_j and Y_l are binary numbers, so only take values 0 or 1.
 getE :: Natural -> Natural -> Natural -> FastFourierValuation
-getE m j l = fromJust $ create rows domain valueDomains (S.empty)
+getE m j l = fromJust $ create rows domain valueDomains' (S.empty)
     where
         rows = fromListAssertDisjoint (map row [(0, 0), (0, 1), (1, 0), (1, 1)])
         domain = S.fromList [X j, Y l]
-        valueDomains = oneOrZero domain
+        valueDomains' = oneOrZero domain
 
         row :: (Natural, Natural) -> (M.Map FastFourierVariable Natural, FourierComplex)
         row (x, y) = ((fromListAssertDisjoint [(X j, x), (Y l, y)]), (FourierComplex $ getE' m j l x y))
@@ -80,11 +78,11 @@ getKnowledgebase samples = f : [getE m j l | j <- [0 .. m-1], l <- [0 .. m-1-j]]
         m = fromJust $ integerLogBase2 (fromIntegral $ length samples)
 
         f :: FastFourierValuation
-        f = fromJust $ create rows domain valueDomains (S.empty)
+        f = fromJust $ create rows domain valueDomains' (S.empty)
             where
                 rows = fromListAssertDisjoint $ zipWith (\x s -> ((toBinaryVariableSet m x X), s)) [0..] samples
                 domain = (fromListAssertDisjoint' $ map (\x -> X x) [0..m-1])
-                valueDomains = oneOrZero domain
+                valueDomains' = oneOrZero domain
 
 oneOrZero :: (Ord a) => S.Set a -> M.Map a (S.Set Natural)
 oneOrZero xs = fromListAssertDisjoint $ map (\x -> (x, S.fromList [0, 1])) (S.toList xs)
@@ -118,10 +116,10 @@ findBinaryValue table numDigits x = findValue (toBinaryVariableSet numDigits x Y
 
 {- | Returns the given number in binary.
 
->>> toBinaryVariableSet 3 6 id
+>>  toBinaryVariableSet 3 6 id
 fromList [(0,0),(1,1),(2,1)]
                        ^ ^
-                       | |_ a 1 is present...
+                       | |___ 1 is present...
                        |___ ... in binary position 2
 
 
