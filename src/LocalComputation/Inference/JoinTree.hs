@@ -30,7 +30,6 @@ import qualified Algebra.Graph.ToGraph                          as AM
 import qualified Data.List                                      as L
 import qualified Data.Map                                       as M
 import           Data.Text.Lazy                                 (unpack)
-import           Debug.Trace                                    (trace)
 import qualified LocalComputation.Utils                         as U
 import           Text.Pretty.Simple                             (pShow)
 
@@ -195,18 +194,10 @@ redirectTree i g = foldr f g outgoingNodes
 renumberTree :: Graph (Node a) -> Graph (Node a)
 renumberTree g = fmap (\n -> changeId n $ (M.!) newNumbering n.id) g
     where
-        topologicalOrdering = U.assertP (\l -> (last l).t == Query) $ foo
+        topologicalOrdering = U.assertP (\l -> (last l).t == Query) $ U.fromRight $ AM.topSort $ AM.toAdjacencyMap g
         newNumbering = M.fromList $ zip (map (.id) topologicalOrdering) [0..]
 
         changeId n newId = n { id = newId }
-
-        tmp = U.fromRight $ AM.topSort $ AM.toAdjacencyMap g
-
-        foo
-            | not $ (\l -> (last l).t == Query) tmp = trace ("TOP SORT: " ++ (show $ map (\x -> (x.id, x.t)) tmp)) tmp
-            | otherwise = tmp
-
-
 
 -- | Redirects the given join tree to reverse edges to face a query node of the given domain.
 -- If multiple query nodes with this domain exist, one is chosen at random. This function only
