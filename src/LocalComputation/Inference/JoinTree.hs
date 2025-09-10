@@ -7,7 +7,6 @@
 module LocalComputation.Inference.JoinTree
     ( Node (id, v, t)
     , baseJoinTree
-    , tmpJoinTree
     , node
     , changeContent
     , NodeType (Valuation, Query, Union, Projection)
@@ -126,25 +125,6 @@ baseJoinTree vs queries = edges $ baseJoinTree' nextNodeId r d
         r :: [Node (v a)]
         r =    zipWith (\nid v -> Node nid v            Valuation) [0                        ..] vs
             ++ zipWith (\nid q -> Node nid (identity q) Query)     [fromIntegral (length vs) ..] queries
-
-        nextNodeId :: Id
-        nextNodeId = fromIntegral $ length r
-
-tmpJoinTree :: forall v a. (Show a, Valuation v, Ord a)
-    => [v a]
-    -> Domain a
-    -> Graph (Node (v a))
-tmpJoinTree vs query = edges $ baseJoinTree' nextNodeId r d
-    where
-        -- TODO: will return an empty tree if we give a total domain... obviously...
-        -- maybe we need to split the map before this occurs? idk.... We will still have all the variables
-        -- so we wouldn't want to eliminate any????
-        d :: E.EliminationSequence a
-        d = E.createAndExclude (map label vs) query
-
-        r :: [Node (v a)]
-        r =    zipWith (\nid v -> Node nid v            Valuation) [0                        ..] vs
-            ++ zipWith (\nid q -> Node nid (identity q) Query)     [fromIntegral (length vs) ..] [query]
 
         nextNodeId :: Id
         nextNodeId = fromIntegral $ length r
