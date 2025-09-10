@@ -20,18 +20,15 @@ import           Data.Set                                       (fromList,
                                                                  toList)
 import qualified Data.Set                                       as S
 import qualified LocalComputation.Inference.EliminationSequence as E
+import           LocalComputation.Inference.JoinTree.Tree
 
 import           Data.Maybe                                     (fromJust)
-import           GHC.Records                                    (HasField,
-                                                                 getField)
 import           LocalComputation.ValuationAlgebra
 
 import qualified Algebra.Graph.ToGraph                          as AM
 import qualified Data.List                                      as L
 import qualified Data.Map                                       as M
-import           Data.Text.Lazy                                 (unpack)
 import qualified LocalComputation.Utils                         as U
-import           Text.Pretty.Simple                             (pShow)
 
 -- TODO: Should have a seperate data structure for join trees. That way we
 -- not only can better assert the tree is in a set structure, but we can
@@ -41,38 +38,9 @@ import           Text.Pretty.Simple                             (pShow)
 -- TODO: A join tree is really a join forest. Once we create a proper data
 -- structure for join trees with invariants, this will be more evident.
 
-type Id = Integer
-
-data Node v = Node {
-      id :: Id
-    , v  :: v
-    , t  :: NodeType
-} deriving (Generic, Typeable, Binary)
-
-data NodeType = Valuation | Query | Union | Projection deriving (Show, Generic, Binary, Enum, Bounded, Eq)
-
-node :: Id -> v -> NodeType -> Node v
-node = Node
-
-changeContent :: Node a -> a -> Node a
-changeContent n v = n { v = v }
-
--- | Accessor for the domain of the valuation.  Equivalent to calling `label` on the valuation.
--- __Warning__: Not necessarily O(1).
-instance (Valuation v, Ord a, Show a) => HasField "d" (Node (v a)) (Domain a) where
-    getField m = label m.v
-
-instance Eq (Node v) where
-    x == y = x.id == y.id
-
-instance Ord (Node v) where
-    x <= y = x.id <= y.id
-
-instance (Valuation v, Ord a, Show a) => Show (Node (v a)) where
-    show n = unpack $ pShow (n.id, n.d)
-
-setDifference :: (Eq a) => [a] -> [a] -> [a]
-setDifference xs ys = filter (\x -> not $ x `elem` ys) xs
+--------------------------------------------------------------------------------
+-- Join tree creation algorithms
+--------------------------------------------------------------------------------
 
 -- TODO: A seperate type for join trees that guarantees properties such as the root
 -- node having the largest label (a property currently used by fusion message passing)
@@ -122,8 +90,8 @@ baseJoinTree vs queries = edges $ baseJoinTree' nextNodeId r d
         d = E.create $ map label vs
 
         r :: [Node (v a)]
-        r =    zipWith (\nid v -> Node nid v            Valuation) [0                        ..] vs
-            ++ zipWith (\nid q -> Node nid (identity q) Query)     [fromIntegral (length vs) ..] queries
+        r =    zipWith (\nid v -> node nid v            Valuation) [0                        ..] vs
+            ++ zipWith (\nid q -> node nid (identity q) Query)     [fromIntegral (length vs) ..] queries
 
         nextNodeId :: Id
         nextNodeId = fromIntegral $ length r
@@ -165,7 +133,7 @@ baseJoinTree' nextNodeId r d
         domainOfPhiX = foldr (S.union) (S.empty) $ map (.d) phiX
 
         nUnion :: Node (v a)
-        nUnion = Node nextNodeId (identity domainOfPhiX) Union
+        nUnion = node nextNodeId (identity domainOfPhiX) Union
 
         r' :: [Node (v a)]
         r' = setDifference r phiX
@@ -174,9 +142,13 @@ baseJoinTree' nextNodeId r d
         e = [(n, nUnion) | n <- phiX]
 
         nP :: Node (v a)
-        nP = Node (nextNodeId + 1) (identity nPDomain) Projection
+        nP = node (nextNodeId + 1) (identity nPDomain) Projection
             where
                 nPDomain = (fromList $ setDifference (toList domainOfPhiX) [x])
+
+--------------------------------------------------------------------------------
+-- Join tree algorithms
+--------------------------------------------------------------------------------
 
 -- TODO: Untested.
 -- TODO: Could probably be optimized by caching the adjacencyList computation
@@ -221,3 +193,5 @@ flipEdge x y g
 addEdge :: a -> a -> Graph a -> Graph a
 addEdge x y g = overlay (connect (vertex x) (vertex y)) g
 
+setDifference :: (Eq a) => [a] -> [a] -> [a]
+setDifference xs ys = filter (\x -> not $ x `elem` ys) xs
