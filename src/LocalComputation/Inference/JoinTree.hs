@@ -32,9 +32,6 @@ module LocalComputation.Inference.JoinTree
     )
 where
 
-import           Algebra.Graph                                  hiding (clique,
-                                                                 vertexList)
-import qualified Algebra.Graph                                  as G
 import           Data.List                                      (union)
 import           Data.Set                                       (fromList,
                                                                  toList)
@@ -45,8 +42,7 @@ import           LocalComputation.Inference.JoinTree.Tree
 import           Data.Maybe                                     (fromJust)
 import           LocalComputation.ValuationAlgebra
 
-import qualified Algebra.Graph.ToGraph                          as AM
-import qualified Data.List                                      as L
+import qualified Algebra.Graph                                  as G
 import qualified Data.Map                                       as M
 import qualified LocalComputation.Utils                         as U
 
@@ -96,7 +92,7 @@ baseJoinTree :: forall v a. (Show a, Valuation v, Ord a)
     => [v a]
     -> [Domain a]
     -> JoinTree (v a)
-baseJoinTree vs queries = fromGraph $ edges $ baseJoinTree' nextNodeId r d
+baseJoinTree vs queries = fromGraph $ G.edges $ baseJoinTree' nextNodeId r d
     where
         d :: E.EliminationSequence a
         d = E.create $ map label vs

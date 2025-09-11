@@ -19,12 +19,9 @@ module LocalComputation.Inference.MessagePassing (
 import           Control.Distributed.Process              hiding (Message)
 import           Control.Distributed.Process.Serializable
 
-import qualified Algebra.Graph                            as DG
-import qualified Algebra.Graph.Undirected                 as UG
 import           Control.Exception                        (assert)
 import           Control.Monad                            (forM_, replicateM)
 import qualified Data.Map                                 as M
-import qualified Data.Set                                 as S
 import qualified LocalComputation.Inference.JoinTree      as JT
 import qualified LocalComputation.Utils                   as U
 import           LocalComputation.ValuationAlgebra        (Binary, Generic,

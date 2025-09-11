@@ -4,7 +4,6 @@ module LocalComputation.Inference.Fusion (
       fusion
     , fusionPass
 ) where
-import qualified Algebra.Graph                               as DG
 import           Control.Distributed.Process                 (Process, expect,
                                                               liftIO, sendChan)
 import           Control.Exception                           (assert)

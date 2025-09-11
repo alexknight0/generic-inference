@@ -82,13 +82,8 @@ instance (Valuation v, Ord a, Show a) => Show (Node (v a)) where
 -- Join Trees
 --------------------------------------------------------------------------------
 
--- TODO: Should have a seperate data structure for join trees. That way we
--- not only can better assert the tree is in a set structure, but we can
--- also potentially get better performance for operations such as
--- "find a node with *this* id".
-
--- TODO: A join tree is really a join forest. Once we create a proper data
--- structure for join trees with invariants, this will be more evident.
+-- TODO: Invariants! For example we should know that this is a forest at every point in time.
+-- (this implies everything is a tree!!!)
 
 -- TODO: Add invaraint that it can't be empty to make `root` safe.
 newtype JoinTree v = UnsafeJoinTree { g :: G.Graph (Node v) }
@@ -98,9 +93,6 @@ instance HasField "root" (JoinTree v) (Node v) where
 
 fromGraph :: G.Graph (Node v) -> JoinTree v
 fromGraph = UnsafeJoinTree
-
-find :: (Node v -> Bool) -> JoinTree v -> Maybe (Node v)
-find p t = undefined
 
 findById :: Id -> JoinTree v -> Maybe (Node v)
 findById i t = L.find (\n -> n.id == i) $ G.vertexList t.g
@@ -131,9 +123,6 @@ mapVertices f t = fromGraph $ fmap f t.g
 
 vertexList :: JoinTree v -> [Node v]
 vertexList t = G.vertexList t.g
-
-neighbours :: Id -> JoinTree v -> [Node v]
-neighbours = undefined
 
 neighbourMap :: JoinTree v -> M.Map Id [Node v]
 neighbourMap t = M.fromList . map (B.first (.id)) . UG.adjacencyList . UG.toUndirected $ t.g

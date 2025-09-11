@@ -8,12 +8,10 @@ module LocalComputation.Inference.DynamicProgramming (
     solution
 ) where
 
-import qualified Algebra.Graph                                  as DG
 import           Data.Maybe                                     (fromJust)
 import qualified Data.Set                                       as S
 import qualified LocalComputation.Inference.JoinTree            as JT
 import qualified LocalComputation.LabelledMatrix                as M
-import qualified LocalComputation.Utils                         as DG (neighbours)
 import qualified LocalComputation.Utils                         as U
 import qualified LocalComputation.ValuationAlgebra              as V
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular as Q
