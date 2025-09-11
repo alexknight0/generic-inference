@@ -23,6 +23,7 @@ import qualified Algebra.Graph                            as DG
 import qualified Algebra.Graph.Undirected                 as UG
 import           Control.Exception                        (assert)
 import           Control.Monad                            (forM_, replicateM)
+import qualified Data.Map                                 as M
 import qualified Data.Set                                 as S
 import qualified LocalComputation.Inference.JoinTree      as JT
 import qualified LocalComputation.Utils                   as U
@@ -51,19 +52,18 @@ a result through a given `SendPort` that represents their state after the messag
 -- This function can be extended to work on directed graphs if required by seperating the neighbours
 -- sent to each node into 'incoming' and 'outgoing' neighbours
 messagePassing :: forall v a. (SerializableValuation v a)
-    => DG.Graph (JT.Node (v a))
+    => JT.JoinTree (v a)
     -> NodeActions v a
-    -> Process (DG.Graph (JT.Node (v a)))
+    -> Process (JT.JoinTree (v a))
 messagePassing directed nodeActions = do
 
     -- Initialize all nodes
-    let undirected = UG.toUndirected directed
-        vs         = UG.vertexList undirected
+    let vs         = JT.vertexList directed
     (nodesWithPid, resultPorts) <- fmap unzip $ mapM (initializeNodeAndMonitor nodeActions) vs
 
     -- Tell each node who it is and who it's neighbours are
     forM_ nodesWithPid $ \nodeWithPid -> do
-        let neighbours        = S.toList $ UG.neighbours nodeWithPid.node undirected
+        let neighbours        = neighbourMap M.! nodeWithPid.node.id
             neighboursWithPid = filter (\n -> n.node `elem` neighbours) nodesWithPid
         send nodeWithPid.id nodeWithPid
         send nodeWithPid.id neighboursWithPid
@@ -79,10 +79,14 @@ messagePassing directed nodeActions = do
              x               -> error $ "Error - " ++ show x
 
     -- All should be terminated - receive all messages
-    newNodes <- mapM receiveChanNowA resultPorts
+    newNodeList <- mapM receiveChanNowA resultPorts
 
     -- Construct graph from new nodes
-    pure $ fmap (\oldNode -> U.unsafeFind (\newNode -> newNode.id == oldNode.id) newNodes) directed
+    pure $ JT.mapVertices (\old -> U.unsafeFind (\new -> new.id == old.id) newNodeList)
+                          directed
+
+    where
+        neighbourMap = JT.neighbourMap directed
 
 initializeNodeAndMonitor :: (SerializableValuation v a)
     => NodeActions v a

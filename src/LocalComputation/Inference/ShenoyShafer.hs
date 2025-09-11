@@ -9,7 +9,6 @@ module LocalComputation.Inference.ShenoyShafer (
 
 import           Control.Distributed.Process                 hiding (Message)
 
-import qualified Algebra.Graph                               as DG
 import           Data.Set                                    (intersection)
 
 
@@ -19,6 +18,7 @@ import           Data.Maybe                                  (fromJust)
 import           LocalComputation.Inference.JoinTree         (Node (..),
                                                               baseJoinTree)
 import qualified LocalComputation.Inference.JoinTree         as J
+import qualified LocalComputation.Inference.JoinTree         as JT
 import qualified LocalComputation.Inference.JoinTree.Diagram as D
 import qualified LocalComputation.Inference.MessagePassing   as MP
 import           LocalComputation.ValuationAlgebra
@@ -35,7 +35,7 @@ import           LocalComputation.ValuationAlgebra
 -- the subproblem of finding 'groups' of nodes in the larger graph.
 
 -- TODO: Rename ResultingTree; stop exporting
-type InferredData v a = DG.Graph (Node (v a))
+type InferredData v a = JT.JoinTree (v a)
 
 -- | Extracts a given query from the query results.
 --
@@ -48,7 +48,7 @@ extractQueryResult queryDomains results = map f queryDomains
     where
         -- Find valuation with domain equal to query then get the valuation
         f :: Domain a -> v a
-        f q = (.v) $ fromJust $ L.find (\n -> q == n.d) (DG.vertexList results)
+        f q = (.v) $ fromJust $ L.find (\n -> q == n.d) (JT.vertexList results)
 
 
 -- | Performs shenoy shafer inference.

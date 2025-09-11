@@ -5,16 +5,36 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module LocalComputation.Inference.JoinTree
-    ( Node (id, v, t)
-    , baseJoinTree
+    (
+
+    -- Join tree construction
+      baseJoinTree
+
+    -- Join tree type
+    , JoinTree
+    , Node (id, v, t)
+    , NodeType (Valuation, Query, Union, Projection)
     , node
     , changeContent
-    , NodeType (Valuation, Query, Union, Projection)
+
+    -- Join tree functions
     , redirectToQueryNode
+    , unsafeFindById
+    , unsafeOutgoingEdges
+    , unsafeIncomingEdges
+    , unsafeOutgoingEdges'
+    , unsafeIncomingEdges'
+    , neighbourMap
+    , vertexList
+    , mapVertices
+    , flipEdge
+    , topologicalOrdering
     )
 where
 
-import           Algebra.Graph                                  hiding (clique)
+import           Algebra.Graph                                  hiding (clique,
+                                                                 vertexList)
+import qualified Algebra.Graph                                  as G
 import           Data.List                                      (union)
 import           Data.Set                                       (fromList,
                                                                  toList)
@@ -29,14 +49,6 @@ import qualified Algebra.Graph.ToGraph                          as AM
 import qualified Data.List                                      as L
 import qualified Data.Map                                       as M
 import qualified LocalComputation.Utils                         as U
-
--- TODO: Should have a seperate data structure for join trees. That way we
--- not only can better assert the tree is in a set structure, but we can
--- also potentially get better performance for operations such as
--- "find a node with *this* id".
-
--- TODO: A join tree is really a join forest. Once we create a proper data
--- structure for join trees with invariants, this will be more evident.
 
 --------------------------------------------------------------------------------
 -- Join tree creation algorithms
@@ -83,8 +95,8 @@ of the input valuations 'vs' in the final join tree are [0 .. (length vs)] respe
 baseJoinTree :: forall v a. (Show a, Valuation v, Ord a)
     => [v a]
     -> [Domain a]
-    -> Graph (Node (v a))
-baseJoinTree vs queries = edges $ baseJoinTree' nextNodeId r d
+    -> JoinTree (v a)
+baseJoinTree vs queries = fromGraph $ edges $ baseJoinTree' nextNodeId r d
     where
         d :: E.EliminationSequence a
         d = E.create $ map label vs
@@ -155,19 +167,19 @@ baseJoinTree' nextNodeId r d
 -- (but might have to make sure we update it).
 {-| Redirects a given **join** tree to reverse edges to face the node of the given id -}
 {- Works by traversing out from the given node, flipping any edges that it uses along its journey -}
-redirectTree :: forall a . Id -> Graph (Node a) -> Graph (Node a)
+redirectTree :: forall a . Id -> JoinTree a -> JoinTree a
 redirectTree i g = foldr f g outgoingNodes
     where
-        (this, outgoingNodes) = fromJust $ L.find (\(n, _) -> n.id == i) (adjacencyList g)
+        (this, outgoingNodes) = unsafeOutgoingEdges' i g
 
-        f :: Node a -> Graph (Node a) -> Graph (Node a)
+        f :: Node a -> JoinTree a -> JoinTree a
         f n acc = flipEdge this n $ redirectTree n.id acc
 
-renumberTree :: Graph (Node a) -> Graph (Node a)
-renumberTree g = fmap (\n -> changeId n $ (M.!) newNumbering n.id) g
+renumberTree :: JoinTree a -> JoinTree a
+renumberTree g = mapVertices (\n -> changeId n $ (M.!) newNumbering n.id) g
     where
-        topologicalOrdering = U.assertP (\l -> (last l).t == Query) $ U.fromRight $ AM.topSort $ AM.toAdjacencyMap g
-        newNumbering = M.fromList $ zip (map (.id) topologicalOrdering) [0..]
+        topological = U.assertP (\l -> (last l).t == Query) $ topologicalOrdering g
+        newNumbering = M.fromList $ zip (map (.id) topological) [0..]
 
         changeId n newId = n { id = newId }
 
@@ -175,7 +187,7 @@ renumberTree g = fmap (\n -> changeId n $ (M.!) newNumbering n.id) g
 -- If multiple query nodes with this domain exist, one is chosen at random. This function only
 -- searches amongst nodes with a `NodeType` of `Query`.
 redirectToQueryNode :: (Valuation v, Ord a, Show a)
-    => Domain a -> Graph (Node (v a)) -> Graph (Node (v a))
+    => Domain a -> JoinTree (v a) -> JoinTree (v a)
 redirectToQueryNode d g = renumberTree $ redirectTree (queryNode.id) g
     where
         queryNode = head $ filter (\n -> n.d == d && n.t == Query) (vertexList g)
@@ -183,15 +195,6 @@ redirectToQueryNode d g = renumberTree $ redirectTree (queryNode.id) g
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------
-
--- | Flips an edge from x to y such that it now goes from y to x.
-flipEdge :: (Eq a) => a -> a -> Graph a -> Graph a
-flipEdge x y g
-    | hasEdge x y g = addEdge y x $ removeEdge x y $ g
-    | otherwise = g
-
-addEdge :: a -> a -> Graph a -> Graph a
-addEdge x y g = overlay (connect (vertex x) (vertex y)) g
 
 setDifference :: (Eq a) => [a] -> [a] -> [a]
 setDifference xs ys = filter (\x -> not $ x `elem` ys) xs

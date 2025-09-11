@@ -15,11 +15,9 @@ import           Diagrams.Backend.SVG.CmdLine
 import           Diagrams.Prelude                    hiding (def)
 import qualified Graphics.SVGFonts                   as SF
 
-import qualified Algebra.Graph                       as G
 import           Control.Exception                   (assert)
 import qualified Data.List                           as L
 import qualified Data.List.Extra                     as L (splitOn)
-import           Data.Maybe                          (fromJust)
 import qualified Graphics.SVGFonts.ReadFont          as SF
 import qualified LocalComputation.Inference.JoinTree as JT
 import qualified LocalComputation.ValuationAlgebra   as V
@@ -49,7 +47,7 @@ data DiagramWithBorder a = DiagramWithBorder {
 
 -- Draws a tree from the given graph, outputting the drawing into a file of the given name. Has the same assumptions as `tree`.
 draw :: (V.Valuation v, Show (v a), Ord a, Show a)
-    => FilePath -> G.Graph (JT.Node (v a)) -> IO ()
+    => FilePath -> JT.JoinTree (v a) -> IO ()
 draw name g = do
     -- Create directory for file if necessary
     createDirectoryIfMissing True (takeDirectory name)
@@ -69,23 +67,23 @@ draw name g = do
 -- Assumes the given graph has a tree like structure, as specified in the description of `baseJoinTree`,
 -- and that the node with the highest `id` is the root.
 tree :: (V.Valuation v, Show (v a), Ord a, Show a)
-    => SF.PreparedFont Double -> G.Graph (JT.Node (v a)) -> Diagram B
+    => SF.PreparedFont Double -> JT.JoinTree (v a) -> Diagram B
 tree chosenFont g = assert (length rootOutgoingEdges == 0) $
                            tree' chosenFont root g
     where
-        root = L.maximumBy (\x y -> x.id `compare` y.id) $ G.vertexList g
+        root = g.root
 
-        rootOutgoingEdges = snd . fromJust . L.find (\(x, _) -> x.id == root.id) . G.adjacencyList $ g
+        rootOutgoingEdges = JT.unsafeOutgoingEdges root.id g
 
 -- | Produces a diagram of a tree by following all **incoming** edges from a given node in a graph. Assumes the given node is in the tree.
 tree' :: (V.Valuation v, Show (v a), Ord a, Show a)
-    => SF.PreparedFont Double -> JT.Node (v a) -> G.Graph (JT.Node (v a)) -> Diagram B
+    => SF.PreparedFont Double -> JT.Node (v a) -> JT.JoinTree (v a) -> Diagram B
 tree' chosenFont node g = vsep vgap [root.diagram, parents] # applyAll arrows
     where
         root = treeNode chosenFont node
 
         -- Horribly inefficent, constantly recalculated
-        incoming = snd . fromJust . L.find (\(x, _) -> x.id == node.id) . G.adjacencyList . G.transpose $ g
+        incoming = JT.unsafeIncomingEdges node.id g
         parents = centerX . hsep hgap . map alignT . map (\n -> tree' chosenFont n g) $ incoming
 
         arrows = map (\parent -> connectOutside' arrowOpts parent.id node.id # lwL root.borderWidth) incoming

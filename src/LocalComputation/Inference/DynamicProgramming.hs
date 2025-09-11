@@ -32,11 +32,11 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular as Q
 -- This function can be made more generic; but dynamic programming is only implemented
 -- for the quasiregular valuation algebra, so it is implemented instance-specific here.
 solution :: forall a b . (V.Var a, Q.QSemiringValue b, Show b)
-    => DG.Graph (JT.Node (Q.QuasiRegularValuation b a))
+    => JT.JoinTree (Q.QuasiRegularValuation b a)
     -> M.LabelledMatrix a () b
 solution g = go (rootNode.id - 1) initialX
     where
-        vertices = DG.vertexList g
+        vertices = JT.vertexList g
 
         rootNode :: JT.Node (Q.QuasiRegularValuation b a)
         rootNode = U.assertP isOnlyQueryNode $ maximum vertices
@@ -55,7 +55,7 @@ solution g = go (rootNode.id - 1) initialX
                 -- If not it's actually dead easy to ensure it does; we just have to renumber the nodes in a topological
                 -- ordering (as join tree does for 'renumberTree')
                 nodeI      = U.unsafeFind (\n -> n.id == i) vertices
-                nodeChildI = head $ fromJust $ DG.neighbours nodeI g
+                nodeChildI = head $ JT.unsafeOutgoingEdges nodeI.id g
 
                 y' = S.findMin $ fromJust y
 

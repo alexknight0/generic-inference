@@ -80,7 +80,7 @@ fusion' uniqueId upperPsi (y:ys) = fusion' (uniqueId + 1) upperPsi' ys
 --
 -- __Warning__: will fail if a disconnected join tree is given.
 fusionPass :: (MP.SerializableValuation v a, Show (v a))
-    => D.DrawSettings -> [v a] -> Domain a -> Process (DG.Graph (JT.Node (v a)))
+    => D.DrawSettings -> [v a] -> Domain a -> Process (JT.JoinTree (v a))
 fusionPass settings vs queryDomain = do
     drawTree settings.beforeInference treeBeforeInference
 
