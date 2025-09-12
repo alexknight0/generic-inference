@@ -38,6 +38,11 @@ import           Data.Set                                       (fromList,
 import qualified Data.Set                                       as S
 import qualified LocalComputation.Inference.EliminationSequence as E
 import           LocalComputation.Inference.JoinTree.Tree
+import           LocalComputation.Inference.JoinTree.Tree2      (Id,
+                                                                 Node (id, t, v),
+                                                                 NodeType (..),
+                                                                 changeContent,
+                                                                 node)
 
 import           Data.Maybe                                     (fromJust)
 import           LocalComputation.ValuationAlgebra
@@ -49,6 +54,8 @@ import qualified LocalComputation.Utils                         as U
 --------------------------------------------------------------------------------
 -- Join tree creation algorithms
 --------------------------------------------------------------------------------
+
+-- TODO: Move into joinforest to avoid exporting the regular joinforest constructor.
 
 -- TODO: A seperate type for join trees that guarantees properties such as the root
 -- node having the largest label (a property currently used by fusion message passing)
@@ -92,7 +99,7 @@ baseJoinForest :: forall v a. (Show a, Valuation v, Ord a)
     => [v a]
     -> [Domain a]
     -> JoinForest (v a)
-baseJoinForest vs queries = fromGraph $ G.edges $ baseJoinForest' nextNodeId r d
+baseJoinForest vs queries = joinForestFromGraph $ G.edges $ baseJoinForest' nextNodeId r d
     where
         d :: E.EliminationSequence a
         d = E.create $ map label vs

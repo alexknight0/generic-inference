@@ -8,14 +8,9 @@ module LocalComputation.Inference.JoinTree.Tree (
     -- Join tree type
     -- TODO: remove g?
       JoinForest (g)
-    , Node (id, v, t)
-    , node
-    , changeContent
-    , NodeType (Valuation, Query, Union, Projection)
-    , Id
 
     -- Join tree functions
-    , fromGraph
+    , joinForestFromGraph
     , unsafeFindById
     , unsafeOutgoingEdges
     , unsafeIncomingEdges
@@ -30,61 +25,32 @@ module LocalComputation.Inference.JoinTree.Tree (
     , supportsCollect
 ) where
 
-import           GHC.Records                        (HasField, getField)
-import           LocalComputation.ValuationAlgebra  hiding (assertInvariants,
-                                                     satisfiesInvariants)
+import           GHC.Records                               (HasField, getField)
+import           LocalComputation.ValuationAlgebra         hiding
+                                                           (assertInvariants,
+                                                            satisfiesInvariants)
 
-import qualified Algebra.Graph                      as G
-import qualified Algebra.Graph.Acyclic.AdjacencyMap as G (toAcyclic)
-import qualified Algebra.Graph.ToGraph              as G (dfsForest, reachable,
-                                                          toAdjacencyMap,
-                                                          topSort)
-import qualified Algebra.Graph.Undirected           as UG
-import           Control.Exception                  (assert)
-import qualified Data.Bifunctor                     as B
-import qualified Data.List                          as L
-import qualified Data.Map                           as M
-import           Data.Maybe                         (fromJust, isJust)
-import qualified Data.Set                           as S
-import           Data.Text.Lazy                     (unpack)
-import qualified LocalComputation.Utils             as U
-import           Numeric.Natural                    (Natural)
-import           Text.Pretty.Simple                 (pShow)
+import qualified Algebra.Graph                             as G
+import qualified Algebra.Graph.Acyclic.AdjacencyMap        as G (toAcyclic)
+import qualified Algebra.Graph.ToGraph                     as G (dfsForest,
+                                                                 reachable,
+                                                                 toAdjacencyMap,
+                                                                 topSort)
+import qualified Algebra.Graph.Undirected                  as UG
+import           Control.Exception                         (assert)
+import qualified Data.Bifunctor                            as B
+import qualified Data.List                                 as L
+import qualified Data.Map                                  as M
+import           Data.Maybe                                (fromJust, isJust)
+import qualified Data.Set                                  as S
+import           Data.Text.Lazy                            (unpack)
+import qualified LocalComputation.Utils                    as U
+import           Numeric.Natural                           (Natural)
+import           Text.Pretty.Simple                        (pShow)
 
---------------------------------------------------------------------------------
--- Nodes
---------------------------------------------------------------------------------
-
-data Node v = Node {
-      id :: Id
-    , v  :: v
-    , t  :: NodeType
-} deriving (Generic, Typeable, Binary)
-
-type Id = Integer
-
-data NodeType = Valuation | Query | Union | Projection deriving (Show, Generic, Binary, Enum, Bounded, Eq)
-
-node :: Id -> v -> NodeType -> Node v
-node = Node
-
-changeContent :: Node a -> a -> Node a
-changeContent n v = n { v = v }
-
--- | Accessor for the domain of the valuation.  Equivalent to calling `label` on the valuation.
--- __Warning__: Not necessarily O(1).
-instance (Valuation v, Ord a, Show a) => HasField "d" (Node (v a)) (Domain a) where
-    getField m = label m.v
-
--- TODO: Maybe remove these.
-instance Eq (Node v) where
-    x == y = x.id == y.id
-
-instance Ord (Node v) where
-    x <= y = x.id <= y.id
-
-instance (Valuation v, Ord a, Show a) => Show (Node (v a)) where
-    show n = unpack $ pShow (n.id, n.d)
+import           LocalComputation.Inference.JoinTree.Tree2 (Id, Node,
+                                                            NodeType (..))
+import qualified LocalComputation.Inference.JoinTree.Tree2 as JT
 
 --------------------------------------------------------------------------------
 -- Join Trees
@@ -99,14 +65,19 @@ newtype JoinForest v = UnsafeJoinForest { g :: G.Graph (Node v) }
 instance HasField "root" (JoinForest v) (Node v) where
     getField t = L.maximumBy (\x y -> x.id `compare` y.id) $ G.vertexList t.g
 
-fromGraph :: G.Graph (Node v) -> JoinForest v
-fromGraph = assertInvariants . UnsafeJoinForest
+newtype JoinTree v = UnsafeJoinTree { g :: G.Graph (Node v) }
+
+joinForestFromGraph :: G.Graph (Node v) -> JoinForest v
+joinForestFromGraph = U.assertP satisfiesJoinForestInvariants . UnsafeJoinForest
+
+joinTreeFromGraph :: G.Graph (Node v) -> JoinTree v
+joinTreeFromGraph = U.assertP satisfiesJoinTreeInvariants . UnsafeJoinTree
 
 findById :: Id -> JoinForest v -> Maybe (Node v)
 findById i t = L.find (\n -> n.id == i) $ G.vertexList t.g
 
 transpose :: JoinForest v -> JoinForest v
-transpose t = fromGraph $ G.transpose t.g
+transpose t = joinForestFromGraph $ G.transpose t.g
 
 --------------------------------------------------------------------------------
 -- Transformations
@@ -115,7 +86,7 @@ transpose t = fromGraph $ G.transpose t.g
 -- | Flips an edge from x to y such that it now goes from y to x.
 flipEdge :: Node a -> Node a -> JoinForest a -> JoinForest a
 flipEdge x y t
-    | G.hasEdge x y t.g = fromGraph $ addEdge y x $ G.removeEdge x y $ t.g
+    | G.hasEdge x y t.g = joinForestFromGraph $ addEdge y x $ G.removeEdge x y $ t.g
     | otherwise = t
 
     where
@@ -123,7 +94,7 @@ flipEdge x y t
         addEdge x1 x2 g = G.overlay (G.connect (G.vertex x1) (G.vertex x2)) g
 
 mapVertices :: (Node a -> Node b) -> JoinForest a -> JoinForest b
-mapVertices f t = fromGraph $ fmap f t.g
+mapVertices f t = joinForestFromGraph $ fmap f t.g
 
 --------------------------------------------------------------------------------
 -- Properties
@@ -154,15 +125,15 @@ numQueryNodes t = L.genericLength $ filter (\n -> n.t == Query) $ vertexList t
 -- we only really create trees through one construction algorithm,
 -- and we never modify these trees by adding or removing an edge.
 isForest :: JoinForest v -> Bool
-isForest t = length (splitForest t) > 1
+isForest t = length (trees t) > 1
 
-splitForest :: forall v . JoinForest v -> [JoinForest v]
-splitForest t = getTrees' (vertexSet t)
+trees :: forall v . JoinForest v -> [JoinTree v]
+trees t = getTrees' (vertexSet t)
 
     where
         undirected = G.overlay (t.g) (G.transpose t.g)
 
-        getTrees' :: S.Set (Node v) -> [JoinForest v]
+        getTrees' :: S.Set (Node v) -> [JoinTree v]
         getTrees' vertices
             | length vertices == 0 = []
             | otherwise            = newTree : getTrees' (S.difference vertices verticesInNewTree)
@@ -175,7 +146,7 @@ splitForest t = getTrees' (vertexSet t)
                 verticesInNewTree = S.fromList $ G.reachable undirected vertexInNewTree
 
                 -- Get the tree
-                newTree = fromGraph $ G.induce (\n -> n `elem` verticesInNewTree) t.g
+                newTree = joinTreeFromGraph $ G.induce (\n -> n `elem` verticesInNewTree) t.g
 
 
 vertexList :: JoinForest v -> [Node v]
@@ -235,12 +206,17 @@ unsafeOutgoingEdges' = (fromJust .) . outgoingEdges'
 isAcyclic :: JoinForest v -> Bool
 isAcyclic t = isJust . G.toAcyclic . G.toAdjacencyMap $ t.g
 
--- TODO: is acyclic
-satisfiesInvariants :: JoinForest v -> Bool
-satisfiesInvariants t = isAcyclic t
+satisfiesJoinForestInvariants :: JoinForest v -> Bool
+satisfiesJoinForestInvariants f = all satisfiesJoinTreeInvariants (trees f)
+    where
+        ts = trees f
+        -- areDisjoint = length (vertexList f) == foldr (\t -> length (undef
 
-assertInvariants :: JoinForest v -> JoinForest v
-assertInvariants t = assert (satisfiesInvariants t) t
+-- TODO: Fix
+satisfiesJoinTreeInvariants :: JoinTree v -> Bool
+satisfiesJoinTreeInvariants t = isJust . G.toAcyclic . G.toAdjacencyMap $ t.g
+
+
 
 
 
