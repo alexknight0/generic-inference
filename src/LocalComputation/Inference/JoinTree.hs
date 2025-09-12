@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+-- TODO: Fix imports
 module LocalComputation.Inference.JoinTree (
 
     -- Join tree construction
@@ -26,7 +27,8 @@ module LocalComputation.Inference.JoinTree (
     , neighbourMap
     , vertexList
     , mapVertices
-    , isForest
+    , collectTree
+    , toForest
 ) where
 
 import           Data.List                                      (union)
@@ -35,11 +37,12 @@ import           Data.Set                                       (fromList,
 import qualified Data.Set                                       as S
 import qualified LocalComputation.Inference.EliminationSequence as E
 import           LocalComputation.Inference.JoinTree.Forest
-import           LocalComputation.Inference.JoinTree.Tree       (Id,
+import           LocalComputation.Inference.JoinTree.Tree       (Id, JoinTree,
                                                                  Node (id, t, v),
                                                                  NodeType (..),
                                                                  changeContent,
                                                                  node,
+                                                                 redirectToQueryNode,
                                                                  supportsCollect)
 
 import           Data.Maybe                                     (fromJust)
@@ -159,12 +162,11 @@ baseJoinForest' nextNodeId r d
             where
                 nPDomain = (fromList $ setDifference (toList domainOfPhiX) [x])
 
--- TODO: add assert
 collectTree :: (Show a, Valuation v, Ord a)
     => [v a]
     -> Domain a
-    -> JoinForest (v a)
-collectTree vs q = redirectToQueryNode q $ baseJoinForest vs [q]
+    -> JoinTree (v a)
+collectTree vs q = unsafeConvertToCollectTree (baseJoinForest vs [q]) q
 
 --------------------------------------------------------------------------------
 -- Join tree algorithms

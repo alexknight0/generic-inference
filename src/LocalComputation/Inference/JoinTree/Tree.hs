@@ -18,6 +18,13 @@ module LocalComputation.Inference.JoinTree.Tree (
     , satisfiesInvariants
     , fromGraph
     , supportsCollect
+    , vertexList
+    , redirectToQueryNode
+    , unsafeGetGraph
+
+    -- Utilities
+    , outgoingGraphEdges
+    , renumberTopological
 ) where
 
 import           GHC.Records                        (HasField, getField)
@@ -39,6 +46,7 @@ import qualified Data.Map                           as M
 import           Data.Maybe                         (fromJust, isJust)
 import qualified Data.Set                           as S
 import           Data.Text.Lazy                     (unpack)
+import qualified LocalComputation.Utils             as L (count)
 import qualified LocalComputation.Utils             as U
 import           Numeric.Natural                    (Natural)
 import           Text.Pretty.Simple                 (pShow)
@@ -115,6 +123,39 @@ instance HasField "root" (JoinTree v) (Node v) where
 fromGraph :: G.Graph (Node v) -> JoinTree v
 fromGraph = U.assertP satisfiesInvariants . UnsafeJoinTree
 
+unsafeGetGraph :: JoinTree v -> G.Graph (Node v)
+unsafeGetGraph t = t.g
+
+--------------------------------------------------------------------------------
+-- Transformations
+--------------------------------------------------------------------------------
+
+-- | Redirects a given join tree to reverse edges to face the node of the given id.
+-- If a forest is given, will not impact trees that don't contain the node of the given id.
+redirectTree :: forall a . Id -> JoinTree a -> JoinTree a
+redirectTree i' t = fromGraph . renumberTopological . redirectTree' i' $ t.g
+    where
+
+        -- Works by traversing out from the given node,
+        -- flipping any edges that it uses along its journey
+        redirectTree' :: Id -> G.Graph (Node a) -> G.Graph (Node a)
+        redirectTree' i g = foldr f g outgoingNodes
+            where
+                (this, outgoingNodes) = fromJust $ outgoingGraphEdges i g
+
+                f :: Node a -> G.Graph (Node a) -> G.Graph (Node a)
+                f n acc = flipEdge this n $ redirectTree' n.id acc
+
+-- | Redirects the given join tree to reverse edges to face a query node of the given domain.
+-- If multiple query nodes with this domain exist, one is chosen at random. This function only
+-- searches amongst nodes with a `NodeType` of `Query`.
+redirectToQueryNode :: (Valuation v, Ord a, Show a)
+    => Domain a -> JoinTree (v a) -> JoinTree (v a)
+redirectToQueryNode d g = redirectTree (queryNode.id) g
+    where
+        -- TODO: Update
+        queryNode = head $ filter (\n -> n.d == d && n.t == Query) (vertexList g)
+
 --------------------------------------------------------------------------------
 -- Properties
 --------------------------------------------------------------------------------
@@ -124,6 +165,30 @@ vertexCount t = G.vertexCount t.g
 -- | Returns a sorted vertex list; equivalent to a topological ordering.
 vertexList :: JoinTree v -> [Node v]
 vertexList t = G.vertexList t.g
+
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
+outgoingGraphEdges :: Id -> G.Graph (Node v) -> Maybe (Node v, [Node v])
+outgoingGraphEdges i g = L.find (\(n, _) -> n.id == i) . G.adjacencyList $ g
+
+flipEdge :: Node a -> Node a -> G.Graph (Node a) -> G.Graph (Node a)
+flipEdge x y g
+    | G.hasEdge x y g = addEdge y x $ G.removeEdge x y $ g
+    | otherwise = g
+
+    where
+        addEdge :: a -> a -> G.Graph a -> G.Graph a
+        addEdge x1 x2 g' = G.overlay (G.connect (G.vertex x1) (G.vertex x2)) g'
+
+renumberTopological :: G.Graph (Node a) -> G.Graph (Node a)
+renumberTopological g = fmap (\n -> changeId n $ (M.!) newNumbering n.id) g
+    where
+        topological = U.fromRight $ G.topSort $ G.toAdjacencyMap g
+        newNumbering = M.fromList $ zip (map (.id) topological) [0..]
+
+        changeId n newId = n { id = newId }
+
 
 --------------------------------------------------------------------------------
 -- Invariants
@@ -145,9 +210,28 @@ isDirectedTowardsRoot t = length canReachRoot == vertexCount t
 hasTopologicalNumbering :: JoinTree v -> Bool
 hasTopologicalNumbering t = G.isTopSortOf (G.vertexList t.g) t.g
 
--- TODO: Should also check that join tree is directed towards the query node
--- (in the relevant join tree amongst the forest)
-supportsCollect :: JoinTree v -> Bool
-supportsCollect t = undefined -- numQueryNodes t == 1 && isQueryNodeRoot t
+--------------------------------------------------------------------------------
+-- Collect tree invariants
+--------------------------------------------------------------------------------
+isQueryNodeRoot :: JoinTree v -> Bool
+isQueryNodeRoot t = t.root.t == Query
 
+numQueryNodes :: JoinTree v -> Natural
+numQueryNodes t = L.count (\n -> n.t == Query) $ vertexList t
+
+hasTotalNumbering :: JoinTree v -> Bool
+hasTotalNumbering t = t.root.id == fromIntegral (vertexCount t - 1)
+
+{- | A join tree that 'supports collect' has the additional invariants that:
+    1. the tree only has one query node,
+    2. the query node is the root node,
+    3. and the node id numbering is total.
+
+A *total node id numbering* refers to the idea that for a given tree `t` every `Id`
+between between 0 and `t.root.id` is in use by a node.
+-}
+supportsCollect :: JoinTree v -> Bool
+supportsCollect t = numQueryNodes t == 1        -- (1)
+                        && isQueryNodeRoot t    -- (2)
+                        && hasTotalNumbering t  -- (3)
 

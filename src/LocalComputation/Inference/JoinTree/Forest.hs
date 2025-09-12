@@ -19,8 +19,8 @@ module LocalComputation.Inference.JoinTree.Forest (
     , neighbourMap
     , vertexList
     , mapVertices
-    , isForest
-    , redirectToQueryNode
+    , unsafeConvertToCollectTree
+    , toForest
 ) where
 
 import           GHC.Records                              (HasField, getField)
@@ -71,48 +71,12 @@ fromGraph = U.assertP satisfiesInvariants . UnsafeJoinForest
 findById :: Id -> JoinForest v -> Maybe (Node v)
 findById i t = L.find (\n -> n.id == i) $ G.vertexList t.g
 
+toForest :: JoinTree v -> JoinForest v
+toForest t = fromGraph $ JT.unsafeGetGraph t
+
 --------------------------------------------------------------------------------
 -- Transformations
 --------------------------------------------------------------------------------
-
--- TODO: This should really be a join tree method.
-
--- | Redirects a given join tree to reverse edges to face the node of the given id.
--- If a forest is given, will not impact trees that don't contain the node of the given id.
-redirectTree :: forall a . Id -> JoinForest a -> JoinForest a
-redirectTree i' t = fromGraph . renumberTree . redirectTree' i' $ t.g
-    where
-
-        -- Works by traversing out from the given node,
-        -- flipping any edges that it uses along its journey
-        redirectTree' :: Id -> G.Graph (Node a) -> G.Graph (Node a)
-        redirectTree' i g = foldr f g outgoingNodes
-            where
-                (this, outgoingNodes) = fromJust $ outgoingGraphEdges i g
-
-                f :: Node a -> G.Graph (Node a) -> G.Graph (Node a)
-                f n acc = flipEdge this n $ redirectTree' n.id acc
-
-        -- Renumber the tree to ensure a topological ordering.
-        renumberTree :: G.Graph (Node a) -> G.Graph (Node a)
-        renumberTree g = fmap (\n -> changeId n $ (M.!) newNumbering n.id) g
-            where
-                -- TODO: Fix.
-                topological = U.assertP (\l -> (last l).t == Query) $ U.fromRight $ G.topSort $ G.toAdjacencyMap g
-                newNumbering = M.fromList $ zip (map (.id) topological) [0..]
-
-                changeId n newId = n { id = newId }
-
--- | Redirects the given join tree to reverse edges to face a query node of the given domain.
--- If multiple query nodes with this domain exist, one is chosen at random. This function only
--- searches amongst nodes with a `NodeType` of `Query`.
-redirectToQueryNode :: (Valuation v, Ord a, Show a)
-    => Domain a -> JoinForest (v a) -> JoinForest (v a)
-redirectToQueryNode d g = redirectTree (queryNode.id) g
-    where
-        -- TODO: Update
-        queryNode = head $ filter (\n -> n.d == d && n.t == Query) (vertexList g)
-
 
 -- TODO: Should probably not be exposed; runs risk of ruining running intersection property or node labelling.
 
@@ -124,24 +88,6 @@ mapVertices f t = fromGraph $ fmap f t.g
 --------------------------------------------------------------------------------
 -- Properties
 --------------------------------------------------------------------------------
-
--- isQueryNodeRoot :: JoinForest v -> Bool
--- isQueryNodeRoot t = t.root.t == Query
---
--- numQueryNodes :: JoinForest v -> Natural
--- numQueryNodes t = L.genericLength $ filter (\n -> n.t == Query) $ vertexList t
-
--- A join tree is a DAG with the property that
--- every edge is directed towards the root node
--- (i.e. all vertices can reach the root node)
---
--- It also has the running intersection property...
--- but let's not test that here. It should hold since
--- we only really create trees through one construction algorithm,
--- and we never modify these trees by adding or removing an edge.
-isForest :: JoinForest v -> Bool
-isForest t = length (trees t) > 1
-
 trees :: forall v . JoinForest v -> [JoinTree v]
 trees t = getTrees' (vertexSet t)
 
@@ -178,13 +124,33 @@ incomingEdges :: Id -> JoinForest v -> Maybe [Node v]
 incomingEdges = (fmap snd .) . incomingEdges'
 
 incomingEdges' :: Id -> JoinForest v -> Maybe (Node v, [Node v])
-incomingEdges' i t = outgoingGraphEdges i . G.transpose $ t.g
+incomingEdges' i t = JT.outgoingGraphEdges i . G.transpose $ t.g
 
 outgoingEdges :: Id -> JoinForest v -> Maybe [Node v]
 outgoingEdges = (fmap snd .) . outgoingEdges'
 
 outgoingEdges' :: Id -> JoinForest v -> Maybe (Node v, [Node v])
 outgoingEdges' i t = L.find (\(n, _) -> n.id == i) . G.adjacencyList $ t.g
+
+--------------------------------------------------------------------------------
+-- Collect tree creation
+--------------------------------------------------------------------------------
+unsafeConvertToCollectTree :: forall v a . (Show a, Valuation v, Ord a)
+    => JoinForest (v a)
+    -> Domain a
+    -> JoinTree (v a)
+unsafeConvertToCollectTree f q = U.assertP JT.supportsCollect $ JT.redirectToQueryNode q treeWithQueryNode
+    where
+        treeWithQueryNode :: JoinTree (v a)
+        treeWithQueryNode = fromJust $ L.find (\t -> isJust $ L.find (\n -> n.d == q)
+                                                                     (JT.vertexList t))
+                                              (trees f)
+
+--------------------------------------------------------------------------------
+-- Invariants
+--------------------------------------------------------------------------------
+satisfiesInvariants :: JoinForest v -> Bool
+satisfiesInvariants f = all JT.satisfiesInvariants (trees f)
 
 --------------------------------------------------------------------------------
 -- Unsafe variants
@@ -204,32 +170,6 @@ unsafeOutgoingEdges = (fromJust .) . outgoingEdges
 
 unsafeOutgoingEdges' :: Id -> JoinForest v -> (Node v, [Node v])
 unsafeOutgoingEdges' = (fromJust .) . outgoingEdges'
-
---------------------------------------------------------------------------------
--- Utilities
---------------------------------------------------------------------------------
-outgoingGraphEdges :: Id -> G.Graph (Node v) -> Maybe (Node v, [Node v])
-outgoingGraphEdges i g = L.find (\(n, _) -> n.id == i) . G.adjacencyList $ g
-
-flipEdge :: Node a -> Node a -> G.Graph (Node a) -> G.Graph (Node a)
-flipEdge x y g
-    | G.hasEdge x y g = addEdge y x $ G.removeEdge x y $ g
-    | otherwise = g
-
-    where
-        addEdge :: a -> a -> G.Graph a -> G.Graph a
-        addEdge x1 x2 g' = G.overlay (G.connect (G.vertex x1) (G.vertex x2)) g'
-
-
-
---------------------------------------------------------------------------------
--- Invariants
---------------------------------------------------------------------------------
-
-satisfiesInvariants :: JoinForest v -> Bool
-satisfiesInvariants f = all JT.satisfiesInvariants (trees f)
-
-
 
 
 

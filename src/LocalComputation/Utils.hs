@@ -41,6 +41,7 @@ module LocalComputation.Utils
     , unusedArg
     , Table (Table, heading, rows)
     , assertError
+    , count
     )
 where
 
@@ -59,6 +60,7 @@ import           Text.Printf                   (printf)
 import qualified Text.ParserCombinators.Parsec as P
 
 import           Control.Exception             (assert)
+import qualified Data.List                     as L
 import           GHC.Stack                     (HasCallStack)
 import           Numeric.Natural
 import           System.IO                     (IOMode (ReadMode),
@@ -244,4 +246,7 @@ data Table = Table {
 
 assertError :: a
 assertError = assert False undefined
+
+count :: (Num b) => (a -> Bool) -> [a] -> b
+count p xs = L.genericLength $ filter p xs
 

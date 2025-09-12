@@ -89,8 +89,7 @@ fusionPass settings vs queryDomain = do
     pure treeAfterInference
 
     where
-        -- TODO: Change to collectTree
-        treeBeforeInference = JT.redirectToQueryNode queryDomain $ JT.baseJoinForest vs [queryDomain]
+        treeBeforeInference = JT.toForest $ JT.collectTree vs queryDomain
 
         drawTree Nothing         _    = pure ()
         drawTree (Just filename) tree = liftIO $ D.draw filename tree
