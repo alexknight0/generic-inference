@@ -37,8 +37,8 @@ import           Data.Set                                       (fromList,
                                                                  toList)
 import qualified Data.Set                                       as S
 import qualified LocalComputation.Inference.EliminationSequence as E
-import           LocalComputation.Inference.JoinTree.Tree
-import           LocalComputation.Inference.JoinTree.Tree2      (Id,
+import           LocalComputation.Inference.JoinTree.Forest
+import           LocalComputation.Inference.JoinTree.Tree       (Id,
                                                                  Node (id, t, v),
                                                                  NodeType (..),
                                                                  changeContent,
