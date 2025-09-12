@@ -26,10 +26,8 @@ module LocalComputation.Inference.JoinTree (
     , neighbourMap
     , vertexList
     , mapVertices
-    , flipEdge
     , topologicalOrdering
     , isForest
-    , supportsCollect
 ) where
 
 import           Data.List                                      (union)
@@ -42,7 +40,8 @@ import           LocalComputation.Inference.JoinTree.Tree       (Id,
                                                                  Node (id, t, v),
                                                                  NodeType (..),
                                                                  changeContent,
-                                                                 node)
+                                                                 node,
+                                                                 supportsCollect)
 
 import           Data.Maybe                                     (fromJust)
 import           LocalComputation.ValuationAlgebra
@@ -161,48 +160,16 @@ baseJoinForest' nextNodeId r d
             where
                 nPDomain = (fromList $ setDifference (toList domainOfPhiX) [x])
 
+-- TODO: add assert
 collectTree :: (Show a, Valuation v, Ord a)
     => [v a]
     -> Domain a
     -> JoinForest (v a)
-collectTree vs q = U.assertP supportsCollect $ redirectToQueryNode q $ baseJoinForest vs [q]
+collectTree vs q = redirectToQueryNode q $ baseJoinForest vs [q]
 
 --------------------------------------------------------------------------------
 -- Join tree algorithms
 --------------------------------------------------------------------------------
-
--- TODO: Untested.
--- TODO: Could probably be optimized by caching the adjacencyList computation
--- (but might have to make sure we update it).
-{-| Redirects a given join tree to reverse edges to face the node of the given id.
-If a forest is given, will not impact trees that don't contain the node of the given id.
--}
-{- Works by traversing out from the given node, flipping any edges that it uses along its journey -}
-redirectTree :: forall a . Id -> JoinForest a -> JoinForest a
-redirectTree i g = foldr f g outgoingNodes
-    where
-        (this, outgoingNodes) = unsafeOutgoingEdges' i g
-
-        f :: Node a -> JoinForest a -> JoinForest a
-        f n acc = flipEdge this n $ redirectTree n.id acc
-
-renumberTree :: JoinForest a -> JoinForest a
-renumberTree g = mapVertices (\n -> changeId n $ (M.!) newNumbering n.id) g
-    where
-        -- TODO: Fix.
-        topological = U.assertP (\l -> (last l).t == Query) $ topologicalOrdering g
-        newNumbering = M.fromList $ zip (map (.id) topological) [0..]
-
-        changeId n newId = n { id = newId }
-
--- | Redirects the given join tree to reverse edges to face a query node of the given domain.
--- If multiple query nodes with this domain exist, one is chosen at random. This function only
--- searches amongst nodes with a `NodeType` of `Query`.
-redirectToQueryNode :: (Valuation v, Ord a, Show a)
-    => Domain a -> JoinForest (v a) -> JoinForest (v a)
-redirectToQueryNode d g = renumberTree $ redirectTree (queryNode.id) g
-    where
-        queryNode = head $ filter (\n -> n.d == d && n.t == Query) (vertexList g)
 
 --------------------------------------------------------------------------------
 -- Utilities

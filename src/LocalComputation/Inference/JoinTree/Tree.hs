@@ -17,6 +17,7 @@ module LocalComputation.Inference.JoinTree.Tree (
     , JoinTree
     , satisfiesInvariants
     , fromGraph
+    , supportsCollect
 ) where
 
 import           GHC.Records                        (HasField, getField)
@@ -79,7 +80,23 @@ instance (Valuation v, Ord a, Show a) => Show (Node (v a)) where
 -- Join trees
 --------------------------------------------------------------------------------
 
+{- | A join tree is:
+    1. a non-empty tree (acyclic graph)
+    2. that has a running intersection property,
+    3. is directed toward a node called the 'root',
+    4. and the node 'id' fields form a topological ordering.
+
+Notably the numbering of nodes with ids may not be total - some numbers may be skipped.
+For example, there may exist nodes with ids of 3 and 5 without the existence of a node of id 4.
+
+The combination of (3) and (4) imply the root has the highest node id.
+
+For the definition of the running intersection property, see Marc Pouly's "Generic Inference".
+-}
 newtype JoinTree v = UnsafeJoinTree { g :: G.Graph (Node v) }
+
+instance HasField "root" (JoinTree v) (Node v) where
+    getField t = L.maximum $ G.vertexList t.g
 
 -- | Converts a graph into a join tree.
 --
@@ -88,6 +105,11 @@ newtype JoinTree v = UnsafeJoinTree { g :: G.Graph (Node v) }
 fromGraph :: G.Graph (Node v) -> JoinTree v
 fromGraph = U.assertP satisfiesInvariants . UnsafeJoinTree
 
+--------------------------------------------------------------------------------
+-- Properties
+--------------------------------------------------------------------------------
+vertexCount :: JoinTree v -> Int
+vertexCount t = G.vertexCount t.g
 
 --------------------------------------------------------------------------------
 -- Invariants
@@ -96,8 +118,26 @@ fromGraph = U.assertP satisfiesInvariants . UnsafeJoinTree
 isAcyclic :: JoinTree v -> Bool
 isAcyclic t = isJust . G.toAcyclic . G.toAdjacencyMap $ t.g
 
-satisfiesInvariants :: JoinTree v -> Bool
-satisfiesInvariants = isAcyclic
+-- TODO: Implement
+hasRunningIntersectionProperty :: JoinTree v -> Bool
+hasRunningIntersectionProperty _ = True
 
+-- | Returns true if the given tree is directed towards the root node.
+-- Assumes given tree is acyclic.
+isDirectedTowardsRoot :: JoinTree v -> Bool
+isDirectedTowardsRoot t = length canReachRoot == vertexCount t
+    where
+        canReachRoot = G.reachable (G.transpose $ t.g) t.root
+
+satisfiesInvariants :: JoinTree v -> Bool
+satisfiesInvariants t = vertexCount t > 0
+                            && isAcyclic t
+                            && isDirectedTowardsRoot t
+                            && hasRunningIntersectionProperty t
+
+-- TODO: Should also check that join tree is directed towards the query node
+-- (in the relevant join tree amongst the forest)
+supportsCollect :: JoinTree v -> Bool
+supportsCollect t = undefined -- numQueryNodes t == 1 && isQueryNodeRoot t
 
 
