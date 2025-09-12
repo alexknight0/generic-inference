@@ -72,8 +72,7 @@ fusion' uniqueId upperPsi (y:ys) = fusion' (uniqueId + 1) upperPsi' ys
 -- only one variable is eliminated at a time. We accept the fact that fusion with a query equal
 -- to the full set of variables is equal to brute force. We could even check this fact with Naso.
 
--- TODO: Add:
--- __Warning__: Doesn't work on problems that have disconnected join trees
+-- TODO: Can we make this work for disconnected join trees?
 
 -- | Takes a join tree and returns the join tree after a fusion pass over a given join tree.
 --
@@ -90,6 +89,7 @@ fusionPass settings vs queryDomain = do
     pure treeAfterInference
 
     where
+        -- TODO: Change to collectTree
         treeBeforeInference = JT.redirectToQueryNode queryDomain $ JT.baseJoinTree vs [queryDomain]
 
         drawTree Nothing         _    = pure ()
@@ -113,6 +113,7 @@ nodeActions this neighbours resultPort = do
     assert (this.node.d == label result) (pure ())
     sendChan resultPort $ JT.changeContent this.node result
 
+-- TODO: more efficent check available.
 -- Uses the property that the root node is the only node whose label is larger
 -- than all its neighbours
 isRootNode :: MP.NodeWithPid a -> [MP.NodeWithPid a] -> Bool

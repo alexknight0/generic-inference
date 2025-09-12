@@ -4,8 +4,7 @@
 {-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module LocalComputation.Inference.JoinTree
-    (
+module LocalComputation.Inference.JoinTree (
 
     -- Join tree construction
       baseJoinTree
@@ -29,8 +28,9 @@ module LocalComputation.Inference.JoinTree
     , mapVertices
     , flipEdge
     , topologicalOrdering
-    )
-where
+    , isForest
+    , supportsCollect
+) where
 
 import           Data.List                                      (union)
 import           Data.Set                                       (fromList,
@@ -154,6 +154,12 @@ baseJoinTree' nextNodeId r d
             where
                 nPDomain = (fromList $ setDifference (toList domainOfPhiX) [x])
 
+collectTree :: (Show a, Valuation v, Ord a)
+    => [v a]
+    -> Domain a
+    -> JoinTree (v a)
+collectTree vs q = U.assertP supportsCollect $ redirectToQueryNode q $ baseJoinTree vs [q]
+
 --------------------------------------------------------------------------------
 -- Join tree algorithms
 --------------------------------------------------------------------------------
@@ -161,7 +167,9 @@ baseJoinTree' nextNodeId r d
 -- TODO: Untested.
 -- TODO: Could probably be optimized by caching the adjacencyList computation
 -- (but might have to make sure we update it).
-{-| Redirects a given **join** tree to reverse edges to face the node of the given id -}
+{-| Redirects a given join tree to reverse edges to face the node of the given id.
+If a forest is given, will not impact trees that don't contain the node of the given id.
+-}
 {- Works by traversing out from the given node, flipping any edges that it uses along its journey -}
 redirectTree :: forall a . Id -> JoinTree a -> JoinTree a
 redirectTree i g = foldr f g outgoingNodes
@@ -174,6 +182,7 @@ redirectTree i g = foldr f g outgoingNodes
 renumberTree :: JoinTree a -> JoinTree a
 renumberTree g = mapVertices (\n -> changeId n $ (M.!) newNumbering n.id) g
     where
+        -- TODO: Fix.
         topological = U.assertP (\l -> (last l).t == Query) $ topologicalOrdering g
         newNumbering = M.fromList $ zip (map (.id) topological) [0..]
 

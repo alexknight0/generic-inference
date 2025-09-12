@@ -1,11 +1,12 @@
-{-# LANGUAGE DataKinds         #-}
-{-# LANGUAGE DeriveAnyClass    #-}
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE DeriveAnyClass      #-}
+{-# LANGUAGE DeriveGeneric       #-}
+{-# LANGUAGE FlexibleInstances   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
-module LocalComputation.Inference.JoinTree.Tree
-    (
+module LocalComputation.Inference.JoinTree.Tree (
     -- Join tree type
+    -- TODO: remove g?
       JoinTree (g)
     , Node (id, v, t)
     , node
@@ -25,23 +26,30 @@ module LocalComputation.Inference.JoinTree.Tree
     , mapVertices
     , flipEdge
     , topologicalOrdering
-    )
-where
+    , isForest
+    , supportsCollect
+) where
 
-import           GHC.Records                       (HasField, getField)
-import           LocalComputation.ValuationAlgebra
+import           GHC.Records                        (HasField, getField)
+import           LocalComputation.ValuationAlgebra  hiding (assertInvariants,
+                                                     satisfiesInvariants)
 
-import qualified Algebra.Graph                     as G
-import qualified Algebra.Graph.ToGraph             as G (toAdjacencyMap,
-                                                         topSort)
-import qualified Algebra.Graph.Undirected          as UG
-import qualified Data.Bifunctor                    as B
-import qualified Data.List                         as L
-import qualified Data.Map                          as M
-import           Data.Maybe                        (fromJust)
-import           Data.Text.Lazy                    (unpack)
-import qualified LocalComputation.Utils            as U
-import           Text.Pretty.Simple                (pShow)
+import qualified Algebra.Graph                      as G
+import qualified Algebra.Graph.Acyclic.AdjacencyMap as G (toAcyclic)
+import qualified Algebra.Graph.ToGraph              as G (dfsForest, reachable,
+                                                          toAdjacencyMap,
+                                                          topSort)
+import qualified Algebra.Graph.Undirected           as UG
+import           Control.Exception                  (assert)
+import qualified Data.Bifunctor                     as B
+import qualified Data.List                          as L
+import qualified Data.Map                           as M
+import           Data.Maybe                         (fromJust, isJust)
+import qualified Data.Set                           as S
+import           Data.Text.Lazy                     (unpack)
+import qualified LocalComputation.Utils             as U
+import           Numeric.Natural                    (Natural)
+import           Text.Pretty.Simple                 (pShow)
 
 --------------------------------------------------------------------------------
 -- Nodes
@@ -92,7 +100,7 @@ instance HasField "root" (JoinTree v) (Node v) where
     getField t = L.maximumBy (\x y -> x.id `compare` y.id) $ G.vertexList t.g
 
 fromGraph :: G.Graph (Node v) -> JoinTree v
-fromGraph = UnsafeJoinTree
+fromGraph = assertInvariants . UnsafeJoinTree
 
 findById :: Id -> JoinTree v -> Maybe (Node v)
 findById i t = L.find (\n -> n.id == i) $ G.vertexList t.g
@@ -121,8 +129,60 @@ mapVertices f t = fromGraph $ fmap f t.g
 -- Properties
 --------------------------------------------------------------------------------
 
+-- TODO: Should also check that join tree is directed towards the query node
+-- (in the relevant join tree amongst the forest)
+supportsCollect :: JoinTree v -> Bool
+supportsCollect t = numQueryNodes t == 1 && isQueryNodeRoot t
+
+-- TODO: If is DAG and is not forest than should just be equal to whether
+-- or not all vertices can reach the root.
+isDirectedTowardsRoot :: JoinTree v -> Bool
+isDirectedTowardsRoot t = undefined
+
+isQueryNodeRoot :: JoinTree v -> Bool
+isQueryNodeRoot t = t.root.t == Query
+
+numQueryNodes :: JoinTree v -> Natural
+numQueryNodes t = L.genericLength $ filter (\n -> n.t == Query) $ vertexList t
+
+-- A join tree is a DAG with the property that
+-- every edge is directed towards the root node
+-- (i.e. all vertices can reach the root node)
+--
+-- It also has the running intersection property...
+-- but let's not test that here. It should hold since
+-- we only really create trees through one construction algorithm,
+-- and we never modify these trees by adding or removing an edge.
+isForest :: JoinTree v -> Bool
+isForest t = length (splitForest t) > 1
+
+splitForest :: forall v . JoinTree v -> [JoinTree v]
+splitForest t = getTrees' (vertexSet t)
+
+    where
+        undirected = G.overlay (t.g) (G.transpose t.g)
+
+        getTrees' :: S.Set (Node v) -> [JoinTree v]
+        getTrees' vertices
+            | length vertices == 0 = []
+            | otherwise            = newTree : getTrees' (S.difference vertices verticesInNewTree)
+
+            where
+                -- Take a random vertex out
+                vertexInNewTree = S.findMin vertices
+
+                -- Take out all the vertices in its tree
+                verticesInNewTree = S.fromList $ G.reachable undirected vertexInNewTree
+
+                -- Get the tree
+                newTree = fromGraph $ G.induce (\n -> n `elem` verticesInNewTree) t.g
+
+
 vertexList :: JoinTree v -> [Node v]
 vertexList t = G.vertexList t.g
+
+vertexSet :: JoinTree v -> S.Set (Node v)
+vertexSet t = G.vertexSet t.g
 
 neighbourMap :: JoinTree v -> M.Map Id [Node v]
 neighbourMap t = M.fromList . map (B.first (.id)) . UG.adjacencyList . UG.toUndirected $ t.g
@@ -161,8 +221,26 @@ unsafeOutgoingEdges = (fromJust .) . outgoingEdges
 unsafeOutgoingEdges' :: Id -> JoinTree v -> (Node v, [Node v])
 unsafeOutgoingEdges' = (fromJust .) . outgoingEdges'
 
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
 
 
+
+
+--------------------------------------------------------------------------------
+-- Invariants
+--------------------------------------------------------------------------------
+
+isAcyclic :: JoinTree v -> Bool
+isAcyclic t = isJust . G.toAcyclic . G.toAdjacencyMap $ t.g
+
+-- TODO: is acyclic
+satisfiesInvariants :: JoinTree v -> Bool
+satisfiesInvariants t = isAcyclic t
+
+assertInvariants :: JoinTree v -> JoinTree v
+assertInvariants t = assert (satisfiesInvariants t) t
 
 
 
