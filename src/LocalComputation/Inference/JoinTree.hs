@@ -99,7 +99,7 @@ baseJoinForest :: forall v a. (Show a, Valuation v, Ord a)
     => [v a]
     -> [Domain a]
     -> JoinForest (v a)
-baseJoinForest vs queries = joinForestFromGraph $ G.edges $ baseJoinForest' nextNodeId r d
+baseJoinForest vs queries = fromGraph $ G.edges $ baseJoinForest' nextNodeId r d
     where
         d :: E.EliminationSequence a
         d = E.create $ map label vs

@@ -10,7 +10,7 @@ module LocalComputation.Inference.JoinTree.Forest (
       JoinForest (g)
 
     -- Join tree functions
-    , joinForestFromGraph
+    , fromGraph
     , unsafeFindById
     , unsafeOutgoingEdges
     , unsafeIncomingEdges
@@ -48,7 +48,7 @@ import qualified LocalComputation.Utils                   as U
 import           Numeric.Natural                          (Natural)
 import           Text.Pretty.Simple                       (pShow)
 
-import           LocalComputation.Inference.JoinTree.Tree (Id, Node,
+import           LocalComputation.Inference.JoinTree.Tree (Id, JoinTree, Node,
                                                            NodeType (..))
 import qualified LocalComputation.Inference.JoinTree.Tree as JT
 
@@ -65,19 +65,14 @@ newtype JoinForest v = UnsafeJoinForest { g :: G.Graph (Node v) }
 instance HasField "root" (JoinForest v) (Node v) where
     getField t = L.maximumBy (\x y -> x.id `compare` y.id) $ G.vertexList t.g
 
-newtype JoinTree v = UnsafeJoinTree { g :: G.Graph (Node v) }
-
-joinForestFromGraph :: G.Graph (Node v) -> JoinForest v
-joinForestFromGraph = U.assertP satisfiesJoinForestInvariants . UnsafeJoinForest
-
-joinTreeFromGraph :: G.Graph (Node v) -> JoinTree v
-joinTreeFromGraph = U.assertP satisfiesJoinTreeInvariants . UnsafeJoinTree
+fromGraph :: G.Graph (Node v) -> JoinForest v
+fromGraph = U.assertP satisfiesInvariants . UnsafeJoinForest
 
 findById :: Id -> JoinForest v -> Maybe (Node v)
 findById i t = L.find (\n -> n.id == i) $ G.vertexList t.g
 
 transpose :: JoinForest v -> JoinForest v
-transpose t = joinForestFromGraph $ G.transpose t.g
+transpose t = fromGraph $ G.transpose t.g
 
 --------------------------------------------------------------------------------
 -- Transformations
@@ -86,7 +81,7 @@ transpose t = joinForestFromGraph $ G.transpose t.g
 -- | Flips an edge from x to y such that it now goes from y to x.
 flipEdge :: Node a -> Node a -> JoinForest a -> JoinForest a
 flipEdge x y t
-    | G.hasEdge x y t.g = joinForestFromGraph $ addEdge y x $ G.removeEdge x y $ t.g
+    | G.hasEdge x y t.g = fromGraph $ addEdge y x $ G.removeEdge x y $ t.g
     | otherwise = t
 
     where
@@ -94,7 +89,7 @@ flipEdge x y t
         addEdge x1 x2 g = G.overlay (G.connect (G.vertex x1) (G.vertex x2)) g
 
 mapVertices :: (Node a -> Node b) -> JoinForest a -> JoinForest b
-mapVertices f t = joinForestFromGraph $ fmap f t.g
+mapVertices f t = fromGraph $ fmap f t.g
 
 --------------------------------------------------------------------------------
 -- Properties
@@ -146,7 +141,7 @@ trees t = getTrees' (vertexSet t)
                 verticesInNewTree = S.fromList $ G.reachable undirected vertexInNewTree
 
                 -- Get the tree
-                newTree = joinTreeFromGraph $ G.induce (\n -> n `elem` verticesInNewTree) t.g
+                newTree = JT.fromGraph $ G.induce (\n -> n `elem` verticesInNewTree) t.g
 
 
 vertexList :: JoinForest v -> [Node v]
@@ -206,15 +201,11 @@ unsafeOutgoingEdges' = (fromJust .) . outgoingEdges'
 isAcyclic :: JoinForest v -> Bool
 isAcyclic t = isJust . G.toAcyclic . G.toAdjacencyMap $ t.g
 
-satisfiesJoinForestInvariants :: JoinForest v -> Bool
-satisfiesJoinForestInvariants f = all satisfiesJoinTreeInvariants (trees f)
+satisfiesInvariants :: JoinForest v -> Bool
+satisfiesInvariants f = all JT.satisfiesInvariants (trees f)
     where
         ts = trees f
         -- areDisjoint = length (vertexList f) == foldr (\t -> length (undef
-
--- TODO: Fix
-satisfiesJoinTreeInvariants :: JoinTree v -> Bool
-satisfiesJoinTreeInvariants t = isJust . G.toAcyclic . G.toAdjacencyMap $ t.g
 
 
 

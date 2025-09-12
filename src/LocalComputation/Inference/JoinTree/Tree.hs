@@ -6,11 +6,17 @@
 
 module LocalComputation.Inference.JoinTree.Tree (
 
+    -- Nodes
       Node (id, v, t)
     , node
     , changeContent
     , NodeType (Valuation, Query, Union, Projection)
     , Id
+
+    -- Join Trees
+    , JoinTree
+    , satisfiesInvariants
+    , fromGraph
 ) where
 
 import           GHC.Records                        (HasField, getField)
@@ -74,3 +80,24 @@ instance (Valuation v, Ord a, Show a) => Show (Node (v a)) where
 --------------------------------------------------------------------------------
 
 newtype JoinTree v = UnsafeJoinTree { g :: G.Graph (Node v) }
+
+-- | Converts a graph into a join tree.
+--
+-- __Warning__: Unsafe - will check some invariants associated with a join tree
+-- and throw an error if the graph doesn't satisfy these invariants.
+fromGraph :: G.Graph (Node v) -> JoinTree v
+fromGraph = U.assertP satisfiesInvariants . UnsafeJoinTree
+
+
+--------------------------------------------------------------------------------
+-- Invariants
+--------------------------------------------------------------------------------
+
+isAcyclic :: JoinTree v -> Bool
+isAcyclic t = isJust . G.toAcyclic . G.toAdjacencyMap $ t.g
+
+satisfiesInvariants :: JoinTree v -> Bool
+satisfiesInvariants = isAcyclic
+
+
+
