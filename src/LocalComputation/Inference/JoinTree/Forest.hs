@@ -19,7 +19,6 @@ module LocalComputation.Inference.JoinTree.Forest (
     , neighbourMap
     , vertexList
     , mapVertices
-    , topologicalOrdering
     , isForest
     , redirectToQueryNode
 ) where
@@ -165,6 +164,7 @@ trees t = getTrees' (vertexSet t)
                 newTree = JT.fromGraph $ G.induce (\n -> n `elem` verticesInNewTree) t.g
 
 
+-- | A sorted list of vertices of the forest; equivalent to a topological ordering.
 vertexList :: JoinForest v -> [Node v]
 vertexList t = G.vertexList t.g
 
@@ -185,9 +185,6 @@ outgoingEdges = (fmap snd .) . outgoingEdges'
 
 outgoingEdges' :: Id -> JoinForest v -> Maybe (Node v, [Node v])
 outgoingEdges' i t = L.find (\(n, _) -> n.id == i) . G.adjacencyList $ t.g
-
-topologicalOrdering :: JoinForest v -> [Node v]
-topologicalOrdering t = U.fromRight $ G.topSort $ G.toAdjacencyMap t.g
 
 --------------------------------------------------------------------------------
 -- Unsafe variants

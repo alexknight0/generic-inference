@@ -26,7 +26,6 @@ module LocalComputation.Inference.JoinTree (
     , neighbourMap
     , vertexList
     , mapVertices
-    , topologicalOrdering
     , isForest
 ) where
 

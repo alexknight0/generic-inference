@@ -26,7 +26,9 @@ import           LocalComputation.ValuationAlgebra  hiding (assertInvariants,
 
 import qualified Algebra.Graph                      as G
 import qualified Algebra.Graph.Acyclic.AdjacencyMap as G (toAcyclic)
-import qualified Algebra.Graph.ToGraph              as G (dfsForest, reachable,
+import qualified Algebra.Graph.ToGraph              as G (dfsForest,
+                                                          isTopSortOf,
+                                                          reachable,
                                                           toAdjacencyMap,
                                                           topSort)
 import qualified Algebra.Graph.Undirected           as UG
@@ -81,22 +83,30 @@ instance (Valuation v, Ord a, Show a) => Show (Node (v a)) where
 --------------------------------------------------------------------------------
 
 {- | A join tree is:
-    1. a non-empty tree (acyclic graph)
-    2. that has a running intersection property,
-    3. is directed toward a node called the 'root',
-    4. and the node 'id' fields form a topological ordering.
+    1. a non-empty tree (acyclic graph),
+    2. such that the node 'id' fields form a topological ordering,
+    3. it is directed toward a node called the 'root',
+    4. and has the running intersection property.
 
 Notably the numbering of nodes with ids may not be total - some numbers may be skipped.
 For example, there may exist nodes with ids of 3 and 5 without the existence of a node of id 4.
 
-The combination of (3) and (4) imply the root has the highest node id.
+The combination of (2) and (3) imply the root has the highest node id.
 
 For the definition of the running intersection property, see Marc Pouly's "Generic Inference".
 -}
 newtype JoinTree v = UnsafeJoinTree { g :: G.Graph (Node v) }
 
+-- | Checks a given join tree satisfies the invariants (1), (2), (3), and (4)
+-- specified in the declaration of the join tree.
+satisfiesInvariants :: JoinTree v -> Bool
+satisfiesInvariants t = vertexCount t > 0 && isAcyclic t          -- (1)
+                            && hasTopologicalNumbering t          -- (2)
+                            && isDirectedTowardsRoot t            -- (3)
+                            && hasRunningIntersectionProperty t   -- (4)
+
 instance HasField "root" (JoinTree v) (Node v) where
-    getField t = L.maximum $ G.vertexList t.g
+    getField t = last $ vertexList t
 
 -- | Converts a graph into a join tree.
 --
@@ -111,10 +121,13 @@ fromGraph = U.assertP satisfiesInvariants . UnsafeJoinTree
 vertexCount :: JoinTree v -> Int
 vertexCount t = G.vertexCount t.g
 
+-- | Returns a sorted vertex list; equivalent to a topological ordering.
+vertexList :: JoinTree v -> [Node v]
+vertexList t = G.vertexList t.g
+
 --------------------------------------------------------------------------------
 -- Invariants
 --------------------------------------------------------------------------------
-
 isAcyclic :: JoinTree v -> Bool
 isAcyclic t = isJust . G.toAcyclic . G.toAdjacencyMap $ t.g
 
@@ -129,11 +142,8 @@ isDirectedTowardsRoot t = length canReachRoot == vertexCount t
     where
         canReachRoot = G.reachable (G.transpose $ t.g) t.root
 
-satisfiesInvariants :: JoinTree v -> Bool
-satisfiesInvariants t = vertexCount t > 0
-                            && isAcyclic t
-                            && isDirectedTowardsRoot t
-                            && hasRunningIntersectionProperty t
+hasTopologicalNumbering :: JoinTree v -> Bool
+hasTopologicalNumbering t = G.isTopSortOf (G.vertexList t.g) t.g
 
 -- TODO: Should also check that join tree is directed towards the query node
 -- (in the relevant join tree amongst the forest)
