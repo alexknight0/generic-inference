@@ -7,7 +7,7 @@
 module LocalComputation.Inference.JoinTree.Tree (
     -- Join tree type
     -- TODO: remove g?
-      JoinTree (g)
+      JoinForest (g)
     , Node (id, v, t)
     , node
     , changeContent
@@ -94,18 +94,18 @@ instance (Valuation v, Ord a, Show a) => Show (Node (v a)) where
 -- (this implies everything is a tree!!!)
 
 -- TODO: Add invaraint that it can't be empty to make `root` safe.
-newtype JoinTree v = UnsafeJoinTree { g :: G.Graph (Node v) }
+newtype JoinForest v = UnsafeJoinForest { g :: G.Graph (Node v) }
 
-instance HasField "root" (JoinTree v) (Node v) where
+instance HasField "root" (JoinForest v) (Node v) where
     getField t = L.maximumBy (\x y -> x.id `compare` y.id) $ G.vertexList t.g
 
-fromGraph :: G.Graph (Node v) -> JoinTree v
-fromGraph = assertInvariants . UnsafeJoinTree
+fromGraph :: G.Graph (Node v) -> JoinForest v
+fromGraph = assertInvariants . UnsafeJoinForest
 
-findById :: Id -> JoinTree v -> Maybe (Node v)
+findById :: Id -> JoinForest v -> Maybe (Node v)
 findById i t = L.find (\n -> n.id == i) $ G.vertexList t.g
 
-transpose :: JoinTree v -> JoinTree v
+transpose :: JoinForest v -> JoinForest v
 transpose t = fromGraph $ G.transpose t.g
 
 --------------------------------------------------------------------------------
@@ -113,7 +113,7 @@ transpose t = fromGraph $ G.transpose t.g
 --------------------------------------------------------------------------------
 
 -- | Flips an edge from x to y such that it now goes from y to x.
-flipEdge :: Node a -> Node a -> JoinTree a -> JoinTree a
+flipEdge :: Node a -> Node a -> JoinForest a -> JoinForest a
 flipEdge x y t
     | G.hasEdge x y t.g = fromGraph $ addEdge y x $ G.removeEdge x y $ t.g
     | otherwise = t
@@ -122,7 +122,7 @@ flipEdge x y t
         addEdge :: a -> a -> G.Graph a -> G.Graph a
         addEdge x1 x2 g = G.overlay (G.connect (G.vertex x1) (G.vertex x2)) g
 
-mapVertices :: (Node a -> Node b) -> JoinTree a -> JoinTree b
+mapVertices :: (Node a -> Node b) -> JoinForest a -> JoinForest b
 mapVertices f t = fromGraph $ fmap f t.g
 
 --------------------------------------------------------------------------------
@@ -131,18 +131,18 @@ mapVertices f t = fromGraph $ fmap f t.g
 
 -- TODO: Should also check that join tree is directed towards the query node
 -- (in the relevant join tree amongst the forest)
-supportsCollect :: JoinTree v -> Bool
+supportsCollect :: JoinForest v -> Bool
 supportsCollect t = numQueryNodes t == 1 && isQueryNodeRoot t
 
 -- TODO: If is DAG and is not forest than should just be equal to whether
 -- or not all vertices can reach the root.
-isDirectedTowardsRoot :: JoinTree v -> Bool
+isDirectedTowardsRoot :: JoinForest v -> Bool
 isDirectedTowardsRoot t = undefined
 
-isQueryNodeRoot :: JoinTree v -> Bool
+isQueryNodeRoot :: JoinForest v -> Bool
 isQueryNodeRoot t = t.root.t == Query
 
-numQueryNodes :: JoinTree v -> Natural
+numQueryNodes :: JoinForest v -> Natural
 numQueryNodes t = L.genericLength $ filter (\n -> n.t == Query) $ vertexList t
 
 -- A join tree is a DAG with the property that
@@ -153,16 +153,16 @@ numQueryNodes t = L.genericLength $ filter (\n -> n.t == Query) $ vertexList t
 -- but let's not test that here. It should hold since
 -- we only really create trees through one construction algorithm,
 -- and we never modify these trees by adding or removing an edge.
-isForest :: JoinTree v -> Bool
+isForest :: JoinForest v -> Bool
 isForest t = length (splitForest t) > 1
 
-splitForest :: forall v . JoinTree v -> [JoinTree v]
+splitForest :: forall v . JoinForest v -> [JoinForest v]
 splitForest t = getTrees' (vertexSet t)
 
     where
         undirected = G.overlay (t.g) (G.transpose t.g)
 
-        getTrees' :: S.Set (Node v) -> [JoinTree v]
+        getTrees' :: S.Set (Node v) -> [JoinForest v]
         getTrees' vertices
             | length vertices == 0 = []
             | otherwise            = newTree : getTrees' (S.difference vertices verticesInNewTree)
@@ -178,47 +178,47 @@ splitForest t = getTrees' (vertexSet t)
                 newTree = fromGraph $ G.induce (\n -> n `elem` verticesInNewTree) t.g
 
 
-vertexList :: JoinTree v -> [Node v]
+vertexList :: JoinForest v -> [Node v]
 vertexList t = G.vertexList t.g
 
-vertexSet :: JoinTree v -> S.Set (Node v)
+vertexSet :: JoinForest v -> S.Set (Node v)
 vertexSet t = G.vertexSet t.g
 
-neighbourMap :: JoinTree v -> M.Map Id [Node v]
+neighbourMap :: JoinForest v -> M.Map Id [Node v]
 neighbourMap t = M.fromList . map (B.first (.id)) . UG.adjacencyList . UG.toUndirected $ t.g
 
-incomingEdges :: Id -> JoinTree v -> Maybe [Node v]
+incomingEdges :: Id -> JoinForest v -> Maybe [Node v]
 incomingEdges = (fmap snd .) . incomingEdges'
 
-incomingEdges' :: Id -> JoinTree v -> Maybe (Node v, [Node v])
+incomingEdges' :: Id -> JoinForest v -> Maybe (Node v, [Node v])
 incomingEdges' i t = outgoingEdges' i $ transpose t
 
-outgoingEdges :: Id -> JoinTree v -> Maybe [Node v]
+outgoingEdges :: Id -> JoinForest v -> Maybe [Node v]
 outgoingEdges = (fmap snd .) . outgoingEdges'
 
-outgoingEdges' :: Id -> JoinTree v -> Maybe (Node v, [Node v])
+outgoingEdges' :: Id -> JoinForest v -> Maybe (Node v, [Node v])
 outgoingEdges' i t = L.find (\(n, _) -> n.id == i) . G.adjacencyList $ t.g
 
-topologicalOrdering :: JoinTree v -> [Node v]
+topologicalOrdering :: JoinForest v -> [Node v]
 topologicalOrdering t = U.fromRight $ G.topSort $ G.toAdjacencyMap t.g
 
 --------------------------------------------------------------------------------
 -- Unsafe variants
 --------------------------------------------------------------------------------
 
-unsafeFindById :: Id -> JoinTree v -> Node v
+unsafeFindById :: Id -> JoinForest v -> Node v
 unsafeFindById = (fromJust . ) . findById
 
-unsafeIncomingEdges :: Id -> JoinTree v -> [Node v]
+unsafeIncomingEdges :: Id -> JoinForest v -> [Node v]
 unsafeIncomingEdges = (fromJust .) . incomingEdges
 
-unsafeIncomingEdges' :: Id -> JoinTree v -> (Node v, [Node v])
+unsafeIncomingEdges' :: Id -> JoinForest v -> (Node v, [Node v])
 unsafeIncomingEdges' = (fromJust .) . incomingEdges'
 
-unsafeOutgoingEdges :: Id -> JoinTree v -> [Node v]
+unsafeOutgoingEdges :: Id -> JoinForest v -> [Node v]
 unsafeOutgoingEdges = (fromJust .) . outgoingEdges
 
-unsafeOutgoingEdges' :: Id -> JoinTree v -> (Node v, [Node v])
+unsafeOutgoingEdges' :: Id -> JoinForest v -> (Node v, [Node v])
 unsafeOutgoingEdges' = (fromJust .) . outgoingEdges'
 
 --------------------------------------------------------------------------------
@@ -232,14 +232,14 @@ unsafeOutgoingEdges' = (fromJust .) . outgoingEdges'
 -- Invariants
 --------------------------------------------------------------------------------
 
-isAcyclic :: JoinTree v -> Bool
+isAcyclic :: JoinForest v -> Bool
 isAcyclic t = isJust . G.toAcyclic . G.toAdjacencyMap $ t.g
 
 -- TODO: is acyclic
-satisfiesInvariants :: JoinTree v -> Bool
+satisfiesInvariants :: JoinForest v -> Bool
 satisfiesInvariants t = isAcyclic t
 
-assertInvariants :: JoinTree v -> JoinTree v
+assertInvariants :: JoinForest v -> JoinForest v
 assertInvariants t = assert (satisfiesInvariants t) t
 
 

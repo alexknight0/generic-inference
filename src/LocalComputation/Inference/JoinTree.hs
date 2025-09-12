@@ -7,10 +7,10 @@
 module LocalComputation.Inference.JoinTree (
 
     -- Join tree construction
-      baseJoinTree
+      baseJoinForest
 
     -- Join tree type
-    , JoinTree
+    , JoinForest
     , Node (id, v, t)
     , NodeType (Valuation, Query, Union, Projection)
     , node
@@ -88,11 +88,11 @@ The query domains are used only to ensure the join tree has a node that answers
 each query (by creating empty nodes for each the query domain). The node ids
 of the input valuations 'vs' in the final join tree are [0 .. (length vs)] respectively.
 -}
-baseJoinTree :: forall v a. (Show a, Valuation v, Ord a)
+baseJoinForest :: forall v a. (Show a, Valuation v, Ord a)
     => [v a]
     -> [Domain a]
-    -> JoinTree (v a)
-baseJoinTree vs queries = fromGraph $ G.edges $ baseJoinTree' nextNodeId r d
+    -> JoinForest (v a)
+baseJoinForest vs queries = fromGraph $ G.edges $ baseJoinForest' nextNodeId r d
     where
         d :: E.EliminationSequence a
         d = E.create $ map label vs
@@ -104,7 +104,7 @@ baseJoinTree vs queries = fromGraph $ G.edges $ baseJoinTree' nextNodeId r d
         nextNodeId :: Id
         nextNodeId = fromIntegral $ length r
 
-{- | For a more general explanation of the overall algorithm see 'baseJoinTree'.
+{- | For a more general explanation of the overall algorithm see 'baseJoinForest'.
 
 'r' holds the valuations / queries that need to be placed in the join tree in node form.
 Each iteration we eliminate a variable, and store all the nodes that had this variable in 'phiX'.
@@ -118,16 +118,16 @@ Where convenient, variables have been named as they appear in the pseudocode des
 is a parameter such that there currently exists no nodes with id > 'nextNodeId' in the tree. As we may
 create up to 2 nodes on each iteration, we make the recursive call with 'nextNodeId + 2'
 -}
-baseJoinTree' :: forall v a . (Valuation v, Ord a, Show a)
+baseJoinForest' :: forall v a . (Valuation v, Ord a, Show a)
     => Id
     -> [Node (v a)]
     -> E.EliminationSequence a
     -> [(Node (v a), Node (v a))]
-baseJoinTree' nextNodeId r d
+baseJoinForest' nextNodeId r d
     | E.isEmpty d = []
     | length r <= 1 = []
-    | length r' > 0 = union (union [(nUnion, nP)] e) (baseJoinTree' (nextNodeId + 2) (union [nP] r') d')
-    | otherwise = union e (baseJoinTree' (nextNodeId + 2) r' d')
+    | length r' > 0 = union (union [(nUnion, nP)] e) (baseJoinForest' (nextNodeId + 2) (union [nP] r') d')
+    | otherwise = union e (baseJoinForest' (nextNodeId + 2) r' d')
     where
         (x, d') = fromJust $ E.eliminateNext d
 
@@ -157,8 +157,8 @@ baseJoinTree' nextNodeId r d
 collectTree :: (Show a, Valuation v, Ord a)
     => [v a]
     -> Domain a
-    -> JoinTree (v a)
-collectTree vs q = U.assertP supportsCollect $ redirectToQueryNode q $ baseJoinTree vs [q]
+    -> JoinForest (v a)
+collectTree vs q = U.assertP supportsCollect $ redirectToQueryNode q $ baseJoinForest vs [q]
 
 --------------------------------------------------------------------------------
 -- Join tree algorithms
@@ -171,15 +171,15 @@ collectTree vs q = U.assertP supportsCollect $ redirectToQueryNode q $ baseJoinT
 If a forest is given, will not impact trees that don't contain the node of the given id.
 -}
 {- Works by traversing out from the given node, flipping any edges that it uses along its journey -}
-redirectTree :: forall a . Id -> JoinTree a -> JoinTree a
+redirectTree :: forall a . Id -> JoinForest a -> JoinForest a
 redirectTree i g = foldr f g outgoingNodes
     where
         (this, outgoingNodes) = unsafeOutgoingEdges' i g
 
-        f :: Node a -> JoinTree a -> JoinTree a
+        f :: Node a -> JoinForest a -> JoinForest a
         f n acc = flipEdge this n $ redirectTree n.id acc
 
-renumberTree :: JoinTree a -> JoinTree a
+renumberTree :: JoinForest a -> JoinForest a
 renumberTree g = mapVertices (\n -> changeId n $ (M.!) newNumbering n.id) g
     where
         -- TODO: Fix.
@@ -192,7 +192,7 @@ renumberTree g = mapVertices (\n -> changeId n $ (M.!) newNumbering n.id) g
 -- If multiple query nodes with this domain exist, one is chosen at random. This function only
 -- searches amongst nodes with a `NodeType` of `Query`.
 redirectToQueryNode :: (Valuation v, Ord a, Show a)
-    => Domain a -> JoinTree (v a) -> JoinTree (v a)
+    => Domain a -> JoinForest (v a) -> JoinForest (v a)
 redirectToQueryNode d g = renumberTree $ redirectTree (queryNode.id) g
     where
         queryNode = head $ filter (\n -> n.d == d && n.t == Query) (vertexList g)

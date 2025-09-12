@@ -49,9 +49,9 @@ a result through a given `SendPort` that represents their state after the messag
 -- This function can be extended to work on directed graphs if required by seperating the neighbours
 -- sent to each node into 'incoming' and 'outgoing' neighbours
 messagePassing :: forall v a. (SerializableValuation v a)
-    => JT.JoinTree (v a)
+    => JT.JoinForest (v a)
     -> NodeActions v a
-    -> Process (JT.JoinTree (v a))
+    -> Process (JT.JoinForest (v a))
 messagePassing directed nodeActions = do
 
     -- Initialize all nodes

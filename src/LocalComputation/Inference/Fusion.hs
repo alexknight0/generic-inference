@@ -78,7 +78,7 @@ fusion' uniqueId upperPsi (y:ys) = fusion' (uniqueId + 1) upperPsi' ys
 --
 -- __Warning__: will fail if a disconnected join tree is given.
 fusionPass :: (MP.SerializableValuation v a, Show (v a))
-    => D.DrawSettings -> [v a] -> Domain a -> Process (JT.JoinTree (v a))
+    => D.DrawSettings -> [v a] -> Domain a -> Process (JT.JoinForest (v a))
 fusionPass settings vs queryDomain = do
     drawTree settings.beforeInference treeBeforeInference
 
@@ -90,7 +90,7 @@ fusionPass settings vs queryDomain = do
 
     where
         -- TODO: Change to collectTree
-        treeBeforeInference = JT.redirectToQueryNode queryDomain $ JT.baseJoinTree vs [queryDomain]
+        treeBeforeInference = JT.redirectToQueryNode queryDomain $ JT.baseJoinForest vs [queryDomain]
 
         drawTree Nothing         _    = pure ()
         drawTree (Just filename) tree = liftIO $ D.draw filename tree

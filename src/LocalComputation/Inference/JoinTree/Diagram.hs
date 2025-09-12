@@ -47,7 +47,7 @@ data DiagramWithBorder a = DiagramWithBorder {
 
 -- Draws a tree from the given graph, outputting the drawing into a file of the given name. Has the same assumptions as `tree`.
 draw :: (V.Valuation v, Show (v a), Ord a, Show a)
-    => FilePath -> JT.JoinTree (v a) -> IO ()
+    => FilePath -> JT.JoinForest (v a) -> IO ()
 draw name g = do
     -- Create directory for file if necessary
     createDirectoryIfMissing True (takeDirectory name)
@@ -67,7 +67,7 @@ draw name g = do
 -- Assumes the given graph has a tree like structure, as specified in the description of `baseJoinTree`,
 -- and that the node with the highest `id` is the root.
 tree :: (V.Valuation v, Show (v a), Ord a, Show a)
-    => SF.PreparedFont Double -> JT.JoinTree (v a) -> Diagram B
+    => SF.PreparedFont Double -> JT.JoinForest (v a) -> Diagram B
 tree chosenFont g = assert (length rootOutgoingEdges == 0) $
                            tree' chosenFont root g
     where
@@ -77,7 +77,7 @@ tree chosenFont g = assert (length rootOutgoingEdges == 0) $
 
 -- | Produces a diagram of a tree by following all **incoming** edges from a given node in a graph. Assumes the given node is in the tree.
 tree' :: (V.Valuation v, Show (v a), Ord a, Show a)
-    => SF.PreparedFont Double -> JT.Node (v a) -> JT.JoinTree (v a) -> Diagram B
+    => SF.PreparedFont Double -> JT.Node (v a) -> JT.JoinForest (v a) -> Diagram B
 tree' chosenFont node g = vsep vgap [root.diagram, parents] # applyAll arrows
     where
         root = treeNode chosenFont node

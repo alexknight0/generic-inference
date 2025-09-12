@@ -16,7 +16,7 @@ import           Control.Exception                           (assert)
 import qualified Data.List                                   as L
 import           Data.Maybe                                  (fromJust)
 import           LocalComputation.Inference.JoinTree         (Node (..),
-                                                              baseJoinTree)
+                                                              baseJoinForest)
 import qualified LocalComputation.Inference.JoinTree         as J
 import qualified LocalComputation.Inference.JoinTree         as JT
 import qualified LocalComputation.Inference.JoinTree.Diagram as D
@@ -35,7 +35,7 @@ import           LocalComputation.ValuationAlgebra
 -- the subproblem of finding 'groups' of nodes in the larger graph.
 
 -- TODO: Rename ResultingTree; stop exporting
-type InferredData v a = JT.JoinTree (v a)
+type InferredData v a = JT.JoinForest (v a)
 
 -- | Extracts a given query from the query results.
 --
@@ -69,7 +69,7 @@ queries settings vs queryDomains = do
     pure $ extractQueryResult queryDomains treeAfterInference
 
     where
-        treeBeforeInference = baseJoinTree vs queryDomains
+        treeBeforeInference = baseJoinForest vs queryDomains
 
         drawTree Nothing         _    = pure ()
         drawTree (Just filename) tree = liftIO $ D.draw filename tree
