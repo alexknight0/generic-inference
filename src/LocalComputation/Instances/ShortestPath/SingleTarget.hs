@@ -11,29 +11,31 @@ module LocalComputation.Instances.ShortestPath.SingleTarget
     )
 where
 
-import           Data.Maybe                                                   (fromJust)
-import qualified Data.Set                                                     as S
+import           Data.Maybe                                           (fromJust)
+import qualified Data.Set                                             as S
 
-import qualified Data.Map                                                     as MP
-import qualified LocalComputation.LabelledMatrix                              as M
-import qualified LocalComputation.ValuationAlgebra.QuasiRegular               as Q (SemiringValue (one, zero),
-                                                                                    TropicalSemiringValue,
-                                                                                    Valuation,
-                                                                                    create,
-                                                                                    solution)
+import qualified Data.Map                                             as MP
+import qualified LocalComputation.LabelledMatrix                      as M
+import qualified LocalComputation.ValuationAlgebra.QuasiRegular       as Q (SemiringValue,
+                                                                            TropicalSemiringValue,
+                                                                            Valuation,
+                                                                            create,
+                                                                            one,
+                                                                            solution,
+                                                                            zero)
 -- Typeclasses
-import           Control.DeepSeq                                              (NFData)
-import           Control.Monad.IO.Class                                       (MonadIO)
-import           Data.Binary                                                  (Binary)
-import qualified Data.Hashable                                                as H
-import           LocalComputation.Graph                                       as G
-import qualified LocalComputation.Inference                                   as I
-import qualified LocalComputation.Inference.JoinTree.Diagram                  as D
-import           LocalComputation.Utils                                       (fromRight)
-import qualified LocalComputation.ValuationAlgebra                            as V
-import qualified LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue as Q (TropicalSemiringValue (..),
-                                                                                    toDouble)
-import           Type.Reflection                                              (Typeable)
+import           Control.DeepSeq                                      (NFData)
+import           Control.Monad.IO.Class                               (MonadIO)
+import           Data.Binary                                          (Binary)
+import qualified Data.Hashable                                        as H
+import           LocalComputation.Graph                               as G
+import qualified LocalComputation.Inference                           as I
+import qualified LocalComputation.Inference.JoinTree.Diagram          as D
+import           LocalComputation.Utils                               (fromRight)
+import qualified LocalComputation.ValuationAlgebra                    as V
+import qualified LocalComputation.ValuationAlgebra.QuasiRegular.Value as Q (TropicalSemiringValue (..),
+                                                                            toDouble)
+import           Type.Reflection                                      (Typeable)
 
 -- TODO: A notable property here seems to be that we don't need to find the shortest path from 'all' nodes;
 -- by restricting the domain we can find the shortest path from a few targets - something you can't do with

@@ -63,6 +63,8 @@ type Var a = (Show a, Ord a)
 
 -- TODO: document choice of having two types 'a' and 'b'
 -- TODO: Could use 'data' constructor inside class declaration...
+
+-- | A valuation belonging to a certain family of valuation algebras
 class ValuationFamily v where
 
     type VarAssignment v a b

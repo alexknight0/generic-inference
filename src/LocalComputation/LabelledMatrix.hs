@@ -33,37 +33,36 @@ module LocalComputation.LabelledMatrix
     )
 where
 
-import           Control.Exception                                            (assert)
-import qualified Control.Monad                                                as Monad
-import qualified Data.Bimap                                                   as BM
-import qualified Data.Map                                                     as Map
-import qualified Data.Matrix                                                  as M'
-import           Data.Maybe                                                   (fromJust,
-                                                                               isJust)
-import qualified Data.Set                                                     as S
-import           LocalComputation.Utils                                       (assert',
-                                                                               fromRight)
-import qualified LocalComputation.Utils                                       as Map (fromList'')
-import qualified LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue as Q
+import           Control.Exception                                    (assert)
+import qualified Control.Monad                                        as Monad
+import qualified Data.Bimap                                           as BM
+import qualified Data.Map                                             as Map
+import qualified Data.Matrix                                          as M'
+import           Data.Maybe                                           (fromJust,
+                                                                       isJust)
+import qualified Data.Set                                             as S
+import           LocalComputation.Utils                               (assert',
+                                                                       fromRight)
+import qualified LocalComputation.Utils                               as Map (fromList'')
+import qualified LocalComputation.ValuationAlgebra.QuasiRegular.Value as Q
 
 -- Typeclasses
-import           Control.DeepSeq                                              (NFData)
-import           Data.Binary                                                  (Binary,
-                                                                               get,
-                                                                               put)
-import qualified Data.Binary.Get                                              as B
-import           GHC.Generics                                                 (Generic)
+import           Control.DeepSeq                                      (NFData)
+import           Data.Binary                                          (Binary,
+                                                                       get, put)
+import qualified Data.Binary.Get                                      as B
+import           GHC.Generics                                         (Generic)
 
-import           GHC.Records                                                  (HasField,
-                                                                               getField)
+import           GHC.Records                                          (HasField,
+                                                                       getField)
 
-import qualified Data.List                                                    as L
-import           Data.Massiv.Array                                            (Ix2 ((:.)))
-import qualified Data.Massiv.Array                                            as M
-import qualified Data.Tuple.Extra                                             as T
-import           Debug.Trace                                                  (trace)
-import qualified LocalComputation.Pretty                                      as P
-import qualified LocalComputation.Utils                                       as U
+import qualified Data.List                                            as L
+import           Data.Massiv.Array                                    (Ix2 ((:.)))
+import qualified Data.Massiv.Array                                    as M
+import qualified Data.Tuple.Extra                                     as T
+import           Debug.Trace                                          (trace)
+import qualified LocalComputation.Pretty                              as P
+import qualified LocalComputation.Utils                               as U
 
 -- TODO: Change asserts to take place *after* the function is called;
 -- much safer this way.
@@ -324,7 +323,7 @@ multiplys zero addElems multiplyElems ms
 
 This formula is detailed in "Generic Inference" (Pouly and Kohlas, 2012).
 -}
-quasiInverse :: (Ord a, Q.QSemiringValue c, Show a, Show c)
+quasiInverse :: (Ord a, Q.SemiringValue c, Show a, Show c)
     => LabelledMatrix a a c
     -> Maybe (LabelledMatrix a a c)
 quasiInverse x | assertIsWellFormed x = undefined
@@ -480,7 +479,7 @@ checkIsAscPairList ((x, y) : zs) = all (\(x', y') -> x < x' && y < y') zs
 unsafeProject :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> LabelledMatrix a b c
 unsafeProject = ((fromJust .) .) . project
 
-unsafeQuasiInverse :: (Ord a, Q.QSemiringValue c, Show a, Show c)
+unsafeQuasiInverse :: (Ord a, Q.SemiringValue c, Show a, Show c)
     => LabelledMatrix a a c
     -> LabelledMatrix a a c
 unsafeQuasiInverse = fromJust . quasiInverse

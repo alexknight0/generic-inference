@@ -1,15 +1,15 @@
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
-    ( QSemiringValue (quasiInverse)
-    , SemiringValue (add, multiply, zero, one)
+module LocalComputation.ValuationAlgebra.QuasiRegular.Value
+    ( SemiringValue (quasiInverse)
+    , add, multiply, zero, one
     , TropicalSemiringValue (T)
     , toDouble
     )
 where
 
-import           LocalComputation.ValuationAlgebra.Semiring
+import qualified LocalComputation.ValuationAlgebra.Semiring as S
 
 -- Typeclasses
 import           Control.DeepSeq                            (NFData)
@@ -17,27 +17,41 @@ import           Data.Binary                                (Binary)
 import           GHC.Generics                               (Generic)
 
 -- | A Quasi-regular semiring is also known as a 'closed' semiring
-class (SemiringValue a) => QSemiringValue a where
+class (S.SemiringValue a) => SemiringValue a where
     quasiInverse :: a -> a
+
+add :: (SemiringValue a) => a -> a -> a
+add = S.add
+
+multiply :: (SemiringValue a) => a -> a -> a
+multiply = S.multiply
+
+zero :: (SemiringValue a) => a   -- the additive identity
+zero = S.zero
+
+one :: (SemiringValue a) => a    -- the multiplicative identity
+one = S.one
 
     -- TODO:
     -- zero and one also has to satisfy some special laws with
     -- respect to idempotency and monotonicity to
     -- work for path problems? pdf page 257 gen. inf.
 
--- | A value from the tropical semiring of all real numbers. Detailed page 232 of "Generic Inference" (Pouly & Kohlas, 2012).
+-- | A value from the tropical semiring of all real numbers.
+--
+-- Detailed page 232 of "Generic Inference" (Pouly & Kohlas, 2012).
 newtype TropicalSemiringValue = T Double deriving (Ord, Num, Real, Enum, Show, NFData, Eq, Generic, Read, Binary)
 
 toDouble :: TropicalSemiringValue -> Double
 toDouble (T x) = x
 
-instance SemiringValue TropicalSemiringValue where
+instance S.SemiringValue TropicalSemiringValue where
     add = min
     multiply = (+)
     zero = T (read "Infinity" :: Double)
     one = 0
 
-instance QSemiringValue TropicalSemiringValue where
+instance SemiringValue TropicalSemiringValue where
     quasiInverse x
         | x >= 0 = 0
         | otherwise = T (read "-Infinity" :: Double)

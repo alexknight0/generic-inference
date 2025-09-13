@@ -59,9 +59,9 @@ library
       LocalComputation.Utils.Set
       LocalComputation.ValuationAlgebra
       LocalComputation.ValuationAlgebra.QuasiRegular
-      LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue
+      LocalComputation.ValuationAlgebra.QuasiRegular.Value
       LocalComputation.ValuationAlgebra.Semiring
-      LocalComputation.ValuationAlgebra.SemiringValue
+      LocalComputation.ValuationAlgebra.Semiring.Value
       Tests
       Tests.BayesianNetwork
       Tests.FastFourierTransform

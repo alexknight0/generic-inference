@@ -33,7 +33,6 @@ import           Control.Distributed.Process
 import           Control.Distributed.Process.Node
 import           LocalComputation.Instances.BayesianNetwork
 import qualified LocalComputation.Instances.ShortestPath.SingleTarget         as ST
-import           LocalComputation.ValuationAlgebra.QuasiRegular.SemiringValue (TropicalSemiringValue (..))
 import           Network.Transport.TCP
 import           Tests.BayesianNetwork                                        (dataToValuations)
 import           Text.Pretty.Simple                                           (pPrint)

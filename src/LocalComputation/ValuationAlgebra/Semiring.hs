@@ -22,12 +22,12 @@ where
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra
 
-import           Control.Exception                               (assert)
-import qualified Data.Map                                        as M
-import qualified Data.Set                                        as S
-import qualified LocalComputation.Pretty                         as P
-import qualified LocalComputation.Utils                          as U
-import           LocalComputation.ValuationAlgebra.SemiringValue
+import           Control.Exception                                (assert)
+import qualified Data.Map                                         as M
+import qualified Data.Set                                         as S
+import qualified LocalComputation.Pretty                          as P
+import qualified LocalComputation.Utils                           as U
+import           LocalComputation.ValuationAlgebra.Semiring.Value
 
 {- | Valuation for a semiring valuation algebra.
 
