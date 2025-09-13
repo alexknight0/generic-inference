@@ -110,14 +110,26 @@ genGraph nodes arcs = do
         selfLoops = [G.Edge x x 0 | x <- [0 .. nodes - 1]]
 
 
+-- TODO: Wait of course it rreturns an empty list, how many graphs are you going to break up an empty graph into??
 genGraphs :: Natural -> Natural -> Gen [G.Graph Natural Double]
 genGraphs nodes arcs = do
-    original <- genGraph nodes arcs
+    original <- fmap G.toList $ genGraph nodes arcs
 
-    pure $ map (G.addSelfLoops 0)
-         $ map G.fromList
-         $ L.chunksOf (max 1 $ div (fromIntegral nodes) 5)
-         $ G.toList original
+    pure $ case original of
+        [] -> [G.empty]
+        edges ->   map (G.addSelfLoops 0)
+                 $ map G.fromList
+                 $ L.chunksOf (max 1 $ div (fromIntegral nodes) 5)
+                 $ edges
+
+foobar :: ()
+foobar = undefined
+{-
+
+>>> sample $ fmap (L.chunksOf 1 . G.toList) $ genGraph 0 0
+[]
+
+-}
 
 -- | Takes a hedgehog generator and generates a random sample.
 sample :: Gen a -> IO a

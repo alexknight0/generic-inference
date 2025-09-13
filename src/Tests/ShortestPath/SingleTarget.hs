@@ -74,10 +74,7 @@ randomMatchesBaseline' mode numTests = withTests numTests . property $ do
 
     query <- forAll $ genConnectedQuery (G.reverseAdjacencyList (G.merges1 graphs))
 
-    -- if not $ G.isConnected (G.merges1 graphs) then discard else pure ()
-
     if G.nodeList (G.merges1 graphs) == [] then discard else pure ()
-
 
     baseline  <- go Baseline query graphs
     local     <- go mode query graphs
