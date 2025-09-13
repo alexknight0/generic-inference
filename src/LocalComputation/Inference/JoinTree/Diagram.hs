@@ -46,6 +46,8 @@ data DiagramWithBorder a = DiagramWithBorder {
 
 -- TODO: Add more options to draw (such as size)
 
+-- TODO: Update to *actually* work on forests, or update to take JoinTree instead.
+
 -- Draws a tree from the given graph, outputting the drawing into a file of the given name. Has the same assumptions as `tree`.
 draw :: (V.Valuation v, Show (v a), Ord a, Show a)
     => FilePath -> JT.JoinForest (v a) -> IO ()

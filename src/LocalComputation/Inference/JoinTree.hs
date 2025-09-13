@@ -141,11 +141,13 @@ baseJoinForest' nextNodeId r d
             where
                 nPDomain = (fromList $ setDifference (toList domainOfPhiX) [x])
 
+-- | Creates a join tree that can be used for collect problems.
 collectTree :: (Show a, Valuation v, Ord a)
     => [v a]
     -> Domain a
     -> JoinTree (v a)
 collectTree vs q = unsafeConvertToCollectTree (baseJoinForest vs [q]) q
+                -- ^^^ call is safe in this case.
 
 --------------------------------------------------------------------------------
 -- Join tree algorithms
