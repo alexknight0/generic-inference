@@ -24,6 +24,7 @@ module LocalComputation.ValuationAlgebra
     , Var
     , showDomain
     , assertInvariants
+    , isIdentity
 
     -- Serialization related typeclasses
     , Binary   -- Must be derived for serialization
@@ -101,6 +102,9 @@ combines1 = foldr1 combine
 
 showDomain :: Show a => Domain a -> String
 showDomain x = "{" ++ L.intercalate "," (map show (S.toList x)) ++ "}"
+
+isIdentity :: (ValuationFamily v, Var a, Eq (v a)) => v a -> Bool
+isIdentity v = v == identity (label v)
 
 {- TODO: Add to future work / methodology / results:
 

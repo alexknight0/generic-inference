@@ -75,7 +75,8 @@ queries settings vs queryDomains = do
         drawTree Nothing         _    = pure ()
         drawTree (Just filename) tree = liftIO $ D.drawForest filename tree
 
-
+-- TODO: A lot of combines are repeated in this process. This could definitely be
+-- improved with a dynamic programming solution.
 nodeActions :: (MP.SerializableValuation v a)
     => MP.NodeActions v a
 nodeActions this neighbours resultPort = do

@@ -34,7 +34,7 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular as Q
 --
 -- This function can be made more generic; but dynamic programming is only implemented
 -- for the quasiregular valuation algebra, so it is implemented instance-specific here.
-solution :: forall a b . (V.Var a, Q.SemiringValue b, Show b)
+solution :: forall a b . (V.Var a, Q.SemiringValue b, Show b, Eq b)
     => JT.JoinTree (Q.Valuation b a)
     -> V.VarAssignment (Q.Valuation b) a b
 solution t | assert (JT.supportsCollect t) False = undefined
@@ -47,7 +47,9 @@ solution t = go (t.root.id - 1) initialX
         empty = M.reshape U.unusedArg M.empty S.empty (S.singleton ())
 
         go 0 x = x
-        go i x = go (i - 1) (fromJust $ M.appendRows x y)
+        go i x
+            | V.isIdentity nodeI.v = go (i - 1) x   -- Skip identity elements
+            | otherwise            = go (i - 1) (M.unsafeAppendRows x y)
             where
                 nodeI      = (Map.!) vertices i
                 nodeChildI = head $ JT.unsafeOutgoingEdges nodeI.id t

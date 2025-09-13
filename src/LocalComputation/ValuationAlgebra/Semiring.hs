@@ -29,6 +29,9 @@ import qualified LocalComputation.Pretty                          as P
 import qualified LocalComputation.Utils                           as U
 import           LocalComputation.ValuationAlgebra.Semiring.Value
 
+-- TODO: Might be able to simplify this definition if a better notion of the identity element is created.
+-- Or this might just slow the performance down.
+
 {- | Valuation for a semiring valuation algebra.
 
 This can be thought of as a table, with each entry as a row.

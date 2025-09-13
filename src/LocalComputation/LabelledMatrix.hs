@@ -31,6 +31,7 @@ module LocalComputation.LabelledMatrix
     , decompose
     , joinSquare
     , isWellFormed
+    , unsafeAppendRows
     )
 where
 
@@ -481,6 +482,9 @@ checkIsAscPairList ((x, y) : zs) = all (\(x', y') -> x < x' && y < y') zs
 --------------------------------------------------------------------------------
 -- Unsafe variants
 --------------------------------------------------------------------------------
+unsafeAppendRows :: (Ord a, Eq b) => LabelledMatrix a b c -> LabelledMatrix a b c -> LabelledMatrix a b c
+unsafeAppendRows = (fromJust .) . appendRows
+
 unsafeProject :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> LabelledMatrix a b c
 unsafeProject = ((fromJust .) .) . project
 

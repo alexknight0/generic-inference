@@ -101,9 +101,12 @@ _extension (Valuation m b) t = fromJust $ create (fromJust $ M.extension m t t Q
 
 -- | Produces the configuration extension set.
 --
--- Given a variable assignment x, a configuration extension set is a variable assignment y
--- such that
--- See page 368 of Marc Pouly's "Generic Inference"
+-- Given a variable assignment 'x', and a valuation of domain 's', we may want a
+-- variable assignment that adds additional assignments to 'x' to form a larger
+-- variable assignment with domain 's'. A configuration extension set is the set
+-- of valid variable assignments we could add to 'x' to achieve this.
+--
+-- See page 368 of Marc Pouly's "Generic Inference" for more details.
 configExtSet :: (Q.SemiringValue c, Show a, Show c, Ord a)
     => Valuation c a
     -> VarAssignment (Valuation c) a c
