@@ -4,31 +4,19 @@
 {-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
--- TODO: Fix imports
 module LocalComputation.Inference.JoinTree (
 
     -- Join tree construction
       baseJoinForest
+    , collectTree
 
     -- Join tree type
+    , JoinTree
     , JoinForest
     , Node (id, v, t)
     , NodeType (Valuation, Query, Union, Projection)
     , node
     , changeContent
-
-    -- Join tree functions
-    , redirectToQueryNode
-    , unsafeFindById
-    , unsafeOutgoingEdges
-    , unsafeIncomingEdges
-    , unsafeOutgoingEdges'
-    , unsafeIncomingEdges'
-    , neighbourMap
-    , vertexList
-    , collectTree
-    , toForest
-    , unsafeUpdateValuations
 ) where
 
 import           Data.List                                      (union)
@@ -41,26 +29,17 @@ import           LocalComputation.Inference.JoinTree.Tree       (Id, JoinTree,
                                                                  Node (id, t, v),
                                                                  NodeType (..),
                                                                  changeContent,
-                                                                 node,
-                                                                 redirectToQueryNode,
-                                                                 supportsCollect)
+                                                                 node)
 
 import           Data.Maybe                                     (fromJust)
 import           LocalComputation.ValuationAlgebra
 
 import qualified Algebra.Graph                                  as G
-import qualified Data.Map                                       as M
-import qualified LocalComputation.Utils                         as U
 
 --------------------------------------------------------------------------------
 -- Join tree creation algorithms
 --------------------------------------------------------------------------------
 
--- TODO: Move into joinforest to avoid exporting the regular joinforest constructor.
-
--- TODO: A seperate type for join trees that guarantees properties such as the root
--- node having the largest label (a property currently used by fusion message passing)
--- should be utilised.
 {- | The core join tree construction algorithm that all required join trees are built from.
 This is precisely the join tree construction algorithm described on page 22 of
 "A Generic Architecture for Local Computation" by Marc Pouly.

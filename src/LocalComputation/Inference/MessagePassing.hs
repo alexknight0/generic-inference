@@ -16,17 +16,18 @@ module LocalComputation.Inference.MessagePassing (
     , DistributeResults (postbox)
 ) where
 
-import           Control.Distributed.Process              hiding (Message)
+import           Control.Distributed.Process                hiding (Message)
 import           Control.Distributed.Process.Serializable
 
-import           Control.Exception                        (assert)
-import           Control.Monad                            (forM_, replicateM)
-import qualified Data.Map                                 as M
-import qualified LocalComputation.Inference.JoinTree      as JT
-import qualified LocalComputation.Utils                   as U
-import           LocalComputation.ValuationAlgebra        (Binary, Generic,
-                                                           Typeable)
-import qualified LocalComputation.ValuationAlgebra        as V
+import           Control.Exception                          (assert)
+import           Control.Monad                              (forM_, replicateM)
+import qualified Data.Map                                   as M
+import qualified LocalComputation.Inference.JoinTree        as JT
+import qualified LocalComputation.Inference.JoinTree.Forest as JT
+import qualified LocalComputation.Utils                     as U
+import           LocalComputation.ValuationAlgebra          (Binary, Generic,
+                                                             Typeable)
+import qualified LocalComputation.ValuationAlgebra          as V
 
 
 type SerializableValuation v a = (V.Valuation v, V.Var a, Binary (v a), Typeable v, Typeable a)

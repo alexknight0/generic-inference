@@ -20,6 +20,7 @@ import           LocalComputation.Inference.JoinTree         (Node (..),
 import qualified LocalComputation.Inference.JoinTree         as J
 import qualified LocalComputation.Inference.JoinTree         as JT
 import qualified LocalComputation.Inference.JoinTree.Diagram as D
+import qualified LocalComputation.Inference.JoinTree.Forest  as JT
 import qualified LocalComputation.Inference.MessagePassing   as MP
 import           LocalComputation.ValuationAlgebra
 

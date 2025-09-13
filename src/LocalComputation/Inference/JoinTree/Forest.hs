@@ -6,7 +6,6 @@
 
 module LocalComputation.Inference.JoinTree.Forest (
     -- Join tree type
-    -- TODO: remove g?
       JoinForest (g)
 
     -- Join tree functions
@@ -45,9 +44,6 @@ import qualified LocalComputation.Inference.JoinTree.Tree as JT
 --------------------------------------------------------------------------------
 -- Join Trees
 --------------------------------------------------------------------------------
-
--- TODO: Invariants! For example we should know that this is a forest at every point in time.
--- (this implies everything is a tree!!!)
 
 -- TODO: Add invaraint that it can't be empty to make `root` safe.
 newtype JoinForest v = UnsafeJoinForest { g :: G.Graph (Node v) }

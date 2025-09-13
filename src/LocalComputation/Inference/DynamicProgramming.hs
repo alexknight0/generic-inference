@@ -11,6 +11,7 @@ module LocalComputation.Inference.DynamicProgramming (
 import           Data.Maybe                                     (fromJust)
 import qualified Data.Set                                       as S
 import qualified LocalComputation.Inference.JoinTree            as JT
+import qualified LocalComputation.Inference.JoinTree.Forest     as JT
 import qualified LocalComputation.LabelledMatrix                as M
 import qualified LocalComputation.Utils                         as U
 import qualified LocalComputation.ValuationAlgebra              as V
@@ -18,6 +19,8 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular as Q
 
 
 -- TODO: Have the function detect an invalid graph? (Bad numbering)
+
+-- TODO: Update argument
 
 -- | Computes a single solution from the solution set by repeatedly extending a solution set
 -- until it encompasses the whole query. In this case of a quasiregular valuation there is

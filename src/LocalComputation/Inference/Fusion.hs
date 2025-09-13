@@ -11,6 +11,7 @@ import           Control.Monad                               (replicateM)
 import qualified Data.Set                                    as S
 import qualified LocalComputation.Inference.JoinTree         as JT
 import qualified LocalComputation.Inference.JoinTree.Diagram as D
+import qualified LocalComputation.Inference.JoinTree.Forest  as JT
 import qualified LocalComputation.Inference.MessagePassing   as MP
 import           LocalComputation.ValuationAlgebra           (Domain,
                                                               Valuation (eliminate, label),

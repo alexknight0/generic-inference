@@ -9,20 +9,21 @@ module LocalComputation.Inference.JoinTree.Diagram (
     , def
 ) where
 
-import qualified Data.Colour                         as C
-import           Diagrams.Backend.SVG                (renderSVG)
+import qualified Data.Colour                                as C
+import           Diagrams.Backend.SVG                       (renderSVG)
 import           Diagrams.Backend.SVG.CmdLine
-import           Diagrams.Prelude                    hiding (def)
-import qualified Graphics.SVGFonts                   as SF
+import           Diagrams.Prelude                           hiding (def)
+import qualified Graphics.SVGFonts                          as SF
 
-import           Control.Exception                   (assert)
-import qualified Data.List                           as L
-import qualified Data.List.Extra                     as L (splitOn)
-import qualified Graphics.SVGFonts.ReadFont          as SF
-import qualified LocalComputation.Inference.JoinTree as JT
-import qualified LocalComputation.ValuationAlgebra   as V
-import           System.Directory.Extra              (createDirectoryIfMissing)
-import           System.FilePath                     (takeDirectory)
+import           Control.Exception                          (assert)
+import qualified Data.List                                  as L
+import qualified Data.List.Extra                            as L (splitOn)
+import qualified Graphics.SVGFonts.ReadFont                 as SF
+import qualified LocalComputation.Inference.JoinTree        as JT
+import qualified LocalComputation.Inference.JoinTree.Forest as JT
+import qualified LocalComputation.ValuationAlgebra          as V
+import           System.Directory.Extra                     (createDirectoryIfMissing)
+import           System.FilePath                            (takeDirectory)
 
 data DrawSettings = DrawSettings {
       beforeInference :: Maybe FilePath

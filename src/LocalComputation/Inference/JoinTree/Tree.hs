@@ -95,10 +95,10 @@ instance (Valuation v, Ord a, Show a) => Show (Node (v a)) where
     3. it is directed toward a node called the 'root',
     4. and has the running intersection property.
 
+    2 & 3 => root is the node with the largest id
+
 Notably the numbering of nodes with ids may not be total - some numbers may be skipped.
 For example, there may exist nodes with ids of 3 and 5 without the existence of a node of id 4.
-
-The combination of (2) and (3) imply the root has the highest node id.
 
 For the definition of the running intersection property, see Marc Pouly's "Generic Inference".
 -}
