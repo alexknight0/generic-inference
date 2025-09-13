@@ -36,7 +36,7 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular as Q
 -- for the quasiregular valuation algebra, so it is implemented instance-specific here.
 solution :: forall a b . (V.Var a, Q.QSemiringValue b, Show b)
     => JT.JoinTree (Q.QuasiRegularValuation b a)
-    -> M.LabelledMatrix a () b
+    -> V.VarAssignment (Q.QuasiRegularValuation b) a b
 solution t | assert (JT.supportsCollect t) False = undefined
 solution t = go (t.root.id - 1) initialX
     where
@@ -53,8 +53,8 @@ solution t = go (t.root.id - 1) initialX
                 nodeChildI = head $ JT.unsafeOutgoingEdges nodeI.id t
 
                 y = S.findMin $ Q.configExtSet nodeI.v
-                                            intersectionOfIAndChildI
-                                            (M.unsafeProject x intersectionOfIAndChildI (S.singleton ()))
+                                               intersectionOfIAndChildI
+                                               (M.unsafeProject x intersectionOfIAndChildI (S.singleton ()))
 
                 intersectionOfIAndChildI = S.intersection nodeI.d nodeChildI.d
 

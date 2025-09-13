@@ -38,7 +38,7 @@ create m b
 -- TODO: Probably can remove instance of Show? It doens't contribute to the 'label', 'combine', 'project' functionality no?
 instance (Show b, Q.QSemiringValue b) => Valuation (QuasiRegularValuation b) where
 
-    type VarAssignment (QuasiRegularValuation b) a b = M.Map a b
+    type VarAssignment (QuasiRegularValuation b) a b = M.LabelledMatrix a () b
 
     label (Identity d)    = d
     label (Valuation _ b) = fst (M.domain b)
@@ -103,8 +103,8 @@ _extension (Valuation m b) t = fromJust $ create (fromJust $ M.extension m t t Q
 configExtSet :: (Q.QSemiringValue c, Show a, Show c, Ord a)
     => QuasiRegularValuation c a
     -> Domain a
-    -> M.LabelledMatrix a () c
-    -> S.Set (M.LabelledMatrix a () c)
+    -> VarAssignment (QuasiRegularValuation c) a c
+    -> S.Set (VarAssignment (QuasiRegularValuation c) a c)
 configExtSet     (Identity _)    _ _ = error "Not implemented error"
 configExtSet phi@(Valuation m b) t x = S.singleton result
     where
