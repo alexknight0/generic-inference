@@ -65,16 +65,15 @@ randomMatchesBaseline = do
         getTest mode = (Hedgehog.PropertyName $ "prop_random_MatchesBaseline_" ++ show mode
                       , randomMatchesBaseline' mode 100)
 
--- TODO: Something doesn't like empty graphs...
 randomMatchesBaseline' :: Implementation -> TestLimit -> Property
 randomMatchesBaseline' mode numTests = withTests numTests . property $ do
-    nodes <- forAll $ Gen.int (Range.linear 2 100)
-    edges <- forAll $ Gen.int (Range.linear 2 1000)
+    nodes <- forAll $ Gen.int (Range.linear 1 100)   -- There is no valid query for 0 nodes.
+    edges <- forAll $ Gen.int (Range.linear 0 1000)
     graphs <- forAll $ genGraphs (fromIntegral nodes) (fromIntegral edges)
 
-    query <- forAll $ genConnectedQuery (G.reverseAdjacencyList (G.merges1 graphs))
+    let fullGraph = G.merges1 graphs
 
-    if G.nodeList (G.merges1 graphs) == [] then discard else pure ()
+    query <- forAll $ genConnectedQuery (G.reverseAdjacencyList fullGraph)
 
     baseline  <- go Baseline query graphs
     local     <- go mode query graphs

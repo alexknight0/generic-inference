@@ -9,6 +9,10 @@ where
 -- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
 -- 1. Make fusion construct a better join tree for itself.
 -- 2. Make quasiregular split the graph nicely for itself.
+-- And after:
+-- 1. Test singleTarget with a multiple query architecture, splitting
+--    the 'domain' into pairs of (target, source) instead of a single
+--    large query.
 
 import           Benchmarks.FastFourierTransform.Baseline        (dft)
 import           Criterion.Main

@@ -24,6 +24,7 @@ module LocalComputation.Graph
     , adjacencyList
     , reverseAdjacencyList
     , empty
+    , isEmpty
     , deleteVertex
     , isConnected
     )
@@ -146,6 +147,9 @@ reverseAdjacencyList = adjacencyList . flipArcDirections
 
 empty :: Graph a b
 empty = Graph M.empty
+
+isEmpty :: Graph a b -> Bool
+isEmpty (Graph g) = length g == 0
 
 deleteVertex :: (Ord a) => a -> Graph a b -> Graph a b
 deleteVertex x g = fromList $ filter (\e -> e.arcHead /= x && e.arcTail /= x) $ toList g

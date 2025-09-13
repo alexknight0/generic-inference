@@ -71,15 +71,12 @@ genConnectedQuery reverseAdjacencyList = do
     sources <- Gen.subsequence possibleSources
     pure $ Query sources target
 
--- TODO: Update as we did to genConnectedQuery
-
 -- | Generates a random list of queries given a graph and a number of queries to generate.
 genConnectedQueries :: (Ord a) => Natural -> G.Graph a b -> Gen ([Query a])
-genConnectedQueries numQueries g = do
-    queries <- Gen.list (Range.singleton $ fromIntegral numQueries)
-                        (Gen.element (G.reverseAdjacencyList g))
-    pure $ fmap (\(target, sources) -> Query sources target) queries
-
+genConnectedQueries numQueries g = Gen.list (Range.singleton $ fromIntegral numQueries)
+                                            (genConnectedQuery reverseAdjacencyList)
+    where
+        reverseAdjacencyList = G.reverseAdjacencyList g
 
 genEdge :: Gen a -> Gen b -> Gen (G.Edge a b)
 genEdge genNode genCost = do
@@ -110,26 +107,14 @@ genGraph nodes arcs = do
         selfLoops = [G.Edge x x 0 | x <- [0 .. nodes - 1]]
 
 
--- TODO: Wait of course it rreturns an empty list, how many graphs are you going to break up an empty graph into??
 genGraphs :: Natural -> Natural -> Gen [G.Graph Natural Double]
 genGraphs nodes arcs = do
-    original <- fmap G.toList $ genGraph nodes arcs
+    original <- genGraph nodes arcs
 
-    pure $ case original of
-        [] -> [G.empty]
-        edges ->   map (G.addSelfLoops 0)
-                 $ map G.fromList
-                 $ L.chunksOf (max 1 $ div (fromIntegral nodes) 5)
-                 $ edges
-
-foobar :: ()
-foobar = undefined
-{-
-
->>> sample $ fmap (L.chunksOf 1 . G.toList) $ genGraph 0 0
-[]
-
--}
+    pure $ map (G.addSelfLoops 0)
+                  $ map G.fromList
+                  $ L.chunksOf (max 1 $ div (fromIntegral nodes) 5)
+                  $ G.toList original
 
 -- | Takes a hedgehog generator and generates a random sample.
 sample :: Gen a -> IO a
