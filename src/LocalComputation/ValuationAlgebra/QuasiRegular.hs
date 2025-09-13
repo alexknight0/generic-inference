@@ -12,7 +12,7 @@ module LocalComputation.ValuationAlgebra.QuasiRegular
     , create
     , solution
     , Q.TropicalSemiringValue (T)
-    , configSet
+    , configExtSet
     )
 where
 
@@ -96,14 +96,17 @@ _extension (Valuation m b) t = fromJust $ create (fromJust $ M.extension m t t Q
 -- QuasiRegularValuation Extension Sets
 ------------------------------------------------------------------------------
 
--- | Produces the configuration set. See page 368 of Marc Pouly's "Generic Inference"
-configSet :: (Q.QSemiringValue c, Show a, Show c, Ord a)
+-- | Produces the configuration extension set.
+--
+-- A configuration set is
+-- See page 368 of Marc Pouly's "Generic Inference"
+configExtSet :: (Q.QSemiringValue c, Show a, Show c, Ord a)
     => QuasiRegularValuation c a
     -> Domain a
     -> M.LabelledMatrix a () c
     -> S.Set (M.LabelledMatrix a () c)
-configSet     (Identity _)    _ _ = error "Not implemented error"
-configSet phi@(Valuation m b) t x = S.singleton result
+configExtSet     (Identity _)    _ _ = error "Not implemented error"
+configExtSet phi@(Valuation m b) t x = S.singleton result
     where
         result = matrixMultiply (matrixQuasiInverse (matrixProject m sMinusT sMinusT))
                                 (matrixAdd (matrixMultiply (matrixProject m sMinusT t)
