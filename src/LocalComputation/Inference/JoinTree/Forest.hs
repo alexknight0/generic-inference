@@ -24,7 +24,6 @@ module LocalComputation.Inference.JoinTree.Forest (
     , treeList
 ) where
 
-import           GHC.Records                              (HasField, getField)
 import           LocalComputation.ValuationAlgebra        hiding
                                                           (assertInvariants,
                                                            satisfiesInvariants)
@@ -48,12 +47,7 @@ import qualified LocalComputation.Inference.JoinTree.Tree as JT
 -- Join Trees
 --------------------------------------------------------------------------------
 
--- TODO: Add invaraint that it can't be empty to make `root` safe.
 newtype JoinForest v = UnsafeJoinForest { g :: G.Graph (Node v) }
-
--- TODO: Is this used??? Should it be?
-instance HasField "root" (JoinForest v) (Node v) where
-    getField t = L.maximumBy (\x y -> x.id `compare` y.id) $ G.vertexList t.g
 
 unsafeFromGraph :: G.Graph (Node v) -> JoinForest v
 unsafeFromGraph = U.assertP satisfiesInvariants . UnsafeJoinForest

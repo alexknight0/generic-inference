@@ -101,9 +101,9 @@ configSet :: (Q.QSemiringValue c, Show a, Show c, Ord a)
     => QuasiRegularValuation c a
     -> Domain a
     -> M.LabelledMatrix a () c
-    -> Maybe (S.Set (M.LabelledMatrix a () c))
+    -> S.Set (M.LabelledMatrix a () c)
 configSet     (Identity _)    _ _ = error "Not implemented error"
-configSet phi@(Valuation m b) t x = Just $ S.singleton result
+configSet phi@(Valuation m b) t x = S.singleton result
     where
         result = matrixMultiply (matrixQuasiInverse (matrixProject m sMinusT sMinusT))
                                 (matrixAdd (matrixMultiply (matrixProject m sMinusT t)

@@ -19,6 +19,7 @@ module LocalComputation.Inference.JoinTree.Tree (
     , unsafeFromGraph
     , supportsCollect
     , vertexList
+    , vertexMap
     , redirectToQueryNode
     , unsafeOutgoingEdges
     , unsafeIncomingEdges
@@ -165,6 +166,9 @@ vertexCount t = G.vertexCount t.g
 -- | Returns a sorted vertex list; equivalent to a topological ordering.
 vertexList :: JoinTree v -> [Node v]
 vertexList t = G.vertexList t.g
+
+vertexMap :: JoinTree v -> M.Map Id (Node v)
+vertexMap t = M.fromList . map (\n -> (n.id, n)) $ vertexList t
 
 unsafeIncomingEdges :: Id -> JoinTree v -> [Node v]
 unsafeIncomingEdges i t = snd . fromJust . outgoingGraphEdges i . G.transpose $ t.g

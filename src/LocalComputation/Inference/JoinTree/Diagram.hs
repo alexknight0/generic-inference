@@ -2,7 +2,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeFamilies              #-}
 
--- TODO: Add to future work: fully animating the diagram (showing changing animations and everything) through using a GIF.
 module LocalComputation.Inference.JoinTree.Diagram (
       drawForest
     , drawTree
@@ -31,6 +30,7 @@ data DrawSettings = DrawSettings {
     , afterInference  :: Maybe FilePath
 }
 
+-- | Default draw settings (will not draw before or after inference).
 def :: DrawSettings
 def = DrawSettings {
       beforeInference = Nothing
@@ -42,12 +42,7 @@ data DiagramWithBorder a = DiagramWithBorder {
     borderWidth :: Double
 }
 
--- TODO: A different data structure for the graph could be better here. Additionally, we might want
--- to unite all graphs under one data structure to prevent confusion.
-
 -- TODO: Add more options to draw (such as size)
-
--- TODO: Update to *actually* work on forests, or update to take JoinTree instead.
 
 -- | Draws the given diagram:
 --  1. creating directories along the given filepath as required,

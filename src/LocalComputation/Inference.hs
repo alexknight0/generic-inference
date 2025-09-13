@@ -35,7 +35,7 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular as Q
 
 data Error = QueryNotSubsetOfValuations deriving (NFData, Generic, Show)
 
-data Mode = BruteForce | Fusion | Shenoy deriving (Show)
+data Mode = BruteForce | Fusion | Shenoy deriving (Show, Eq)
 
 -- | Compute inference using the given mode to return valuations with the given domains.
 queries :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a))

@@ -11,7 +11,6 @@ import           Control.Monad                               (replicateM)
 import qualified Data.Set                                    as S
 import qualified LocalComputation.Inference.JoinTree         as JT
 import qualified LocalComputation.Inference.JoinTree.Diagram as D
-import qualified LocalComputation.Inference.JoinTree.Forest  as JT
 import qualified LocalComputation.Inference.MessagePassing   as MP
 import           LocalComputation.ValuationAlgebra           (Domain,
                                                               Valuation (eliminate, label),
@@ -98,7 +97,7 @@ fusionPass settings vs queryDomain = do
 nodeActions :: (MP.SerializableValuation v a) => MP.NodeActions v a
 nodeActions this neighbours resultPort = do
 
-    postbox <- case isRootNode this neighbours of
+    postbox <- case isRootNode of
         -- If root node collect a message from each neighbour, but don't send a message.
         -- If the root node never sends out a message, messages will naturally propagate
         -- down to the root node following the logic that each node sends its message
@@ -108,25 +107,21 @@ nodeActions this neighbours resultPort = do
         -- If not root node, execute collect algorithm.
         False -> fmap (.postbox) $ MP.collect this neighbours computeMessage
 
-    -- TODO: In the non-root-node case, we duplicated a 'combines' operation here.
+    -- TODO: In the non-root-node case (most cases!), we duplicated a 'combines' operation here.
     let result = combines1 (this.node.v : map (.msg) postbox)
     assert (this.node.d == label result) (pure ())
+
     sendChan resultPort $ JT.changeContent this.node result
 
--- TODO: more efficent check available.
--- Uses the property that the root node is the only node whose label is larger
--- than all its neighbours
-isRootNode :: MP.NodeWithPid a -> [MP.NodeWithPid a] -> Bool
-isRootNode node neighbours = all (\n -> node.id > n.id) neighbours
-
--- TODO: Update doc.
+    where
+        isRootNode = this.node.t == JT.Query
 
 -- | Computes a message to send to the given neighbour.
 --
 -- Computing this message consists of:
 --  1. combining all messages in the sender's postbox that don't come from the neighbour
 --  2. combining this result with the sender's valuation
---  3. projecting the result to the intersection of the sender and neighbour's domain
+--  3. eliminating all variables not in the receivers domain
 computeMessage :: forall v a . (Valuation v, Var a)
     => [MP.Message (v a)]
     -> MP.NodeWithPid (v a)

@@ -39,9 +39,7 @@ import           Type.Reflection                                              (T
 -- by restricting the domain we can find the shortest path from a few targets - something you can't do with
 -- djikstra?
 
--- TODO: For performance:
---      1. Properly split up the graph before inference
---      2. ....okay thats all i got :p
+-- TODO: Where does the hashable constraint come from?
 
 type Result a = M.LabelledMatrix a () Q.TropicalSemiringValue
 type Knowledgebase a = [Q.QuasiRegularValuation Q.TropicalSemiringValue a]

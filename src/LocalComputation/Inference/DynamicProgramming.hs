@@ -9,6 +9,7 @@ module LocalComputation.Inference.DynamicProgramming (
 ) where
 
 import           Control.Exception                              (assert)
+import qualified Data.Map                                       as Map
 import           Data.Maybe                                     (fromJust)
 import qualified Data.Set                                       as S
 import qualified LocalComputation.Inference.JoinTree            as JT
@@ -36,35 +37,24 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular as Q
 solution :: forall a b . (V.Var a, Q.QSemiringValue b, Show b)
     => JT.JoinTree (Q.QuasiRegularValuation b a)
     -> M.LabelledMatrix a () b
-solution g | assert (JT.supportsCollect g) False = undefined
-solution g = go (rootNode.id - 1) initialX
+solution t | assert (JT.supportsCollect t) False = undefined
+solution t = go (t.root.id - 1) initialX
     where
-        vertices = JT.vertexList g
+        vertices = JT.vertexMap t
 
-        rootNode :: JT.Node (Q.QuasiRegularValuation b a)
-        rootNode = U.assertP isOnlyQueryNode $ maximum vertices
-
-        isOnlyQueryNode :: JT.Node (Q.QuasiRegularValuation b a) -> Bool
-        isOnlyQueryNode n = n.t == JT.Query && length (filter (\x -> x.t == JT.Query) vertices) == 1
-
-        initialX = S.findMin $ fromJust $ Q.configSet rootNode.v S.empty empty
+        initialX = S.findMin $ Q.configSet t.root.v S.empty empty
 
         empty = M.reshape U.unusedArg M.empty S.empty (S.singleton ())
 
         go 0 x = x
-        go i x = go (i - 1) (fromJust $ M.appendRows x y')
+        go i x = go (i - 1) (fromJust $ M.appendRows x y)
             where
-                -- TODO: Does our join tree construction algorithm provide a graph that has a complete numbering?
-                -- If not it's actually dead easy to ensure it does; we just have to renumber the nodes in a topological
-                -- ordering (as join tree does for 'renumberTree')
-                nodeI      = U.unsafeFind (\n -> n.id == i) vertices
-                nodeChildI = head $ JT.unsafeOutgoingEdges nodeI.id g
+                nodeI      = (Map.!) vertices i
+                nodeChildI = head $ JT.unsafeOutgoingEdges nodeI.id t
 
-                y' = S.findMin $ fromJust y
-
-                y = Q.configSet nodeI.v
-                              intersectionOfIAndChildI
-                              (M.unsafeProject x intersectionOfIAndChildI (S.singleton ()))
+                y = S.findMin $ Q.configSet nodeI.v
+                                            intersectionOfIAndChildI
+                                            (M.unsafeProject x intersectionOfIAndChildI (S.singleton ()))
 
                 intersectionOfIAndChildI = S.intersection nodeI.d nodeChildI.d
 

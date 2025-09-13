@@ -72,20 +72,31 @@ randomMatchesBaseline' mode numTests = withTests numTests . property $ do
     edges <- forAll $ Gen.int (Range.linear 2 2000)
     graphs <- forAll $ genGraphs (fromIntegral nodes) (fromIntegral edges)
 
+    query <- forAll $ genConnectedQuery (G.reverseAdjacencyList (G.merges1 graphs))
+
     if not $ G.isConnected (G.merges1 graphs) then discard else pure ()
 
     if G.nodeList (G.merges1 graphs) == [] then discard else pure ()
 
-    query <- forAll $ genConnectedQuery (G.reverseAdjacencyList (G.merges1 graphs))
 
     baseline  <- go Baseline query graphs
-    local     <- go mode query graphs
+    local     <- case not (G.isConnected (G.merges1 graphs)) && mode == DP of
+                    True -> case resultNow graphs query of
+                                Left _  -> failure
+                                Right x -> liftIO $ x
+                    False -> go mode query graphs
 
     checkAnswers approx local baseline
 
     where
         go :: (MonadTest m, MonadIO m) => Implementation -> ST.Query Natural -> [G.Graph Natural Double] -> m [Double]
         go m query gs = singleTarget m gs query.sources query.target
+
+        -- TODO: Remove debugging code.
+        resultNow :: (NFData a, Show a, Binary a, Typeable a, H.Hashable a, Ord a) => [G.Graph a Double] -> ST.Query a -> Either I.Error (IO [Double])
+        resultNow graphs query = ST.singleTargetDP s graphs query
+
+        s = D.def { D.afterInference = Just "diagrams/unconnected.svg" }
 
 
 tolerableError :: Double
@@ -100,7 +111,7 @@ approx x y
 
 -- | Choice between either a `Baseline` inference implementation taken from hackage,
 -- or a inference implementation from the `Local` computation library.
-data Implementation = Baseline | Local I.Mode | DP deriving Show
+data Implementation = Baseline | Local I.Mode | DP deriving (Show, Eq)
 
 singleTarget :: (MonadTest m, NFData a,  MonadIO m, Show a, Binary a, Typeable a,  H.Hashable a, Ord a) => Implementation -> [G.Graph a Double] -> [a] -> a -> m [Double]
 singleTarget Baseline      graphs sources target = pure $ H.singleTarget graphs sources target infinity
