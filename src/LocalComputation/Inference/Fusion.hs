@@ -4,18 +4,21 @@ module LocalComputation.Inference.Fusion (
       fusion
     , fusionPass
 ) where
-import           Control.Distributed.Process                 (Process, expect,
-                                                              liftIO, sendChan)
-import           Control.Exception                           (assert)
-import           Control.Monad                               (replicateM)
-import qualified Data.Set                                    as S
-import qualified LocalComputation.Inference.JoinTree         as JT
-import qualified LocalComputation.Inference.JoinTree.Diagram as D
-import qualified LocalComputation.Inference.MessagePassing   as MP
-import           LocalComputation.ValuationAlgebra           (Domain,
-                                                              ValuationFamily (eliminate, label),
-                                                              Var, combines1)
-import           Numeric.Natural                             (Natural)
+import           Control.Distributed.Process                           (Process,
+                                                                        expect,
+                                                                        liftIO,
+                                                                        sendChan)
+import           Control.Exception                                     (assert)
+import           Control.Monad                                         (replicateM)
+import qualified Data.Set                                              as S
+import qualified LocalComputation.Inference.JoinTree                   as JT
+import qualified LocalComputation.Inference.JoinTree.Diagram           as D
+import qualified LocalComputation.Inference.MessagePassing.Distributed as MP
+import           LocalComputation.ValuationAlgebra                     (Domain,
+                                                                        ValuationFamily (eliminate, label),
+                                                                        Var,
+                                                                        combines1)
+import           Numeric.Natural                                       (Natural)
 
 data WithId a = WithId {
       id      :: Natural

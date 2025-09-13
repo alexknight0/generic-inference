@@ -20,18 +20,18 @@ module LocalComputation.Inference (
     , Mode (..)
     , Error (..)
 ) where
-import           Control.Monad.IO.Class                         (MonadIO)
-import           LocalComputation.Inference.MessagePassing      (SerializableValuation)
-import qualified LocalComputation.Inference.ShenoyShafer        as SS (queries)
-import           LocalComputation.LocalProcess                  (run)
+import           Control.Monad.IO.Class                                (MonadIO)
+import           LocalComputation.Inference.MessagePassing.Distributed (SerializableValuation)
+import qualified LocalComputation.Inference.ShenoyShafer               as SS (queries)
+import           LocalComputation.LocalProcess                         (run)
 import           LocalComputation.ValuationAlgebra
 
-import qualified Data.Set                                       as S
-import qualified LocalComputation.Inference.DynamicProgramming  as D
-import qualified LocalComputation.Inference.Fusion              as F
-import qualified LocalComputation.Inference.JoinTree.Diagram    as D
-import qualified LocalComputation.LabelledMatrix                as M
-import qualified LocalComputation.ValuationAlgebra.QuasiRegular as Q
+import qualified Data.Set                                              as S
+import qualified LocalComputation.Inference.DynamicProgramming         as D
+import qualified LocalComputation.Inference.Fusion                     as F
+import qualified LocalComputation.Inference.JoinTree.Diagram           as D
+import qualified LocalComputation.LabelledMatrix                       as M
+import qualified LocalComputation.ValuationAlgebra.QuasiRegular        as Q
 
 data Error = QueryNotSubsetOfValuations deriving (NFData, Generic, Show)
 

@@ -7,21 +7,22 @@ module LocalComputation.Inference.ShenoyShafer (
     , InferredData
 ) where
 
-import           Control.Distributed.Process                 hiding (Message)
+import           Control.Distributed.Process                           hiding
+                                                                       (Message)
 
-import           Data.Set                                    (intersection)
+import           Data.Set                                              (intersection)
 
 
-import           Control.Exception                           (assert)
-import qualified Data.List                                   as L
-import           Data.Maybe                                  (fromJust)
-import           LocalComputation.Inference.JoinTree         (Node (..),
-                                                              baseJoinForest)
-import qualified LocalComputation.Inference.JoinTree         as J
-import qualified LocalComputation.Inference.JoinTree         as JT
-import qualified LocalComputation.Inference.JoinTree.Diagram as D
-import qualified LocalComputation.Inference.JoinTree.Forest  as JT
-import qualified LocalComputation.Inference.MessagePassing   as MP
+import           Control.Exception                                     (assert)
+import qualified Data.List                                             as L
+import           Data.Maybe                                            (fromJust)
+import           LocalComputation.Inference.JoinTree                   (Node (..),
+                                                                        baseJoinForest)
+import qualified LocalComputation.Inference.JoinTree                   as J
+import qualified LocalComputation.Inference.JoinTree                   as JT
+import qualified LocalComputation.Inference.JoinTree.Diagram           as D
+import qualified LocalComputation.Inference.JoinTree.Forest            as JT
+import qualified LocalComputation.Inference.MessagePassing.Distributed as MP
 import           LocalComputation.ValuationAlgebra
 
 -- TODO: [Hypothesis]... Due to the high serialization cost, using the Cloud Haskell library to represent
