@@ -51,8 +51,8 @@ of as simply unnormalized probability distributions.
      .    .   .        .                      .
      .    .   .        .                      .
 -}
-type Valuation a b = S.SemiringValuation Probability b a
-type VarAssignment a b = V.VarAssignment (S.SemiringValuation Probability b) a b
+type Valuation a b = S.Valuation Probability b a
+type VarAssignment a b = V.VarAssignment (S.Valuation Probability b) a b
 
 newtype Probability = P Double deriving (Num, Fractional, Binary, Show, NFData, Ord, Eq, Generic)
 
@@ -102,7 +102,7 @@ sharedKeysHaveSameValue m1 m2 = allTrue $ M.intersectionWith f (withIndicator m1
 
 -- | Returns the probability of a given event occuring, given a set of conditional variables.
 -- Takes a network (a list of conditional probability tables) as input.
-getProbability :: forall a b. ( Show a, Show b, Serializable a, Serializable b, Ord a, Ord b, NFData a, NFData b)
+getProbability :: forall a b. (Show a, Show b, Serializable a, Serializable b, Ord a, Ord b, NFData a, NFData b)
     => [Query a b]
     -> Network a b
     -> Process [Probability]

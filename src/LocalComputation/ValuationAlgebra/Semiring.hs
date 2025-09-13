@@ -7,7 +7,7 @@
 
 module LocalComputation.ValuationAlgebra.Semiring
     ( SemiringValue (..)
-    , SemiringValuation
+    , Valuation
     , create
     , normalize
     , getRows
@@ -86,15 +86,15 @@ e :: Domain a
 Note that a restriction of this form is that the type of the value of each
 variable in a variable arrangement is the same.
 -}
-data SemiringValuation c b a = Identity { d :: Domain a } | Valuation {
-      _rows         :: M.Map (VarAssignment (SemiringValuation c b) a b) c
+data Valuation c b a = Identity { d :: Domain a } | Valuation {
+      _rows         :: M.Map (VarAssignment (Valuation c b) a b) c
     , d             :: Domain a
     , _valueDomains :: M.Map a (Domain b)
     , _e            :: Domain a
 } deriving (Generic, Binary, NFData)
 
 -- | Returns 'False' if the data structure does not satisfy it's given description.
-isWellFormed :: forall a b c. (Ord a, Eq b) => SemiringValuation c b a -> Bool
+isWellFormed :: forall a b c. (Ord a, Eq b) => Valuation c b a -> Bool
 isWellFormed Identity{} = True
 isWellFormed t@Valuation{}
     | M.keysSet t._valueDomains /= t.d = False
@@ -114,15 +114,15 @@ isWellFormed t@Valuation{}
 
 -- | Creates a valuation, returning 'Nothing' if the given parameters would lead to the creation
 -- of a valuation that is not well formed.
-create :: (Ord a, Eq b) => M.Map (VarAssignment (SemiringValuation c b) a b) c -> Domain a -> M.Map a (Domain b) -> Domain a -> Maybe (SemiringValuation c b a)
+create :: (Ord a, Eq b) => M.Map (VarAssignment (Valuation c b) a b) c -> Domain a -> M.Map a (Domain b) -> Domain a -> Maybe (Valuation c b a)
 create x y z w
     | isWellFormed result = Just result
     | otherwise = Nothing
     where
         result = Valuation x y z w
 
-instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (SemiringValuation c b) where
-    type VarAssignment (SemiringValuation c b) a b = M.Map a b
+instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (Valuation c b) where
+    type VarAssignment (Valuation c b) a b = M.Map a b
 
     label i@Identity{}  = i.d
     label s@Valuation{} = S.union s.d s._e
@@ -166,7 +166,7 @@ instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (SemiringVa
 
     satisfiesInvariants = isWellFormed
 
-toTable :: (Show a, Show b, Show c) => SemiringValuation a b c -> Table
+toTable :: (Show a, Show b, Show c) => Valuation a b c -> Table
 toTable Identity{}    = error "Not Implemented"
 toTable v@Valuation{} = Table headings rows
     where
@@ -177,7 +177,7 @@ toTable v@Valuation{} = Table headings rows
                 ++ ["Probability"]
         rows     = map (\(assignment, value) -> assignedValues assignment ++ [show value]) $ M.toAscList v._rows
 
-instance (Show a, Show b, Show c) => Show (SemiringValuation a b c) where
+instance (Show a, Show b, Show c) => Show (Valuation a b c) where
     show Identity{}    = "Identity"
     show v@Valuation{} = P.showTable $ toTable v
 
@@ -198,10 +198,10 @@ with the values of the second parameter. For example:
     < Korea          Gum             6
     < Korea          Water           8
 -}
-getRows :: forall c b a. (Ord a, Ord b) => [(a, [b])] -> [c] -> SemiringValuation c b a
+getRows :: forall c b a. (Ord a, Ord b) => [(a, [b])] -> [c] -> Valuation c b a
 getRows vars ps = U.assertP isWellFormed $ _getRows vars ps
 
-_getRows :: forall c b a. (Ord a, Ord b) => [(a, [b])] -> [c] -> SemiringValuation c b a
+_getRows :: forall c b a. (Ord a, Ord b) => [(a, [b])] -> [c] -> Valuation c b a
 _getRows vars ps = Valuation rMap d varToPossibleValues extension
     where
         rMap = fromListAssertDisjoint $ zipAssert (vPermutations vars) ps
@@ -209,7 +209,7 @@ _getRows vars ps = Valuation rMap d varToPossibleValues extension
         varToPossibleValues = fromListAssertDisjoint (map (\(v, values) -> (v, fromListAssertDisjoint' values)) vars)
         extension = S.empty
 
-        vPermutations :: [(a, [b])] -> [VarAssignment (SemiringValuation c b) a b]
+        vPermutations :: [(a, [b])] -> [VarAssignment (Valuation c b) a b]
         vPermutations xs = map fromListAssertDisjoint $ vPermutations' xs
             where
                 vPermutations' :: [(a, [b])] -> [[(a, b)]]
@@ -225,35 +225,35 @@ hasSameValueForSharedVariables xs ys = all (\k -> xs M.! k == ys M.! k) sharedKe
         sharedKeys = S.toList $ S.intersection (M.keysSet xs) (M.keysSet ys)
 
 -- | Returns the value of the given variable arrangement. Unsafe.
-findValue :: (Ord a, Ord b) => VarAssignment (SemiringValuation c b) a b -> SemiringValuation c b a -> c
+findValue :: (Ord a, Ord b) => VarAssignment (Valuation c b) a b -> Valuation c b a -> c
 findValue x (Valuation rowMap _ _ _) = rowMap M.! x
 findValue _ (Identity _) = error "findProbability: Attempted to read value from an identity valuation."
 
-mapTableKeys :: (Ord b, Ord c) => (a -> b) -> SemiringValuation d c a -> SemiringValuation d c b
+mapTableKeys :: (Ord b, Ord c) => (a -> b) -> Valuation d c a -> Valuation d c b
 mapTableKeys f v = U.assertP isWellFormed $ _mapTableKeys f v
 
-_mapTableKeys :: (Ord b, Ord c) => (a -> b) -> SemiringValuation d c a -> SemiringValuation d c b
+_mapTableKeys :: (Ord b, Ord c) => (a -> b) -> Valuation d c a -> Valuation d c b
 _mapTableKeys f (Valuation rMap d vD e) = Valuation (M.mapKeys (M.mapKeys f) rMap) (setMap f d) (M.mapKeys f vD) (setMap f e)
 _mapTableKeys f (Identity x)            = Identity (setMap f x)
 
-mapVariableValues :: (Ord b, Ord c) => (a -> b) -> SemiringValuation d a c -> SemiringValuation d b c
+mapVariableValues :: (Ord b, Ord c) => (a -> b) -> Valuation d a c -> Valuation d b c
 mapVariableValues f v = U.assertP isWellFormed $ _mapVariableValues f v
 
-_mapVariableValues :: (Ord b, Ord c) => (a -> b) -> SemiringValuation d a c -> SemiringValuation d b c
+_mapVariableValues :: (Ord b, Ord c) => (a -> b) -> Valuation d a c -> Valuation d b c
 _mapVariableValues _ v@Identity{}  = Identity v.d
 _mapVariableValues f v@Valuation{} = v { _rows = M.mapKeys (M.map f) v._rows
                                       , _valueDomains = M.map (S.map f) v._valueDomains
                                       }
 
 normalize :: (Var a, Show b, Ord b, Show c, SemiringValue c, Fractional c)
-    => SemiringValuation c b a -> SemiringValuation c b a
+    => Valuation c b a -> Valuation c b a
 normalize v = assertInvariants $ _normalize v
 
-_normalize :: (Fractional c) => SemiringValuation c b a -> SemiringValuation c b a
+_normalize :: (Fractional c) => Valuation c b a -> Valuation c b a
 _normalize (Identity x) = Identity x
 _normalize (Valuation rowMap d vD e) = Valuation (M.map (/ sumOfAllXs) rowMap) d vD e
     where
         sumOfAllXs = sum $ M.elems rowMap
 
-valueDomains :: SemiringValuation c b a -> M.Map a (Domain b)
+valueDomains :: Valuation c b a -> M.Map a (Domain b)
 valueDomains = (._valueDomains)

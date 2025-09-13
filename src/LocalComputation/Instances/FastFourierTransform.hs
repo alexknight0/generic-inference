@@ -44,7 +44,7 @@ newtype FourierComplex = FourierComplex (C.Complex Double) deriving newtype (Num
 -}
 data FastFourierVariable = X Natural | Y Natural deriving (Eq, Ord, Binary, Generic, Show, H.Hashable, NFData)
 
-type FastFourierValuation = SemiringValuation FourierComplex Natural FastFourierVariable
+type FastFourierValuation = Valuation FourierComplex Natural FastFourierVariable
 
 instance SemiringValue FourierComplex where
     add = (+)
