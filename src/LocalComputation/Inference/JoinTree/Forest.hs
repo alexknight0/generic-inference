@@ -21,6 +21,7 @@ module LocalComputation.Inference.JoinTree.Forest (
     , toForest
     , unsafeUpdateValuations
     , unsafeGetTree
+    , treeList
 ) where
 
 import           GHC.Records                              (HasField, getField)

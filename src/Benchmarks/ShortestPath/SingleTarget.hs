@@ -4,7 +4,12 @@ module Benchmarks.ShortestPath.SingleTarget
     )
 where
 
--- TODO: don't want a dependency of benchmark on test - move queries to a place inside benchmark.
+-- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
+-- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
+-- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
+-- 1. Make fusion construct a better join tree for itself.
+-- 2. Make quasiregular split the graph nicely for itself.
+
 import qualified Benchmarks.ShortestPath.SingleTarget.Data            as D
 
 import qualified Benchmarks.ShortestPath.SingleTarget.Baseline        as H
@@ -26,8 +31,6 @@ data Implementation = Baseline | Local I.Mode deriving Show
 --------------------------------------------------------------------------------
 -- Benchmarks
 --------------------------------------------------------------------------------
-
--- TODO: split the problem up across graphs before giving it to the algorithms.
 
 benchmarks :: IO [Benchmark]
 benchmarks = do

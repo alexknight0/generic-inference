@@ -5,6 +5,7 @@
 -- TODO: Add to future work: fully animating the diagram (showing changing animations and everything) through using a GIF.
 module LocalComputation.Inference.JoinTree.Diagram (
       drawForest
+    , drawTree
     , DrawSettings (beforeInference, afterInference)
     , def
 ) where
@@ -15,12 +16,12 @@ import           Diagrams.Backend.SVG.CmdLine
 import           Diagrams.Prelude                           hiding (def)
 import qualified Graphics.SVGFonts                          as SF
 
-import           Control.Exception                          (assert)
 import qualified Data.List                                  as L
 import qualified Data.List.Extra                            as L (splitOn)
 import qualified Graphics.SVGFonts.ReadFont                 as SF
 import qualified LocalComputation.Inference.JoinTree        as JT
-import qualified LocalComputation.Inference.JoinTree.Forest as JT
+import qualified LocalComputation.Inference.JoinTree.Forest as JT (treeList)
+import qualified LocalComputation.Inference.JoinTree.Tree   as JT
 import qualified LocalComputation.ValuationAlgebra          as V
 import           System.Directory.Extra                     (createDirectoryIfMissing)
 import           System.FilePath                            (takeDirectory)
@@ -48,10 +49,12 @@ data DiagramWithBorder a = DiagramWithBorder {
 
 -- TODO: Update to *actually* work on forests, or update to take JoinTree instead.
 
--- Draws a tree from the given graph, outputting the drawing into a file of the given name. Has the same assumptions as `tree`.
-drawForest :: (V.Valuation v, Show (v a), Ord a, Show a)
-    => FilePath -> JT.JoinForest (v a) -> IO ()
-drawForest name g = do
+-- | Draws the given diagram:
+--  1. creating directories along the given filepath as required,
+--  2. attaching a legend,
+--  3. and padding the diagram with whitespace.
+draw :: FilePath -> (SF.PreparedFont Double -> Diagram B) -> IO ()
+draw name d = do
     -- Create directory for file if necessary
     createDirectoryIfMissing True (takeDirectory name)
 
@@ -59,28 +62,36 @@ drawForest name g = do
     chosenFont <- SF.bit
 
     -- Create the diagram
-    let diagram = cat (r2 (2, 3)) [legend chosenFont # scaleProportional 0.2 t, t]
-        t = tree chosenFont g
+    let diagram = d chosenFont
+        withLegend = cat (r2 (2, 3)) [legend chosenFont # scaleProportional 0.2 diagram, diagram]
 
     -- Render the diagram
-    renderSVG name (dims2D 1400 1400) (diagram # framePadding 0.05)
+    renderSVG name (dims2D 1400 1400) (withLegend # framePadding 0.05)
 
--- | Produces a diagram of a tree out of a given graph.
---
--- Assumes the given graph has a tree like structure, as specified in the description of `baseJoinTree`,
--- and that the node with the highest `id` is the root.
-tree :: (V.Valuation v, Show (v a), Ord a, Show a)
+-- | Draws a forest, outputting the drawing into a file of the given name.
+drawForest :: (V.Valuation v, Show (v a), Ord a, Show a)
+    => FilePath -> JT.JoinForest (v a) -> IO ()
+drawForest name f = draw name (\chosenFont -> forest chosenFont f)
+
+-- | Draws a tree, outputting the drawing into a file of the given name.
+drawTree :: (V.Valuation v, Show (v a), Ord a, Show a)
+    => FilePath -> JT.JoinTree (v a) -> IO ()
+drawTree name t = draw name (\chosenFont -> tree chosenFont t)
+
+-- | Produces a diagram of a forest.
+forest :: (V.Valuation v, Show (v a), Ord a, Show a)
     => SF.PreparedFont Double -> JT.JoinForest (v a) -> Diagram B
-tree chosenFont g = assert (length rootOutgoingEdges == 0) $
-                           tree' chosenFont root g
-    where
-        root = g.root
+forest chosenFont f = hcat $ map (tree chosenFont) (JT.treeList f)
 
-        rootOutgoingEdges = JT.unsafeOutgoingEdges root.id g
+-- | Produces a diagram of a tree.
+tree :: (V.Valuation v, Show (v a), Ord a, Show a)
+    => SF.PreparedFont Double -> JT.JoinTree (v a) -> Diagram B
+tree chosenFont t = tree' chosenFont t.root t
 
--- | Produces a diagram of a tree by following all **incoming** edges from a given node in a graph. Assumes the given node is in the tree.
+-- | Produces a diagram of a tree by following all **incoming** edges from a given node in a graph.
+-- Assumes the given node is in the tree.
 tree' :: (V.Valuation v, Show (v a), Ord a, Show a)
-    => SF.PreparedFont Double -> JT.Node (v a) -> JT.JoinForest (v a) -> Diagram B
+    => SF.PreparedFont Double -> JT.Node (v a) -> JT.JoinTree (v a) -> Diagram B
 tree' chosenFont node g = vsep vgap [root.diagram, parents] # applyAll arrows
     where
         root = treeNode chosenFont node

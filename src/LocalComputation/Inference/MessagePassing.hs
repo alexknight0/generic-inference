@@ -5,6 +5,7 @@
 
 module LocalComputation.Inference.MessagePassing (
       messagePassing
+    , messagePassing'
     , NodeWithPid (id, node)
     , NodeActions
     , SerializableValuation
@@ -36,10 +37,6 @@ data NodeWithPid a = NodeWithPid { id :: ProcessId, node :: JT.Node a } deriving
 
 type NodeActions v a = NodeWithPid (v a) -> [NodeWithPid (v a)] -> SendPort (JT.Node (v a)) -> Process ()
 
--- TODO: This function shouldn't burden itself with the responsibility of taking a directed graph as input
--- and returning a directed graph as output. The message passing algorithm at this stage treats its graph
--- as undirected and this should be reflected in the function signature. Other functions can wrap this
--- function to perform graph reconstruction if required.
 {- | Executes a message passing algorithm on a given join tree by spinning up each node in a join tree as
 a seperate process and allowing each process to execute the given `nodeActions`.
 
@@ -86,6 +83,13 @@ messagePassing tree nodeActions = do
         neighbourMap = JT.neighbourMap tree
 
         toMap = M.fromList . map (\n -> (n.id, n.v))
+
+-- | Variant of `messagePassing` that operates on a `JoinTree` parameter.
+messagePassing' :: (SerializableValuation v a)
+    => JT.JoinTree (v a)
+    -> NodeActions v a
+    -> Process (JT.JoinTree (v a))
+messagePassing' tree nodeActions = fmap JT.unsafeGetTree $ messagePassing (JT.toForest tree) nodeActions
 
 initializeNodeAndMonitor :: (SerializableValuation v a)
     => NodeActions v a

@@ -83,17 +83,17 @@ fusionPass :: (MP.SerializableValuation v a, Show (v a))
 fusionPass settings vs queryDomain = do
     drawTree settings.beforeInference treeBeforeInference
 
-    treeAfterInference <- MP.messagePassing treeBeforeInference nodeActions
+    treeAfterInference <- MP.messagePassing' treeBeforeInference nodeActions
 
     drawTree settings.afterInference treeAfterInference
 
-    pure (JT.unsafeGetTree treeAfterInference)
+    pure treeAfterInference
 
     where
-        treeBeforeInference = JT.toForest $ JT.collectTree vs queryDomain
+        treeBeforeInference = JT.collectTree vs queryDomain
 
         drawTree Nothing         _    = pure ()
-        drawTree (Just filename) tree = liftIO $ D.drawForest filename tree
+        drawTree (Just filename) tree = liftIO $ D.drawTree filename tree
 
 nodeActions :: (MP.SerializableValuation v a) => MP.NodeActions v a
 nodeActions this neighbours resultPort = do

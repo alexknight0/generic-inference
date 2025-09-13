@@ -21,6 +21,7 @@ module LocalComputation.Inference.JoinTree.Tree (
     , vertexList
     , redirectToQueryNode
     , unsafeOutgoingEdges
+    , unsafeIncomingEdges
 
     -- Utilities
     , outgoingGraphEdges
@@ -91,12 +92,13 @@ instance (Valuation v, Ord a, Show a) => Show (Node (v a)) where
 --------------------------------------------------------------------------------
 
 {- | A join tree is:
-    1. a non-empty tree (acyclic graph),
+    1. a non-empty tree (connected, acyclic graph),
     2. such that the node 'id' fields form a topological ordering,
     3. it is directed toward a node called the 'root',
     4. and has the running intersection property.
 
     2 & 3 => root is the node with the largest id
+    1 & 3 => root has no outgoing edges
 
 Notably the numbering of nodes with ids may not be total - some numbers may be skipped.
 For example, there may exist nodes with ids of 3 and 5 without the existence of a node of id 4.
@@ -164,8 +166,11 @@ vertexCount t = G.vertexCount t.g
 vertexList :: JoinTree v -> [Node v]
 vertexList t = G.vertexList t.g
 
+unsafeIncomingEdges :: Id -> JoinTree v -> [Node v]
+unsafeIncomingEdges i t = snd . fromJust . outgoingGraphEdges i . G.transpose $ t.g
+
 unsafeOutgoingEdges :: Id -> JoinTree v -> [Node v]
-unsafeOutgoingEdges i t = snd . fromJust $ outgoingGraphEdges i t.g
+unsafeOutgoingEdges i t = snd . fromJust . outgoingGraphEdges i $ t.g
 
 --------------------------------------------------------------------------------
 -- Utilities

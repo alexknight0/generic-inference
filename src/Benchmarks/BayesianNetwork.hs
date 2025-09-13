@@ -4,6 +4,12 @@ module Benchmarks.BayesianNetwork
     )
 where
 
+-- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
+-- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
+-- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
+-- 1. Make fusion construct a better join tree for itself.
+-- 2. Make quasiregular split the graph nicely for itself.
+
 -- TODO: don't want a dependency of benchmark on test - move queries to a place inside benchmark.
 
 import qualified Benchmarks.BayesianNetwork.Data                   as D

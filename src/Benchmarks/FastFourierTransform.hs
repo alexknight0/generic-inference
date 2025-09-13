@@ -4,7 +4,11 @@ module Benchmarks.FastFourierTransform
     )
 where
 
--- TODO: don't want a dependency of benchmark on test - move queries to a place inside benchmark.
+-- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
+-- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
+-- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
+-- 1. Make fusion construct a better join tree for itself.
+-- 2. Make quasiregular split the graph nicely for itself.
 
 import           Benchmarks.FastFourierTransform.Baseline        (dft)
 import           Criterion.Main
