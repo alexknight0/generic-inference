@@ -16,7 +16,6 @@ module LocalComputation.ValuationAlgebra.QuasiRegular
     )
 where
 
-import qualified Data.Map                                             as M
 import           Data.Maybe                                           (fromJust)
 import qualified Data.Set                                             as S
 import qualified LocalComputation.LabelledMatrix                      as M
@@ -96,24 +95,29 @@ _extension (Valuation m b) t = fromJust $ create (fromJust $ M.extension m t t Q
 -- Valuation Extension Sets
 ------------------------------------------------------------------------------
 
+-- TODO: NEXT go through this and `solution` inside `DynamicProgramming` and
+-- add comments to help understanding. Then investigate how to get around the
+-- 'identity' problem...
+
 -- | Produces the configuration extension set.
 --
--- A configuration set is
+-- Given a variable assignment x, a configuration extension set is a variable assignment y
+-- such that
 -- See page 368 of Marc Pouly's "Generic Inference"
 configExtSet :: (Q.SemiringValue c, Show a, Show c, Ord a)
     => Valuation c a
-    -> Domain a
     -> VarAssignment (Valuation c) a c
     -> S.Set (VarAssignment (Valuation c) a c)
-configExtSet     (Identity _)    _ _ = error "Not implemented error"
-configExtSet phi@(Valuation m b) t x = S.singleton result
+configExtSet     (Identity _)    _ = error "Not implemented error"
+configExtSet phi@(Valuation m b) x = S.singleton result
     where
         result = matrixMultiply (matrixQuasiInverse (matrixProject m sMinusT sMinusT))
                                 (matrixAdd (matrixMultiply (matrixProject m sMinusT t)
                                                            (x)
                                             )
-                                           (matrixProject b sMinusT (S.singleton ())))
+                                           (matrixProjectRows b sMinusT))
 
+        t = x.rowLabelSet
         s = label phi
         sMinusT = S.difference s t
 
@@ -122,14 +126,17 @@ configExtSet phi@(Valuation m b) t x = S.singleton result
 ------------------------------------------------------------------------------
 
 matrixQuasiInverse :: (Show a, Ord a, Show c, Q.SemiringValue c) => M.LabelledMatrix a a c -> M.LabelledMatrix a a c
-matrixQuasiInverse = fromJust . M.quasiInverse
+matrixQuasiInverse = M.unsafeQuasiInverse
 
 matrixProject :: (Ord a, Ord b) => M.LabelledMatrix a b c -> S.Set a -> S.Set b -> M.LabelledMatrix a b c
-matrixProject = ((fromJust .) .) . M.project
+matrixProject = M.unsafeProject
+
+matrixProjectRows :: (Ord a, Ord b) => M.LabelledMatrix a b c -> S.Set a -> M.LabelledMatrix a b c
+matrixProjectRows = M.unsafeProjectRows
 
 matrixAdd :: (Ord a, Ord b, Q.SemiringValue c) => M.LabelledMatrix a b c -> M.LabelledMatrix a b c -> M.LabelledMatrix a b c
-matrixAdd = (fromJust .) . M.add Q.add
+matrixAdd = M.unsafeAdd Q.add
 
 matrixMultiply :: (Eq a, Eq b, Eq c, Q.SemiringValue d) => M.LabelledMatrix a b d -> M.LabelledMatrix b c d -> M.LabelledMatrix a c d
-matrixMultiply = (fromJust .) . M.multiply Q.zero Q.add Q.multiply
+matrixMultiply = M.unsafeMultiply Q.zero Q.add Q.multiply
 

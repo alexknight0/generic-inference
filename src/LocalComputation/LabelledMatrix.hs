@@ -19,6 +19,7 @@ module LocalComputation.LabelledMatrix
     , extension
     , project
     , unsafeProject
+    , unsafeProjectRows
     , find
     , add
     , unsafeAdd
@@ -249,6 +250,10 @@ project m rowLabelSet colLabelSet
     where
         unusedArg = error "Should never be evaluated"
 
+projectRows :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> Maybe (LabelledMatrix a b c)
+projectRows m _ | assertIsWellFormed m = undefined
+projectRows m rowLabelSet = project m rowLabelSet m.colLabelSet
+
 -- | Returns an element from the matrix. Returns Nothing if the element is not in the domain of the matrix.
 find :: (Ord a, Ord b) => (a, b) -> LabelledMatrix a b c -> Maybe c
 find _ x | assertIsWellFormed x = undefined
@@ -478,6 +483,9 @@ checkIsAscPairList ((x, y) : zs) = all (\(x', y') -> x < x' && y < y') zs
 --------------------------------------------------------------------------------
 unsafeProject :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> LabelledMatrix a b c
 unsafeProject = ((fromJust .) .) . project
+
+unsafeProjectRows :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> LabelledMatrix a b c
+unsafeProjectRows = (fromJust .) . projectRows
 
 unsafeQuasiInverse :: (Ord a, Q.SemiringValue c, Show a, Show c)
     => LabelledMatrix a a c

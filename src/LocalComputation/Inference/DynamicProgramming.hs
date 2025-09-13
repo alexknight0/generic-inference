@@ -42,7 +42,7 @@ solution t = go (t.root.id - 1) initialX
     where
         vertices = JT.vertexMap t
 
-        initialX = S.findMin $ Q.configExtSet t.root.v S.empty empty
+        initialX = S.findMin $ Q.configExtSet t.root.v empty
 
         empty = M.reshape U.unusedArg M.empty S.empty (S.singleton ())
 
@@ -52,9 +52,7 @@ solution t = go (t.root.id - 1) initialX
                 nodeI      = (Map.!) vertices i
                 nodeChildI = head $ JT.unsafeOutgoingEdges nodeI.id t
 
-                y = S.findMin $ Q.configExtSet nodeI.v
-                                               intersectionOfIAndChildI
-                                               (M.unsafeProject x intersectionOfIAndChildI (S.singleton ()))
+                y = S.findMin $ Q.configExtSet nodeI.v (M.unsafeProjectRows x intersection)
 
-                intersectionOfIAndChildI = S.intersection nodeI.d nodeChildI.d
+                intersection = S.intersection nodeI.d nodeChildI.d
 
