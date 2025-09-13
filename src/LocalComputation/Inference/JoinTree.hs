@@ -26,9 +26,9 @@ module LocalComputation.Inference.JoinTree (
     , unsafeIncomingEdges'
     , neighbourMap
     , vertexList
-    , mapVertices
     , collectTree
     , toForest
+    , unsafeUpdateValuations
 ) where
 
 import           Data.List                                      (union)
@@ -100,7 +100,7 @@ baseJoinForest :: forall v a. (Show a, Valuation v, Ord a)
     => [v a]
     -> [Domain a]
     -> JoinForest (v a)
-baseJoinForest vs queries = fromGraph $ G.edges $ baseJoinForest' nextNodeId r d
+baseJoinForest vs queries = unsafeFromGraph $ G.edges $ baseJoinForest' nextNodeId r d
     where
         d :: E.EliminationSequence a
         d = E.create $ map label vs

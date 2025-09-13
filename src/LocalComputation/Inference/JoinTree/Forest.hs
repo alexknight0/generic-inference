@@ -10,7 +10,7 @@ module LocalComputation.Inference.JoinTree.Forest (
       JoinForest (g)
 
     -- Join tree functions
-    , fromGraph
+    , unsafeFromGraph
     , unsafeFindById
     , unsafeOutgoingEdges
     , unsafeIncomingEdges
@@ -18,9 +18,9 @@ module LocalComputation.Inference.JoinTree.Forest (
     , unsafeIncomingEdges'
     , neighbourMap
     , vertexList
-    , mapVertices
     , unsafeConvertToCollectTree
     , toForest
+    , unsafeUpdateValuations
 ) where
 
 import           GHC.Records                              (HasField, getField)
@@ -29,26 +29,17 @@ import           LocalComputation.ValuationAlgebra        hiding
                                                            satisfiesInvariants)
 
 import qualified Algebra.Graph                            as G
-import qualified Algebra.Graph.Acyclic.AdjacencyMap       as G (toAcyclic)
-import qualified Algebra.Graph.ToGraph                    as G (dfsForest,
-                                                                reachable,
-                                                                toAdjacencyMap,
-                                                                topSort)
+import qualified Algebra.Graph.ToGraph                    as G (reachable)
 import qualified Algebra.Graph.Undirected                 as UG
-import           Control.Exception                        (assert)
 import qualified Data.Bifunctor                           as B
 import qualified Data.List                                as L
 import qualified Data.Map                                 as M
 import           Data.Maybe                               (fromJust, isJust)
 import qualified Data.Set                                 as S
-import           Data.Text.Lazy                           (unpack)
 import qualified LocalComputation.Utils                   as U
-import           Numeric.Natural                          (Natural)
-import           Text.Pretty.Simple                       (pShow)
 
 import           LocalComputation.Inference.JoinTree.Tree (Id, JoinTree,
-                                                           Node (id),
-                                                           NodeType (..))
+                                                           Node (id))
 import qualified LocalComputation.Inference.JoinTree.Tree as JT
 
 --------------------------------------------------------------------------------
@@ -65,31 +56,36 @@ newtype JoinForest v = UnsafeJoinForest { g :: G.Graph (Node v) }
 instance HasField "root" (JoinForest v) (Node v) where
     getField t = L.maximumBy (\x y -> x.id `compare` y.id) $ G.vertexList t.g
 
-fromGraph :: G.Graph (Node v) -> JoinForest v
-fromGraph = U.assertP satisfiesInvariants . UnsafeJoinForest
+unsafeFromGraph :: G.Graph (Node v) -> JoinForest v
+unsafeFromGraph = U.assertP satisfiesInvariants . UnsafeJoinForest
 
 findById :: Id -> JoinForest v -> Maybe (Node v)
 findById i t = L.find (\n -> n.id == i) $ G.vertexList t.g
 
 toForest :: JoinTree v -> JoinForest v
-toForest t = fromGraph $ JT.unsafeGetGraph t
+toForest t = unsafeFromGraph t.g
 
 --------------------------------------------------------------------------------
 -- Transformations
 --------------------------------------------------------------------------------
 
--- TODO: Should probably not be exposed; runs risk of ruining running intersection property or node labelling.
+-- | Updates valuations for nodes of the given ids.
+--
+-- __Warning__: Unsafe - asserts that for a given node, the domain of the new valuation
+-- does not differ from the domain of the old valuation.
+unsafeUpdateValuations :: M.Map Id a -> JoinForest a -> JoinForest a
+unsafeUpdateValuations m t = unsafeFromGraph $ fmap f t.g
+    where
+        f n = case M.lookup n.id m of
+                Nothing -> n
+                Just v  -> n { JT.v = v }
 
--- | Flips an edge from x to y such that it now goes from y to x.
--- TODO: Should probably not be exposed; runs risk of ruining running intersection property or node labelling.
-mapVertices :: (Node a -> Node b) -> JoinForest a -> JoinForest b
-mapVertices f t = fromGraph $ fmap f t.g
 
 --------------------------------------------------------------------------------
 -- Properties
 --------------------------------------------------------------------------------
-trees :: forall v . JoinForest v -> [JoinTree v]
-trees t = getTrees' (vertexSet t)
+treeList :: forall v . JoinForest v -> [JoinTree v]
+treeList t = getTrees' (vertexSet t)
 
     where
         undirected = G.overlay (t.g) (G.transpose t.g)
@@ -107,7 +103,7 @@ trees t = getTrees' (vertexSet t)
                 verticesInNewTree = S.fromList $ G.reachable undirected vertexInNewTree
 
                 -- Get the tree
-                newTree = JT.fromGraph $ G.induce (\n -> n `elem` verticesInNewTree) t.g
+                newTree = JT.unsafeFromGraph $ G.induce (\n -> n `elem` verticesInNewTree) t.g
 
 
 -- | A sorted list of vertices of the forest; equivalent to a topological ordering.
@@ -144,13 +140,13 @@ unsafeConvertToCollectTree f q = U.assertP JT.supportsCollect $ JT.redirectToQue
         treeWithQueryNode :: JoinTree (v a)
         treeWithQueryNode = fromJust $ L.find (\t -> isJust $ L.find (\n -> n.d == q)
                                                                      (JT.vertexList t))
-                                              (trees f)
+                                              (treeList f)
 
 --------------------------------------------------------------------------------
 -- Invariants
 --------------------------------------------------------------------------------
 satisfiesInvariants :: JoinForest v -> Bool
-satisfiesInvariants f = all JT.satisfiesInvariants (trees f)
+satisfiesInvariants f = all JT.satisfiesInvariants (treeList f)
 
 --------------------------------------------------------------------------------
 -- Unsafe variants

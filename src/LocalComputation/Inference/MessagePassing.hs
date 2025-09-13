@@ -52,10 +52,10 @@ messagePassing :: forall v a. (SerializableValuation v a)
     => JT.JoinForest (v a)
     -> NodeActions v a
     -> Process (JT.JoinForest (v a))
-messagePassing directed nodeActions = do
+messagePassing tree nodeActions = do
 
     -- Initialize all nodes
-    let vs         = JT.vertexList directed
+    let vs = JT.vertexList tree
     (nodesWithPid, resultPorts) <- fmap unzip $ mapM (initializeNodeAndMonitor nodeActions) vs
 
     -- Tell each node who it is and who it's neighbours are
@@ -79,11 +79,12 @@ messagePassing directed nodeActions = do
     newNodeList <- mapM receiveChanNowA resultPorts
 
     -- Construct graph from new nodes
-    pure $ JT.mapVertices (\old -> U.unsafeFind (\new -> new.id == old.id) newNodeList)
-                          directed
+    pure $ JT.unsafeUpdateValuations (toMap newNodeList) tree
 
     where
-        neighbourMap = JT.neighbourMap directed
+        neighbourMap = JT.neighbourMap tree
+
+        toMap = M.fromList . map (\n -> (n.id, n.v))
 
 initializeNodeAndMonitor :: (SerializableValuation v a)
     => NodeActions v a

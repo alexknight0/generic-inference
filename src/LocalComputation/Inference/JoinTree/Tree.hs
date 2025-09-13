@@ -14,13 +14,12 @@ module LocalComputation.Inference.JoinTree.Tree (
     , Id
 
     -- Join Trees
-    , JoinTree
+    , JoinTree (g)
     , satisfiesInvariants
-    , fromGraph
+    , unsafeFromGraph
     , supportsCollect
     , vertexList
     , redirectToQueryNode
-    , unsafeGetGraph
 
     -- Utilities
     , outgoingGraphEdges
@@ -33,18 +32,13 @@ import           LocalComputation.ValuationAlgebra  hiding (assertInvariants,
 
 import qualified Algebra.Graph                      as G
 import qualified Algebra.Graph.Acyclic.AdjacencyMap as G (toAcyclic)
-import qualified Algebra.Graph.ToGraph              as G (dfsForest,
-                                                          isTopSortOf,
+import qualified Algebra.Graph.ToGraph              as G (isTopSortOf,
                                                           reachable,
                                                           toAdjacencyMap,
                                                           topSort)
-import qualified Algebra.Graph.Undirected           as UG
-import           Control.Exception                  (assert)
-import qualified Data.Bifunctor                     as B
 import qualified Data.List                          as L
 import qualified Data.Map                           as M
 import           Data.Maybe                         (fromJust, isJust)
-import qualified Data.Set                           as S
 import           Data.Text.Lazy                     (unpack)
 import qualified LocalComputation.Utils             as L (count)
 import qualified LocalComputation.Utils             as U
@@ -76,11 +70,16 @@ changeContent n v = n { v = v }
 instance (Valuation v, Ord a, Show a) => HasField "d" (Node (v a)) (Domain a) where
     getField m = label m.v
 
--- TODO: Maybe remove these.
+-- | Equality of nodes defers to id.
 instance Eq (Node v) where
+    -- Equality is necessary for use with Algebra.Graph
     x == y = x.id == y.id
 
+-- | Ordering of nodes defers to id.
+-- In combination with the invariants of the join tree, a sorted list of vertices becomes
+-- a topological ordering.
 instance Ord (Node v) where
+    -- An ordering is necessary for use with Algebra.Graph
     x <= y = x.id <= y.id
 
 instance (Valuation v, Ord a, Show a) => Show (Node (v a)) where
@@ -118,13 +117,11 @@ instance HasField "root" (JoinTree v) (Node v) where
 
 -- | Converts a graph into a join tree.
 --
--- __Warning__: Unsafe - will check some invariants associated with a join tree
--- and throw an error if the graph doesn't satisfy these invariants.
-fromGraph :: G.Graph (Node v) -> JoinTree v
-fromGraph = U.assertP satisfiesInvariants . UnsafeJoinTree
-
-unsafeGetGraph :: JoinTree v -> G.Graph (Node v)
-unsafeGetGraph t = t.g
+-- __Warning__: Unsafe - if assertions are enabled, will check some invariants associated with a join tree
+-- and throw an error if the graph doesn't satisfy these invariants. If assertions are disabled, may
+-- result in a malformed data structure.
+unsafeFromGraph :: G.Graph (Node v) -> JoinTree v
+unsafeFromGraph = U.assertP satisfiesInvariants . UnsafeJoinTree
 
 --------------------------------------------------------------------------------
 -- Transformations
@@ -133,7 +130,7 @@ unsafeGetGraph t = t.g
 -- | Redirects a given join tree to reverse edges to face the node of the given id.
 -- If a forest is given, will not impact trees that don't contain the node of the given id.
 redirectTree :: forall a . Id -> JoinTree a -> JoinTree a
-redirectTree i' t = fromGraph . renumberTopological . redirectTree' i' $ t.g
+redirectTree i' t = unsafeFromGraph . renumberTopological . redirectTree' i' $ t.g
     where
 
         -- Works by traversing out from the given node,

@@ -8,6 +8,13 @@
 {-# LANGUAGE QuantifiedConstraints  #-}
 {-# LANGUAGE TypeFamilies           #-}
 
+
+{- | If an unsafe library function says it *asserts* something is the case,
+that literally means it uses the `Control.Exception` `assert`. Hence, the user
+should not rely on an error being thrown unless asserts are enabled.
+
+TODO: Move to head of library.
+-}
 module LocalComputation.ValuationAlgebra
     ( Valuation (label, _combine, _project, identity, eliminate, satisfiesInvariants, VarAssignment)
     , combine
