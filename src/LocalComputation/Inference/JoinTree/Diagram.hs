@@ -4,7 +4,7 @@
 
 -- TODO: Add to future work: fully animating the diagram (showing changing animations and everything) through using a GIF.
 module LocalComputation.Inference.JoinTree.Diagram (
-      draw
+      drawForest
     , DrawSettings (beforeInference, afterInference)
     , def
 ) where
@@ -49,9 +49,9 @@ data DiagramWithBorder a = DiagramWithBorder {
 -- TODO: Update to *actually* work on forests, or update to take JoinTree instead.
 
 -- Draws a tree from the given graph, outputting the drawing into a file of the given name. Has the same assumptions as `tree`.
-draw :: (V.Valuation v, Show (v a), Ord a, Show a)
+drawForest :: (V.Valuation v, Show (v a), Ord a, Show a)
     => FilePath -> JT.JoinForest (v a) -> IO ()
-draw name g = do
+drawForest name g = do
     -- Create directory for file if necessary
     createDirectoryIfMissing True (takeDirectory name)
 

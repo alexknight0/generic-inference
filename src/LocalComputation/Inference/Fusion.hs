@@ -93,7 +93,7 @@ fusionPass settings vs queryDomain = do
         treeBeforeInference = JT.toForest $ JT.collectTree vs queryDomain
 
         drawTree Nothing         _    = pure ()
-        drawTree (Just filename) tree = liftIO $ D.draw filename tree
+        drawTree (Just filename) tree = liftIO $ D.drawForest filename tree
 
 nodeActions :: (MP.SerializableValuation v a) => MP.NodeActions v a
 nodeActions this neighbours resultPort = do

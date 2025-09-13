@@ -73,7 +73,7 @@ queries settings vs queryDomains = do
         treeBeforeInference = baseJoinForest vs queryDomains
 
         drawTree Nothing         _    = pure ()
-        drawTree (Just filename) tree = liftIO $ D.draw filename tree
+        drawTree (Just filename) tree = liftIO $ D.drawForest filename tree
 
 
 nodeActions :: (MP.SerializableValuation v a)
