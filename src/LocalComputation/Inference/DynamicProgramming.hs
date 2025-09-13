@@ -35,8 +35,8 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular as Q
 -- This function can be made more generic; but dynamic programming is only implemented
 -- for the quasiregular valuation algebra, so it is implemented instance-specific here.
 solution :: forall a b . (V.Var a, Q.QSemiringValue b, Show b)
-    => JT.JoinTree (Q.QuasiRegularValuation b a)
-    -> V.VarAssignment (Q.QuasiRegularValuation b) a b
+    => JT.JoinTree (Q.Valuation b a)
+    -> V.VarAssignment (Q.Valuation b) a b
 solution t | assert (JT.supportsCollect t) False = undefined
 solution t = go (t.root.id - 1) initialX
     where

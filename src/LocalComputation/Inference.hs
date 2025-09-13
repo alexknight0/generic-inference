@@ -62,7 +62,7 @@ queryIsCovered vs qs = not $ any (\q -> not $ S.isSubsetOf q coveredDomain) qs
 -- of the join tree used during inference.
 queryDPDrawGraph :: (MonadIO m, Q.QSemiringValue b, Show b, Var a, NFData a, NFData b, Serializable a, Serializable b)
     => D.DrawSettings
-    -> [Q.QuasiRegularValuation b a]
+    -> [Q.Valuation b a]
     -> Domain a
     -> Either Error (m (M.LabelledMatrix a () b))
 queryDPDrawGraph _ vs q

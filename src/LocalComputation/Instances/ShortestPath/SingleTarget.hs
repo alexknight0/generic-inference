@@ -16,9 +16,9 @@ import qualified Data.Set                                                     as
 
 import qualified Data.Map                                                     as MP
 import qualified LocalComputation.LabelledMatrix                              as M
-import qualified LocalComputation.ValuationAlgebra.QuasiRegular               as Q (QuasiRegularValuation,
-                                                                                    SemiringValue (one, zero),
+import qualified LocalComputation.ValuationAlgebra.QuasiRegular               as Q (SemiringValue (one, zero),
                                                                                     TropicalSemiringValue,
+                                                                                    Valuation,
                                                                                     create,
                                                                                     solution)
 -- Typeclasses
@@ -42,7 +42,7 @@ import           Type.Reflection                                              (T
 -- TODO: Where does the hashable constraint come from?
 
 type Result a = M.LabelledMatrix a () Q.TropicalSemiringValue
-type Knowledgebase a = [Q.QuasiRegularValuation Q.TropicalSemiringValue a]
+type Knowledgebase a = [Q.Valuation Q.TropicalSemiringValue a]
 
 -- | Query for a multiple-source single-target problem.
 data Query a = Query { sources :: [a], target :: a } deriving Show
@@ -75,7 +75,7 @@ knowledgeBase gs target = map f gs
 getDistance :: (Ord a) => Result a -> (a, a) -> Q.TropicalSemiringValue
 getDistance x (source, _) = fromJust $ M.find (source, ()) x
 
-type ComputeInference m a = D.DrawSettings -> [Q.QuasiRegularValuation Q.TropicalSemiringValue a] -> V.Domain a -> Either I.Error (m (M.LabelledMatrix a () Q.TropicalSemiringValue))
+type ComputeInference m a = D.DrawSettings -> [Q.Valuation Q.TropicalSemiringValue a] -> V.Domain a -> Either I.Error (m (M.LabelledMatrix a () Q.TropicalSemiringValue))
 
 -- TODO: Can this handle negative weights?
 
