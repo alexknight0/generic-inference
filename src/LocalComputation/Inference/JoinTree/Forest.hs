@@ -20,6 +20,7 @@ module LocalComputation.Inference.JoinTree.Forest (
     , unsafeConvertToCollectTree
     , toForest
     , unsafeUpdateValuations
+    , unsafeGetTree
 ) where
 
 import           GHC.Records                              (HasField, getField)
@@ -37,6 +38,7 @@ import           Data.Maybe                               (fromJust, isJust)
 import qualified Data.Set                                 as S
 import qualified LocalComputation.Utils                   as U
 
+import           Control.Exception                        (assert)
 import           LocalComputation.Inference.JoinTree.Tree (Id, JoinTree,
                                                            Node (id))
 import qualified LocalComputation.Inference.JoinTree.Tree as JT
@@ -61,6 +63,9 @@ findById i t = L.find (\n -> n.id == i) $ G.vertexList t.g
 toForest :: JoinTree v -> JoinForest v
 toForest t = unsafeFromGraph t.g
 
+unsafeGetTree :: JoinForest v -> JoinTree v
+unsafeGetTree f = assert (treeCount f == 1) (JT.unsafeFromGraph f.g)
+
 --------------------------------------------------------------------------------
 -- Transformations
 --------------------------------------------------------------------------------
@@ -80,6 +85,9 @@ unsafeUpdateValuations m t = unsafeFromGraph $ fmap f t.g
 --------------------------------------------------------------------------------
 -- Properties
 --------------------------------------------------------------------------------
+treeCount :: JoinForest v -> Int
+treeCount = length . treeList
+
 treeList :: forall v . JoinForest v -> [JoinTree v]
 treeList t = getTrees' (vertexSet t)
 
@@ -122,7 +130,7 @@ outgoingEdges :: Id -> JoinForest v -> Maybe [Node v]
 outgoingEdges = (fmap snd .) . outgoingEdges'
 
 outgoingEdges' :: Id -> JoinForest v -> Maybe (Node v, [Node v])
-outgoingEdges' i t = L.find (\(n, _) -> n.id == i) . G.adjacencyList $ t.g
+outgoingEdges' i t = JT.outgoingGraphEdges i t.g
 
 --------------------------------------------------------------------------------
 -- Collect tree creation

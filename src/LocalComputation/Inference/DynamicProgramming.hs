@@ -8,10 +8,11 @@ module LocalComputation.Inference.DynamicProgramming (
     solution
 ) where
 
+import           Control.Exception                              (assert)
 import           Data.Maybe                                     (fromJust)
 import qualified Data.Set                                       as S
 import qualified LocalComputation.Inference.JoinTree            as JT
-import qualified LocalComputation.Inference.JoinTree.Forest     as JT
+import qualified LocalComputation.Inference.JoinTree.Tree       as JT
 import qualified LocalComputation.LabelledMatrix                as M
 import qualified LocalComputation.Utils                         as U
 import qualified LocalComputation.ValuationAlgebra              as V
@@ -33,8 +34,9 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular as Q
 -- This function can be made more generic; but dynamic programming is only implemented
 -- for the quasiregular valuation algebra, so it is implemented instance-specific here.
 solution :: forall a b . (V.Var a, Q.QSemiringValue b, Show b)
-    => JT.JoinForest (Q.QuasiRegularValuation b a)
+    => JT.JoinTree (Q.QuasiRegularValuation b a)
     -> M.LabelledMatrix a () b
+solution g | assert (JT.supportsCollect g) False = undefined
 solution g = go (rootNode.id - 1) initialX
     where
         vertices = JT.vertexList g
