@@ -70,7 +70,7 @@ changeContent n v = n { v = v }
 
 -- | Accessor for the domain of the valuation.  Equivalent to calling `label` on the valuation.
 -- __Warning__: Not necessarily O(1).
-instance (Valuation v, Ord a, Show a) => HasField "d" (Node (v a)) (Domain a) where
+instance (ValuationFamily v, Ord a, Show a) => HasField "d" (Node (v a)) (Domain a) where
     getField m = label m.v
 
 -- | Equality of nodes defers to id.
@@ -85,7 +85,7 @@ instance Ord (Node v) where
     -- An ordering is necessary for use with Algebra.Graph
     x <= y = x.id <= y.id
 
-instance (Valuation v, Ord a, Show a) => Show (Node (v a)) where
+instance (ValuationFamily v, Ord a, Show a) => Show (Node (v a)) where
     show n = unpack $ pShow (n.id, n.d)
 
 --------------------------------------------------------------------------------
@@ -150,7 +150,7 @@ redirectTree i' t = unsafeFromGraph . renumberTopological . redirectTree' i' $ t
 -- | Redirects the given join tree to reverse edges to face a query node of the given domain.
 -- If multiple query nodes with this domain exist, one is chosen at random. This function only
 -- searches amongst nodes with a `NodeType` of `Query`.
-redirectToQueryNode :: (Valuation v, Ord a, Show a)
+redirectToQueryNode :: (ValuationFamily v, Ord a, Show a)
     => Domain a -> JoinTree (v a) -> JoinTree (v a)
 redirectToQueryNode d g = redirectTree (queryNode.id) g
     where

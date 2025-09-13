@@ -64,28 +64,28 @@ draw name d = do
     renderSVG name (dims2D 1400 1400) (withLegend # framePadding 0.05)
 
 -- | Draws a forest, outputting the drawing into a file of the given name.
-drawForest :: (V.Valuation v, Show (v a), Ord a, Show a)
+drawForest :: (V.ValuationFamily v, Show (v a), Ord a, Show a)
     => FilePath -> JT.JoinForest (v a) -> IO ()
 drawForest name f = draw name (\chosenFont -> forest chosenFont f)
 
 -- | Draws a tree, outputting the drawing into a file of the given name.
-drawTree :: (V.Valuation v, Show (v a), Ord a, Show a)
+drawTree :: (V.ValuationFamily v, Show (v a), Ord a, Show a)
     => FilePath -> JT.JoinTree (v a) -> IO ()
 drawTree name t = draw name (\chosenFont -> tree chosenFont t)
 
 -- | Produces a diagram of a forest.
-forest :: (V.Valuation v, Show (v a), Ord a, Show a)
+forest :: (V.ValuationFamily v, Show (v a), Ord a, Show a)
     => SF.PreparedFont Double -> JT.JoinForest (v a) -> Diagram B
 forest chosenFont f = hcat $ map (tree chosenFont) (JT.treeList f)
 
 -- | Produces a diagram of a tree.
-tree :: (V.Valuation v, Show (v a), Ord a, Show a)
+tree :: (V.ValuationFamily v, Show (v a), Ord a, Show a)
     => SF.PreparedFont Double -> JT.JoinTree (v a) -> Diagram B
 tree chosenFont t = tree' chosenFont t.root t
 
 -- | Produces a diagram of a tree by following all **incoming** edges from a given node in a graph.
 -- Assumes the given node is in the tree.
-tree' :: (V.Valuation v, Show (v a), Ord a, Show a)
+tree' :: (V.ValuationFamily v, Show (v a), Ord a, Show a)
     => SF.PreparedFont Double -> JT.Node (v a) -> JT.JoinTree (v a) -> Diagram B
 tree' chosenFont node g = vsep vgap [root.diagram, parents] # applyAll arrows
     where
@@ -103,7 +103,7 @@ tree' chosenFont node g = vsep vgap [root.diagram, parents] # applyAll arrows
         hgap = 0.25 * width root.diagram
 
 -- | Produces a diagram representing a node in a tree.
-treeNode :: (V.Valuation v, Show (v a), Ord a, Show a)
+treeNode :: (V.ValuationFamily v, Show (v a), Ord a, Show a)
     => SF.PreparedFont Double -> JT.Node (v a) -> DiagramWithBorder B
 treeNode chosenFont node = DiagramWithBorder (full # named node.id) contents.borderWidth
     where

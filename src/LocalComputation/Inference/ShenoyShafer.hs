@@ -41,7 +41,7 @@ type InferredData v a = JT.JoinForest (v a)
 -- | Extracts a given query from the query results.
 --
 -- Assumes query is subset of the domain the given valuations cover.
-extractQueryResult :: forall v a. (Valuation v, Var a)
+extractQueryResult :: forall v a. (ValuationFamily v, Var a)
     => [Domain a]
     -> InferredData v a
     -> [v a]
@@ -94,7 +94,7 @@ nodeActions this neighbours resultPort = do
 --  1. combining all messages in the sender's postbox that don't come from the neighbour
 --  2. combining this result with the sender's valuation
 --  3. projecting the result to the intersection of the sender and neighbour's domain
-computeMessage :: (Valuation v, Var a)
+computeMessage :: (ValuationFamily v, Var a)
     => [MP.Message (v a)]
     -> MP.NodeWithPid (v a)
     -> MP.NodeWithPid (v a)
@@ -106,7 +106,7 @@ computeMessage postbox sender recipient = computeMessage' (filter (\msg -> msg.s
 -- | Same as `computeMessage` except doesn't filter the given postbox for messages that don't come from the
 -- recipient. Hence should only be used when it is known that none of the messages in the postbox come
 -- from the recipient.
-computeMessage' :: (Valuation v, Var a)
+computeMessage' :: (ValuationFamily v, Var a)
     => [MP.Message (v a)]
     -> MP.NodeWithPid (v a)
     -> MP.NodeWithPid (v a)

@@ -13,7 +13,7 @@ import qualified LocalComputation.Inference.JoinTree         as JT
 import qualified LocalComputation.Inference.JoinTree.Diagram as D
 import qualified LocalComputation.Inference.MessagePassing   as MP
 import           LocalComputation.ValuationAlgebra           (Domain,
-                                                              Valuation (eliminate, label),
+                                                              ValuationFamily (eliminate, label),
                                                               Var, combines1)
 import           Numeric.Natural                             (Natural)
 
@@ -43,7 +43,7 @@ instance Ord (WithId a) where
 --
 -- __Warning__: Assumes that the query is a subset of the covered domain - this should be checked
 -- by the caller.
-fusion :: (Valuation v, Var a)
+fusion :: (ValuationFamily v, Var a)
     => [v a]
     -> Domain a
     -> v a
@@ -55,7 +55,7 @@ fusion vs x = fusion' nextId vsWithIds (S.toList dPhiMinusX)
         vsWithIds = S.fromList $ zipWith WithId [0..] vs
         nextId = fromIntegral $ length vs
 
-fusion' :: (Valuation v, Var a) => Natural -> S.Set (WithId (v a)) -> [a] -> v a
+fusion' :: (ValuationFamily v, Var a) => Natural -> S.Set (WithId (v a)) -> [a] -> v a
 fusion' _        upperPsi []     = combines1 $ map (.content) $ S.toList upperPsi
 fusion' uniqueId upperPsi (y:ys) = fusion' (uniqueId + 1) upperPsi' ys
     where
@@ -122,7 +122,7 @@ nodeActions this neighbours resultPort = do
 --  1. combining all messages in the sender's postbox that don't come from the neighbour
 --  2. combining this result with the sender's valuation
 --  3. eliminating all variables not in the receivers domain
-computeMessage :: forall v a . (Valuation v, Var a)
+computeMessage :: forall v a . (ValuationFamily v, Var a)
     => [MP.Message (v a)]
     -> MP.NodeWithPid (v a)
     -> MP.NodeWithPid (v a)

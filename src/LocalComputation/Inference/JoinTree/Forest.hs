@@ -130,7 +130,7 @@ outgoingEdges' i t = JT.outgoingGraphEdges i t.g
 --------------------------------------------------------------------------------
 -- Collect tree creation
 --------------------------------------------------------------------------------
-unsafeConvertToCollectTree :: forall v a . (Show a, Valuation v, Ord a)
+unsafeConvertToCollectTree :: forall v a . (Show a, ValuationFamily v, Ord a)
     => JoinForest (v a)
     -> Domain a
     -> JoinTree (v a)

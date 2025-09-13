@@ -36,7 +36,7 @@ create m b
     | otherwise = Nothing
 
 -- TODO: Probably can remove instance of Show? It doens't contribute to the 'label', 'combine', 'project' functionality no?
-instance (Show b, Q.QSemiringValue b) => Valuation (QuasiRegularValuation b) where
+instance (Show b, Q.QSemiringValue b) => ValuationFamily (QuasiRegularValuation b) where
 
     type VarAssignment (QuasiRegularValuation b) a b = M.LabelledMatrix a () b
 

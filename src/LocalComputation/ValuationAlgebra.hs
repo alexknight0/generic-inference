@@ -16,7 +16,7 @@ should not rely on an error being thrown unless asserts are enabled.
 TODO: Move to head of library.
 -}
 module LocalComputation.ValuationAlgebra
-    ( Valuation (label, _combine, _project, identity, eliminate, satisfiesInvariants, VarAssignment)
+    ( ValuationFamily (label, _combine, _project, identity, eliminate, satisfiesInvariants, VarAssignment)
     , combine
     , project
     , combines1
@@ -63,7 +63,7 @@ type Var a = (Show a, Ord a)
 
 -- TODO: document choice of having two types 'a' and 'b'
 -- TODO: Could use 'data' constructor inside class declaration...
-class Valuation v where
+class ValuationFamily v where
 
     type VarAssignment v a b
 
@@ -79,10 +79,10 @@ class Valuation v where
     satisfiesInvariants :: Var a => v a -> Bool
     satisfiesInvariants _ = True
 
-combine :: (Valuation v, Var a) => v a -> v a      -> v a
+combine :: (ValuationFamily v, Var a) => v a -> v a      -> v a
 combine v1 v2 = assertInvariants $ _combine v1 v2
 
-project :: (Valuation v, Var a) => v a -> Domain a -> v a
+project :: (ValuationFamily v, Var a) => v a -> Domain a -> v a
 project v d
     -- Domain projected to must be subset.
     | assert (d `S.isSubsetOf` label v) False = undefined
@@ -91,10 +91,10 @@ project v d
     -- Delegate call to _project but check invariants on return
     | otherwise = assertInvariants $ _project v d
 
-assertInvariants :: (Valuation v, Var a) => v a -> v a
+assertInvariants :: (ValuationFamily v, Var a) => v a -> v a
 assertInvariants v = U.assertP satisfiesInvariants v
 
-combines1 :: (Foldable f, Valuation v, Var a) => f (v a) -> v a
+combines1 :: (Foldable f, ValuationFamily v, Var a) => f (v a) -> v a
 combines1 = foldr1 combine
 
 showDomain :: Show a => Domain a -> String

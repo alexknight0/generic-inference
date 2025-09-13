@@ -11,7 +11,7 @@ module LocalComputation.ValuationAlgebra.Semiring
     , create
     , normalize
     , getRows
-    , Valuation
+    , ValuationFamily
     , findValue
     , mapTableKeys
     , mapVariableValues
@@ -121,7 +121,7 @@ create x y z w
     where
         result = Valuation x y z w
 
-instance (Ord b, Show b, Show c, SemiringValue c) => Valuation (SemiringValuation c b) where
+instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (SemiringValuation c b) where
     type VarAssignment (SemiringValuation c b) a b = M.Map a b
 
     label i@Identity{}  = i.d

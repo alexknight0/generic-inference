@@ -75,7 +75,7 @@ The query domains are used only to ensure the join tree has a node that answers
 each query (by creating empty nodes for each the query domain). The node ids
 of the input valuations 'vs' in the final join tree are [0 .. (length vs)] respectively.
 -}
-baseJoinForest :: forall v a. (Show a, Valuation v, Ord a)
+baseJoinForest :: forall v a. (Show a, ValuationFamily v, Ord a)
     => [v a]
     -> [Domain a]
     -> JoinForest (v a)
@@ -105,7 +105,7 @@ Where convenient, variables have been named as they appear in the pseudocode des
 is a parameter such that there currently exists no nodes with id > 'nextNodeId' in the tree. As we may
 create up to 2 nodes on each iteration, we make the recursive call with 'nextNodeId + 2'
 -}
-baseJoinForest' :: forall v a . (Valuation v, Ord a, Show a)
+baseJoinForest' :: forall v a . (ValuationFamily v, Ord a, Show a)
     => Id
     -> [Node (v a)]
     -> E.EliminationSequence a
@@ -142,7 +142,7 @@ baseJoinForest' nextNodeId r d
                 nPDomain = (fromList $ setDifference (toList domainOfPhiX) [x])
 
 -- | Creates a join tree that can be used for collect problems.
-collectTree :: (Show a, Valuation v, Ord a)
+collectTree :: (Show a, ValuationFamily v, Ord a)
     => [v a]
     -> Domain a
     -> JoinTree (v a)

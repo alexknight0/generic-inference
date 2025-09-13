@@ -50,7 +50,7 @@ queriesDrawGraph _ BruteForce vs qs = Right $ pure $ bruteForces vs qs
 queriesDrawGraph _ Fusion     vs qs = Right $ mapM (\q -> pure $ F.fusion vs q) qs
 queriesDrawGraph s Shenoy     vs qs = Right $ run $ SS.queries s vs qs
 
-queryIsCovered :: (Foldable t, Valuation v, Var a)
+queryIsCovered :: (Foldable t, ValuationFamily v, Var a)
     => [v a]
     -> t (S.Set a)
     -> Bool
@@ -111,7 +111,7 @@ unsafeQuery mode vs q = fmap head $ unsafeQueries mode vs [q]
 -- by the caller.
 --
 -- __Warning__: Assumes the given list of valuations is not empty.
-bruteForces :: (Valuation v, Var a)
+bruteForces :: (ValuationFamily v, Var a)
     => [v a]
     -> [Domain a]
     -> [v a]
