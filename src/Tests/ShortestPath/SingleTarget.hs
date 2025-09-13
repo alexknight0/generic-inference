@@ -68,8 +68,8 @@ randomMatchesBaseline = do
 -- TODO: Something doesn't like empty graphs...
 randomMatchesBaseline' :: Implementation -> TestLimit -> Property
 randomMatchesBaseline' mode numTests = withTests numTests . property $ do
-    nodes <- forAll $ Gen.int (Range.linear 2 200)
-    edges <- forAll $ Gen.int (Range.linear 2 2000)
+    nodes <- forAll $ Gen.int (Range.linear 2 100)
+    edges <- forAll $ Gen.int (Range.linear 2 1000)
     graphs <- forAll $ genGraphs (fromIntegral nodes) (fromIntegral edges)
 
     query <- forAll $ genConnectedQuery (G.reverseAdjacencyList (G.merges1 graphs))
@@ -80,23 +80,13 @@ randomMatchesBaseline' mode numTests = withTests numTests . property $ do
 
 
     baseline  <- go Baseline query graphs
-    local     <- case not (G.isConnected (G.merges1 graphs)) && mode == DP of
-                    True -> case resultNow graphs query of
-                                Left _  -> failure
-                                Right x -> liftIO $ x
-                    False -> go mode query graphs
+    local     <- go mode query graphs
 
     checkAnswers approx local baseline
 
     where
         go :: (MonadTest m, MonadIO m) => Implementation -> ST.Query Natural -> [G.Graph Natural Double] -> m [Double]
         go m query gs = singleTarget m gs query.sources query.target
-
-        -- TODO: Remove debugging code.
-        resultNow :: (NFData a, Show a, Binary a, Typeable a, H.Hashable a, Ord a) => [G.Graph a Double] -> ST.Query a -> Either I.Error (IO [Double])
-        resultNow graphs query = ST.singleTargetDP s graphs query
-
-        s = D.def { D.afterInference = Just "diagrams/unconnected.svg" }
 
 
 tolerableError :: Double

@@ -48,7 +48,8 @@ solution t = go (t.root.id - 1) initialX
 
         go 0 x = x
         go i x
-            | V.isIdentity nodeI.v = go (i - 1) x   -- Skip identity elements
+            | V.isIdentity nodeI.v = go (i - 1) x -- Skip identity elements
+                                                  -- (extension sets not implemented for them)
             | otherwise            = go (i - 1) (M.unsafeAppendRows x y)
             where
                 nodeI      = (Map.!) vertices i
