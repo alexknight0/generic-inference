@@ -27,10 +27,11 @@ import           Tests.Utils                                       (checkAnswers
 
 import           Control.DeepSeq                                   (NFData)
 import qualified Data.Char                                         as C
-import           LocalComputation.Inference                        (Mode (Shenoy),
+import           LocalComputation.Inference                        (Mode (..),
                                                                     queriesDrawGraph)
 
 import qualified LocalComputation.Inference.JoinTree.Diagram       as D
+import qualified LocalComputation.Inference.MessagePassing         as MP
 
 tests :: IO Bool
 tests = checkParallel $$(discover)
@@ -162,7 +163,7 @@ prop_inferenceAnswersMatchPrebuilt = withTests 100 . property $ do
 prop_drawAsiaGraph :: Property
 prop_drawAsiaGraph = unitTest $ do
     net <- fmap convertToAsia $ parseNetwork asiaFilepath
-    fromRight $ queriesDrawGraph settings Shenoy net (toInferenceQuery asiaQueriesP1)
+    fromRight $ queriesDrawGraph settings (Shenoy MP.Threads) net (toInferenceQuery asiaQueriesP1)
 
     where settings = D.def { D.beforeInference = Just "diagrams/asia_before.svg"
                            , D.afterInference = Just "diagrams/asia_after.svg"

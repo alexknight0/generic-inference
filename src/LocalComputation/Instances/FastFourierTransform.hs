@@ -32,6 +32,7 @@ import           GHC.Generics                               (Generic)
 
 import           Data.Maybe                                 (fromJust)
 import qualified LocalComputation.Inference                 as I
+import qualified LocalComputation.Inference.MessagePassing  as MP
 
 newtype FourierComplex = FourierComplex (C.Complex Double) deriving newtype (Num, Fractional, Binary, Show, NFData, Eq, Generic)
 
@@ -101,7 +102,7 @@ query samples qs = case integerLogBase2 (fromIntegral $ length samples) of
         let queryDomain = S.fromList $ map Y $ [0 .. m-1]
 
         -- let result = fromRight $ fusion (getKnowledgebase samples) queryDomain
-        result <- I.unsafeQuery I.Shenoy (getKnowledgebase samples) queryDomain
+        result <- I.unsafeQuery (I.Shenoy MP.Threads) (getKnowledgebase samples) queryDomain
         pure $ map (findBinaryValue result m) qs
 
 -- | An unsafe version of `query` - throws when `query` would return `Nothing`.

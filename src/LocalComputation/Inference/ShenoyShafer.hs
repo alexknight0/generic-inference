@@ -22,7 +22,9 @@ import qualified LocalComputation.Inference.JoinTree                   as J
 import qualified LocalComputation.Inference.JoinTree                   as JT
 import qualified LocalComputation.Inference.JoinTree.Diagram           as D
 import qualified LocalComputation.Inference.JoinTree.Forest            as JT
-import qualified LocalComputation.Inference.MessagePassing.Distributed as MP
+import qualified LocalComputation.Inference.MessagePassing             as MP
+import qualified LocalComputation.Inference.MessagePassing.Distributed as DMP
+import qualified LocalComputation.Inference.MessagePassing.Threads     as TMP
 import           LocalComputation.ValuationAlgebra
 
 -- TODO: [Hypothesis]... Due to the high serialization cost, using the Cloud Haskell library to represent
@@ -56,15 +58,18 @@ extractQueryResult queryDomains results = map f queryDomains
 -- | Performs shenoy shafer inference.
 --
 -- Assumes query is subset of the domain the given valuations cover.
-queries :: (MP.SerializableValuation v a, Show (v a))
-    => D.DrawSettings
+queries :: (DMP.SerializableValuation v a, Show (v a))
+    => MP.Mode
+    -> D.DrawSettings
     -> [v a]
     -> [Domain a]
     -> Process [v a]
-queries settings vs queryDomains = do
+queries mode settings vs queryDomains = do
     drawTree settings.beforeInference treeBeforeInference
 
-    treeAfterInference <- MP.messagePassing treeBeforeInference nodeActions
+    treeAfterInference <- case mode of
+                            MP.Distributed ->        DMP.messagePassing treeBeforeInference nodeActions
+                            MP.Threads     -> pure $ TMP.messagePassing treeBeforeInference
 
     drawTree settings.afterInference treeAfterInference
 
@@ -78,12 +83,12 @@ queries settings vs queryDomains = do
 
 -- TODO: A lot of combines are repeated in this process. This could definitely be
 -- improved with a dynamic programming solution.
-nodeActions :: (MP.SerializableValuation v a)
-    => MP.NodeActions v a
+nodeActions :: (DMP.SerializableValuation v a)
+    => DMP.NodeActions v a
 nodeActions this neighbours resultPort = do
 
-    collectResults    <- MP.collect                   this neighbours computeMessage'
-    distributeResults <- MP.distribute collectResults this neighbours computeMessage
+    collectResults    <- DMP.collect                   this neighbours computeMessage'
+    distributeResults <- DMP.distribute collectResults this neighbours computeMessage
 
     -- Send result back to parent process
     let result = combines1 (this.node.v : map (.msg) distributeResults.postbox)
@@ -97,9 +102,9 @@ nodeActions this neighbours resultPort = do
 --  2. combining this result with the sender's valuation
 --  3. projecting the result to the intersection of the sender and neighbour's domain
 computeMessage :: (ValuationFamily v, Var a)
-    => [MP.Message (v a)]
-    -> MP.NodeWithPid (v a)
-    -> MP.NodeWithPid (v a)
+    => [DMP.Message (v a)]
+    -> DMP.NodeWithPid (v a)
+    -> DMP.NodeWithPid (v a)
     -> v a
 computeMessage postbox sender recipient = computeMessage' (filter (\msg -> msg.sender /= recipient.id) postbox)
                                                           sender
@@ -109,9 +114,9 @@ computeMessage postbox sender recipient = computeMessage' (filter (\msg -> msg.s
 -- recipient. Hence should only be used when it is known that none of the messages in the postbox come
 -- from the recipient.
 computeMessage' :: (ValuationFamily v, Var a)
-    => [MP.Message (v a)]
-    -> MP.NodeWithPid (v a)
-    -> MP.NodeWithPid (v a)
+    => [DMP.Message (v a)]
+    -> DMP.NodeWithPid (v a)
+    -> DMP.NodeWithPid (v a)
     -> v a
 computeMessage' postbox sender recipient = project (combines1 (sender.node.v : map (.msg) postbox))
                                                    (intersection sender.node.d recipient.node.d)

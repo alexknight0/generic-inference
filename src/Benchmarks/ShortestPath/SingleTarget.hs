@@ -29,6 +29,7 @@ import           Numeric.Natural                                      (Natural)
 
 import           Control.DeepSeq                                      (deepseq)
 import qualified LocalComputation.Inference.JoinTree.Diagram          as D
+import qualified LocalComputation.Inference.MessagePassing            as MP
 
 data Implementation = Baseline | Local I.Mode deriving Show
 
@@ -46,12 +47,12 @@ benchmarks = do
 
     bruteForce  <- singleTarget (Local I.BruteForce) [graph] queries
     fusion      <- singleTarget (Local I.Fusion)     [graph] queries
-    shenoy      <- singleTarget (Local I.Shenoy)     [graph] queries
+    shenoy      <- singleTarget (Local (I.Shenoy MP.Threads))     [graph] queries
     baseline    <- singleTarget (Baseline)           [graph] queries
 
     pure $ pure $ bgroup "Shortest Path" [
 
-                  --bench "inparlell-shenoy"     $ nfIO $ fromRight $ ST.singleTarget (I.Shenoy) [p3Medium] (head tmp).sources (head tmp).target
+                  --bench "inparlell-shenoy"     $ nfIO $ fromRight $ ST.singleTarget ((I.Shenoy MP.Threads)) [p3Medium] (head tmp).sources (head tmp).target
                   bench "localcomputation-bruteForce" $ nfIO bruteForce
                 , bench "localcomputation-fusion"     $ nfIO fusion
                 , bench "localcomputation-shenoy"     $ nfIO shenoy

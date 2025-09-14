@@ -32,6 +32,7 @@ import           Control.Monad.IO.Class                               (MonadIO)
 import           Data.Binary                                          (Binary)
 import qualified Data.Hashable                                        as H
 import qualified LocalComputation.Inference                           as I
+import qualified LocalComputation.Inference.MessagePassing            as MP
 import           Numeric.Natural                                      (Natural)
 import           Tests.Utils                                          (checkAnswers,
                                                                        unitTest)
@@ -48,7 +49,7 @@ tests = fmap and $ sequence [
 p3MatchesBaseline :: IO Bool
 p3MatchesBaseline = do
     p3VerySmall <- P.fromValid p3VerySmallGraph
-    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map (getTest p3VerySmall) [Local I.BruteForce, Local I.Fusion, Local I.Shenoy, DP]
+    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map (getTest p3VerySmall) [Local I.BruteForce, Local I.Fusion, Local (I.Shenoy MP.Threads), DP]
 
     where
         getTest :: G.Graph Natural Double -> Implementation -> (PropertyName, Property)
@@ -58,7 +59,7 @@ p3MatchesBaseline = do
 -- TODO: Clean up
 randomMatchesBaseline :: IO Bool
 randomMatchesBaseline = do
-    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map getTest [Local I.BruteForce, Local I.Fusion, Local I.Shenoy, DP]
+    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map getTest [Local I.BruteForce, Local I.Fusion, Local (I.Shenoy MP.Threads), DP]
 
     where
         getTest :: Implementation -> (PropertyName, Property)
@@ -110,13 +111,13 @@ singleTarget DP            graphs sources target = case ST.singleTargetDP D.def 
 
 pX :: Problem -> Property
 pX p = unitTest $ do
-    forM [Baseline, Local I.BruteForce, Local I.Fusion, Local I.Shenoy] $ \mode -> do
+    forM [Baseline, Local I.BruteForce, Local I.Fusion, Local (I.Shenoy MP.Threads)] $ \mode -> do
         results <- singleTarget mode p.graphs p.q.sources p.q.target
         checkAnswers approx (results) p.answers
 
 prop_p1_drawGraph :: Property
 prop_p1_drawGraph = unitTest $ do
-    case ST.singleTarget settings I.Shenoy p1.graphs p1.q of
+    case ST.singleTarget settings (I.Shenoy MP.Threads) p1.graphs p1.q of
         Left _ -> failure
         Right results -> do
             results' <- results

@@ -44,6 +44,7 @@ module LocalComputation.Utils
     , count
     , fmapToFst
     , filterKeys
+    , allButMaybeOne
     )
 where
 
@@ -257,3 +258,18 @@ fmapToFst f = fmap (\x -> (f x, x))
 
 filterKeys :: (a -> Bool) -> M.Map a b -> M.Map a b
 filterKeys f = M.filterWithKey (\k _ -> f k)
+
+-- | Variant of `all` that allows the predicate to be false for at most 1 element.
+allButMaybeOne :: (Foldable f) => (a -> Bool) -> f a -> Bool
+allButMaybeOne p xs = falseCount < 2
+    where
+        -- Counts the number of times the predicate returns false but returns early
+        -- once has counted two occurances
+        falseCount = foldr f 0 xs
+
+        f x acc
+            | acc >= 2 = 2
+            | p x = acc
+            | otherwise = acc + 1
+
+

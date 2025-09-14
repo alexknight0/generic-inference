@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module LocalComputation.Inference.MessagePassing.Threads (
-
+    messagePassing
 ) where
 import           Control.Exception                          (assert)
 import qualified Data.Map                                   as M

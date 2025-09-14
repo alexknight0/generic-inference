@@ -61,6 +61,7 @@ import qualified Data.Map                           as M
 import           Data.Maybe                         (fromJust, isJust,
                                                      isNothing)
 import           Data.Text.Lazy                     (unpack)
+import           GHC.Stack                          (HasCallStack)
 import qualified LocalComputation.Utils             as L (count)
 import qualified LocalComputation.Utils             as U
 import qualified LocalComputation.ValuationAlgebra  as V
@@ -151,7 +152,7 @@ instance HasField "root" (JoinTree v) (Node v) where
 -- __Warning__: Unsafe - if assertions are enabled, will check some invariants associated with a join tree
 -- and throw an error if the graph doesn't satisfy these invariants. If assertions are disabled, may
 -- result in a malformed data structure.
-unsafeFromGraph :: G.Graph (Node v) -> JoinTree v
+unsafeFromGraph :: (HasCallStack) => G.Graph (Node v) -> JoinTree v
 unsafeFromGraph = U.assertP satisfiesInvariants . UnsafeJoinTree
 
 --------------------------------------------------------------------------------
@@ -197,7 +198,7 @@ unsafeUpdateValuations m t = unsafeFromGraph $ fmap f t.g
 
 
 -- | Updates postboxes for nodes of the given ids.
-unsafeUpdatePostboxes :: M.Map Id (Maybe (M.Map Id a)) -> JoinTree a -> JoinTree a
+unsafeUpdatePostboxes :: (HasCallStack) => M.Map Id (Maybe (M.Map Id a)) -> JoinTree a -> JoinTree a
 unsafeUpdatePostboxes m t = unsafeFromGraph $ fmap f t.g
     where
         f n = case M.lookup n.id m of
@@ -238,6 +239,10 @@ toValuationMap = fmap (.v) . toMap
 toPostboxMap :: JoinTree v -> M.Map Id (Maybe (M.Map Id v))
 toPostboxMap = fmap (.postbox) . toMap
 
+-- | Creates a mapping from a node id to its neighbours in the graph.
+--
+-- The neighbours list will not include the node itself
+-- (no self loops possible in the join tree).
 neighbourMap :: JoinTree v -> M.Map Id [Node v]
 neighbourMap t = M.fromList . map (B.first (.id)) . UG.adjacencyList . UG.toUndirected $ t.g
 
@@ -321,10 +326,18 @@ verticesHaveValidPostbox t = (allHavePostboxes || allDontHavePostboxes)
         allHavePostboxes     = all (\n -> isJust    n.postbox) $ vertexList t
         allDontHavePostboxes = all (\n -> isNothing n.postbox) $ vertexList t
 
+        root = t.root
+
         vertexHasValidPostbox :: Node v -> Bool
-        vertexHasValidPostbox n = case n.postbox of
-                                     Nothing -> True
-                                     Just p  -> all (`elem` neighbours n) (M.keys p)
+        vertexHasValidPostbox n
+            | Nothing <- n.postbox            = True
+            | Just p  <- n.postbox, n == root = U.allButMaybeOne (`elem` neighbours n) (M.keys p)  -- [*]
+            | Just p  <- n.postbox            = all              (`elem` neighbours n) (M.keys p)
+
+        -- [*] Condition is slightly weakened to support an easier implementation
+        -- of distribute for `MessagePassing.Threads` - the algorithm used there
+        -- suffers from the fact that the root node of a subtree may contain a message
+        -- from its child in the real tree.
 
         neighbours :: Node v -> [Id]
         neighbours n = map (.id) $ (M.!) neighbourMap' n.id

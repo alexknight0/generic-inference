@@ -30,6 +30,7 @@ import           GHC.Generics                               (Generic)
 import           Control.Distributed.Process
 import           Control.Distributed.Process.Serializable
 import qualified LocalComputation.Inference                 as I
+import qualified LocalComputation.Inference.MessagePassing  as MP
 
 {- | Valuation for the valuation algebra of probability potentials.
 
@@ -107,7 +108,7 @@ getProbability :: forall a b. (Show a, Show b, Serializable a, Serializable b, O
     -> Network a b
     -> Process [Probability]
 getProbability qs network' = do
-    results <- fromRight $ I.queries I.Shenoy network' domains
+    results <- fromRight $ I.queries (I.Shenoy MP.Threads) network' domains
     pure $ zipWith probability qs results
 
     where

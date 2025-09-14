@@ -12,15 +12,16 @@ module Tests.Utils (
 ) where
 
 import           Hedgehog
-import qualified Hedgehog.Gen                as Gen
-import qualified Hedgehog.Range              as Range
+import qualified Hedgehog.Gen                              as Gen
+import qualified Hedgehog.Range                            as Range
 
-import           Control.DeepSeq             (force)
+import           Control.DeepSeq                           (force)
 import           Control.Distributed.Process
-import qualified Control.Exception           as E
-import           Control.Monad               (void)
-import qualified LocalComputation.Inference  as I
-import           LocalComputation.Utils      (zipWithAssert)
+import qualified Control.Exception                         as E
+import           Control.Monad                             (void)
+import qualified LocalComputation.Inference                as I
+import qualified LocalComputation.Inference.MessagePassing as MP
+import           LocalComputation.Utils                    (zipWithAssert)
 
 -------------------------------------------------------------------------------
 -- Tests                                                                     --
@@ -51,7 +52,7 @@ prop_assertsAreStillPresent = withTests 100 . property $ do
 -------------------------------------------------------------------------------
 
 genMode :: Gen I.Mode
-genMode = Gen.element [I.BruteForce, I.Fusion, I.Shenoy]
+genMode = Gen.element [I.BruteForce, I.Fusion, (I.Shenoy MP.Threads)]
 
 unitTest :: PropertyT IO a -> Property
 unitTest = withTests 1 . property . void

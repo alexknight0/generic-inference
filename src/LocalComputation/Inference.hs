@@ -30,12 +30,13 @@ import qualified Data.Set                                              as S
 import qualified LocalComputation.Inference.DynamicProgramming         as D
 import qualified LocalComputation.Inference.Fusion                     as F
 import qualified LocalComputation.Inference.JoinTree.Diagram           as D
+import qualified LocalComputation.Inference.MessagePassing             as MP
 import qualified LocalComputation.LabelledMatrix                       as M
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular        as Q
 
 data Error = QueryNotSubsetOfValuations deriving (NFData, Generic, Show)
 
-data Mode = BruteForce | Fusion | Shenoy deriving (Show, Eq)
+data Mode = BruteForce | Fusion | Shenoy { _mode :: MP.Mode } deriving (Show, Eq)
 
 -- | Compute inference using the given mode to return valuations with the given domains.
 queries :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a))
@@ -48,7 +49,7 @@ queriesDrawGraph _ _ vs qs
     | not $ queryIsCovered vs qs    = Left  $ QueryNotSubsetOfValuations
 queriesDrawGraph _ BruteForce vs qs = Right $ pure $ bruteForces vs qs
 queriesDrawGraph _ Fusion     vs qs = Right $ mapM (\q -> pure $ F.fusion vs q) qs
-queriesDrawGraph s Shenoy     vs qs = Right $ run $ SS.queries s vs qs
+queriesDrawGraph s (Shenoy m) vs qs = Right $ run $ SS.queries m s vs qs
 
 queryIsCovered :: (Foldable t, ValuationFamily v, Var a)
     => [v a]
