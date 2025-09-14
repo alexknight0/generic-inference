@@ -42,6 +42,7 @@ module LocalComputation.Utils
     , Table (Table, heading, rows)
     , assertError
     , count
+    , fmapToFst
     )
 where
 
@@ -250,3 +251,5 @@ assertError = assert False undefined
 count :: (Num b) => (a -> Bool) -> [a] -> b
 count p xs = L.genericLength $ filter p xs
 
+fmapToFst :: Functor f => (a -> b) -> f a -> f (b, a)
+fmapToFst f = fmap (\x -> (f x, x))

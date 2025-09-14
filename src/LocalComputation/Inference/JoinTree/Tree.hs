@@ -4,6 +4,10 @@
 {-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+-- | Functions the creation and transformation of valid join trees.
+--
+-- A lot of the functions in this module are very inefficent, and could easily be implemented better.
+-- Consider implementations that use a O(1) call for root, as this is used widely.
 module LocalComputation.Inference.JoinTree.Tree (
 
     -- Nodes
@@ -21,8 +25,15 @@ module LocalComputation.Inference.JoinTree.Tree (
     , vertexList
     , vertexMap
     , redirectToQueryNode
+    , incomingEdges
+    , incomingEdges'
+    , outgoingEdges
+    , outgoingEdges'
     , unsafeOutgoingEdges
     , unsafeIncomingEdges
+    , toMap
+    , toValuationMap
+    , unsafeUpdateValuations
 
     -- Utilities
     , outgoingGraphEdges
@@ -82,7 +93,8 @@ instance Eq (Node v) where
 -- In combination with the invariants of the join tree, a sorted list of vertices becomes
 -- a topological ordering.
 instance Ord (Node v) where
-    -- An ordering is necessary for use with Algebra.Graph
+    -- An ordering is necessary for use with Algebra.Graph.
+    -- Many things rely on this ordering; consider `vertexList` and `toMap`.
     x <= y = x.id <= y.id
 
 instance (ValuationFamily v, Ord a, Show a) => Show (Node (v a)) where
@@ -100,6 +112,9 @@ instance (ValuationFamily v, Ord a, Show a) => Show (Node (v a)) where
 
     2 & 3 => root is the node with the largest id
     1 & 3 => root has no outgoing edges
+    1 & 2 & 3 & 4 => Removing the root of the tree creates a forest of valid join
+                     trees, each rooted by a neighbour to the original root
+                     (used for `subTrees` included in the `Forest` module).
 
 Notably the numbering of nodes with ids may not be total - some numbers may be skipped.
 For example, there may exist nodes with ids of 3 and 5 without the existence of a node of id 4.
@@ -157,6 +172,17 @@ redirectToQueryNode d g = redirectTree (queryNode.id) g
         -- TODO: Update
         queryNode = head $ filter (\n -> n.d == d && n.t == Query) (vertexList g)
 
+-- | Updates valuations for nodes of the given ids.
+--
+-- __Warning__: Unsafe - asserts that for a given node, the domain of the new valuation
+-- does not differ from the domain of the old valuation.
+unsafeUpdateValuations :: M.Map Id a -> JoinTree a -> JoinTree a
+unsafeUpdateValuations m t = unsafeFromGraph $ fmap f t.g
+    where
+        f n = case M.lookup n.id m of
+                Nothing -> n
+                Just v  -> n { v = v }
+
 --------------------------------------------------------------------------------
 -- Properties
 --------------------------------------------------------------------------------
@@ -169,6 +195,28 @@ vertexList t = G.vertexList t.g
 
 vertexMap :: JoinTree v -> M.Map Id (Node v)
 vertexMap t = M.fromList . map (\n -> (n.id, n)) $ vertexList t
+
+incomingEdges :: Id -> JoinTree v -> Maybe [Node v]
+incomingEdges = (fmap snd .) . incomingEdges'
+
+incomingEdges' :: Id -> JoinTree v -> Maybe (Node v, [Node v])
+incomingEdges' i t = outgoingGraphEdges i . G.transpose $ t.g
+
+outgoingEdges :: Id -> JoinTree v -> Maybe [Node v]
+outgoingEdges = (fmap snd .) . outgoingEdges'
+
+outgoingEdges' :: Id -> JoinTree v -> Maybe (Node v, [Node v])
+outgoingEdges' i t = outgoingGraphEdges i t.g
+
+toMap :: JoinTree v -> M.Map Id (Node v)
+toMap t = M.fromAscList . map (\n -> (n.id, n)) $ vertexList t
+
+toValuationMap :: JoinTree v -> M.Map Id v
+toValuationMap = fmap (.v) . toMap
+
+--------------------------------------------------------------------------------
+-- Unsafe variants
+--------------------------------------------------------------------------------
 
 unsafeIncomingEdges :: Id -> JoinTree v -> [Node v]
 unsafeIncomingEdges i t = snd . fromJust . outgoingGraphEdges i . G.transpose $ t.g

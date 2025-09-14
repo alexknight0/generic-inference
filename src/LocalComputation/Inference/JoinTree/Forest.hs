@@ -22,6 +22,8 @@ module LocalComputation.Inference.JoinTree.Forest (
     , unsafeUpdateValuations
     , unsafeGetTree
     , treeList
+    , subTrees
+    , subTrees'
 ) where
 
 import           LocalComputation.ValuationAlgebra        hiding
@@ -76,6 +78,15 @@ unsafeUpdateValuations m t = unsafeFromGraph $ fmap f t.g
                 Nothing -> n
                 Just v  -> n { JT.v = v }
 
+-- | Returns the sub join trees that can be formed by traversing one edge from the root,
+-- erasing the edge that was followed, and declaring the node visited the root of a valid
+-- join tree.
+subTrees :: JoinTree v -> [JoinTree v]
+subTrees t = treeList $ unsafeFromGraph $ G.removeVertex t.root t.g
+
+-- | Variant of `subTrees` that also includes the root of each tree alongside for quick access.
+subTrees' :: JoinTree v -> [(Node v, JoinTree v)]
+subTrees' = U.fmapToFst (.root) . subTrees
 
 --------------------------------------------------------------------------------
 -- Properties
