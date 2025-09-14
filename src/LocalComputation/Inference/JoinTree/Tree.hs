@@ -33,7 +33,10 @@ module LocalComputation.Inference.JoinTree.Tree (
     , unsafeIncomingEdges
     , toMap
     , toValuationMap
+    , toPostboxMap
     , unsafeUpdateValuations
+    , unsafeUpdatePostboxes
+    , verticesHavePostboxes
 
     -- Utilities
     , outgoingGraphEdges
@@ -51,6 +54,7 @@ import qualified Algebra.Graph.ToGraph              as G (isTopSortOf,
                                                           toAdjacencyMap,
                                                           topSort)
 import qualified Algebra.Graph.Undirected           as UG
+import           Control.Exception                  (assert)
 import qualified Data.Bifunctor                     as B
 import qualified Data.List                          as L
 import qualified Data.Map                           as M
@@ -59,6 +63,7 @@ import           Data.Maybe                         (fromJust, isJust,
 import           Data.Text.Lazy                     (unpack)
 import qualified LocalComputation.Utils             as L (count)
 import qualified LocalComputation.Utils             as U
+import qualified LocalComputation.ValuationAlgebra  as V
 import           Numeric.Natural                    (Natural)
 import           Text.Pretty.Simple                 (pShow)
 
@@ -183,12 +188,21 @@ redirectToQueryNode d g = redirectTree (queryNode.id) g
 --
 -- __Warning__: Unsafe - asserts that for a given node, the domain of the new valuation
 -- does not differ from the domain of the old valuation.
-unsafeUpdateValuations :: M.Map Id a -> JoinTree a -> JoinTree a
+unsafeUpdateValuations :: (V.ValuationFamily v, Var a) => M.Map Id (v a) -> JoinTree (v a) -> JoinTree (v a)
 unsafeUpdateValuations m t = unsafeFromGraph $ fmap f t.g
     where
         f n = case M.lookup n.id m of
                 Nothing -> n
-                Just v  -> n { v = v }
+                Just v  -> assert (n.d == label v) $ n { v = v }
+
+
+-- | Updates postboxes for nodes of the given ids.
+unsafeUpdatePostboxes :: M.Map Id (Maybe (M.Map Id a)) -> JoinTree a -> JoinTree a
+unsafeUpdatePostboxes m t = unsafeFromGraph $ fmap f t.g
+    where
+        f n = case M.lookup n.id m of
+                Nothing -> n
+                Just p  -> n { postbox = p }
 
 --------------------------------------------------------------------------------
 -- Properties
@@ -221,8 +235,18 @@ toMap t = M.fromAscList . map (\n -> (n.id, n)) $ vertexList t
 toValuationMap :: JoinTree v -> M.Map Id v
 toValuationMap = fmap (.v) . toMap
 
+toPostboxMap :: JoinTree v -> M.Map Id (Maybe (M.Map Id v))
+toPostboxMap = fmap (.postbox) . toMap
+
 neighbourMap :: JoinTree v -> M.Map Id [Node v]
 neighbourMap t = M.fromList . map (B.first (.id)) . UG.adjacencyList . UG.toUndirected $ t.g
+
+-- | Returns true if all vertices have postboxes
+--
+-- A simple check due to the invariant that if a single vertex has a postbox,
+-- all vertices must have postboxes.
+verticesHavePostboxes :: JoinTree v -> Bool
+verticesHavePostboxes t = isJust $ t.root.postbox
 
 --------------------------------------------------------------------------------
 -- Unsafe variants

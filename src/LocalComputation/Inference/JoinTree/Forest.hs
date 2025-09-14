@@ -19,6 +19,7 @@ module LocalComputation.Inference.JoinTree.Forest (
     , vertexList
     , unsafeConvertToCollectTree
     , toForest
+    , unsafeToForest'
     , unsafeUpdateValuations
     , unsafeGetTree
     , treeList
@@ -44,6 +45,7 @@ import           Control.Exception                        (assert)
 import           LocalComputation.Inference.JoinTree.Tree (Id, JoinTree,
                                                            Node (id))
 import qualified LocalComputation.Inference.JoinTree.Tree as JT
+import qualified LocalComputation.ValuationAlgebra        as V
 
 --------------------------------------------------------------------------------
 -- Join Trees
@@ -57,8 +59,12 @@ unsafeFromGraph = U.assertP satisfiesInvariants . UnsafeJoinForest
 findById :: Id -> JoinForest v -> Maybe (Node v)
 findById i t = L.find (\n -> n.id == i) $ G.vertexList t.g
 
+-- TODO: rename unsafe
 toForest :: JoinTree v -> JoinForest v
 toForest t = unsafeFromGraph t.g
+
+unsafeToForest' :: [JoinTree v] -> JoinForest v
+unsafeToForest' ts = unsafeFromGraph $ G.overlays $ map (.g) ts
 
 unsafeGetTree :: JoinForest v -> JoinTree v
 unsafeGetTree f = assert (treeCount f == 1) (JT.unsafeFromGraph f.g)
@@ -71,12 +77,12 @@ unsafeGetTree f = assert (treeCount f == 1) (JT.unsafeFromGraph f.g)
 --
 -- __Warning__: Unsafe - asserts that for a given node, the domain of the new valuation
 -- does not differ from the domain of the old valuation.
-unsafeUpdateValuations :: M.Map Id a -> JoinForest a -> JoinForest a
+unsafeUpdateValuations :: (V.ValuationFamily v, Var a) => M.Map Id (v a) -> JoinForest (v a) -> JoinForest (v a)
 unsafeUpdateValuations m t = unsafeFromGraph $ fmap f t.g
     where
         f n = case M.lookup n.id m of
                 Nothing -> n
-                Just v  -> n { JT.v = v }
+                Just v  -> assert (n.d == label v) $ n { JT.v = v }
 
 -- | Returns the sub join trees that can be formed by traversing one edge from the root,
 -- erasing the edge that was followed, and declaring the node visited the root of a valid

@@ -43,6 +43,7 @@ module LocalComputation.Utils
     , assertError
     , count
     , fmapToFst
+    , filterKeys
     )
 where
 
@@ -253,3 +254,6 @@ count p xs = L.genericLength $ filter p xs
 
 fmapToFst :: Functor f => (a -> b) -> f a -> f (b, a)
 fmapToFst f = fmap (\x -> (f x, x))
+
+filterKeys :: (a -> Bool) -> M.Map a b -> M.Map a b
+filterKeys f = M.filterWithKey (\k _ -> f k)
