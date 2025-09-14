@@ -10,7 +10,6 @@ module LocalComputation.Inference.DynamicProgramming (
 
 import           Control.Exception                              (assert)
 import qualified Data.Map                                       as Map
-import           Data.Maybe                                     (fromJust)
 import qualified Data.Set                                       as S
 import qualified LocalComputation.Inference.JoinTree            as JT
 import qualified LocalComputation.Inference.JoinTree.Tree       as JT

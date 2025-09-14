@@ -13,7 +13,7 @@ module LocalComputation.Inference.JoinTree (
     -- Join tree type
     , JoinTree
     , JoinForest
-    , Node (id, v, t)
+    , Node (id, v, t, postbox)
     , NodeType (Valuation, Query, Union, Projection)
     , node
     , changeContent
@@ -26,7 +26,7 @@ import qualified Data.Set                                       as S
 import qualified LocalComputation.Inference.EliminationSequence as E
 import           LocalComputation.Inference.JoinTree.Forest
 import           LocalComputation.Inference.JoinTree.Tree       (Id, JoinTree,
-                                                                 Node (id, t, v),
+                                                                 Node (..),
                                                                  NodeType (..),
                                                                  changeContent,
                                                                  node)

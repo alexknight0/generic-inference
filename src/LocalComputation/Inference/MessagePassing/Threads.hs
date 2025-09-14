@@ -33,9 +33,6 @@ collect tree = JT.unsafeUpdateValuations newNodes tree
         -- Creates map from old nodes to updated ones
         newNodes = foldr (M.union . JT.toValuationMap) (M.singleton newRoot.id newRoot.v) subTrees
 
-type PostBox v = M.Map JT.Id v
-
-
 -- | Takes a tree that has had collect performed on it, and returns the tree after distribute has been performed.
 distribute :: (V.ValuationFamily v, V.Var a) => JT.JoinTree (v a) -> JT.JoinTree (v a)
 distribute tree = undefined

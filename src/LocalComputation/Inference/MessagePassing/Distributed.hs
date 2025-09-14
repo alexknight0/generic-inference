@@ -30,7 +30,6 @@ import           LocalComputation.ValuationAlgebra          (Binary, Generic,
                                                              Typeable)
 import qualified LocalComputation.ValuationAlgebra          as V
 
-
 type SerializableValuation v a = (V.ValuationFamily v, V.Var a, Binary (v a), Typeable v, Typeable a)
 
 data NodeWithPid a = NodeWithPid { id :: ProcessId, node :: JT.Node a } deriving (Generic, Binary)
@@ -133,6 +132,8 @@ data CollectResults a = CollectResults {
     , postbox :: [Message a]
 }
 
+-- TODO: Can place postbox on node.
+
 -- | The collect phase of a message passing process where each node waits for every neighbour bar one
 -- to send the node a message before the node sends off a message to the neighbour that didn't send it
 -- a message.
@@ -175,9 +176,9 @@ distribute collectResults this neighbours action = do
     message :: Message (v a) <- expect
     assert (message.sender == collectResults.target.id) (pure ())
 
-    let postbox        = message : collectResults.postbox
+    let postbox = message : collectResults.postbox
         -- The target neighbours are the neighbours who were not the target of the collect phase
-        targets        = filter (\n -> n.id /= collectResults.target.id) neighbours
+        targets = filter (\n -> n.id /= collectResults.target.id) neighbours
 
     -- Send out messages to remaining neighbours (which we now have enough information to send messages to)
     mapM_ (\target -> sendMsg this target $ action postbox this target)

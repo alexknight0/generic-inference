@@ -11,7 +11,7 @@
 module LocalComputation.Inference.JoinTree.Tree (
 
     -- Nodes
-      Node (id, v, t)
+      Node (id, v, t, postbox)
     , node
     , changeContent
     , NodeType (Valuation, Query, Union, Projection)
@@ -50,9 +50,12 @@ import qualified Algebra.Graph.ToGraph              as G (isTopSortOf,
                                                           reachable,
                                                           toAdjacencyMap,
                                                           topSort)
+import qualified Algebra.Graph.Undirected           as UG
+import qualified Data.Bifunctor                     as B
 import qualified Data.List                          as L
 import qualified Data.Map                           as M
-import           Data.Maybe                         (fromJust, isJust)
+import           Data.Maybe                         (fromJust, isJust,
+                                                     isNothing)
 import           Data.Text.Lazy                     (unpack)
 import qualified LocalComputation.Utils             as L (count)
 import qualified LocalComputation.Utils             as U
@@ -64,9 +67,10 @@ import           Text.Pretty.Simple                 (pShow)
 --------------------------------------------------------------------------------
 
 data Node v = Node {
-      id :: Id
-    , v  :: v
-    , t  :: NodeType
+      id      :: Id
+    , v       :: v
+    , t       :: NodeType
+    , postbox :: Maybe (M.Map Id v)
 } deriving (Generic, Typeable, Binary)
 
 type Id = Integer
@@ -74,7 +78,7 @@ type Id = Integer
 data NodeType = Valuation | Query | Union | Projection deriving (Show, Generic, Binary, Enum, Bounded, Eq)
 
 node :: Id -> v -> NodeType -> Node v
-node = Node
+node i v t = Node i v t Nothing
 
 changeContent :: Node a -> a -> Node a
 changeContent n v = n { v = v }
@@ -109,6 +113,8 @@ instance (ValuationFamily v, Ord a, Show a) => Show (Node (v a)) where
     2. such that the node 'id' fields form a topological ordering,
     3. it is directed toward a node called the 'root',
     4. and has the running intersection property.
+    5. If a join tree node has a postbox, all join tree nodes have postboxes,
+       and they only contain messages from their neighbours
 
     2 & 3 => root is the node with the largest id
     1 & 3 => root has no outgoing edges
@@ -130,6 +136,7 @@ satisfiesInvariants t = vertexCount t > 0 && isAcyclic t          -- (1)
                             && hasTopologicalNumbering t          -- (2)
                             && isDirectedTowardsRoot t            -- (3)
                             && hasRunningIntersectionProperty t   -- (4)
+                            && verticesHaveValidPostbox t         -- (5)
 
 instance HasField "root" (JoinTree v) (Node v) where
     getField t = last $ vertexList t
@@ -214,6 +221,9 @@ toMap t = M.fromAscList . map (\n -> (n.id, n)) $ vertexList t
 toValuationMap :: JoinTree v -> M.Map Id v
 toValuationMap = fmap (.v) . toMap
 
+neighbourMap :: JoinTree v -> M.Map Id [Node v]
+neighbourMap t = M.fromList . map (B.first (.id)) . UG.adjacencyList . UG.toUndirected $ t.g
+
 --------------------------------------------------------------------------------
 -- Unsafe variants
 --------------------------------------------------------------------------------
@@ -279,6 +289,23 @@ numQueryNodes t = L.count (\n -> n.t == Query) $ vertexList t
 
 hasTotalNumbering :: JoinTree v -> Bool
 hasTotalNumbering t = t.root.id == fromIntegral (vertexCount t - 1)
+
+verticesHaveValidPostbox :: forall v . JoinTree v -> Bool
+verticesHaveValidPostbox t = (allHavePostboxes || allDontHavePostboxes)
+                                && all vertexHasValidPostbox (vertexList t)
+    where
+        allHavePostboxes     = all (\n -> isJust    n.postbox) $ vertexList t
+        allDontHavePostboxes = all (\n -> isNothing n.postbox) $ vertexList t
+
+        vertexHasValidPostbox :: Node v -> Bool
+        vertexHasValidPostbox n = case n.postbox of
+                                     Nothing -> True
+                                     Just p  -> all (`elem` neighbours n) (M.keys p)
+
+        neighbours :: Node v -> [Id]
+        neighbours n = map (.id) $ (M.!) neighbourMap' n.id
+
+        neighbourMap' = neighbourMap t
 
 {- | A join tree that 'supports collect' has the additional invariants that:
     1. the tree only has one query node,
