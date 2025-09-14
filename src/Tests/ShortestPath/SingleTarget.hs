@@ -49,7 +49,7 @@ tests = fmap and $ sequence [
 p3MatchesBaseline :: IO Bool
 p3MatchesBaseline = do
     p3VerySmall <- P.fromValid p3VerySmallGraph
-    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map (getTest p3VerySmall) [Local I.BruteForce, Local I.Fusion, Local (I.Shenoy MP.Threads), DP]
+    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map (getTest p3VerySmall) [Local I.BruteForce, Local I.Fusion, Local (I.Shenoy MP.Threads), Local (I.Shenoy MP.Distributed), DP]
 
     where
         getTest :: G.Graph Natural Double -> Implementation -> (PropertyName, Property)
@@ -59,7 +59,7 @@ p3MatchesBaseline = do
 -- TODO: Clean up
 randomMatchesBaseline :: IO Bool
 randomMatchesBaseline = do
-    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map getTest [Local I.BruteForce, Local I.Fusion, Local (I.Shenoy MP.Threads), DP]
+    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map getTest [Local I.BruteForce, Local I.Fusion, Local (I.Shenoy MP.Threads), Local (I.Shenoy MP.Distributed), DP]
 
     where
         getTest :: Implementation -> (PropertyName, Property)
@@ -111,7 +111,7 @@ singleTarget DP            graphs sources target = case ST.singleTargetDP D.def 
 
 pX :: Problem -> Property
 pX p = unitTest $ do
-    forM [Baseline, Local I.BruteForce, Local I.Fusion, Local (I.Shenoy MP.Threads)] $ \mode -> do
+    forM [Baseline, Local I.BruteForce, Local I.Fusion, Local (I.Shenoy MP.Threads), Local (I.Shenoy MP.Distributed), DP] $ \mode -> do
         results <- singleTarget mode p.graphs p.q.sources p.q.target
         checkAnswers approx (results) p.answers
 
