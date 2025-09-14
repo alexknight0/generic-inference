@@ -59,6 +59,7 @@ dependencies:
 - colour
 - boxes
 - filepath
+- parallel
 
 ghc-options:
 - -Wall

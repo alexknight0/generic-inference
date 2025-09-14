@@ -112,6 +112,7 @@ library
     , matrix
     , network-transport
     , network-transport-tcp
+    , parallel
     , parsec
     , pretty-simple
     , probability
@@ -164,6 +165,7 @@ executable localcomputation-exe
     , matrix
     , network-transport
     , network-transport-tcp
+    , parallel
     , parsec
     , pretty-simple
     , probability
@@ -221,6 +223,7 @@ test-suite localcomputation-test
     , matrix
     , network-transport
     , network-transport-tcp
+    , parallel
     , parsec
     , pretty-simple
     , probability
@@ -278,6 +281,7 @@ benchmark localcomputation-benchmark
     , matrix
     , network-transport
     , network-transport-tcp
+    , parallel
     , parsec
     , pretty-simple
     , probability

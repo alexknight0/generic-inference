@@ -77,11 +77,11 @@ data Node v = Node {
     , v       :: v
     , t       :: NodeType
     , postbox :: Maybe (M.Map Id v)
-} deriving (Generic, Typeable, Binary)
+} deriving (Generic, Typeable, Binary, NFData)
 
 type Id = Integer
 
-data NodeType = Valuation | Query | Union | Projection deriving (Show, Generic, Binary, Enum, Bounded, Eq)
+data NodeType = Valuation | Query | Union | Projection deriving (Show, Generic, Binary, Enum, Bounded, Eq, NFData)
 
 node :: Id -> v -> NodeType -> Node v
 node i v t = Node i v t Nothing
@@ -133,7 +133,7 @@ For example, there may exist nodes with ids of 3 and 5 without the existence of 
 
 For the definition of the running intersection property, see Marc Pouly's "Generic Inference".
 -}
-newtype JoinTree v = UnsafeJoinTree { g :: G.Graph (Node v) }
+newtype JoinTree v = UnsafeJoinTree { g :: G.Graph (Node v) } deriving (NFData, Generic)
 
 -- | Checks a given join tree satisfies the invariants (1), (2), (3), and (4)
 -- specified in the declaration of the join tree.
