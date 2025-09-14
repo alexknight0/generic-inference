@@ -14,7 +14,8 @@ import           Benchmarks.ShortestPath.SingleTarget.Data
 import qualified LocalComputation.Graph                               as G
 import qualified LocalComputation.Instances.ShortestPath.SingleTarget as ST (Query)
 
-import           Hedgehog
+import           Hedgehog                                             hiding
+                                                                      (test)
 import qualified Hedgehog.Gen                                         as Gen
 import qualified Hedgehog.Internal.Property                           as Hedgehog (PropertyName (..))
 import qualified Hedgehog.Range                                       as Range
@@ -37,68 +38,32 @@ import           Tests.Utils                                          (checkAnsw
                                                                        unitTest)
 import           Type.Reflection                                      (Typeable)
 
+group :: GroupName
+group = "Tests.ShorestPath.SingleTarget"
+
+--------------------------------------------------------------------------------
+-- Tests
+--------------------------------------------------------------------------------
 tests :: IO Bool
 tests = fmap and $ sequence [
         checkParallel $$(discover)
-      , p3MatchesBaseline
-      , randomMatchesBaseline
+      , checkMatchesBaselineP3
+      , checkMatchesBaselineRandom
    ]
 
-p3MatchesBaseline :: IO Bool
-p3MatchesBaseline = do
-    p3VerySmall <- P.fromValid p3VerySmallGraph
-    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map (getTest p3VerySmall) ST.allButBaseline
-
+checkMatchesBaselineP3 :: IO Bool
+checkMatchesBaselineP3 = checkMatchesBaseline name getGraph test 100
     where
-        getTest :: G.Graph Natural Double -> Implementation -> (PropertyName, Property)
-        getTest g mode = (Hedgehog.PropertyName $ "prop_p3VerySmall_MatchesBaseline_" ++ show mode
-                         , matchesBaseline mode g 100)
+        name mode = "prop_matchesBaseline_onP3 " ++ show mode
+        getGraph = P.fromValid p3VerySmallGraph
+        test = matchesBaselineOnGraph
 
--- TODO: Clean up
-randomMatchesBaseline :: IO Bool
-randomMatchesBaseline = do
-    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map getTest allButBaseline
-
+checkMatchesBaselineRandom :: IO Bool
+checkMatchesBaselineRandom = checkMatchesBaseline name unused test 100
     where
-        getTest :: Implementation -> (PropertyName, Property)
-        getTest mode = (Hedgehog.PropertyName $ "prop_random_MatchesBaseline_" ++ show mode
-                      , randomMatchesBaseline' mode 100)
-
-randomMatchesBaseline' :: Implementation -> TestLimit -> Property
-randomMatchesBaseline' mode numTests = withTests numTests . property $ do
-    nodes <- forAll $ Gen.int (Range.linear 1 100)   -- There is no valid query for 0 nodes.
-    edges <- forAll $ Gen.int (Range.linear 0 1000)
-    graphs <- forAll $ genGraphs (fromIntegral nodes) (fromIntegral edges)
-
-    let fullGraph = G.merges1 graphs
-
-    query <- forAll $ genConnectedQuery (G.reverseAdjacencyList fullGraph)
-
-    baseline  <- go ST.Baseline query graphs
-    local     <- go mode query graphs
-
-    checkAnswers approx local baseline
-
-    where
-        go :: (MonadIO m) => Implementation -> ST.Query Natural -> [G.Graph Natural Double] -> m [Double]
-        go m query gs = ST.singleTarget' m D.def gs query
-
-
-tolerableError :: Double
-tolerableError = 0.00000001
-
-approx :: Double -> Double -> Bool
-approx x y
-    | abs (x - y) < tolerableError = True
-    | x == (read "Infinity") && y == (read "Infinity") = True
-    | x == (read "-Infinity") && y == (read "-Infinity") = True
-    | otherwise = False
-
-pX :: Problem -> Property
-pX p = unitTest $ do
-    forM ST.allImplementations $ \mode -> do
-        results <- ST.singleTarget' mode D.def p.graphs p.q
-        checkAnswers approx (results) p.answers
+        name mode = "prop_matchesBaseline_onRandom " ++ show mode
+        unused = pure G.empty
+        test _ = matchesBaselineOnRandomGraph
 
 prop_p1_drawGraph :: Property
 prop_p1_drawGraph = unitTest $ do
@@ -127,25 +92,74 @@ prop_p1 = pX p1
 prop_p2 :: Property
 prop_p2 = pX p2
 
+-- | Tests the parser doesn't fail on a known working example.
+prop_parser :: Property
+prop_parser = unitTest $ do
+    _ <- parseGraph p3SmallGraph
+    parseGraph p3MediumGraph
+
+--------------------------------------------------------------------------------
+-- Settings
+--------------------------------------------------------------------------------
+tolerableError :: Double
+tolerableError = 0.00000001
+
+approx :: Double -> Double -> Bool
+approx x y
+    | abs (x - y) < tolerableError = True
+    | x == (read "Infinity") && y == (read "Infinity") = True
+    | x == (read "-Infinity") && y == (read "-Infinity") = True
+    | otherwise = False
+
+
+--------------------------------------------------------------------------------
+-- Utilities for checking answers match baseline
+--------------------------------------------------------------------------------
+matchesBaselineOnRandomGraph :: Implementation -> TestLimit -> Property
+matchesBaselineOnRandomGraph mode numTests = withTests numTests . property $ do
+    nodes <- forAll $ Gen.int (Range.linear 1 100)   -- There is no valid query for 0 nodes.
+    edges <- forAll $ Gen.int (Range.linear 0 1000)
+    graphs <- forAll $ genGraphs (fromIntegral nodes) (fromIntegral edges)
+
+    matchesBaselineForRandomQuery graphs mode
+
 -- | Checks the output of the local computation algorithms and the baseline algorithm match for a set of random queries.
-matchesBaseline :: forall a . (NFData a, H.Hashable a, Binary a, Typeable a, Show a, Ord a)
-    => Implementation
-    -> G.Graph a Double
+matchesBaselineOnGraph :: forall a . (NFData a, H.Hashable a, Binary a, Typeable a, Show a, Ord a)
+    => G.Graph a Double
+    -> Implementation
     -> TestLimit
     -> Property
-matchesBaseline mode g numTests = withTests numTests . property $ do
+matchesBaselineOnGraph g mode numTests = withTests numTests . property $ matchesBaselineForRandomQuery [g] mode
+
+matchesBaselineForRandomQuery :: forall a . (NFData a, H.Hashable a, Binary a, Typeable a, Show a, Ord a)
+    => [G.Graph a Double]
+    -> Implementation
+    -> PropertyT IO ()
+matchesBaselineForRandomQuery gs mode = do
     query <- forAll $ genConnectedQuery reverseAdjacencyList
 
-    baseline  <- go Baseline query
-    local     <- go mode query
+    baseline <- go Baseline query
+    local    <- go mode query
 
     checkAnswers approx local baseline
 
     where
         go :: (MonadIO m) => Implementation -> ST.Query a -> m [Double]
-        go m query = ST.singleTarget' m D.def [g] query
+        go m query = ST.singleTarget' m D.def gs query
 
-        reverseAdjacencyList = G.reverseAdjacencyList g
+        fullGraph = G.merges1 gs
+
+        reverseAdjacencyList = G.reverseAdjacencyList fullGraph
+
+
+--------------------------------------------------------------------------------
+-- Utilities for manual checks
+--------------------------------------------------------------------------------
+pX :: Problem -> Property
+pX p = unitTest $ do
+    forM ST.allImplementations $ \mode -> do
+        results <- ST.singleTarget' mode D.def p.graphs p.q
+        checkAnswers approx (results) p.answers
 
 -- | Parses the given graph. Fails if a parse error occurs.
 parseGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile a)) -> PropertyT IO a
@@ -157,8 +171,20 @@ parseGraph g = do
             Left e  -> do annotateShow e; failure
             Right x -> pure x
 
--- | Tests the parser doesn't fail on a known working example.
-prop_parser :: Property
-prop_parser = unitTest $ do
-    _ <- parseGraph p3SmallGraph
-    parseGraph p3MediumGraph
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
+checkMatchesBaseline :: (ST.Implementation -> String)
+                   -> IO (G.Graph Natural Double)
+                   -> (G.Graph Natural Double -> ST.Implementation -> TestLimit -> Property)
+                   -> TestLimit
+                   -> IO Bool
+checkMatchesBaseline name getGraph test numTests = do
+    graph <- getGraph
+    checkParallel $ Group group $ map (toProperty graph) ST.allButBaseline
+
+    where
+        toProperty :: G.Graph Natural Double -> Implementation -> (PropertyName, Property)
+        toProperty g mode = (Hedgehog.PropertyName $ name mode, test g mode numTests)
+
+
