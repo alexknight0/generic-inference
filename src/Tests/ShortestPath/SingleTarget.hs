@@ -9,11 +9,10 @@ module Tests.ShortestPath.SingleTarget
     ( tests )
 where
 
-import qualified Benchmarks.ShortestPath.SingleTarget.Baseline        as H
+import           Benchmarks.ShortestPath.SingleTarget                 as ST
 import           Benchmarks.ShortestPath.SingleTarget.Data
 import qualified LocalComputation.Graph                               as G
-import qualified LocalComputation.Instances.ShortestPath.SingleTarget as ST
-import           LocalComputation.Utils
+import qualified LocalComputation.Instances.ShortestPath.SingleTarget as ST (Query)
 
 import           Hedgehog
 import qualified Hedgehog.Gen                                         as Gen
@@ -45,11 +44,10 @@ tests = fmap and $ sequence [
       , randomMatchesBaseline
    ]
 
-
 p3MatchesBaseline :: IO Bool
 p3MatchesBaseline = do
     p3VerySmall <- P.fromValid p3VerySmallGraph
-    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map (getTest p3VerySmall) [Local I.BruteForce, Local I.Fusion, Local (I.Shenoy MP.Threads), Local (I.Shenoy MP.Distributed), DP]
+    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map (getTest p3VerySmall) ST.allButBaseline
 
     where
         getTest :: G.Graph Natural Double -> Implementation -> (PropertyName, Property)
@@ -59,7 +57,7 @@ p3MatchesBaseline = do
 -- TODO: Clean up
 randomMatchesBaseline :: IO Bool
 randomMatchesBaseline = do
-    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map getTest [Local I.BruteForce, Local I.Fusion, Local (I.Shenoy MP.Threads), Local (I.Shenoy MP.Distributed), DP]
+    checkParallel $ Group "Tests.ShortestPath.SingleTarget" $ map getTest allButBaseline
 
     where
         getTest :: Implementation -> (PropertyName, Property)
@@ -76,14 +74,14 @@ randomMatchesBaseline' mode numTests = withTests numTests . property $ do
 
     query <- forAll $ genConnectedQuery (G.reverseAdjacencyList fullGraph)
 
-    baseline  <- go Baseline query graphs
+    baseline  <- go ST.Baseline query graphs
     local     <- go mode query graphs
 
     checkAnswers approx local baseline
 
     where
-        go :: (MonadTest m, MonadIO m) => Implementation -> ST.Query Natural -> [G.Graph Natural Double] -> m [Double]
-        go m query gs = singleTarget m gs query.sources query.target
+        go :: (MonadIO m) => Implementation -> ST.Query Natural -> [G.Graph Natural Double] -> m [Double]
+        go m query gs = ST.singleTarget' m D.def gs query
 
 
 tolerableError :: Double
@@ -96,32 +94,16 @@ approx x y
     | x == (read "-Infinity") && y == (read "-Infinity") = True
     | otherwise = False
 
--- | Choice between either a `Baseline` inference implementation taken from hackage,
--- or a inference implementation from the `Local` computation library.
-data Implementation = Baseline | Local I.Mode | DP deriving (Show, Eq)
-
-singleTarget :: (MonadTest m, NFData a,  MonadIO m, Show a, Binary a, Typeable a,  H.Hashable a, Ord a) => Implementation -> [G.Graph a Double] -> [a] -> a -> m [Double]
-singleTarget Baseline      graphs sources target = pure $ H.singleTarget graphs sources target infinity
-singleTarget (Local mode)  graphs sources target = case ST.singleTarget D.def mode graphs (ST.Query sources target) of
-                                                        Left _  -> failure
-                                                        Right x -> x
-singleTarget DP            graphs sources target = case ST.singleTargetDP D.def graphs (ST.Query sources target) of
-                                                        Left _  -> failure
-                                                        Right x -> x
-
 pX :: Problem -> Property
 pX p = unitTest $ do
-    forM [Baseline, Local I.BruteForce, Local I.Fusion, Local (I.Shenoy MP.Threads), Local (I.Shenoy MP.Distributed), DP] $ \mode -> do
-        results <- singleTarget mode p.graphs p.q.sources p.q.target
+    forM ST.allImplementations $ \mode -> do
+        results <- ST.singleTarget' mode D.def p.graphs p.q
         checkAnswers approx (results) p.answers
 
 prop_p1_drawGraph :: Property
 prop_p1_drawGraph = unitTest $ do
-    case ST.singleTarget settings (I.Shenoy MP.Threads) p1.graphs p1.q of
-        Left _ -> failure
-        Right results -> do
-            results' <- results
-            checkAnswers approx results' p1.answers
+    results <- ST.singleTarget' (ST.Generic $ I.Shenoy MP.Threads) settings p1.graphs p1.q
+    checkAnswers approx results p1.answers
 
     where
         settings = D.def { D.beforeInference = Just "diagrams/p1_before.svg"
@@ -130,11 +112,8 @@ prop_p1_drawGraph = unitTest $ do
 
 prop_p2_drawGraph :: Property
 prop_p2_drawGraph = unitTest $ do
-    case ST.singleTargetDP settings p2.graphs p2.q of
-        Left _ -> failure
-        Right results -> do
-            results' <- results
-            checkAnswers approx results' p2.answers
+    results <- ST.singleTarget' (ST.Generic $ I.Shenoy MP.Threads) settings p2.graphs p2.q
+    checkAnswers approx results p2.answers
     where
         settings = D.def { D.beforeInference = Just "diagrams/p2_before.svg"
                          , D.afterInference  = Just "diagrams/p2_after.svg"
@@ -163,8 +142,8 @@ matchesBaseline mode g numTests = withTests numTests . property $ do
     checkAnswers approx local baseline
 
     where
-        go :: (MonadTest m, MonadIO m) => Implementation -> ST.Query a -> m [Double]
-        go m query = singleTarget m [g] query.sources query.target
+        go :: (MonadIO m) => Implementation -> ST.Query a -> m [Double]
+        go m query = ST.singleTarget' m D.def [g] query
 
         reverseAdjacencyList = G.reverseAdjacencyList g
 

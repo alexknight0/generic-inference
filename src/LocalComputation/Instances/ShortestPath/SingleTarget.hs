@@ -86,12 +86,12 @@ type ComputeInference m a = D.DrawSettings -> [Q.Valuation Q.TropicalSemiringVal
 __Warning__ : The shortest path from a vertex to itself is 0 (the trivial path).
 -}
 singleTarget :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => D.DrawSettings
-    -> I.Mode
+    => I.Mode
+    -> D.DrawSettings
     -> [Graph a Double]
     -> Query a
     -> Either I.Error (m [Double])
-singleTarget settings mode gs q = usingDouble (singleTarget' inference) settings gs q
+singleTarget mode settings gs q = usingDouble (singleTarget' inference) settings gs q
     where
         inference s k domain = fmap (fmap Q.solution) $ I.queryDrawGraph s mode k domain
 
@@ -130,12 +130,12 @@ singleTargetDP = usingDouble (singleTarget' I.queryDPDrawGraph)
 -- Computes the solution by performing multiple seperate single target computations, even in the shenoy case;
 -- using shenoy here allows computing multiple sources in one inference sweep, but not computing multiple targets.
 singleTargets :: forall a m . (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => D.DrawSettings
-    -> I.Mode
+    => I.Mode
+    -> D.DrawSettings
     -> [Graph a Double]
     -> [Query a]
     -> Either I.Error (m [[Double]])
-singleTargets s mode gs qs = fmap sequence $ mapM (\q -> singleTarget s mode gs q) qs
+singleTargets mode s gs qs = fmap sequence $ mapM (\q -> singleTarget mode s gs q) qs
 
 --------------------------------------------------------------------------------
 -- Utilities
