@@ -21,6 +21,8 @@ module Benchmarks.BayesianNetwork.Data
     , muninAnswers
     , alarmQueries
     , alarmAnswers
+    , thesisExampleQuery
+    , thesisExampleValuations
     , AsiaVar (..)
     , minAsiaP1
     , maxAsiaP1
@@ -282,3 +284,14 @@ alarmQueries = map BN.toQueryA [
 
 alarmAnswers :: [BN.Probability]
 alarmAnswers = [0.17602606, 0.429, 0.18015254, 0.18262807]
+
+data ThesisExample = ID | Name | Age | Birthplace deriving (Eq, Ord, Show, Binary, Generic, NFData)
+
+thesisExampleValuations :: [([ThesisExample], [BN.Probability])]
+thesisExampleValuations = [
+        ([Name, Age, Birthplace], [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]),
+        ([Name, ID], [0.5, 0.5, 0.5, 0.5])
+    ]
+
+thesisExampleQuery :: BN.Query ThesisExample Bool
+thesisExampleQuery = BN.toQueryA ([(Name, True), (ID, True)], [])

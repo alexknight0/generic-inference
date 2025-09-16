@@ -1,4 +1,5 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell     #-}
 
 module Tests.BayesianNetwork
     ( tests, dataToValuations )
@@ -41,10 +42,10 @@ tests = checkParallel $$(discover)
 approxEqual :: Probability -> Probability -> Bool
 approxEqual x y = abs (x - y) < 1 * 10 ^^ (-7 :: Integer)
 
-dataToValuations :: [([AsiaVar], [Probability])] -> Network AsiaVar Bool
+dataToValuations :: forall a . (Ord a) => [([a], [Probability])] -> Network a Bool
 dataToValuations vs = map (uncurry getRows) withVariableDomains
     where
-        withVariableDomains :: [([(AsiaVar, [Bool])], [Probability])]
+        withVariableDomains :: [([(a, [Bool])], [Probability])]
         withVariableDomains = map (\(xs, ps) -> (map boolify xs, ps)) vs
 
 checkQueries :: (Show a, Show b, Serializable a, Serializable b, Ord a, Ord b, NFData a, NFData b)
@@ -172,6 +173,14 @@ prop_drawAsiaGraph = unitTest $ do
 prop_alarm :: Property
 prop_alarm = unitTest $ do
     checkQueries alarmQueries alarmAnswers (parseNetwork alarmFilepath)
+
+prop_drawThesisExample :: Property
+prop_drawThesisExample = unitTest $ do
+    fromRight $ queriesDrawGraph settings (Shenoy MP.Threads) (dataToValuations thesisExampleValuations) (toInferenceQuery [thesisExampleQuery])
+
+    where settings = D.def { D.beforeInference = Just "diagrams/thesis_before.svg"
+                           , D.afterInference = Nothing
+                          }
 
 -- prop_parsesMunin :: Property
 -- prop_parsesMunin = unitTest $ do
