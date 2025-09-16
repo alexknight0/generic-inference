@@ -25,6 +25,7 @@ module LocalComputation.ValuationAlgebra
     , showDomain
     , assertInvariants
     , isIdentity
+    , Valuation
 
     -- Serialization related typeclasses
     , Binary   -- Must be derived for serialization
@@ -52,6 +53,8 @@ import           Type.Reflection                          (Typeable)
 type Domain a = S.Set a
 
 type Var a = (Show a, Ord a)
+
+type Valuation v a = (ValuationFamily v, Var a)
 
 -- TODO: Do we want to undo the _fusion _combine change?
 -- Answer: No, because of the assumption we check on 'project'

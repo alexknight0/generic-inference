@@ -53,20 +53,20 @@ import qualified LocalComputation.ValuationAlgebra        as V
 
 newtype JoinForest v = UnsafeJoinForest { g :: G.Graph (Node v) }
 
-unsafeFromGraph :: G.Graph (Node v) -> JoinForest v
+unsafeFromGraph :: Valuation v a => G.Graph (Node (v a)) -> JoinForest (v a)
 unsafeFromGraph = U.assertP satisfiesInvariants . UnsafeJoinForest
 
 findById :: Id -> JoinForest v -> Maybe (Node v)
 findById i t = L.find (\n -> n.id == i) $ G.vertexList t.g
 
 -- TODO: rename unsafe
-toForest :: JoinTree v -> JoinForest v
+toForest :: Valuation v a => JoinTree (v a) -> JoinForest (v a)
 toForest t = unsafeFromGraph t.g
 
-unsafeToForest' :: [JoinTree v] -> JoinForest v
+unsafeToForest' :: Valuation v a => [JoinTree (v a)] -> JoinForest (v a)
 unsafeToForest' ts = unsafeFromGraph $ G.overlays $ map (.g) ts
 
-unsafeGetTree :: JoinForest v -> JoinTree v
+unsafeGetTree :: (Valuation v a) => JoinForest (v a) -> JoinTree (v a)
 unsafeGetTree f = assert (treeCount f == 1) (JT.unsafeFromGraph f.g)
 
 --------------------------------------------------------------------------------
@@ -87,26 +87,26 @@ unsafeUpdateValuations m t = unsafeFromGraph $ fmap f t.g
 -- | Returns the sub join trees that can be formed by traversing one edge from the root,
 -- erasing the edge that was followed, and declaring the node visited the root of a valid
 -- join tree.
-subTrees :: JoinTree v -> [JoinTree v]
+subTrees :: Valuation v a => JoinTree (v a) -> [JoinTree (v a)]
 subTrees t = treeList $ unsafeFromGraph $ G.removeVertex t.root t.g
 
 -- | Variant of `subTrees` that also includes the root of each tree alongside for quick access.
-subTrees' :: JoinTree v -> [(Node v, JoinTree v)]
+subTrees' :: Valuation v a => JoinTree (v a) -> [(Node (v a), JoinTree (v a))]
 subTrees' = U.fmapToFst (.root) . subTrees
 
 --------------------------------------------------------------------------------
 -- Properties
 --------------------------------------------------------------------------------
-treeCount :: JoinForest v -> Int
+treeCount :: (Valuation v a) => JoinForest (v a) -> Int
 treeCount = length . treeList
 
-treeList :: forall v . JoinForest v -> [JoinTree v]
+treeList :: forall v a . (Valuation v a) => JoinForest (v a) -> [JoinTree (v a)]
 treeList t = getTrees' (vertexSet t)
 
     where
         undirected = G.overlay (t.g) (G.transpose t.g)
 
-        getTrees' :: S.Set (Node v) -> [JoinTree v]
+        getTrees' :: S.Set (Node (v a)) -> [JoinTree (v a)]
         getTrees' vertices
             | length vertices == 0 = []
             | otherwise            = newTree : getTrees' (S.difference vertices verticesInNewTree)
@@ -161,7 +161,7 @@ unsafeConvertToCollectTree f q = U.assertP JT.supportsCollect $ JT.redirectToQue
 --------------------------------------------------------------------------------
 -- Invariants
 --------------------------------------------------------------------------------
-satisfiesInvariants :: JoinForest v -> Bool
+satisfiesInvariants :: Valuation v a => JoinForest (v a) -> Bool
 satisfiesInvariants f = all JT.satisfiesInvariants (treeList f)
 
 --------------------------------------------------------------------------------

@@ -19,7 +19,8 @@ where
 import           Data.Maybe                                           (fromJust)
 import qualified Data.Set                                             as S
 import qualified LocalComputation.LabelledMatrix                      as M
-import           LocalComputation.ValuationAlgebra
+import           LocalComputation.ValuationAlgebra                    hiding
+                                                                      (Valuation)
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular.Value as Q
 
 

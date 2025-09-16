@@ -20,7 +20,8 @@ module LocalComputation.ValuationAlgebra.Semiring
 where
 
 import           LocalComputation.Utils
-import           LocalComputation.ValuationAlgebra
+import           LocalComputation.ValuationAlgebra                hiding
+                                                                  (Valuation)
 
 import           Control.Exception                                (assert)
 import qualified Data.Map                                         as M

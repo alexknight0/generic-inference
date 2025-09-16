@@ -60,6 +60,7 @@ import qualified Data.List                          as L
 import qualified Data.Map                           as M
 import           Data.Maybe                         (fromJust, isJust,
                                                      isNothing)
+import qualified Data.Set                           as S
 import           Data.Text.Lazy                     (unpack)
 import           GHC.Stack                          (HasCallStack)
 import qualified LocalComputation.Utils             as L (count)
@@ -137,7 +138,7 @@ newtype JoinTree v = UnsafeJoinTree { g :: G.Graph (Node v) } deriving (NFData, 
 
 -- | Checks a given join tree satisfies the invariants (1), (2), (3), and (4)
 -- specified in the declaration of the join tree.
-satisfiesInvariants :: JoinTree v -> Bool
+satisfiesInvariants :: (V.ValuationFamily v, V.Var a) => JoinTree (v a) -> Bool
 satisfiesInvariants t = vertexCount t > 0 && isAcyclic t          -- (1)
                             && hasTopologicalNumbering t          -- (2)
                             && isDirectedTowardsRoot t            -- (3)
@@ -152,7 +153,7 @@ instance HasField "root" (JoinTree v) (Node v) where
 -- __Warning__: Unsafe - if assertions are enabled, will check some invariants associated with a join tree
 -- and throw an error if the graph doesn't satisfy these invariants. If assertions are disabled, may
 -- result in a malformed data structure.
-unsafeFromGraph :: (HasCallStack) => G.Graph (Node v) -> JoinTree v
+unsafeFromGraph :: (HasCallStack, V.ValuationFamily v, V.Var a) => G.Graph (Node (v a)) -> JoinTree (v a)
 unsafeFromGraph = U.assertP satisfiesInvariants . UnsafeJoinTree
 
 --------------------------------------------------------------------------------
@@ -161,18 +162,18 @@ unsafeFromGraph = U.assertP satisfiesInvariants . UnsafeJoinTree
 
 -- | Redirects a given join tree to reverse edges to face the node of the given id.
 -- If a forest is given, will not impact trees that don't contain the node of the given id.
-redirectTree :: forall a . Id -> JoinTree a -> JoinTree a
+redirectTree :: forall v a . (V.ValuationFamily v, V.Var a) => Id -> JoinTree (v a) -> JoinTree (v a)
 redirectTree i' t = unsafeFromGraph . renumberTopological . redirectTree' i' $ t.g
     where
 
         -- Works by traversing out from the given node,
         -- flipping any edges that it uses along its journey
-        redirectTree' :: Id -> G.Graph (Node a) -> G.Graph (Node a)
+        redirectTree' :: Id -> G.Graph (Node (v a)) -> G.Graph (Node (v a))
         redirectTree' i g = foldr f g outgoingNodes
             where
                 (this, outgoingNodes) = fromJust $ outgoingGraphEdges i g
 
-                f :: Node a -> G.Graph (Node a) -> G.Graph (Node a)
+                f :: Node (v a) -> G.Graph (Node (v a)) -> G.Graph (Node (v a))
                 f n acc = flipEdge this n $ redirectTree' n.id acc
 
 -- | Redirects the given join tree to reverse edges to face a query node of the given domain.
@@ -198,7 +199,7 @@ unsafeUpdateValuations m t = unsafeFromGraph $ fmap f t.g
 
 
 -- | Updates postboxes for nodes of the given ids.
-unsafeUpdatePostboxes :: (HasCallStack) => M.Map Id (Maybe (M.Map Id a)) -> JoinTree a -> JoinTree a
+unsafeUpdatePostboxes :: (V.ValuationFamily v, Var a) => M.Map Id (Maybe (M.Map Id (v a))) -> JoinTree (v a) -> JoinTree (v a)
 unsafeUpdatePostboxes m t = unsafeFromGraph $ fmap f t.g
     where
         f n = case M.lookup n.id m of
@@ -253,6 +254,15 @@ neighbourMap t = M.fromList . map (B.first (.id)) . UG.adjacencyList . UG.toUndi
 verticesHavePostboxes :: JoinTree v -> Bool
 verticesHavePostboxes t = isJust $ t.root.postbox
 
+variableList :: (V.ValuationFamily v, V.Var a) => JoinTree (v a) -> S.Set a
+variableList t = foldr S.union S.empty (map (label . (.v)) $ vertexList t)
+
+variableMap :: forall v a . (V.ValuationFamily v, V.Var a) => JoinTree (v a) -> M.Map a [Node (v a)]
+variableMap t = foldr (M.unionWith (\x1 x2 -> x1 ++ x2)) M.empty $ map variableMapForNode (vertexList t)
+    where
+        variableMapForNode :: Node (v a) -> M.Map a [Node (v a)]
+        variableMapForNode n = foldr (\var acc -> M.insert var [n] acc) M.empty (label n.v)
+
 --------------------------------------------------------------------------------
 -- Unsafe variants
 --------------------------------------------------------------------------------
@@ -286,6 +296,12 @@ renumberTopological g = fmap (\n -> changeId n $ (M.!) newNumbering n.id) g
 
         changeId n newId = n { id = newId }
 
+isConnected :: (Ord a) => G.Graph a -> Bool
+isConnected g = case G.vertexList g of
+    []       -> True
+    xs@(x:_) -> length (G.reachable undirected x) == length xs
+    where
+        undirected = G.overlay g (G.transpose g)
 
 --------------------------------------------------------------------------------
 -- Invariants
@@ -294,8 +310,13 @@ isAcyclic :: JoinTree v -> Bool
 isAcyclic t = isJust . G.toAcyclic . G.toAdjacencyMap $ t.g
 
 -- TODO: Implement
-hasRunningIntersectionProperty :: JoinTree v -> Bool
-hasRunningIntersectionProperty _ = True
+hasRunningIntersectionProperty :: forall v a . (ValuationFamily v, Var a) => JoinTree (v a) -> Bool
+hasRunningIntersectionProperty t = True
+    where
+        variableMap' = variableMap t
+
+        inducedByVar :: a -> G.Graph (Node (v a))
+        inducedByVar var = G.induce (\n -> n `elem` (M.!) variableMap' var) t.g
 
 -- | Returns true if the given tree is directed towards the root node.
 -- Assumes given tree is acyclic.
