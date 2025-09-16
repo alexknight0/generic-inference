@@ -14,8 +14,6 @@ where
 --    the 'domain' into pairs of (target, source) instead of a single
 --    large query.
 
--- TODO: don't want a dependency of benchmark on test - move queries to a place inside benchmark.
-
 import qualified Benchmarks.BayesianNetwork.Data                   as D
 import           Criterion.Main
 import qualified LocalComputation.Instances.BayesianNetwork        as BN
@@ -30,9 +28,8 @@ data WithName a = WithName {
 
 benchmarks :: IO [Benchmark]
 benchmarks = do
-        -- TODO: Are we sure these are computed before the first benchmark starts?
-        smallNet  <- fmap (WithName "SmallNet") $ U.parseFile' P.network D.asiaFilepath
-        mediumNet <- fmap (WithName "MediumNet") $ U.parseFile' P.network D.alarmFilepath
+        smallNet  <- fmap (WithName "SmallNet") $ U.unsafeParseFile' P.network D.asiaFilepath
+        mediumNet <- fmap (WithName "MediumNet") $ U.unsafeParseFile' P.network D.alarmFilepath
 
         sequence [
                    benchmark smallNet  $ WithName "ManyEasyQueries"     $ D.genQueries      smallNet.value  20 1 0

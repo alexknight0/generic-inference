@@ -30,7 +30,8 @@ module LocalComputation.Utils
     , safeHead
     , fromListAssertDisjoint'
     , parseFile
-    , parseFile'
+    , unsafeParseFile
+    , unsafeParseFile'
     , fromRight
     , lookupDefault
     , lookupDefaultR
@@ -62,7 +63,9 @@ import           Text.Printf                   (printf)
 
 import qualified Text.ParserCombinators.Parsec as P
 
+import qualified Control.DeepSeq               as D
 import           Control.Exception             (assert)
+import qualified Control.Exception             as D
 import qualified Data.List                     as L
 import           GHC.Stack                     (HasCallStack)
 import           Numeric.Natural
@@ -188,11 +191,15 @@ parseFile p filename = do
     contents <- hGetContents' handle
     pure $ P.parse p filename contents
 
-parseFile' :: P.GenParser Char () a -> FilePath -> IO a
-parseFile' p filename = do
+unsafeParseFile :: P.GenParser Char () a -> FilePath -> IO a
+unsafeParseFile p filename = do
     handle <- openFile filename ReadMode
     contents <- hGetContents' handle
     pure $ fromRight $ P.parse p filename contents
+
+-- | Strict version of `unsafeParseFile`
+unsafeParseFile' :: (D.NFData a) => P.GenParser Char () a -> FilePath -> IO a
+unsafeParseFile' p filename = D.evaluate . D.force =<< unsafeParseFile p filename
 
 fromRight :: HasCallStack => Either a b -> b
 fromRight (Right x) = x

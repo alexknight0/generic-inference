@@ -17,6 +17,12 @@ import qualified LocalComputation.ValuationAlgebra          as V
 
 import qualified Control.Parallel.Strategies                as P
 
+-- TODO: For performance;
+--  1. Profile to investigate whats taking the most time
+--  2. consider sparks
+--  3. consider if we are spending all our time garbage collecting (does this show in the profiler?)
+--          (see 40:45 of https://www.youtube.com/watch?v=trDqqZldxQA)
+
 messagePassing :: (P.NFData (v a), V.ValuationFamily v, V.Var a)
     => JT.JoinForest (v a)
     -> JT.JoinForest (v a)
