@@ -1,19 +1,23 @@
 module LocalComputation.Pretty (
       showTable
     , Table
-    , table
+    , unsafeTable
 ) where
 
 import qualified LocalComputation.Utils as U
-import           Text.PrettyPrint.Boxes
+import           Text.PrettyPrint.Boxes hiding (rows)
 
 data Table = Table {
       headings :: [String]
     , rows     :: [[String]]
 }
 
-table :: [String] -> [[String]] -> Table
-table heading rows' = U.assertP satisfiesInvariants $ Table heading rows'
+-- | Creates a table.
+--
+-- Asserts that the number of entries in headings is equal to the number
+-- of entries in each row.
+unsafeTable :: [String] -> [[String]] -> Table
+unsafeTable heading rows = U.assertP satisfiesInvariants $ Table heading rows
 
 toBox :: Table -> Box
 toBox (Table [] _) = nullBox
@@ -27,9 +31,6 @@ toBox t              = hsep 2 left [column, toBox rest]
 showTable :: Table -> String
 showTable = render . toBox
 
-thesisExample :: Table
-thesisExample = undefined
-
 --------------------------------------------------------------------------------
 -- Invariants
 --------------------------------------------------------------------------------
@@ -37,6 +38,4 @@ satisfiesInvariants :: Table -> Bool
 satisfiesInvariants t
     | length t.rows /= 0 = all (\row -> length row == length t.headings) t.rows
     | otherwise = True
-
-
 

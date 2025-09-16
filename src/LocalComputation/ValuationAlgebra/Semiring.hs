@@ -172,7 +172,7 @@ instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (Valuation 
 
 toTable :: (Show a, Show b, Show c) => Valuation a b c -> P.Table
 toTable Identity{}    = error "Not Implemented"
-toTable v@Valuation{} = P.table headings rows
+toTable v@Valuation{} = P.unsafeTable headings rows
     where
         assignedValues a = map show $ M.elems a
         keys a = map show $ M.keys a

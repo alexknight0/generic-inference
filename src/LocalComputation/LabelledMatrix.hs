@@ -81,7 +81,7 @@ data LabelledMatrix a b c = Matrix {
 } deriving (Eq, NFData, Ord, Generic)
 
 instance (Show a, Show b, Show c) => Show (LabelledMatrix a b c) where
-    show m = P.showTable $ P.table headings rows
+    show m = P.showTable $ P.unsafeTable headings rows
         where
             matrixRows = M.toLists $ fmap show $ m.matrix
 
