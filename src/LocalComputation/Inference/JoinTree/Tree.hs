@@ -60,7 +60,6 @@ import qualified Data.List                          as L
 import qualified Data.Map                           as M
 import           Data.Maybe                         (fromJust, isJust,
                                                      isNothing)
-import qualified Data.Set                           as S
 import           Data.Text.Lazy                     (unpack)
 import           GHC.Stack                          (HasCallStack)
 import qualified LocalComputation.Utils             as L (count)
@@ -254,9 +253,8 @@ neighbourMap t = M.fromList . map (B.first (.id)) . UG.adjacencyList . UG.toUndi
 verticesHavePostboxes :: JoinTree v -> Bool
 verticesHavePostboxes t = isJust $ t.root.postbox
 
-variableList :: (V.ValuationFamily v, V.Var a) => JoinTree (v a) -> S.Set a
-variableList t = foldr S.union S.empty (map (label . (.v)) $ vertexList t)
-
+-- | Creates a mapping from a variable to the nodes in the tree that contain that variable
+-- in their domain.
 variableMap :: forall v a . (V.ValuationFamily v, V.Var a) => JoinTree (v a) -> M.Map a [Node (v a)]
 variableMap t = foldr (M.unionWith (\x1 x2 -> x1 ++ x2)) M.empty $ map variableMapForNode (vertexList t)
     where
@@ -310,8 +308,8 @@ isAcyclic :: JoinTree v -> Bool
 isAcyclic t = isJust . G.toAcyclic . G.toAdjacencyMap $ t.g
 
 -- TODO: Implement
-hasRunningIntersectionProperty :: forall v a . (ValuationFamily v, Var a) => JoinTree (v a) -> Bool
-hasRunningIntersectionProperty t = True
+hasRunningIntersectionProperty :: forall v a . (Valuation v a) => JoinTree (v a) -> Bool
+hasRunningIntersectionProperty t = all (isConnected . inducedByVar) (M.keys variableMap')
     where
         variableMap' = variableMap t
 
