@@ -64,7 +64,6 @@ import qualified Data.Massiv.Array                                    as M
 import qualified Data.Tuple.Extra                                     as T
 import           Debug.Trace                                          (trace)
 import qualified LocalComputation.Pretty                              as P
-import qualified LocalComputation.Utils                               as U
 
 -- TODO: Change asserts to take place *after* the function is called;
 -- much safer this way.
@@ -82,7 +81,7 @@ data LabelledMatrix a b c = Matrix {
 } deriving (Eq, NFData, Ord, Generic)
 
 instance (Show a, Show b, Show c) => Show (LabelledMatrix a b c) where
-    show m = P.showTable $ U.Table headings rows
+    show m = P.showTable $ P.table headings rows
         where
             matrixRows = M.toLists $ fmap show $ m.matrix
 

@@ -170,9 +170,9 @@ instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (Valuation 
 
     satisfiesInvariants = isWellFormed
 
-toTable :: (Show a, Show b, Show c) => Valuation a b c -> Table
+toTable :: (Show a, Show b, Show c) => Valuation a b c -> P.Table
 toTable Identity{}    = error "Not Implemented"
-toTable v@Valuation{} = Table headings rows
+toTable v@Valuation{} = P.table headings rows
     where
         assignedValues a = map show $ M.elems a
         keys a = map show $ M.keys a

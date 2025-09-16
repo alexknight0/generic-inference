@@ -40,7 +40,6 @@ module LocalComputation.Utils
     , infinity
     , neighbours
     , unusedArg
-    , Table (Table, heading, rows)
     , assertError
     , count
     , fmapToFst
@@ -248,12 +247,6 @@ neighbours x g = do
 unusedArg :: a
 unusedArg = error "Argument should not be used"
 
--- TODO: Implicit assumption that length of heading equals length of rows. Could assert this.
-data Table = Table {
-      heading :: [String]
-    , rows    :: [[String]]
-}
-
 assertError :: a
 assertError = assert False undefined
 
@@ -272,6 +265,7 @@ allButMaybeOne p xs = falseCount < 2
     where
         -- Counts the number of times the predicate returns false but returns early
         -- once has counted two occurances
+        falseCount :: Integer
         falseCount = foldr f 0 xs
 
         f x acc
