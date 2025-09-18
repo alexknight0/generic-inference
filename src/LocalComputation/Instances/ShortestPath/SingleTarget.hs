@@ -26,10 +26,13 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular       as Q (Semi
 -- Typeclasses
 import           Control.DeepSeq                                      (NFData)
 import           Control.Monad.IO.Class                               (MonadIO)
+import qualified Data.Bifunctor                                       as B
 import           Data.Binary                                          (Binary)
 import qualified Data.Hashable                                        as H
+import qualified Data.List                                            as L
 import           LocalComputation.Graph                               as G
 import qualified LocalComputation.Inference                           as I
+import qualified LocalComputation.Inference.EliminationSequence       as E
 import qualified LocalComputation.Inference.JoinTree.Diagram          as D
 import           LocalComputation.Utils                               (fromRight)
 import qualified LocalComputation.ValuationAlgebra                    as V
@@ -146,4 +149,32 @@ usingDouble :: (Functor m)
     => (D.DrawSettings -> [Graph a Q.TropicalSemiringValue] -> Query a -> Either I.Error (m [Q.TropicalSemiringValue]))
     -> (D.DrawSettings -> [Graph a Double]                  -> Query a -> Either I.Error (m [Double]))
 usingDouble f s vs qs = fmap (fmap (map Q.toDouble)) $ f s (map (fmap Q.T) vs) qs
+
+--------------------------------------------------------------------------------
+-- Decomposition
+--------------------------------------------------------------------------------
+decomposition :: forall a b . (Ord a) => Graph a b -> [Graph a b]
+decomposition g = decomposition' (E.create $ map (.neighbourhood) nHoods) nHoods
+    where
+        decomposition' :: E.EliminationSequence a -> [Vertex a] -> [Graph a b]
+        decomposition' _ []      = []
+        decomposition' e vertices = graph : decomposition' e' remaining
+            where
+                (vertex, e') = fromJust (E.eliminateNext e)
+
+                (containingVertex, remaining) = L.partition (\v -> vertex `elem` v.neighbourhood) vertices
+
+                graph = G.outgoingSubgraph g (S.fromList $ map (.v) containingVertex)
+
+        nHoods = neighbourhoods g
+
+data Vertex a = Vertex { v :: a, neighbourhood :: S.Set a }
+
+-- | Returns some 'cliques' behind a graph for use with decomposition.
+-- Really just a list of sets containing the neighbours of each node (plus the node itself).
+neighbourhoods :: (Ord a) => Graph a b -> [Vertex a]
+neighbourhoods g = map (\(n, adjacents) -> Vertex n (S.insert n adjacents)) neighbours
+    where
+        neighbours = map (B.second S.fromList) $ G.neighbours g
+
 

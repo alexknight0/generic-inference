@@ -69,6 +69,16 @@ type Valuation v a = (ValuationFamily v, Var a)
 -- TODO: Could use 'data' constructor inside class declaration...
 
 -- | A valuation belonging to a certain family of valuation algebras
+--
+-- The identity function should return a valuation that behaves like
+-- an identity element under combination. Additionally, differing from
+-- Marc Pouly's use of an identity element in "Generic Inference" (page 91),
+-- we give the identity element a domain on creation and expect this domain
+-- to be upheld like any other domain under valuation algebra operations.
+-- This is done to simplify the implementation of join tree construction
+-- and message passing - with this implementation, the domain of a node in
+-- a join tree is always the same as the label of the valuation (identity
+-- or otherwise) that has been assigned to that node
 class ValuationFamily v where
 
     type VarAssignment v a b

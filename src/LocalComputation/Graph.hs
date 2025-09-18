@@ -27,10 +27,13 @@ module LocalComputation.Graph
     , isEmpty
     , deleteVertex
     , isConnected
+    , outgoingSubgraph
+    , neighbours
     )
 where
 
-import qualified Algebra.Graph              as AG
+import qualified Algebra.Graph              as G
+import qualified Algebra.Graph.Undirected   as UG
 import           Control.Monad              (guard)
 import qualified Data.List                  as L
 import qualified Data.Map                   as M
@@ -136,14 +139,24 @@ merges initial gs = foldr merge initial gs
 merges1 :: (Foldable f, Ord a) => f (Graph a b) -> Graph a b
 merges1 gs = foldr1 merge gs
 
-toAlgebraGraph :: Graph a b -> AG.Graph a
-toAlgebraGraph g = AG.overlays [AG.edge e.arcHead e.arcTail | e <- toList g]
+toAlgebraGraph :: Graph a b -> G.Graph a
+toAlgebraGraph g = G.overlays [G.edge e.arcHead e.arcTail | e <- toList g]
+
+-- TODO: Very inefficent
+neighbours :: (Ord a) => Graph a b -> [(a, [a])]
+neighbours = UG.adjacencyList . UG.toUndirected . toAlgebraGraph
 
 adjacencyList :: (Ord a) => Graph a b -> [(a, [a])]
-adjacencyList g = AG.adjacencyList $ toAlgebraGraph g
+adjacencyList g = G.adjacencyList $ toAlgebraGraph g
 
 reverseAdjacencyList :: (Ord a) => Graph a b -> [(a, [a])]
 reverseAdjacencyList = adjacencyList . flipArcDirections
+
+-- | Returns a subgraph of the given graph that includes only
+-- vertices from the given set and those vertices' outgoing edges.
+outgoingSubgraph :: (Ord a) => Graph a b -> S.Set a -> Graph a b
+outgoingSubgraph (Graph g) new = fromList' $ filter (\(vertex, _) -> S.member vertex new)
+                                           $ M.toList g
 
 empty :: Graph a b
 empty = Graph M.empty
@@ -154,7 +167,7 @@ isEmpty (Graph g) = length g == 0
 deleteVertex :: (Ord a) => a -> Graph a b -> Graph a b
 deleteVertex x g = fromList $ filter (\e -> e.arcHead /= x && e.arcTail /= x) $ toList g
 
-makeUndirected :: (Ord a) => AG.Graph a -> AG.Graph a
+makeUndirected :: (Ord a) => G.Graph a -> G.Graph a
 makeUndirected g = AM.toGraph $ AM.overlay g' (AM.transpose g')
     where
         g' = AM.toAdjacencyMap g
@@ -163,4 +176,4 @@ isConnected :: (Ord a) => Graph a b -> Bool
 isConnected g = all (\x -> length (AM.reachable undirected x) == length vertices) vertices
     where
         undirected = makeUndirected $ toAlgebraGraph g
-        vertices = AG.vertexList $ toAlgebraGraph g
+        vertices = G.vertexList $ toAlgebraGraph g
