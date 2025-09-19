@@ -31,6 +31,7 @@ import qualified Data.Char                                         as C
 import           LocalComputation.Inference                        (Mode (..),
                                                                     queriesDrawGraph)
 
+import qualified LocalComputation.Inference                        as I
 import qualified LocalComputation.Inference.JoinTree.Diagram       as D
 import qualified LocalComputation.Inference.MessagePassing         as MP
 
@@ -55,7 +56,7 @@ checkQueries :: (Show a, Show b, Serializable a, Serializable b, Ord a, Ord b, N
     -> PropertyT IO (Network a b)
 checkQueries qs ps getNetwork = do
     network <- getNetwork
-    results <- run $ getProbability qs network
+    results <- run $ getProbability (I.Shenoy MP.Distributed) D.def qs network
     checkAnswers approxEqual results ps
     pure network
 
@@ -158,7 +159,7 @@ prop_inferenceAnswersMatchPrebuilt = withTests 100 . property $ do
         genQueries' :: Gen ([Query AsiaVar Bool])
         genQueries' = Gen.list (Range.linear 1 6) genQuery
 
-        algebraResults qs net = run $ getProbability qs net
+        algebraResults qs net = run $ getProbability (I.Shenoy MP.Distributed) D.def qs net
         prebuiltResults qs = liftIO $ E.try $ E.evaluate $ force $ runQueries (createNetwork asiaValuationsP1) qs
 
 prop_drawAsiaGraph :: Property

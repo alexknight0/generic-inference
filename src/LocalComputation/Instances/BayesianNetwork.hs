@@ -16,21 +16,23 @@ module LocalComputation.Instances.BayesianNetwork
 where
 
 import           LocalComputation.Utils
-import qualified LocalComputation.Utils                     as M (fromListA)
-import qualified LocalComputation.ValuationAlgebra          as V
-import qualified LocalComputation.ValuationAlgebra.Semiring as S
+import qualified LocalComputation.Utils                      as M (fromListA)
+import qualified LocalComputation.ValuationAlgebra           as V
+import qualified LocalComputation.ValuationAlgebra.Semiring  as S
 
-import           Control.DeepSeq                            (NFData)
-import           Data.Binary                                (Binary)
-import qualified Data.Map                                   as M
-import           Data.Set                                   (union)
-import           GHC.Generics                               (Generic)
+import           Control.DeepSeq                             (NFData)
+import           Data.Binary                                 (Binary)
+import qualified Data.Map                                    as M
+import           Data.Set                                    (union)
+import           GHC.Generics                                (Generic)
 
 
 import           Control.Distributed.Process
 import           Control.Distributed.Process.Serializable
-import qualified LocalComputation.Inference                 as I
-import qualified LocalComputation.Inference.MessagePassing  as MP
+import qualified LocalComputation.Inference                  as I
+import qualified LocalComputation.Inference.JoinTree.Diagram as D
+import qualified LocalComputation.Inference.MessagePassing   as MP
+
 
 {- | Valuation for the valuation algebra of probability potentials.
 
@@ -73,6 +75,28 @@ data Query a b = Query {
     , conditional :: VarAssignment a b
 } deriving (Show)
 
+-- | Returns the probability of a given event occuring, given a set of conditional variables.
+-- Takes a network (a list of conditional probability tables) as input.
+getProbability :: forall a b. (Show a, Show b, Serializable a, Serializable b, Ord a, Ord b, NFData a, NFData b)
+    => I.Mode
+    -> D.DrawSettings
+    -> [Query a b]
+    -> Network a b
+    -> Process [Probability]
+getProbability mode s qs network' = do
+    results <- fromRight $ I.queriesDrawGraph s mode network' domains
+    pure $ zipWith probability qs results
+
+    where
+        domains :: [V.Domain a]
+        domains = map (\q -> union (M.keysSet q.conditioned) (M.keysSet q.conditional)) qs
+
+        probability q r = conditionalP q (\x -> S.findValue x r)
+                                         (\x -> S.findValue x (V.project r (M.keysSet q.conditional)))
+
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
 threshold :: Probability
 threshold = 1 * 10 ^^ (-10 :: Integer)
 
@@ -101,23 +125,6 @@ sharedKeysHaveSameValue m1 m2 = allTrue $ M.intersectionWith f (withIndicator m1
 
         allTrue = all ((== True) . snd . snd) . M.toList
 
--- | Returns the probability of a given event occuring, given a set of conditional variables.
--- Takes a network (a list of conditional probability tables) as input.
-getProbability :: forall a b. (Show a, Show b, Serializable a, Serializable b, Ord a, Ord b, NFData a, NFData b)
-    => [Query a b]
-    -> Network a b
-    -> Process [Probability]
-getProbability qs network' = do
-    results <- fromRight $ I.queries (I.Shenoy MP.Threads) network' domains
-    pure $ zipWith probability qs results
-
-    where
-        domains :: [V.Domain a]
-        domains = map (\q -> union (M.keysSet q.conditioned) (M.keysSet q.conditional)) qs
-
-        probability q r = conditionalP q (\x -> S.findValue x r)
-                                         (\x -> S.findValue x (V.project r (M.keysSet q.conditional)))
-
 -- TODO: Unsafe don't export.
 toQueryA :: (Ord a) => ([(a, b)], [(a, b)]) -> Query a b
 toQueryA (x, y) = Query (M.fromListA x) (M.fromListA y)
@@ -126,4 +133,3 @@ toQueryA (x, y) = Query (M.fromListA x) (M.fromListA y)
 -- to return the results necessary to answer the given probability query.
 toInferenceQuery :: (Ord a) => [Query a b] -> [V.Domain a]
 toInferenceQuery qs = map (\q -> union (M.keysSet q.conditioned) (M.keysSet q.conditional)) qs
-

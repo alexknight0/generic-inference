@@ -16,6 +16,8 @@ where
 
 import qualified Benchmarks.BayesianNetwork.Data                   as D
 import           Criterion.Main
+import qualified LocalComputation.Inference                        as I
+import qualified LocalComputation.Inference.JoinTree.Diagram       as D
 import qualified LocalComputation.Instances.BayesianNetwork        as BN
 import qualified LocalComputation.Instances.BayesianNetwork.Parser as P
 import qualified LocalComputation.LocalProcess                     as P
@@ -45,5 +47,5 @@ benchmark net queryGen = do
     queries <- D.sample queryGen.value
 
     pure $ bgroup ("Bayesian/" ++ net.name ++ "/" ++ queryGen.name) [
-                  bench "localcomputation-current"   $ nfIO $ P.run $ BN.getProbability    queries net.value
+                  bench "localcomputation-current"   $ nfIO $ P.run $ BN.getProbability I.BruteForce D.def queries net.value
             ]
