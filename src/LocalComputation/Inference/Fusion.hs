@@ -10,7 +10,9 @@ import           Control.Distributed.Process                           (Process,
                                                                         sendChan)
 import           Control.Exception                                     (assert)
 import           Control.Monad                                         (replicateM)
+import           Data.Maybe                                            (fromJust)
 import qualified Data.Set                                              as S
+import qualified LocalComputation.Inference.EliminationSequence        as E
 import qualified LocalComputation.Inference.JoinTree                   as JT
 import qualified LocalComputation.Inference.JoinTree.Diagram           as D
 import qualified LocalComputation.Inference.MessagePassing.Distributed as MP
@@ -50,22 +52,21 @@ fusion :: (ValuationFamily v, Var a)
     => [v a]
     -> Domain a
     -> v a
-fusion vs x = fusion' nextId vsWithIds (S.toList dPhiMinusX)
+fusion vs x = fusion' nextId vsWithIds (E.createAndExclude (map label vs) x)
     where
-        dPhi = foldr S.union S.empty (map label vs)
-        dPhiMinusX = S.difference dPhi x
-
         vsWithIds = S.fromList $ zipWith WithId [0..] vs
         nextId = fromIntegral $ length vs
 
-fusion' :: (ValuationFamily v, Var a) => Natural -> S.Set (WithId (v a)) -> [a] -> v a
-fusion' _        upperPsi []     = combines1 $ map (.content) $ S.toList upperPsi
-fusion' uniqueId upperPsi (y:ys) = fusion' (uniqueId + 1) upperPsi' ys
+fusion' :: (ValuationFamily v, Var a) => Natural -> S.Set (WithId (v a)) -> E.EliminationSequence a -> v a
+fusion' uniqueId upperPsi e
+    | E.isEmpty e = combines1 $ map (.content) $ S.toList upperPsi
+    | otherwise = fusion' (uniqueId + 1) upperPsi' e'
     where
-        upperGamma = S.filter (\phi -> S.member y (label phi.content)) upperPsi
+        (eliminated, e') = fromJust $ E.eliminateNext e
+        upperGamma = S.filter (\phi -> S.member eliminated (label phi.content)) upperPsi
         psi = combines1 $ map (.content) $ S.toList upperGamma
         upperPsi' = S.union (S.difference upperPsi upperGamma)
-                            (S.singleton (WithId uniqueId $ eliminate psi (S.singleton y)))
+                            (S.singleton (WithId uniqueId $ eliminate psi (S.singleton eliminated)))
 
 
 --------------------------------------------------------------------------------

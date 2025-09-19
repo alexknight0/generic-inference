@@ -52,22 +52,28 @@ import qualified LocalComputation.ValuationAlgebra                    as V
 
 benchmarks :: IO [Benchmark]
 benchmarks = do
-    -- p3Small <- D.p3SmallGraph'
-    graph <- sample $ D.genGraph 50 200
-    -- p3Medium <- D.p3MediumGraph'
-    -- tmp <- sample $ genConnectedQueries 10 p3Medium
-    queries <- sample $ genConnectedQueries 10 graph
+    graphs <- sequence [ sample $ D.genGraph 5   10
+                       , sample $ D.genGraph 10  20
+                       , sample $ D.genGraph 30  100
+                       , sample $ D.genGraph 50  100
+                       , sample $ D.genGraph 50  100
+                       , sample $ D.genGraph 50  200
+                       , sample $ D.genGraph 50  200
+                       , sample $ D.genGraph 50  200
+                       ]
+    queries <- mapM (sample . genConnectedQueries 10) graphs
 
-    let algorithm mode = singleTargets mode D.def graph queries
+    let problems = zipWith Problem graphs queries
+        algorithm mode = multipleSingleTargets mode D.def problems
 
-    -- bruteForce  <- algorithm (Generic I.BruteForce)
+    bruteForce  <- algorithm (Generic I.BruteForce)
     fusion      <- algorithm (Generic I.Fusion)
     -- shenoy      <- algorithm (Generic (I.Shenoy MP.Threads))
     -- baseline    <- algorithm (Baseline)
 
     pure $ pure $ bgroup "Shortest Path" [
-                --   bench "localcomputation-bruteForce" $ nfIO bruteForce
-                bench "localcomputation-fusion"     $ nfIO fusion
+                bench "localcomputation-bruteForce" $ nfIO bruteForce
+                , bench "localcomputation-fusion"   $ nfIO fusion
                 -- , bench "localcomputation-shenoy"     $ nfIO shenoy
                 -- , bench "djikstra"                    $ nfIO baseline
             ]
@@ -129,6 +135,13 @@ singleTargets mode s g qs = pure $ mapM (\q -> fromRight $ algorithm s g q) qs
 --------------------------------------------------------------------------------
 -- Variants of `singleTargets`
 --------------------------------------------------------------------------------
+data Problem a = Problem { g :: G.Graph a Double, qs :: [ST.Query a] }
+-- | Multiple problem variant of `singleTargets`. Not to be confused with `singleTargetsSplit` which
+-- handles multiple graphs but considers it as one problem.
+multipleSingleTargets :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
+    => Implementation -> D.DrawSettings -> [Problem a] -> m (m [[[Double]]])
+multipleSingleTargets mode s ps = fmap sequence $ mapM (\p -> singleTargets mode s p.g p.qs) ps
+
 -- | Single query variant of `singleTargets`
 singleTarget :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
     => Implementation -> D.DrawSettings -> G.Graph a Double -> ST.Query a -> m (m [Double])

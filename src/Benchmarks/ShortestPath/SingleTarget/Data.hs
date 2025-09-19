@@ -106,7 +106,7 @@ genGraph nodes arcs = do
         -- present in the graph.
         selfLoops = [G.Edge x x 0 | x <- [0 .. nodes - 1]]
 
-
+-- | Generates a bunch of graphs that together build a larger graph.
 genGraphs :: Natural -> Natural -> Gen [G.Graph Natural Double]
 genGraphs nodes arcs = do
     original <- genGraph nodes arcs
