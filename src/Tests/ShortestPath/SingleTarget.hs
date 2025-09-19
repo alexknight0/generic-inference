@@ -67,7 +67,7 @@ checkMatchesBaselineRandom = checkMatchesBaseline name unused test 100
 
 prop_p1_drawGraph :: Property
 prop_p1_drawGraph = unitTest $ do
-    results <- ST.singleTargetSplit' (ST.Generic $ I.Shenoy MP.Threads) settings p1.graphs p1.q
+    results <- ST.singleTarget' (ST.Generic $ I.Shenoy MP.Threads) settings (head p1.graphs) p1.q
     checkAnswers approx results p1.answers
 
     where
@@ -138,14 +138,19 @@ matchesBaselineForRandomQuery :: forall a . (NFData a, H.Hashable a, Binary a, T
 matchesBaselineForRandomQuery gs mode = do
     query <- forAll $ genConnectedQuery reverseAdjacencyList
 
-    baseline <- go Baseline query
-    local    <- go mode query
+    baseline     <- go        Baseline query
+    local        <- go        mode query
+    localUnsplit <- goUnsplit mode query
 
-    checkAnswers approx local baseline
+    checkAnswers approx local        baseline
+    checkAnswers approx localUnsplit baseline
 
     where
         go :: (MonadIO m) => Implementation -> ST.Query a -> m [Double]
         go m query = ST.singleTargetSplit' m D.def gs query
+
+        goUnsplit :: (MonadIO m) => Implementation -> ST.Query a -> m [Double]
+        goUnsplit m query = ST.singleTarget' m D.def fullGraph query
 
         fullGraph = G.merges1 gs
 

@@ -30,7 +30,7 @@ import qualified Data.Bifunctor                                       as B
 import           Data.Binary                                          (Binary)
 import qualified Data.Hashable                                        as H
 import qualified Data.List                                            as L
-import           LocalComputation.Graph                               as G
+import qualified LocalComputation.Graph                               as G
 import qualified LocalComputation.Inference                           as I
 import qualified LocalComputation.Inference.EliminationSequence       as E
 import qualified LocalComputation.Inference.JoinTree.Diagram          as D
@@ -58,7 +58,7 @@ __Warning__ : The shortest path from a vertex to itself is 0 (the trivial path).
 singleTargetSplit :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
     => I.Mode
     -> D.DrawSettings
-    -> [Graph a Double]
+    -> [G.Graph a Double]
     -> Query a
     -> Either I.Error (m [Double])
 singleTargetSplit mode settings gs q = usingDouble (singleTargetSplitGeneric inference) settings gs q
@@ -68,7 +68,7 @@ singleTargetSplit mode settings gs q = usingDouble (singleTargetSplitGeneric inf
 
 singleTargetSplitDP :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
     => D.DrawSettings
-    -> [Graph a Double]
+    -> [G.Graph a Double]
     -> Query a
     -> Either I.Error (m [Double])
 singleTargetSplitDP = usingDouble (singleTargetSplitGeneric I.queryDPDrawGraph)
@@ -76,7 +76,7 @@ singleTargetSplitDP = usingDouble (singleTargetSplitGeneric I.queryDPDrawGraph)
 singleTargetSplitGeneric :: ( MonadIO m, Show a, H.Hashable a, Ord a)
     => ComputeInference m a
     -> D.DrawSettings
-    -> [Graph a Q.TropicalSemiringValue]
+    -> [G.Graph a Q.TropicalSemiringValue]
     -> Query a
     -> Either I.Error (m [Q.TropicalSemiringValue])
 singleTargetSplitGeneric inference settings vs q = do
@@ -95,7 +95,7 @@ singleTargetSplitGeneric inference settings vs q = do
 -- If distance of a location to itself is not recorded, it will be recorded as the 'zero'
 -- element of the tropical semiring (i.e. infinity). Regarding self loops, see the documentation
 -- of `singleTarget`.
-knowledgeBase :: forall a . (H.Hashable a, V.Var a) => [Graph a Q.TropicalSemiringValue] -> a -> [Q.Valuation Q.TropicalSemiringValue a]
+knowledgeBase :: forall a . (H.Hashable a, V.Var a) => [G.Graph a Q.TropicalSemiringValue] -> a -> [Q.Valuation Q.TropicalSemiringValue a]
 knowledgeBase gs target = map f gs
     where
         f g = fromJust $ Q.create m b
@@ -103,17 +103,17 @@ knowledgeBase gs target = map f gs
                 m = M.toSquare (matrixFromGraph g) Q.zero
                 b = fromRight $ M.fromList [((a, ()), if a == target then Q.one else Q.zero) | a <- S.toList $ fst (M.domain m)]
 
-        matrixFromGraph :: (Ord b, Q.SemiringValue b) => Graph a b -> M.LabelledMatrix a a b
+        matrixFromGraph :: (Ord b, Q.SemiringValue b) => G.Graph a b -> M.LabelledMatrix a a b
         matrixFromGraph g = fromRight $ M.fromListDefault Q.zero (MP.toList $ rearrangedGraph g)
 
         -- Rearranges the graph from `MP.Map a [(a, b)]` to `MP.Map (a, a) b`.
         -- If multiple arcs exist between a node, retains only the minimum cost arc.
-        rearrangedGraph :: Ord b => Graph a b -> MP.Map (a, a) b
+        rearrangedGraph :: Ord b => G.Graph a b -> MP.Map (a, a) b
         rearrangedGraph g = MP.fromListWith (\v1 v2 -> min v1 v2) (assocList g)
 
         -- Rearranges the graph into an associative list of ((arcHead, arcTail), cost)
         -- May contain duplicate entries if there may exist multiple arcs between a set of nodes.
-        assocList :: Graph a b -> [((a, a), b)]
+        assocList :: G.Graph a b -> [((a, a), b)]
         assocList g = map (\e -> ((e.arcHead, e.arcTail), e.weight)) (G.toList g)
 
 -- | A function that given some draw settings, a knowledgebase and a query, computes and returns the inference results.
@@ -125,10 +125,10 @@ type ComputeInference m a = D.DrawSettings
 --------------------------------------------------------------------------------
 -- Decomposition
 --------------------------------------------------------------------------------
-decomposition :: forall a b . (Ord a) => Graph a b -> [Graph a b]
+decomposition :: forall a b . (Ord a) => G.Graph a b -> [G.Graph a b]
 decomposition g = decomposition' (E.create $ map (.neighbourhood) nHoods) nHoods
     where
-        decomposition' :: E.EliminationSequence a -> [Vertex a] -> [Graph a b]
+        decomposition' :: E.EliminationSequence a -> [Vertex a] -> [G.Graph a b]
         decomposition' _ []      = []
         decomposition' e vertices = graph : decomposition' e' remaining
             where
@@ -144,7 +144,7 @@ data Vertex a = Vertex { v :: a, neighbourhood :: S.Set a }
 
 -- | Returns some 'cliques' behind a graph for use with decomposition.
 -- Really just a list of sets containing the neighbours of each node (plus the node itself).
-neighbourhoods :: (Ord a) => Graph a b -> [Vertex a]
+neighbourhoods :: (Ord a) => G.Graph a b -> [Vertex a]
 neighbourhoods g = map (\(n, adjacents) -> Vertex n (S.insert n adjacents)) neighbours
     where
         neighbours = map (B.second S.fromList) $ G.neighbours g
@@ -159,14 +159,14 @@ __Warning__ : The shortest path from a vertex to itself is 0 (the trivial path).
 singleTarget :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
     => I.Mode
     -> D.DrawSettings
-    -> Graph a Double
+    -> G.Graph a Double
     -> Query a
     -> Either I.Error (m [Double])
 singleTarget mode settings g = singleTargetSplit mode settings (decomposition g)
 
 singleTargetDP :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
     => D.DrawSettings
-    -> Graph a Double
+    -> G.Graph a Double
     -> Query a
     -> Either I.Error (m [Double])
 singleTargetDP settings g = singleTargetSplitDP settings (decomposition g)
@@ -182,7 +182,7 @@ singleTargetDP settings g = singleTargetSplitDP settings (decomposition g)
 singleTargetsSplit :: forall a m . (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
     => I.Mode
     -> D.DrawSettings
-    -> [Graph a Double]
+    -> [G.Graph a Double]
     -> [Query a]
     -> Either I.Error (m [[Double]])
 singleTargetsSplit mode s gs qs = fmap sequence $ mapM (\q -> singleTargetSplit mode s gs q) qs
@@ -196,7 +196,7 @@ unsafeGetDistance x (source, _) = fromJust $ M.find (source, ()) x
 
 -- | Converts a function that operates using tropical semiring values to operate using doubles
 usingDouble :: (Functor m)
-    => (D.DrawSettings -> [Graph a Q.TropicalSemiringValue] -> Query a -> Either I.Error (m [Q.TropicalSemiringValue]))
-    -> (D.DrawSettings -> [Graph a Double]                  -> Query a -> Either I.Error (m [Double]))
+    => (D.DrawSettings -> [G.Graph a Q.TropicalSemiringValue] -> Query a -> Either I.Error (m [Q.TropicalSemiringValue]))
+    -> (D.DrawSettings -> [G.Graph a Double]                  -> Query a -> Either I.Error (m [Double]))
 usingDouble f s vs qs = fmap (fmap (map Q.toDouble)) $ f s (map (fmap Q.T) vs) qs
 
