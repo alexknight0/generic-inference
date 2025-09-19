@@ -17,7 +17,6 @@ module Benchmarks.ShortestPath.SingleTarget (
 -- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
 -- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
 -- 1. Make fusion construct a better join tree for itself.
--- 2. Make quasiregular split the graph nicely for itself.
 -- And after:
 -- 1. Test singleTarget with a multiple query architecture, splitting
 --    the 'domain' into pairs of (target, source) instead of a single
@@ -38,6 +37,8 @@ import           LocalComputation.Utils                               (fromRight
                                                                        infinity)
 
 import           Control.DeepSeq                                      (deepseq)
+import qualified Control.DeepSeq                                      as D
+import qualified Control.Exception                                    as D
 import qualified Control.Monad                                        as M
 import           Control.Monad.IO.Class                               (MonadIO)
 import qualified Data.Hashable                                        as H
@@ -57,16 +58,18 @@ benchmarks = do
     -- tmp <- sample $ genConnectedQueries 10 p3Medium
     queries <- sample $ genConnectedQueries 10 graph
 
-    bruteForce  <- singleTargetsSplit (Generic I.BruteForce)          D.def [graph] queries
-    fusion      <- singleTargetsSplit (Generic I.Fusion)              D.def [graph] queries
-    shenoy      <- singleTargetsSplit (Generic (I.Shenoy MP.Threads)) D.def [graph] queries
-    baseline    <- singleTargetsSplit (Baseline)                      D.def [graph] queries
+    let algorithm mode = singleTargets mode D.def graph queries
+
+    -- bruteForce  <- algorithm (Generic I.BruteForce)
+    fusion      <- algorithm (Generic I.Fusion)
+    -- shenoy      <- algorithm (Generic (I.Shenoy MP.Threads))
+    -- baseline    <- algorithm (Baseline)
 
     pure $ pure $ bgroup "Shortest Path" [
-                  bench "localcomputation-bruteForce" $ nfIO bruteForce
-                , bench "localcomputation-fusion"     $ nfIO fusion
-                , bench "localcomputation-shenoy"     $ nfIO shenoy
-                , bench "djikstra"                    $ nfIO baseline
+                --   bench "localcomputation-bruteForce" $ nfIO bruteForce
+                bench "localcomputation-fusion"     $ nfIO fusion
+                -- , bench "localcomputation-shenoy"     $ nfIO shenoy
+                -- , bench "djikstra"                    $ nfIO baseline
             ]
 
 --------------------------------------------------------------------------------

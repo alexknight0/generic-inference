@@ -22,6 +22,7 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular       as Q (Semi
                                                                             create,
                                                                             one,
                                                                             solution,
+                                                                            unsafeCreate,
                                                                             zero)
 -- Typeclasses
 import           Control.DeepSeq                                      (NFData)
@@ -98,7 +99,7 @@ singleTargetSplitGeneric inference settings vs q = do
 knowledgeBase :: forall a . (H.Hashable a, V.Var a) => [G.Graph a Q.TropicalSemiringValue] -> a -> [Q.Valuation Q.TropicalSemiringValue a]
 knowledgeBase gs target = map f gs
     where
-        f g = fromJust $ Q.create m b
+        f g = Q.unsafeCreate m b
             where
                 m = M.toSquare (matrixFromGraph g) Q.zero
                 b = fromRight $ M.fromList [((a, ()), if a == target then Q.one else Q.zero) | a <- S.toList $ fst (M.domain m)]

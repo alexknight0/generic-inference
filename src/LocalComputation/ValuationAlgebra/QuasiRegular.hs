@@ -10,6 +10,7 @@ module LocalComputation.ValuationAlgebra.QuasiRegular
     , Q.add, Q.multiply, Q.zero, Q.one
     , Valuation
     , create
+    , unsafeCreate
     , solution
     , Q.TropicalSemiringValue (T)
     , configExtSet
@@ -19,6 +20,7 @@ where
 import           Data.Maybe                                           (fromJust)
 import qualified Data.Set                                             as S
 import qualified LocalComputation.LabelledMatrix                      as M
+import qualified LocalComputation.Utils                               as U
 import           LocalComputation.ValuationAlgebra                    hiding
                                                                       (Valuation)
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular.Value as Q
@@ -35,6 +37,9 @@ create m b
     | satisfiesInvariants (Valuation m b) = Just (Valuation m b)
     | otherwise = Nothing
 
+unsafeCreate :: (Var a, Q.SemiringValue b, Show b) => M.LabelledMatrix a a b -> M.LabelledMatrix a () b -> Valuation b a
+unsafeCreate m b = U.assertP satisfiesInvariants $ Valuation m b
+
 -- TODO: Probably can remove instance of Show? It doens't contribute to the 'label', 'combine', 'project' functionality no?
 instance (Show b, Q.SemiringValue b) => ValuationFamily (Valuation b) where
 
@@ -50,7 +55,7 @@ instance (Show b, Q.SemiringValue b) => ValuationFamily (Valuation b) where
             sUnionT = S.union (label v1) (label v2)
 
     _project (Identity _) newD = Identity newD
-    _project (Valuation m b) t = fromJust $ create newM newB
+    _project (Valuation m b) t = unsafeCreate newM newB
         where
             newM = matrixAdd (matrixProject m t t)
                              (matrixMultiply (x)
@@ -80,7 +85,7 @@ add :: (Var a, Show b, Q.SemiringValue b) => Valuation b a -> Valuation b a -> V
 add v1 v2 = assertInvariants $ _add v1 v2
 
 _add :: (Var a, Show b, Q.SemiringValue b) => Valuation b a -> Valuation b a -> Valuation b a
-_add (Valuation m1 b1) (Valuation m2 b2) = fromJust $ create (matrixAdd m1 m2) (matrixAdd b1 b2)
+_add (Valuation m1 b1) (Valuation m2 b2) = unsafeCreate (matrixAdd m1 m2) (matrixAdd b1 b2)
 _add _                 _                 = error "Not implemented error."
 
 -- | Extends a valuation. Unsafe.
@@ -89,7 +94,7 @@ extension v d = assertInvariants $ _extension v d
 
 _extension :: (Var a, Show b, Q.SemiringValue b) => Valuation b a -> S.Set a -> Valuation b a
 _extension (Identity _) d = Identity d
-_extension (Valuation m b) t = fromJust $ create (fromJust $ M.extension m t t Q.zero) (fromJust $ M.extension b t (S.singleton ()) Q.zero)
+_extension (Valuation m b) t = unsafeCreate (fromJust $ M.extension m t t Q.zero) (fromJust $ M.extension b t (S.singleton ()) Q.zero)
 
 
 ------------------------------------------------------------------------------
