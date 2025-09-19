@@ -1,5 +1,9 @@
 module Benchmarks.ShortestPath.SingleTarget (
       benchmarks
+    , singleTarget
+    , singleTargets
+    , singleTarget'
+    , singleTargets'
     , singleTargetSplit
     , singleTargetsSplit
     , singleTargetSplit'
@@ -65,6 +69,9 @@ benchmarks = do
                 , bench "djikstra"                    $ nfIO baseline
             ]
 
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
 -- | Choice between either a `Baseline` inference implementation taken from hackage,
 -- a `Generic` inference implementation from this library, or the yet-to-be-generalized
 -- dynamic programming implementation `DynamicP` dynamic programming implementation
@@ -88,14 +95,57 @@ allButBaseline = filter (/= Baseline) allImplementations
 -- performs the setup for problem and then returns an IO action that performs the computation that
 -- actually needs to be benchmarked.
 --
--- Takes a graph that has been split across multiple graphs.
---
 -- Takes multiple queries. No single target implementation currently supports solving multiple queries
 -- faster than solving a single one multiple times; but by taking multiple queries we can benchmark
 -- a function on the same graph without recreating the graph.
 --
 -- Technically unsafe - if one of the given queries is not answerable for the problem, will
 -- (i.e. refers to a vertex that does not exist) throws an error.
+singleTargets :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
+    => Implementation -> D.DrawSettings -> G.Graph a Double -> [ST.Query a] -> m (m [[Double]])
+
+singleTargets Baseline _ graph qs = do
+    -- We perform arc reversal during setup as we want to compare the baseline and
+    -- localcomputation algorithms as if both were single source or single target.
+    -- We add zero cost edges to make sure both algorithms would return the same result.
+    let reversedGraph = (G.addSelfLoops 0 . G.flipArcDirections) graph
+
+    reversedGraph `deepseq` pure $ do
+        -- Can't deepseq H.Graph
+        let g = H.fromGraph reversedGraph
+
+        -- Compute solutions
+        pure $ map (\q -> H.singleSource g q.target q.sources infinity) qs
+
+singleTargets mode s g qs = pure $ mapM (\q -> fromRight $ algorithm s g q) qs
+    where
+        algorithm = case mode of
+                        (Generic m)  -> ST.singleTarget m
+                        (DynamicP _) -> ST.singleTargetDP
+
+--------------------------------------------------------------------------------
+-- Variants of `singleTargets`
+--------------------------------------------------------------------------------
+-- | Single query variant of `singleTargets`
+singleTarget :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
+    => Implementation -> D.DrawSettings -> G.Graph a Double -> ST.Query a -> m (m [Double])
+singleTarget mode s g q = fmap (fmap head) $ singleTargets mode s g [q]
+
+-- | Variant of `singleTargets` that does the computation in "one go"
+-- (doesn't seperate the computation into the 'setup' and 'computation' phases)
+singleTargets' :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
+    => Implementation -> D.DrawSettings -> G.Graph a Double -> [ST.Query a] -> m [[Double]]
+singleTargets' mode s g qs = M.join $ singleTargets mode s g qs
+
+-- | Single query variant of `singleTargets'`
+singleTarget' :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
+    => Implementation -> D.DrawSettings -> G.Graph a Double -> ST.Query a -> m [Double]
+singleTarget' mode s g q = M.join $ singleTarget mode s g q
+
+--------------------------------------------------------------------------------
+-- Split variants of `singleTargets`
+--------------------------------------------------------------------------------
+-- | Variant of `singleTargets` that takes a graph that has been split across multiple graphs.
 singleTargetsSplit :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
     => Implementation -> D.DrawSettings -> [G.Graph a Double] -> [ST.Query a] -> m (m [[Double]])
 
@@ -118,22 +168,18 @@ singleTargetsSplit mode s gs qs = pure $ mapM (\q -> fromRight $ algorithm s gs 
                         (Generic m)  -> ST.singleTargetSplit m
                         (DynamicP _) -> ST.singleTargetSplitDP
 
---------------------------------------------------------------------------------
--- Variants of `singleTargets`
---------------------------------------------------------------------------------
-
--- | Single query variant of `singleTargets`
+-- | Single query variant of `singleTargetsSplit`
 singleTargetSplit :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
     => Implementation -> D.DrawSettings -> [G.Graph a Double] -> ST.Query a -> m (m [Double])
 singleTargetSplit mode s gs q = fmap (fmap head) $ singleTargetsSplit mode s gs [q]
 
--- | Variant of `singleTargets` that does the computation in "one go"
+-- | Variant of `singleTargetsSplit` that does the computation in "one go"
 -- (doesn't seperate the computation into the 'setup' and 'computation' phases)
 singleTargetsSplit' :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
     => Implementation -> D.DrawSettings -> [G.Graph a Double] -> [ST.Query a] -> m [[Double]]
 singleTargetsSplit' mode s gs qs = M.join $ singleTargetsSplit mode s gs qs
 
--- | Single query variant of `singleTargets'`
+-- | Single query variant of `singleTargetsSplit'`
 singleTargetSplit' :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
     => Implementation -> D.DrawSettings -> [G.Graph a Double] -> ST.Query a -> m [Double]
 singleTargetSplit' mode s gs q = M.join $ singleTargetSplit mode s gs q
