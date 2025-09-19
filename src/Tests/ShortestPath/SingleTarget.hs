@@ -67,7 +67,7 @@ checkMatchesBaselineRandom = checkMatchesBaseline name unused test 100
 
 prop_p1_drawGraph :: Property
 prop_p1_drawGraph = unitTest $ do
-    results <- ST.singleTarget' (ST.Generic $ I.Shenoy MP.Threads) settings p1.graphs p1.q
+    results <- ST.singleTargetSplit' (ST.Generic $ I.Shenoy MP.Threads) settings p1.graphs p1.q
     checkAnswers approx results p1.answers
 
     where
@@ -77,7 +77,7 @@ prop_p1_drawGraph = unitTest $ do
 
 prop_p2_drawGraph :: Property
 prop_p2_drawGraph = unitTest $ do
-    results <- ST.singleTarget' (ST.Generic $ I.Shenoy MP.Threads) settings p2.graphs p2.q
+    results <- ST.singleTargetSplit' (ST.Generic $ I.Shenoy MP.Threads) settings p2.graphs p2.q
     checkAnswers approx results p2.answers
     where
         settings = D.def { D.beforeInference = Just "diagrams/p2_before.svg"
@@ -145,7 +145,7 @@ matchesBaselineForRandomQuery gs mode = do
 
     where
         go :: (MonadIO m) => Implementation -> ST.Query a -> m [Double]
-        go m query = ST.singleTarget' m D.def gs query
+        go m query = ST.singleTargetSplit' m D.def gs query
 
         fullGraph = G.merges1 gs
 
@@ -158,7 +158,7 @@ matchesBaselineForRandomQuery gs mode = do
 pX :: Problem -> Property
 pX p = unitTest $ do
     forM ST.allImplementations $ \mode -> do
-        results <- ST.singleTarget' mode D.def p.graphs p.q
+        results <- ST.singleTargetSplit' mode D.def p.graphs p.q
         checkAnswers approx (results) p.answers
 
 -- | Parses the given graph. Fails if a parse error occurs.

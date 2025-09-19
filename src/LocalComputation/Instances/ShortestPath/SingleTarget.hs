@@ -2,14 +2,14 @@
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module LocalComputation.Instances.ShortestPath.SingleTarget
-    (
+module LocalComputation.Instances.ShortestPath.SingleTarget (
       singleTarget
     , singleTargetDP
-    , singleTargets
+    , singleTargetSplit
+    , singleTargetSplitDP
+    , singleTargetsSplit
     , Query (..)
-    )
-where
+) where
 
 import           Data.Maybe                                           (fromJust)
 import qualified Data.Set                                             as S
@@ -55,31 +55,31 @@ data Query a = Query { sources :: [a], target :: a } deriving Show
 
 __Warning__ : The shortest path from a vertex to itself is 0 (the trivial path).
 -}
-singleTarget :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+singleTargetSplit :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
     => I.Mode
     -> D.DrawSettings
     -> [Graph a Double]
     -> Query a
     -> Either I.Error (m [Double])
-singleTarget mode settings gs q = usingDouble (singleTargetGeneric inference) settings gs q
+singleTargetSplit mode settings gs q = usingDouble (singleTargetSplitGeneric inference) settings gs q
     where
         -- We get inference results by doing a query then calling `solution` on the result.
         inference s k domain = fmap (fmap Q.solution) $ I.queryDrawGraph s mode k domain
 
-singleTargetDP :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+singleTargetSplitDP :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
     => D.DrawSettings
     -> [Graph a Double]
     -> Query a
     -> Either I.Error (m [Double])
-singleTargetDP = usingDouble (singleTargetGeneric I.queryDPDrawGraph)
+singleTargetSplitDP = usingDouble (singleTargetSplitGeneric I.queryDPDrawGraph)
 
-singleTargetGeneric :: ( MonadIO m, Show a, H.Hashable a, Ord a)
+singleTargetSplitGeneric :: ( MonadIO m, Show a, H.Hashable a, Ord a)
     => ComputeInference m a
     -> D.DrawSettings
     -> [Graph a Q.TropicalSemiringValue]
     -> Query a
     -> Either I.Error (m [Q.TropicalSemiringValue])
-singleTargetGeneric inference settings vs q = do
+singleTargetSplitGeneric inference settings vs q = do
     solutionM <- solutionMOrError
 
     pure $ do
@@ -123,35 +123,6 @@ type ComputeInference m a = D.DrawSettings
                          -> Either I.Error (m (M.LabelledMatrix a () Q.TropicalSemiringValue))
 
 --------------------------------------------------------------------------------
--- Multiple query variants
---------------------------------------------------------------------------------
-
--- | Returns the answers to multiple single-target queries.
---
--- Computes the solution by performing multiple seperate single target computations, even in the shenoy case;
--- using shenoy here allows computing multiple sources in one inference sweep, but not computing multiple targets.
-singleTargets :: forall a m . (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => I.Mode
-    -> D.DrawSettings
-    -> [Graph a Double]
-    -> [Query a]
-    -> Either I.Error (m [[Double]])
-singleTargets mode s gs qs = fmap sequence $ mapM (\q -> singleTarget mode s gs q) qs
-
---------------------------------------------------------------------------------
--- Utilities
---------------------------------------------------------------------------------
--- | Retuns a distance entry from the resulting valuation after inference. Unsafe.
-unsafeGetDistance :: (Ord a) => M.LabelledMatrix a () Q.TropicalSemiringValue -> (a, a) -> Q.TropicalSemiringValue
-unsafeGetDistance x (source, _) = fromJust $ M.find (source, ()) x
-
--- | Converts a function that operates using tropical semiring values to operate using doubles
-usingDouble :: (Functor m)
-    => (D.DrawSettings -> [Graph a Q.TropicalSemiringValue] -> Query a -> Either I.Error (m [Q.TropicalSemiringValue]))
-    -> (D.DrawSettings -> [Graph a Double]                  -> Query a -> Either I.Error (m [Double]))
-usingDouble f s vs qs = fmap (fmap (map Q.toDouble)) $ f s (map (fmap Q.T) vs) qs
-
---------------------------------------------------------------------------------
 -- Decomposition
 --------------------------------------------------------------------------------
 decomposition :: forall a b . (Ord a) => Graph a b -> [Graph a b]
@@ -178,4 +149,54 @@ neighbourhoods g = map (\(n, adjacents) -> Vertex n (S.insert n adjacents)) neig
     where
         neighbours = map (B.second S.fromList) $ G.neighbours g
 
+--------------------------------------------------------------------------------
+-- Unsplit variants
+--------------------------------------------------------------------------------
+{- | Returns the shortest distance between a single target and multiple sources.
+
+__Warning__ : The shortest path from a vertex to itself is 0 (the trivial path).
+-}
+singleTarget :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+    => I.Mode
+    -> D.DrawSettings
+    -> Graph a Double
+    -> Query a
+    -> Either I.Error (m [Double])
+singleTarget mode settings g = singleTargetSplit mode settings (decomposition g)
+
+singleTargetDP :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+    => D.DrawSettings
+    -> Graph a Double
+    -> Query a
+    -> Either I.Error (m [Double])
+singleTargetDP settings g = singleTargetSplitDP settings (decomposition g)
+
+--------------------------------------------------------------------------------
+-- Multiple query variants
+--------------------------------------------------------------------------------
+
+-- | Returns the answers to multiple single-target queries.
+--
+-- Computes the solution by performing multiple seperate single target computations, even in the shenoy case;
+-- using shenoy here allows computing multiple sources in one inference sweep, but not computing multiple targets.
+singleTargetsSplit :: forall a m . (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+    => I.Mode
+    -> D.DrawSettings
+    -> [Graph a Double]
+    -> [Query a]
+    -> Either I.Error (m [[Double]])
+singleTargetsSplit mode s gs qs = fmap sequence $ mapM (\q -> singleTargetSplit mode s gs q) qs
+
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
+-- | Retuns a distance entry from the resulting valuation after inference. Unsafe.
+unsafeGetDistance :: (Ord a) => M.LabelledMatrix a () Q.TropicalSemiringValue -> (a, a) -> Q.TropicalSemiringValue
+unsafeGetDistance x (source, _) = fromJust $ M.find (source, ()) x
+
+-- | Converts a function that operates using tropical semiring values to operate using doubles
+usingDouble :: (Functor m)
+    => (D.DrawSettings -> [Graph a Q.TropicalSemiringValue] -> Query a -> Either I.Error (m [Q.TropicalSemiringValue]))
+    -> (D.DrawSettings -> [Graph a Double]                  -> Query a -> Either I.Error (m [Double]))
+usingDouble f s vs qs = fmap (fmap (map Q.toDouble)) $ f s (map (fmap Q.T) vs) qs
 

@@ -1,9 +1,9 @@
 module Benchmarks.ShortestPath.SingleTarget (
       benchmarks
-    , singleTarget
-    , singleTargets
-    , singleTarget'
-    , singleTargets'
+    , singleTargetSplit
+    , singleTargetsSplit
+    , singleTargetSplit'
+    , singleTargetsSplit'
     , Implementation (..)
     , allImplementations
     , allButBaseline
@@ -18,6 +18,8 @@ module Benchmarks.ShortestPath.SingleTarget (
 -- 1. Test singleTarget with a multiple query architecture, splitting
 --    the 'domain' into pairs of (target, source) instead of a single
 --    large query.
+-- 2. Test with different numbers of calls
+-- 3. Investigate garbage collection pressure
 
 import qualified Benchmarks.ShortestPath.SingleTarget.Data            as D
 
@@ -51,10 +53,10 @@ benchmarks = do
     -- tmp <- sample $ genConnectedQueries 10 p3Medium
     queries <- sample $ genConnectedQueries 10 graph
 
-    bruteForce  <- singleTargets (Generic I.BruteForce)          D.def [graph] queries
-    fusion      <- singleTargets (Generic I.Fusion)              D.def [graph] queries
-    shenoy      <- singleTargets (Generic (I.Shenoy MP.Threads)) D.def [graph] queries
-    baseline    <- singleTargets (Baseline)                      D.def [graph] queries
+    bruteForce  <- singleTargetsSplit (Generic I.BruteForce)          D.def [graph] queries
+    fusion      <- singleTargetsSplit (Generic I.Fusion)              D.def [graph] queries
+    shenoy      <- singleTargetsSplit (Generic (I.Shenoy MP.Threads)) D.def [graph] queries
+    baseline    <- singleTargetsSplit (Baseline)                      D.def [graph] queries
 
     pure $ pure $ bgroup "Shortest Path" [
                   bench "localcomputation-bruteForce" $ nfIO bruteForce
@@ -94,10 +96,10 @@ allButBaseline = filter (/= Baseline) allImplementations
 --
 -- Technically unsafe - if one of the given queries is not answerable for the problem, will
 -- (i.e. refers to a vertex that does not exist) throws an error.
-singleTargets :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
+singleTargetsSplit :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
     => Implementation -> D.DrawSettings -> [G.Graph a Double] -> [ST.Query a] -> m (m [[Double]])
 
-singleTargets Baseline _ gs qs = do
+singleTargetsSplit Baseline _ gs qs = do
     -- We perform arc reversal during setup as we want to compare the baseline and
     -- localcomputation algorithms as if both were single source or single target.
     -- We add zero cost edges to make sure both algorithms would return the same result.
@@ -110,30 +112,30 @@ singleTargets Baseline _ gs qs = do
         -- Compute solutions
         pure $ map (\q -> H.singleSource g q.target q.sources infinity) qs
 
-singleTargets mode s gs qs = pure $ mapM (\q -> fromRight $ algorithm s gs q) qs
+singleTargetsSplit mode s gs qs = pure $ mapM (\q -> fromRight $ algorithm s gs q) qs
     where
         algorithm = case mode of
-                        (Generic m)  -> ST.singleTarget m
-                        (DynamicP _) -> ST.singleTargetDP
+                        (Generic m)  -> ST.singleTargetSplit m
+                        (DynamicP _) -> ST.singleTargetSplitDP
 
 --------------------------------------------------------------------------------
 -- Variants of `singleTargets`
 --------------------------------------------------------------------------------
 
 -- | Single query variant of `singleTargets`
-singleTarget :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
+singleTargetSplit :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
     => Implementation -> D.DrawSettings -> [G.Graph a Double] -> ST.Query a -> m (m [Double])
-singleTarget mode s gs q = fmap (fmap head) $ singleTargets mode s gs [q]
+singleTargetSplit mode s gs q = fmap (fmap head) $ singleTargetsSplit mode s gs [q]
 
 -- | Variant of `singleTargets` that does the computation in "one go"
 -- (doesn't seperate the computation into the 'setup' and 'computation' phases)
-singleTargets' :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
+singleTargetsSplit' :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
     => Implementation -> D.DrawSettings -> [G.Graph a Double] -> [ST.Query a] -> m [[Double]]
-singleTargets' mode s gs qs = M.join $ singleTargets mode s gs qs
+singleTargetsSplit' mode s gs qs = M.join $ singleTargetsSplit mode s gs qs
 
 -- | Single query variant of `singleTargets'`
-singleTarget' :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
+singleTargetSplit' :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
     => Implementation -> D.DrawSettings -> [G.Graph a Double] -> ST.Query a -> m [Double]
-singleTarget' mode s gs q = M.join $ singleTarget mode s gs q
+singleTargetSplit' mode s gs q = M.join $ singleTargetSplit mode s gs q
 
 
