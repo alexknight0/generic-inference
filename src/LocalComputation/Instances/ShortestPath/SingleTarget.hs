@@ -46,16 +46,56 @@ import           Type.Reflection                                      (Typeable)
 
 -- TODO: Where does the hashable constraint come from?
 
-type Result a = M.LabelledMatrix a () Q.TropicalSemiringValue
-type Knowledgebase a = [Q.Valuation Q.TropicalSemiringValue a]
+-- TODO: Can this handle negative weights / negative weight cycles?
 
 -- | Query for a multiple-source single-target problem.
 data Query a = Query { sources :: [a], target :: a } deriving Show
 
+{- | Returns the shortest distance between a single target and multiple sources.
+
+__Warning__ : The shortest path from a vertex to itself is 0 (the trivial path).
+-}
+singleTarget :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+    => I.Mode
+    -> D.DrawSettings
+    -> [Graph a Double]
+    -> Query a
+    -> Either I.Error (m [Double])
+singleTarget mode settings gs q = usingDouble (singleTargetGeneric inference) settings gs q
+    where
+        -- We get inference results by doing a query then calling `solution` on the result.
+        inference s k domain = fmap (fmap Q.solution) $ I.queryDrawGraph s mode k domain
+
+singleTargetDP :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
+    => D.DrawSettings
+    -> [Graph a Double]
+    -> Query a
+    -> Either I.Error (m [Double])
+singleTargetDP = usingDouble (singleTargetGeneric I.queryDPDrawGraph)
+
+singleTargetGeneric :: ( MonadIO m, Show a, H.Hashable a, Ord a)
+    => ComputeInference m a
+    -> D.DrawSettings
+    -> [Graph a Q.TropicalSemiringValue]
+    -> Query a
+    -> Either I.Error (m [Q.TropicalSemiringValue])
+singleTargetGeneric inference settings vs q = do
+    solutionM <- solutionMOrError
+
+    pure $ do
+        solution <- solutionM
+        pure $ map (\s -> unsafeGetDistance solution (s, q.target)) q.sources
+
+    where
+        k = knowledgeBase vs q.target
+        domain = S.fromList (q.target : q.sources)
+
+        solutionMOrError = inference settings k domain
+
 -- If distance of a location to itself is not recorded, it will be recorded as the 'zero'
 -- element of the tropical semiring (i.e. infinity). Regarding self loops, see the documentation
 -- of `singleTarget`.
-knowledgeBase :: forall a . (H.Hashable a, V.Var a) => [Graph a Q.TropicalSemiringValue] -> a -> Knowledgebase a
+knowledgeBase :: forall a . (H.Hashable a, V.Var a) => [Graph a Q.TropicalSemiringValue] -> a -> [Q.Valuation Q.TropicalSemiringValue a]
 knowledgeBase gs target = map f gs
     where
         f g = fromJust $ Q.create m b
@@ -76,53 +116,11 @@ knowledgeBase gs target = map f gs
         assocList :: Graph a b -> [((a, a), b)]
         assocList g = map (\e -> ((e.arcHead, e.arcTail), e.weight)) (G.toList g)
 
--- | Retuns a distance entry from the resulting valuation after inference. Unsafe.
-getDistance :: (Ord a) => Result a -> (a, a) -> Q.TropicalSemiringValue
-getDistance x (source, _) = fromJust $ M.find (source, ()) x
-
-type ComputeInference m a = D.DrawSettings -> [Q.Valuation Q.TropicalSemiringValue a] -> V.Domain a -> Either I.Error (m (M.LabelledMatrix a () Q.TropicalSemiringValue))
-
--- TODO: Can this handle negative weights?
-
-{- | Returns the shortest distance between a single target and multiple sources.
-
-__Warning__ : The shortest path from a vertex to itself is 0 (the trivial path).
--}
-singleTarget :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => I.Mode
-    -> D.DrawSettings
-    -> [Graph a Double]
-    -> Query a
-    -> Either I.Error (m [Double])
-singleTarget mode settings gs q = usingDouble (singleTarget' inference) settings gs q
-    where
-        inference s k domain = fmap (fmap Q.solution) $ I.queryDrawGraph s mode k domain
-
-singleTarget' :: ( MonadIO m, Show a, H.Hashable a, Ord a)
-    => ComputeInference m a
-    -> D.DrawSettings
-    -> [Graph a Q.TropicalSemiringValue]
-    -> Query a
-    -> Either I.Error (m [Q.TropicalSemiringValue])
-singleTarget' inference settings vs q = do
-    solutionM <- solutionMOrError
-
-    pure $ do
-        solution <- solutionM
-        pure $ map (\s -> getDistance solution (s, q.target)) q.sources
-
-    where
-        k = knowledgeBase vs q.target
-        domain = S.fromList (q.target : q.sources)
-
-        solutionMOrError = inference settings k domain
-
-singleTargetDP :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => D.DrawSettings
-    -> [Graph a Double]
-    -> Query a
-    -> Either I.Error (m [Double])
-singleTargetDP = usingDouble (singleTarget' I.queryDPDrawGraph)
+-- | A function that given some draw settings, a knowledgebase and a query, computes and returns the inference results.
+type ComputeInference m a = D.DrawSettings
+                         -> [Q.Valuation Q.TropicalSemiringValue a]
+                         -> V.Domain a
+                         -> Either I.Error (m (M.LabelledMatrix a () Q.TropicalSemiringValue))
 
 --------------------------------------------------------------------------------
 -- Multiple query variants
@@ -143,6 +141,9 @@ singleTargets mode s gs qs = fmap sequence $ mapM (\q -> singleTarget mode s gs 
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------
+-- | Retuns a distance entry from the resulting valuation after inference. Unsafe.
+unsafeGetDistance :: (Ord a) => M.LabelledMatrix a () Q.TropicalSemiringValue -> (a, a) -> Q.TropicalSemiringValue
+unsafeGetDistance x (source, _) = fromJust $ M.find (source, ()) x
 
 -- | Converts a function that operates using tropical semiring values to operate using doubles
 usingDouble :: (Functor m)

@@ -73,7 +73,10 @@ fusion' uniqueId upperPsi (y:ys) = fusion' (uniqueId + 1) upperPsi' ys
 --------------------------------------------------------------------------------
 -- TODO: I think for fusion we want a new join tree construction algorithm that will help us ensure
 -- only one variable is eliminated at a time. We accept the fact that fusion with a query equal
--- to the full set of variables is equal to brute force. We could even check this fact with Naso.
+-- to the full set of variables is equal to brute force.
+--
+-- I think the reason we want a new algorithm is because imagine the query node is at the bottom
+-- below a union node with a very different domain. This will impose a very harsh projection.
 
 -- TODO: Can we make this work for disconnected join trees?
 
