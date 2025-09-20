@@ -4,6 +4,7 @@
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
+-- TODO: rename from instances?
 module LocalComputation.Instances.BayesianNetwork
     ( getProbability, toQueryA
     , Query (conditioned, conditional, Query)

@@ -134,12 +134,12 @@ instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (Valuation 
     _combine i1@Identity{} i2@Identity{} = Identity { d = S.union i1.d i2.d }
     _combine i@Identity{}  t@Valuation{} = t { _e = (S.difference (S.union i.d t._e) t.d) }
     _combine t@Valuation{} i@Identity{}  = t { _e = (S.difference (S.union i.d t._e) t.d) }
-    _combine t1@Valuation{} t2@Valuation{} -- (Valuation rowMap1 d1 vD1 e1) (Valuation rowMap2 d2 vD2 e2)
+    _combine t1@Valuation{} t2@Valuation{}
         | null t1._rows = t2 { _e = S.difference (S.union t1._e t2._e) t2.d }
         | null t2._rows = t1 { _e = S.difference (S.union t1._e t2._e) t2.d }
         | otherwise = Valuation newRows newDomain newValueDomain newExtension
         where
-            newRows = fromListAssertDisjoint [(unionAssert' a1 a2, v1 `multiply` v2) | (a1, v1) <- M.toList t1._rows, (a2, v2) <- M.toList t2._rows, hasSameValueForSharedVariables a1 a2]
+            newRows = hasSameValueForSharedVariables2 t1._rows t2._rows -- fromListAssertDisjoint [(unionAssert' a1 a2, v1 `multiply` v2) | (a1, v1) <- M.toList t1._rows, (a2, v2) <- M.toList t2._rows, hasSameValueForSharedVariables a1 a2]
             newDomain = S.union t1.d t2.d
             newValueDomain = unionAssert2' t1._valueDomains t2._valueDomains
             newExtension = S.difference (S.unions [t1.d, t2.d, t1._e, t2._e]) (S.unions [t1.d, t2.d])
@@ -162,6 +162,7 @@ instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (Valuation 
                                 }
         where
             -- TODO: Issue likely due to implied mono-binds. Fix by moving function to a top bind.
+            -- TODO: Use restrictKeys instead? Seems literally built for this.
             projectDomain1 = M.filterWithKey (\k _ -> k `elem` d)
             projectDomain2 = M.filterWithKey (\k _ -> k `elem` d)
             projectDomain3 = S.filter (\k -> k `elem` d)
@@ -227,6 +228,23 @@ hasSameValueForSharedVariables :: (Ord a, Eq b) => M.Map a b -> M.Map a b -> Boo
 hasSameValueForSharedVariables xs ys = all (\k -> xs M.! k == ys M.! k) sharedKeys
     where
         sharedKeys = S.toList $ S.intersection (M.keysSet xs) (M.keysSet ys)
+
+hasSameValueForSharedVariables2 :: (Var a, Ord b, SemiringValue c) => M.Map (M.Map a b) c -> M.Map (M.Map a b) c -> M.Map (M.Map a b) c
+hasSameValueForSharedVariables2 m1 m2 = combined
+    where
+        sharedVars
+            | M.null m1 || M.null m2 = S.empty
+            | otherwise = S.intersection (M.keysSet . fst . M.findMin $ m1) (M.keysSet . fst . M.findMin $ m2)
+
+        combined = M.fromList $ concat $ zipWith g (M.toList $ rowsByShared m1) (M.toList $ rowsByShared m2)
+
+        g (shared, rows1) (_, rows2) = [(M.union (M.union shared vars1) vars2, value1 `multiply` value2) | (vars1, value1) <- rows1, (vars2, value2) <- rows2]
+
+        rowsByShared m = foldr f (M.empty) $ M.toList m
+
+        f (row, value) acc = M.insertWith (++) shared [(other, value)] acc
+            where
+                (shared, other) = M.partitionWithKey (\k _ -> k `S.member` sharedVars) row
 
 -- | Returns the value of the given variable arrangement. Unsafe.
 findValue :: (Ord a, Ord b) => VarAssignment (Valuation c b) a b -> Valuation c b a -> c

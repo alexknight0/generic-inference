@@ -43,6 +43,9 @@ benchmarks = do
                                -- , createProblem smallNet  20 4 40
                                -- createProblem mediumNet 20 1 0
                                  createProblem mediumNet 3  1 1
+                               , createProblem mediumNet 3  1 1
+                               , createProblem mediumNet 3  1 1
+                               , createProblem mediumNet 3  1 1
                               ]
 
         let algorithm mode = bench ("localcomputation-" ++ show mode) $ nfIO $ multipleGetProbability mode problems
