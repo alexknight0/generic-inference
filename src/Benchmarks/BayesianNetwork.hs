@@ -15,9 +15,11 @@ where
 --    large query.
 
 import qualified Benchmarks.BayesianNetwork.Data                   as D
+import           Control.Monad.IO.Class                            (MonadIO)
 import           Criterion.Main
 import qualified LocalComputation.Inference                        as I
 import qualified LocalComputation.Inference.JoinTree.Diagram       as D
+import qualified LocalComputation.Inference.MessagePassing         as MP
 import qualified LocalComputation.Instances.BayesianNetwork        as BN
 import qualified LocalComputation.Instances.BayesianNetwork.Parser as P
 import qualified LocalComputation.LocalProcess                     as P
@@ -28,19 +30,36 @@ data WithName a = WithName {
     , value :: a
 }
 
+data Problem    = Problem    { net :: BN.Network String String, qs    ::       [BN.Query String String] }
+data GenProblem = GenProblem { net :: BN.Network String String, qsGen :: D.Gen [BN.Query String String] }
+
 benchmarks :: IO [Benchmark]
 benchmarks = do
-        smallNet  <- fmap (WithName "SmallNet") $ U.unsafeParseFile' P.network D.asiaFilepath
-        mediumNet <- fmap (WithName "MediumNet") $ U.unsafeParseFile' P.network D.alarmFilepath
+        smallNet  <- U.unsafeParseFile' P.network D.asiaFilepath
+        mediumNet <- U.unsafeParseFile' P.network D.alarmFilepath
 
-        sequence [
-                   benchmark smallNet  $ WithName "ManyEasyQueries"     $ D.genQueries      smallNet.value  20 1 0
-                 , benchmark smallNet  $ WithName "ManyMediumQueries"   $ D.genQueries      smallNet.value  20 4 10
-                 , benchmark smallNet  $ WithName "ManyHardQueries"     $ D.genQueries      smallNet.value  20 4 40
-                 , benchmark mediumNet $ WithName "ManyEasyQueries"     $ D.genQueries      mediumNet.value 20 1 0
-                 , benchmark mediumNet $ WithName "SomeMediumQueries"   $ D.genQueriesExact mediumNet.value  1 1 1
-                ]
+        problems <- sequence $ [ -- createProblem smallNet 10 1 0
+                               -- , createProblem smallNet 20 4 10
+                               -- , createProblem smallNet  20 4 40
+                               -- createProblem mediumNet 20 1 0
+                                 createProblem mediumNet 3  1 1
+                              ]
 
+        let algorithm mode = bench ("localcomputation-" ++ show mode) $ nfIO $ multipleGetProbability mode problems
+
+        pure $ pure $ bgroup ("Bayesian") $ map algorithm [
+                                                            -- I.Fusion
+                                                          I.Shenoy MP.Threads
+                                                          -- , I.Shenoy MP.Distributed
+                                                         ]
+
+createProblem :: (MonadIO m) => BN.Network String String -> Int -> Int -> Int -> m Problem
+createProblem net numQueries maxConditioned maxConditional = do
+    qs <- D.sample $ D.genQueries net numQueries maxConditioned maxConditional
+    pure $ Problem net qs
+
+multipleGetProbability :: (MonadIO m) => I.Mode -> [Problem] -> m [[BN.Probability]]
+multipleGetProbability mode ps = mapM (\p -> BN.getProbability mode D.def p.qs p.net) ps
 
 benchmark :: WithName (BN.Network String String) -> WithName (D.Gen [BN.Query String String]) -> IO Benchmark
 benchmark net queryGen = do

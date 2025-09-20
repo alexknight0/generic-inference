@@ -11,9 +11,9 @@ import           Criterion.Main
 allBenchmarks :: IO ()
 allBenchmarks = do
     benchmarks <- sequence [
-                            ST.benchmarks
+                            -- ST.benchmarks
                           -- , FFT.benchmarks
-                          -- , BN.benchmarks
+                            BN.benchmarks
                           ]
     defaultMain (concat benchmarks)
 

@@ -29,6 +29,7 @@ import           GHC.Generics                                (Generic)
 
 import           Control.Distributed.Process
 import           Control.Distributed.Process.Serializable
+import           Control.Monad.IO.Class                      (MonadIO)
 import qualified LocalComputation.Inference                  as I
 import qualified LocalComputation.Inference.JoinTree.Diagram as D
 import qualified LocalComputation.Inference.MessagePassing   as MP
@@ -77,12 +78,12 @@ data Query a b = Query {
 
 -- | Returns the probability of a given event occuring, given a set of conditional variables.
 -- Takes a network (a list of conditional probability tables) as input.
-getProbability :: forall a b. (Show a, Show b, Serializable a, Serializable b, Ord a, Ord b, NFData a, NFData b)
+getProbability :: forall a b m. (Show a, Show b, Serializable a, Serializable b, Ord a, Ord b, NFData a, NFData b, MonadIO m)
     => I.Mode
     -> D.DrawSettings
     -> [Query a b]
     -> Network a b
-    -> Process [Probability]
+    -> m [Probability]
 getProbability mode s qs network' = do
     results <- fromRight $ I.queriesDrawGraph s mode network' domains
     pure $ zipWith probability qs results
