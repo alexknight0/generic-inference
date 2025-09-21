@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE DeriveAnyClass      #-}
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE InstanceSigs        #-}
@@ -9,13 +10,16 @@ module LocalComputation.ValuationAlgebra.Semiring
     ( SemiringValue (..)
     , Valuation
     , create
-    , normalize
+    , unsafeCreate
+    , unsafeCreate'
+    , fromPermutationMap
     , getRows
     , ValuationFamily
     , findValue
     , mapTableKeys
     , mapVariableValues
-    , valueDomains
+    , fromPermutationMap
+    , toFrames
     )
 where
 
@@ -30,8 +34,15 @@ import qualified LocalComputation.Pretty                          as P
 import qualified LocalComputation.Utils                           as U
 import           LocalComputation.ValuationAlgebra.Semiring.Value
 
+import           GHC.Records                                      (HasField,
+                                                                   getField)
+
+import           GHC.Stack                                        (HasCallStack)
+import qualified LocalComputation.Potential                       as P
+
 -- TODO: Might be able to simplify this definition if a better notion of the identity element is created.
 -- Or this might just slow the performance down.
+-- TODO: Instead of extension could have 0 sized arrangement entry?
 
 {- | Valuation for a semiring valuation algebra.
 
@@ -90,40 +101,37 @@ e :: Domain a
 Note that a restriction of this form is that the type of the value of each
 variable in a variable arrangement is the same.
 -}
-data Valuation c b a = Identity { d :: Domain a } | Valuation {
-      _rows         :: M.Map (VarAssignment (Valuation c b) a b) c
-    , d             :: Domain a
-    , _valueDomains :: M.Map a (Domain b)
-    , _e            :: Domain a
+data Valuation c b a = Identity { _d :: Domain a } | Valuation {
+      _p :: P.Potential a b c
+    , _e :: Domain a
 } deriving (Generic, Binary, NFData)
+
+-- | Accessor for domain. Not O(1)!
+instance (Eq b) => HasField "d" (Valuation c b a) (Domain a) where
+    getField i@Identity{}  = i._d
+    getField v@Valuation{} = M.keysSet $ P.toFrames v._p
 
 -- | Returns 'False' if the data structure does not satisfy it's given description.
 isWellFormed :: forall a b c. (Ord a, Eq b) => Valuation c b a -> Bool
 isWellFormed Identity{} = True
 isWellFormed t@Valuation{}
-    | M.keysSet t._valueDomains /= t.d = False
-    | any (not . validRow) (M.keysSet t._rows) = False
-    | length (M.toList t._rows) /= numPermutations = False
     | not (S.disjoint t.d t._e) = False
     | otherwise = True
 
-    where
-        validRow :: M.Map a b -> Bool
-        validRow row
-            | M.keysSet row /= t.d = False
-            | any (\(var, value) -> value `notElem` (t._valueDomains M.! var)) (M.toList row) = False
-            | otherwise = True
-
-        numPermutations = foldr ((*) . length) 1 (M.elems t._valueDomains)
-
 -- | Creates a valuation, returning 'Nothing' if the given parameters would lead to the creation
 -- of a valuation that is not well formed.
-create :: (Ord a, Eq b) => M.Map (VarAssignment (Valuation c b) a b) c -> Domain a -> M.Map a (Domain b) -> Domain a -> Maybe (Valuation c b a)
-create x y z w
+create :: (Ord a, Eq b) => P.Potential a b c -> Domain a -> Maybe (Valuation c b a)
+create x y
     | isWellFormed result = Just result
     | otherwise = Nothing
     where
-        result = Valuation x y z w
+        result = Valuation x y
+
+unsafeCreate :: (Ord a, Eq b) => P.Potential a b c -> Domain a -> Valuation c b a
+unsafeCreate p e = U.assertP isWellFormed $ Valuation p e
+
+unsafeCreate' :: (Ord a, Ord b) => M.Map a (S.Set b) -> [c] -> Valuation c b a
+unsafeCreate' frames values = unsafeCreate (P.unsafeCreate' frames values) S.empty
 
 instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (Valuation c b) where
     type VarAssignment (Valuation c b) a b = M.Map a b
@@ -131,58 +139,40 @@ instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (Valuation 
     label i@Identity{}  = i.d
     label s@Valuation{} = S.union s.d s._e
 
-    _combine i1@Identity{} i2@Identity{} = Identity { d = S.union i1.d i2.d }
+    _combine i1@Identity{} i2@Identity{} = Identity { _d = S.union i1.d i2.d }
     _combine i@Identity{}  t@Valuation{} = t { _e = (S.difference (S.union i.d t._e) t.d) }
     _combine t@Valuation{} i@Identity{}  = t { _e = (S.difference (S.union i.d t._e) t.d) }
     _combine t1@Valuation{} t2@Valuation{}
-        | null t1._rows = t2 { _e = S.difference (S.union t1._e t2._e) t2.d }
-        | null t2._rows = t1 { _e = S.difference (S.union t1._e t2._e) t2.d }
-        | otherwise = Valuation newRows newDomain newValueDomain newExtension
+        | P.null t1._p = t2 { _e = S.difference (S.union t1._e t2._e) t2.d }
+        | P.null t2._p = t1 { _e = S.difference (S.union t1._e t2._e) t2.d }
+        | otherwise = Valuation newP newExtension
         where
-            newRows = hasSameValueForSharedVariables2 t1._rows t2._rows -- fromListAssertDisjoint [(unionAssert' a1 a2, v1 `multiply` v2) | (a1, v1) <- M.toList t1._rows, (a2, v2) <- M.toList t2._rows, hasSameValueForSharedVariables a1 a2]
-            newDomain = S.union t1.d t2.d
-            newValueDomain = unionAssert2' t1._valueDomains t2._valueDomains
+            newP = P.combine multiply t1._p t2._p
             newExtension = S.difference (S.unions [t1.d, t2.d, t1._e, t2._e]) (S.unions [t1.d, t2.d])
 
-            -- Asserts colliding keys have same value
-            unionAssert' :: (Ord a) => M.Map a b -> M.Map a b -> M.Map a b
-            unionAssert' = M.unionWith (\v1 v2 -> assert (v1 == v2) v1)
-
-            -- TODO: Fix redunant function
-            -- I think the reason it can't infer the type here properly is TypeFamilies implying MonoLocalBinds;
-            --  moving this up to the global scope should fix it if this is the case!
-            unionAssert2' :: (Ord a) => M.Map a (Domain b) -> M.Map a (Domain b) -> M.Map a (Domain b)
-            unionAssert2' = M.unionWith (\v1 v2 -> assert (v1 == v2) v1)
-
-    _project i@Identity{}  d = i { d = d }
-    _project t@Valuation{} d = t { _rows         = M.mapKeysWith add projectDomain1 t._rows
-                                , d             = projectDomain3 t.d
-                                , _valueDomains = projectDomain2 t._valueDomains
-                                , _e            = projectDomain3 t._e
+    _project i@Identity{}  d = i { _d = d }
+    _project t@Valuation{} d = t { _p = P.project add t._p d
+                                 , _e = projectDomain3 t._e
                                 }
         where
-            -- TODO: Issue likely due to implied mono-binds. Fix by moving function to a top bind.
-            -- TODO: Use restrictKeys instead? Seems literally built for this.
-            projectDomain1 = M.filterWithKey (\k _ -> k `elem` d)
-            projectDomain2 = M.filterWithKey (\k _ -> k `elem` d)
             projectDomain3 = S.filter (\k -> k `elem` d)
 
     identity = Identity
 
     satisfiesInvariants = isWellFormed
 
-toTable :: (Show a, Show b, Show c) => Valuation a b c -> P.Table
+toTable :: (Show a, Show b, Show c, Ord b, Ord c) => Valuation a b c -> P.Table
 toTable Identity{}    = error "Not Implemented"
 toTable v@Valuation{} = P.unsafeTable headings rows
     where
         assignedValues a = map show $ M.elems a
         keys a = map show $ M.keys a
 
-        headings = (head $ map (\(assignment, _) -> keys assignment) $ M.toAscList v._rows)
-                ++ ["Probability"]
-        rows     = map (\(assignment, value) -> assignedValues assignment ++ [show value]) $ M.toAscList v._rows
+        headings = (map show . M.keys . P.toFrames $ v._p) ++ ["Probability"]
+        rows     = map (\(assignment, value) -> assignedValues assignment ++ [show value]) $ M.toAscList
+                                                                                           $ P.permutationMap v._p
 
-instance (Show a, Show b, Show c) => Show (Valuation a b c) where
+instance (Show a, Show b, Show c, Ord b, Ord c) => Show (Valuation a b c) where
     show Identity{}    = "Identity"
     show v@Valuation{} = P.showTable $ toTable v
 
@@ -203,79 +193,37 @@ with the values of the second parameter. For example:
     < Korea          Gum             6
     < Korea          Water           8
 -}
-getRows :: forall c b a. (Ord a, Ord b) => [(a, [b])] -> [c] -> Valuation c b a
+getRows :: forall c b a. (HasCallStack, Ord a, Ord b) => [(a, [b])] -> [c] -> Valuation c b a
 getRows vars ps = U.assertP isWellFormed $ _getRows vars ps
 
-_getRows :: forall c b a. (Ord a, Ord b) => [(a, [b])] -> [c] -> Valuation c b a
-_getRows vars ps = Valuation rMap d varToPossibleValues extension
-    where
-        rMap = fromListAssertDisjoint $ zipAssert (vPermutations vars) ps
-        d = fromListAssertDisjoint' $ map fst vars
-        varToPossibleValues = fromListAssertDisjoint (map (\(v, values) -> (v, fromListAssertDisjoint' values)) vars)
-        extension = S.empty
-
-        vPermutations :: [(a, [b])] -> [VarAssignment (Valuation c b) a b]
-        vPermutations xs = map fromListAssertDisjoint $ vPermutations' xs
-            where
-                vPermutations' :: [(a, [b])] -> [[(a, b)]]
-                vPermutations' [] = [[]]
-                vPermutations' ((v, vVals) : vs) = [(v, vVal) : rest | vVal <- vVals, rest <- vPermutations' vs]
-
--- TODO: Wait isn't this just M.intersectionWith const m1 m2  == M.intersectionWith (flip const) m1 m2
--- Answer: Yes, but computing that actually appears empirically less efficent.
--- TODO: Avoid recomputation of 'shared keys' on every loop where this function is used...
-hasSameValueForSharedVariables :: (Ord a, Eq b) => M.Map a b -> M.Map a b -> Bool
-hasSameValueForSharedVariables xs ys = all (\k -> xs M.! k == ys M.! k) sharedKeys
-    where
-        sharedKeys = S.toList $ S.intersection (M.keysSet xs) (M.keysSet ys)
-
-hasSameValueForSharedVariables2 :: (Var a, Ord b, SemiringValue c) => M.Map (M.Map a b) c -> M.Map (M.Map a b) c -> M.Map (M.Map a b) c
-hasSameValueForSharedVariables2 m1 m2 = combined
-    where
-        sharedVars
-            | M.null m1 || M.null m2 = S.empty
-            | otherwise = S.intersection (M.keysSet . fst . M.findMin $ m1) (M.keysSet . fst . M.findMin $ m2)
-
-        combined = M.fromList $ concat $ zipWith g (M.toList $ rowsByShared m1) (M.toList $ rowsByShared m2)
-
-        g (shared, rows1) (_, rows2) = [(M.union (M.union shared vars1) vars2, value1 `multiply` value2) | (vars1, value1) <- rows1, (vars2, value2) <- rows2]
-
-        rowsByShared m = foldr f (M.empty) $ M.toList m
-
-        f (row, value) acc = M.insertWith (++) shared [(other, value)] acc
-            where
-                (shared, other) = M.partitionWithKey (\k _ -> k `S.member` sharedVars) row
+_getRows :: forall c b a. (HasCallStack, Ord a, Ord b) => [(a, [b])] -> [c] -> Valuation c b a
+_getRows vars ps = Valuation (P.unsafeFromList vars ps) S.empty
 
 -- | Returns the value of the given variable arrangement. Unsafe.
 findValue :: (Ord a, Ord b) => VarAssignment (Valuation c b) a b -> Valuation c b a -> c
-findValue x (Valuation rowMap _ _ _) = rowMap M.! x
+findValue x v@Valuation{} = P.unsafeGetValue v._p x
 findValue _ (Identity _) = error "findProbability: Attempted to read value from an identity valuation."
 
-mapTableKeys :: (Ord b, Ord c) => (a -> b) -> Valuation d c a -> Valuation d c b
-mapTableKeys f v = U.assertP isWellFormed $ _mapTableKeys f v
+mapTableKeys :: (Ord a1, Ord a2, Ord b) => (a1 -> a2) -> Valuation c b a1 -> Valuation c b a2
+mapTableKeys f i@Identity{}  = Identity (S.map f i.d)
+mapTableKeys f v@Valuation{} = unsafeCreate (P.mapVariables f v._p) (S.map f v._e)
 
-_mapTableKeys :: (Ord b, Ord c) => (a -> b) -> Valuation d c a -> Valuation d c b
-_mapTableKeys f (Valuation rMap d vD e) = Valuation (M.mapKeys (M.mapKeys f) rMap) (setMap f d) (M.mapKeys f vD) (setMap f e)
-_mapTableKeys f (Identity x)            = Identity (setMap f x)
+mapVariableValues :: (Ord a, Ord b1, Ord b2) => (b1 -> b2) -> Valuation c b1 a -> Valuation c b2 a
+mapVariableValues _ i@Identity{}  = Identity i.d
+mapVariableValues f v@Valuation{} = unsafeCreate (P.mapFrames f v._p) v._e
 
-mapVariableValues :: (Ord b, Ord c) => (a -> b) -> Valuation d a c -> Valuation d b c
-mapVariableValues f v = U.assertP isWellFormed $ _mapVariableValues f v
+-- normalize :: (Var a, Show b, Ord b, Show c, SemiringValue c, Fractional c)
+--     => Valuation c b a -> Valuation c b a
+-- normalize v = assertInvariants $ _normalize v
+--
+-- _normalize :: (Fractional c) => Valuation c b a -> Valuation c b a
+-- _normalize (Identity x) = Identity x
+-- _normalize (Valuation rowMap d vD e) = Valuation (M.map (/ sumOfAllXs) rowMap) d vD e
+--     where
+--         sumOfAllXs = sum $ M.elems rowMap
 
-_mapVariableValues :: (Ord b, Ord c) => (a -> b) -> Valuation d a c -> Valuation d b c
-_mapVariableValues _ v@Identity{}  = Identity v.d
-_mapVariableValues f v@Valuation{} = v { _rows = M.mapKeys (M.map f) v._rows
-                                      , _valueDomains = M.map (S.map f) v._valueDomains
-                                      }
+toFrames :: (Eq b) => Valuation c b a -> M.Map a (Domain b)
+toFrames Identity{}    = error "Called 'toFrames' on identity element"
+toFrames v@Valuation{} = P.toFrames v._p
 
-normalize :: (Var a, Show b, Ord b, Show c, SemiringValue c, Fractional c)
-    => Valuation c b a -> Valuation c b a
-normalize v = assertInvariants $ _normalize v
-
-_normalize :: (Fractional c) => Valuation c b a -> Valuation c b a
-_normalize (Identity x) = Identity x
-_normalize (Valuation rowMap d vD e) = Valuation (M.map (/ sumOfAllXs) rowMap) d vD e
-    where
-        sumOfAllXs = sum $ M.elems rowMap
-
-valueDomains :: Valuation c b a -> M.Map a (Domain b)
-valueDomains = (._valueDomains)
+fromPermutationMap m = unsafeCreate (P.fromPermutationMap m) S.empty

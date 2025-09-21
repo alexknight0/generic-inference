@@ -28,6 +28,7 @@ module LocalComputation.Utils
     , toBinaryLeadingZeroes
     , assert'
     , assertP
+    , errorP
     , integerLogBase2
     , listOfPowersOfTwo
     , safeHead
@@ -177,6 +178,13 @@ assert' p x = assert (p x) x
 -- | Asserts a given predicate holds for a given value.
 assertP :: HasCallStack => (a -> Bool) -> a -> a
 assertP p x = assert (p x) x
+
+-- | Throws an error if the given predicate doesn't hold for the provided value.
+-- an error if the
+errorP :: HasCallStack => (a -> Bool) -> a -> a
+errorP p x
+    | p x = x
+    | otherwise = error "Predicate failed."
 
 integerLogBase2 :: Natural -> Maybe Natural
 integerLogBase2 x = integerLogBase2' 0 x

@@ -95,7 +95,7 @@ genQueryExact numConditioned numConditional vars = do
 genQueries :: BN.Network String String -> Int -> Int -> Int -> H.Gen ([BN.Query String String])
 genQueries valuations = genQueries' variables
     where
-        variables = foldr M.union M.empty $ map S.valueDomains valuations
+        variables = foldr M.union M.empty $ map S.toFrames valuations
 
 genQueries' :: Variables String String -> Int -> Int -> Int -> H.Gen ([BN.Query String String])
 genQueries' _    numQueries _ _ | numQueries == 0 = U.assertError
@@ -105,7 +105,7 @@ genQueries' vars numQueries maxConditioned maxConditional = Gen.list (Range.sing
 genQueriesExact :: BN.Network String String -> Int -> Int -> Int -> H.Gen ([BN.Query String String])
 genQueriesExact valuations = genQueriesExact' variables
     where
-        variables = foldr M.union M.empty $ map S.valueDomains valuations
+        variables = foldr M.union M.empty $ map S.toFrames valuations
 
 genQueriesExact' :: Variables String String -> Int -> Int -> Int -> H.Gen ([BN.Query String String])
 genQueriesExact' _    numQueries _ _ | numQueries == 0 = U.assertError

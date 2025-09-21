@@ -64,11 +64,9 @@ getE' m j l nj kl = exp $ negate $ (/) (2 * pi * i * nj' * kl') (2 ^ (m - j - l)
 
 -- Variables X_j and Y_l are binary numbers, so only take values 0 or 1.
 getE :: Natural -> Natural -> Natural -> FastFourierValuation
-getE m j l = fromJust $ create rows domain valueDomains' (S.empty)
+getE m j l = fromPermutationMap rows
     where
         rows = fromListAssertDisjoint (map row [(0, 0), (0, 1), (1, 0), (1, 1)])
-        domain = S.fromList [X j, Y l]
-        valueDomains' = oneOrZero domain
 
         row :: (Natural, Natural) -> (M.Map FastFourierVariable Natural, FourierComplex)
         row (x, y) = ((fromListAssertDisjoint [(X j, x), (Y l, y)]), (FourierComplex $ getE' m j l x y))
@@ -79,11 +77,9 @@ getKnowledgebase samples = f : [getE m j l | j <- [0 .. m-1], l <- [0 .. m-1-j]]
         m = fromJust $ integerLogBase2 (fromIntegral $ length samples)
 
         f :: FastFourierValuation
-        f = fromJust $ create rows domain valueDomains' (S.empty)
+        f = fromPermutationMap rows
             where
                 rows = fromListAssertDisjoint $ zipWith (\x s -> ((toBinaryVariableSet m x X), s)) [0..] samples
-                domain = (fromListAssertDisjoint' $ map (\x -> X x) [0..m-1])
-                valueDomains' = oneOrZero domain
 
 oneOrZero :: (Ord a) => S.Set a -> M.Map a (S.Set Natural)
 oneOrZero xs = fromListAssertDisjoint $ map (\x -> (x, S.fromList [0, 1])) (S.toList xs)
