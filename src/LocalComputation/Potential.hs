@@ -64,7 +64,7 @@ data Potential a b c = Potential { frames :: M.Map a (S.IndexableSet b), values 
 unsafeCreate :: HasCallStack => M.Map a (S.IndexableSet b) -> A.Array Int c -> Potential a b c
 unsafeCreate frames values = U.assertP satisfiesInvariants $ Potential frames values
 
-unsafeCreate' :: Ord b => M.Map a (Set.Set b) -> A.Array Int c -> Potential a b c
+unsafeCreate' :: M.Map a (Set.Set b) -> A.Array Int c -> Potential a b c
 unsafeCreate' frames values = unsafeCreate (M.map S.fromSet frames) values
 
 unsafeFromList :: forall c b a. (HasCallStack, Ord a, Ord b) => [(a, [b])] -> [c] -> Potential a b c
@@ -108,7 +108,7 @@ numPermutations = product . map S.size . M.elems
 unsafeGetAssignment :: (Ord a) => M.Map a (S.IndexableSet b) -> Int -> M.Map a b
 unsafeGetAssignment frames index = permutationList frames !! index
 
-unsafeGetIndex :: (Ord a, Eq b) => M.Map a b -> M.Map a (S.IndexableSet b) -> Int
+unsafeGetIndex :: (Ord a, Ord b) => M.Map a b -> M.Map a (S.IndexableSet b) -> Int
 unsafeGetIndex assignment frames = sum $ zipWith (*) choiceIndices factors
     where
         choiceIndices = U.zipWithA f (M.toAscList assignment) (M.toAscList frames)
@@ -119,7 +119,7 @@ unsafeGetIndex assignment frames = sum $ zipWith (*) choiceIndices factors
 
         f (var, value) (_var, values) = assert (var == _var) $ S.unsafeElemIndex values value
 
-unsafeGetValue :: (Ord a, Eq b) => Potential a b c -> M.Map a b -> c
+unsafeGetValue :: (Ord a, Ord b) => Potential a b c -> M.Map a b -> c
 unsafeGetValue p a = p.values A.! unsafeGetIndex a p.frames
 
 permutationList :: (Ord a) => M.Map a (S.IndexableSet b) -> [M.Map a b]
@@ -151,13 +151,13 @@ mapVariables f p = unsafeCreate newFrames (A.listArray0 $ M.elems newPermutation
 mapFrames :: forall a b1 b2 c . (Ord a, Ord b1, Ord b2) => (b1 -> b2) -> Potential a b1 c -> Potential a b2 c
 mapFrames f p = unsafeCreate newFrames (A.listArray0 $ M.elems newPermutationMap)
     where
-        newFrames = M.map (S.map f) p.frames
+        newFrames = M.map (S.unsafeMap f) p.frames
 
         newPermutationMap :: M.Map (M.Map a b2) c
         newPermutationMap = M.mapKeys (M.map f) $ permutationMap p
 
 
-toFrames :: (Eq b) => Potential a b c -> M.Map a (Set.Set b)
+toFrames :: Potential a b c -> M.Map a (Set.Set b)
 toFrames = M.map S.toSet . (.frames)
 
 toValues :: Potential a b c -> [c]

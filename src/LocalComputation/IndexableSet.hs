@@ -8,12 +8,12 @@ module LocalComputation.IndexableSet (
     , toList
     , toSet
     , fromSet
-    , unsafeLookup
     , unsafeElemIndex
     , size
-    , map
+    , unsafeMap
 ) where
 import qualified Data.List                         as L
+import qualified Data.Map.Strict                   as M
 import           Data.Maybe                        (fromJust)
 import qualified Data.Set                          as S
 import           GHC.Stack                         (HasCallStack)
@@ -21,39 +21,35 @@ import qualified LocalComputation.Utils            as U
 import           LocalComputation.ValuationAlgebra (Binary, Generic, NFData)
 import           Prelude                           hiding (lookup, map)
 
-newtype IndexableSet a = IndexableSet { l :: [a] } deriving (Eq, Binary, Generic, NFData)
+newtype IndexableSet a = IndexableSet { m :: M.Map a Int } deriving (Eq, Binary, Generic, NFData)
+
+unsafeFromMap :: M.Map a Int -> IndexableSet a
+unsafeFromMap = U.assertP satisfiesInvariants . IndexableSet
 
 unsafeFromList :: (HasCallStack, Ord a) => [a] -> IndexableSet a
-unsafeFromList = U.assertP satisfiesInvariants . IndexableSet
+unsafeFromList xs = unsafeFromMap . M.fromList $ zip xs [0..]
 
 toList :: IndexableSet a -> [a]
-toList s = s.l
+toList s = M.keys s.m
 
-toSet :: (Eq a) => IndexableSet a -> S.Set a
-toSet s = S.fromAscList s.l
+toSet :: IndexableSet a -> S.Set a
+toSet s = M.keysSet s.m
 
-fromSet :: (Ord a) => S.Set a -> IndexableSet a
-fromSet = unsafeFromList . S.toAscList
+fromSet :: S.Set a -> IndexableSet a
+fromSet s = unsafeFromMap . M.fromDistinctAscList $ zip (S.toAscList s) [0..]
 
 {- | Satisfies invariants if:
-    1. The possible values for each variable are unique
-    2. The possible values for each variable are ordered
+    1. If we read the values in key order, it forms an enumeration.
 -}
-satisfiesInvariants :: (Ord a) => IndexableSet a -> Bool
-satisfiesInvariants s = s.l == (S.toAscList $ S.fromList s.l)
+satisfiesInvariants :: IndexableSet a -> Bool
+satisfiesInvariants s = M.elems s.m == [0 .. M.size s.m - 1]
 
-unsafeLookup :: IndexableSet a -> Int -> a
-unsafeLookup s i = s.l !! i
-
-unsafeElemIndex :: (Eq a) => IndexableSet a -> a -> Int
-unsafeElemIndex s x = fromJust $ L.elemIndex x s.l
+unsafeElemIndex :: (Ord a) => IndexableSet a -> a -> Int
+unsafeElemIndex s x = s.m M.! x
 
 size :: IndexableSet a -> Int
-size s = length s.l
+size s = M.size s.m
 
-map :: (Ord b) => (a -> b) -> IndexableSet a -> IndexableSet b
-map f s = IndexableSet $ S.toAscList
-                       $ S.fromList
-                       $ fmap f s.l
-
+unsafeMap :: (Ord b) => (a -> b) -> IndexableSet a -> IndexableSet b
+unsafeMap f s = unsafeFromMap $ M.mapKeys f s.m
 
