@@ -17,8 +17,11 @@ module LocalComputation.Utils
     , fromListA
     , unionAssertDisjoint
     , unionAssertDisjoint'
+    , unionA
     , unzipWith
+    , hasDuplicates
     , zipWithAssert
+    , zipWithA
     , zipAssert
     , divAssert
     , toBinary
@@ -116,6 +119,12 @@ unionUnsafe = M.unionWith (\x y -> if x /= y then error "Map keys that exist in 
 unionAssertDisjoint :: (HasCallStack, Ord a) => Map a b -> Map a b -> Map a b
 unionAssertDisjoint = M.unionWith (\_ _ -> error "Map key sets are not disjoint")
 
+unionA :: (HasCallStack, Ord a, Eq b) => Map a b -> Map a b -> Map a b
+unionA = M.unionWith (\x y -> assert (x == y) x)
+
+hasDuplicates :: (Eq a) => [a] -> Bool
+hasDuplicates xs = length xs /= length (L.nub xs)
+
 unionAssertDisjoint' :: (HasCallStack, Ord a) => Set a -> Set a -> Set a
 unionAssertDisjoint' x y
     | not (S.disjoint x y) = error "Sets are not disjoint."
@@ -137,6 +146,9 @@ zipWithAssert :: (a -> b -> c) -> [a] -> [b] -> [c]
 zipWithAssert f xs ys
     | length xs /= length ys = error "Length of lists didn't match"
     | otherwise = zipWith f xs ys
+
+zipWithA :: (a -> b -> c) -> [a] -> [b] -> [c]
+zipWithA f xs ys = assert (length xs == length ys) $ zipWith f xs ys
 
 zipAssert :: [a] -> [b] -> [(a,b)]
 zipAssert xs ys

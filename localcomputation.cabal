@@ -36,6 +36,7 @@ library
       Benchmarks.ShortestPath.SingleTarget.Baseline
       Benchmarks.ShortestPath.SingleTarget.Data
       LocalComputation.Graph
+      LocalComputation.IndexableSet
       LocalComputation.Inference
       LocalComputation.Inference.Collect
       LocalComputation.Inference.DynamicProgramming
@@ -56,6 +57,7 @@ library
       LocalComputation.Instances.ShortestPath.SingleTarget
       LocalComputation.LabelledMatrix
       LocalComputation.LocalProcess
+      LocalComputation.Potential
       LocalComputation.Pretty
       LocalComputation.Utils
       LocalComputation.Utils.Set
