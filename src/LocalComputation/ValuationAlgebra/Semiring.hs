@@ -11,7 +11,6 @@ module LocalComputation.ValuationAlgebra.Semiring
     , Valuation
     , create
     , unsafeCreate
-    , unsafeCreate'
     , fromPermutationMap
     , getRows
     , ValuationFamily
@@ -129,9 +128,6 @@ create x y
 
 unsafeCreate :: (Ord a, Eq b) => P.Potential a b c -> Domain a -> Valuation c b a
 unsafeCreate p e = U.assertP isWellFormed $ Valuation p e
-
-unsafeCreate' :: (Ord a, Ord b) => M.Map a (S.Set b) -> [c] -> Valuation c b a
-unsafeCreate' frames values = unsafeCreate (P.unsafeCreate' frames values) S.empty
 
 instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (Valuation c b) where
     type VarAssignment (Valuation c b) a b = M.Map a b

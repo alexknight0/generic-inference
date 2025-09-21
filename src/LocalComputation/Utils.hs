@@ -49,6 +49,7 @@ module LocalComputation.Utils
     , fmapToFst
     , filterKeys
     , allButMaybeOne
+    , listArray0
     )
 where
 
@@ -69,11 +70,15 @@ import qualified Text.ParserCombinators.Parsec as P
 import qualified Control.DeepSeq               as D
 import           Control.Exception             (assert)
 import qualified Control.Exception             as D
+import qualified Data.Array                    as A
 import qualified Data.List                     as L
 import           GHC.Stack                     (HasCallStack)
 import           Numeric.Natural
 import           System.IO                     (IOMode (ReadMode),
                                                 hGetContents', openFile)
+
+listArray0 :: [a] -> A.Array Int a
+listArray0 xs = A.listArray (0, length xs - 1) xs
 
 divAssert :: (Integral a) => a -> a -> a
 divAssert x y

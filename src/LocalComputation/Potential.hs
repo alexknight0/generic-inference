@@ -23,6 +23,7 @@ module LocalComputation.Potential (
 ) where
 
 import           Control.Exception                 (assert)
+import qualified Data.Array                        as A
 import qualified Data.IntMap                       as IntMap
 import qualified Data.List                         as L
 import qualified Data.Map                          as M
@@ -30,6 +31,7 @@ import           Data.Maybe                        (fromJust)
 import qualified Data.Set                          as Set
 import           GHC.Stack                         (HasCallStack)
 import qualified LocalComputation.IndexableSet     as S
+import qualified LocalComputation.Utils            as A (listArray0)
 import qualified LocalComputation.Utils            as M (unionA)
 import qualified LocalComputation.Utils            as U
 import           LocalComputation.ValuationAlgebra (Binary, Generic, NFData)
@@ -56,13 +58,13 @@ import           Prelude                           hiding (null)
 
 Where assignments and the values assigned to them are ordered using the Ord instance.
 -}
-data Potential a b c = Potential { frames :: M.Map a (S.IndexableSet b), values :: [c] }
+data Potential a b c = Potential { frames :: M.Map a (S.IndexableSet b), values :: A.Array Int c }
                                     deriving (Binary, Generic, NFData)
 
-unsafeCreate :: HasCallStack => M.Map a (S.IndexableSet b) -> [c] -> Potential a b c
+unsafeCreate :: HasCallStack => M.Map a (S.IndexableSet b) -> A.Array Int c -> Potential a b c
 unsafeCreate frames values = U.assertP satisfiesInvariants $ Potential frames values
 
-unsafeCreate' :: Ord b => M.Map a (Set.Set b) -> [c] -> Potential a b c
+unsafeCreate' :: Ord b => M.Map a (Set.Set b) -> A.Array Int c -> Potential a b c
 unsafeCreate' frames values = unsafeCreate (M.map S.fromSet frames) values
 
 unsafeFromList :: forall c b a. (HasCallStack, Ord a, Ord b) => [(a, [b])] -> [c] -> Potential a b c
@@ -83,7 +85,7 @@ instance (Ord b) => Functor (Potential a b) where
 combine :: (Ord a, Ord b) => (c -> c -> c) -> Potential a b c -> Potential a b c -> Potential a b c
 combine union p1 p2 = unsafeCreate newFrame newValues
     where
-        newValues = map f (permutationList newFrame)
+        newValues = A.listArray0 $ map f (permutationList newFrame)
 
         f assignment = union (unsafeGetValue p1 (M.intersection assignment p1.frames))
                              (unsafeGetValue p2 (M.intersection assignment p2.frames))
@@ -95,7 +97,7 @@ project union p domain = fromPermutationMap projectedToValue
     where
 
         projectedToValue :: M.Map (M.Map a b) c
-        projectedToValue = M.fromListWith union $ zipWith f (permutationList p.frames) p.values
+        projectedToValue = M.fromListWith union $ zipWith f (permutationList p.frames) (A.elems p.values)
 
         f permutation value = (M.restrictKeys permutation domain, value)
 
@@ -118,7 +120,7 @@ unsafeGetIndex assignment frames = sum $ zipWith (*) choiceIndices factors
         f (var, value) (_var, values) = assert (var == _var) $ S.unsafeElemIndex values value
 
 unsafeGetValue :: (Ord a, Eq b) => Potential a b c -> M.Map a b -> c
-unsafeGetValue p a = p.values !! unsafeGetIndex a p.frames
+unsafeGetValue p a = p.values A.! unsafeGetIndex a p.frames
 
 permutationList :: (Ord a) => M.Map a (S.IndexableSet b) -> [M.Map a b]
 permutationList m = map M.fromList $ toPermutations
@@ -127,10 +129,10 @@ permutationList m = map M.fromList $ toPermutations
                                    $ m
 
 permutationMap :: (Ord a, Ord b) => Potential a b c -> M.Map (M.Map a b) c
-permutationMap p = M.fromList $ zip (permutationList p.frames) p.values
+permutationMap p = M.fromList $ zip (permutationList p.frames) (A.elems p.values)
 
 fromPermutationMap :: (Ord a, Ord b) => M.Map (M.Map a b) c -> Potential a b c
-fromPermutationMap m = unsafeCreate frames (M.elems m)
+fromPermutationMap m = unsafeCreate frames (A.listArray0 $ M.elems m)
     where
         frames = M.map S.fromSet $ foldr f M.empty $ map (M.map Set.singleton) $ M.keys m
 
@@ -138,7 +140,7 @@ fromPermutationMap m = unsafeCreate frames (M.elems m)
 
 
 mapVariables :: forall a1 a2 b c . (Ord a1, Ord a2, Ord b) => (a1 -> a2) -> Potential a1 b c -> Potential a2 b c
-mapVariables f p = unsafeCreate newFrames $ M.elems newPermutationMap
+mapVariables f p = unsafeCreate newFrames (A.listArray0 $ M.elems newPermutationMap)
     where
         newFrames = M.mapKeys f p.frames
 
@@ -147,7 +149,7 @@ mapVariables f p = unsafeCreate newFrames $ M.elems newPermutationMap
 
 -- | Assumes the given function is injective.
 mapFrames :: forall a b1 b2 c . (Ord a, Ord b1, Ord b2) => (b1 -> b2) -> Potential a b1 c -> Potential a b2 c
-mapFrames f p = unsafeCreate newFrames $ M.elems newPermutationMap
+mapFrames f p = unsafeCreate newFrames (A.listArray0 $ M.elems newPermutationMap)
     where
         newFrames = M.map (S.map f) p.frames
 
@@ -159,7 +161,7 @@ toFrames :: (Eq b) => Potential a b c -> M.Map a (Set.Set b)
 toFrames = M.map S.toSet . (.frames)
 
 toValues :: Potential a b c -> [c]
-toValues = (.values)
+toValues = A.elems . (.values)
 
 
 null :: Potential a b c -> Bool
