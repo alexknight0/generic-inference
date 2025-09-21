@@ -30,7 +30,7 @@ import qualified Data.Map                          as M
 import           Data.Maybe                        (fromJust)
 import qualified Data.Set                          as Set
 import           GHC.Stack                         (HasCallStack)
-import qualified LocalComputation.IndexableSet     as S
+import qualified LocalComputation.IndexedSet       as S
 import qualified LocalComputation.Utils            as A (listArray0)
 import qualified LocalComputation.Utils            as M (unionA)
 import qualified LocalComputation.Utils            as U
@@ -58,10 +58,10 @@ import           Prelude                           hiding (null)
 
 Where assignments and the values assigned to them are ordered using the Ord instance.
 -}
-data Potential a b c = Potential { frames :: M.Map a (S.IndexableSet b), values :: A.Array Int c }
+data Potential a b c = Potential { frames :: M.Map a (S.IndexedSet b), values :: A.Array Int c }
                                     deriving (Binary, Generic, NFData)
 
-unsafeCreate :: HasCallStack => M.Map a (S.IndexableSet b) -> A.Array Int c -> Potential a b c
+unsafeCreate :: HasCallStack => M.Map a (S.IndexedSet b) -> A.Array Int c -> Potential a b c
 unsafeCreate frames values = U.assertP satisfiesInvariants $ Potential frames values
 
 unsafeCreate' :: M.Map a (Set.Set b) -> A.Array Int c -> Potential a b c
@@ -101,14 +101,14 @@ project union p domain = fromPermutationMap projectedToValue
 
         f permutation value = (M.restrictKeys permutation domain, value)
 
-numPermutations :: M.Map a (S.IndexableSet b) -> Int
+numPermutations :: M.Map a (S.IndexedSet b) -> Int
 numPermutations = product . map S.size . M.elems
 
 -- TODO: There exists a more efficent way to do this.
-unsafeGetAssignment :: (Ord a) => M.Map a (S.IndexableSet b) -> Int -> M.Map a b
+unsafeGetAssignment :: (Ord a) => M.Map a (S.IndexedSet b) -> Int -> M.Map a b
 unsafeGetAssignment frames index = permutationList frames !! index
 
-unsafeGetIndex :: (Ord a, Ord b) => M.Map a b -> M.Map a (S.IndexableSet b) -> Int
+unsafeGetIndex :: (Ord a, Ord b) => M.Map a b -> M.Map a (S.IndexedSet b) -> Int
 unsafeGetIndex assignment frames = sum $ zipWith (*) choiceIndices factors
     where
         choiceIndices = U.zipWithA f (M.toAscList assignment) (M.toAscList frames)
@@ -122,7 +122,7 @@ unsafeGetIndex assignment frames = sum $ zipWith (*) choiceIndices factors
 unsafeGetValue :: (Ord a, Ord b) => Potential a b c -> M.Map a b -> c
 unsafeGetValue p a = p.values A.! unsafeGetIndex a p.frames
 
-permutationList :: (Ord a) => M.Map a (S.IndexableSet b) -> [M.Map a b]
+permutationList :: (Ord a) => M.Map a (S.IndexedSet b) -> [M.Map a b]
 permutationList m = map M.fromList $ toPermutations
                                    $ M.toList
                                    $ M.map S.toList
