@@ -60,6 +60,7 @@ dependencies:
 - boxes
 - filepath
 - parallel
+- vector
 
 ghc-options:
 - -Wall
