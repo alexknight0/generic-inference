@@ -97,7 +97,6 @@ combine union p1 p2 = unsafeCreate newFrame newValues
 
         newFrame = M.unionA p1.frames p2.frames
 
--- TODO: fromPermutationMap call here is unnecessary isnt it?
 project :: forall a b c . (Ord a, Ord b) => (c -> c -> c) -> Potential a b c -> Set.Set a  -> Potential a b c
 project union p domain = unsafeCreate newFrames newValues
     where
@@ -106,13 +105,15 @@ project union p domain = unsafeCreate newFrames newValues
         newFramesList = M.toAscList $ M.restrictKeys p.frames domain
         factors = getFactors newFramesList
 
-        newValues = A.listArray0 $ IntMap.elems $ projectedToValue
+        newValues = fmap fromJust $ A.accumArray g Nothing (0, numPermutations newFrames - 1) newIndicesOfValues
+            where
+                g acc x = case acc of
+                            Nothing -> Just x
+                            Just y  -> Just $ union x y
 
-        -- TODO: could be skipped straight into array
-        projectedToValue :: IntMap.IntMap c
-        projectedToValue = IntMap.fromListWith union $ zipWith f (permutationList p.frames) (A.elems p.values)
-
-        f permutation value = (unsafeGetIndex' (M.restrictKeys permutation domain) newFramesList factors, value)
+        newIndicesOfValues = zipWith f (permutationList p.frames) (A.elems p.values)
+            where
+                f permutation value = (unsafeGetIndex' (M.restrictKeys permutation domain) newFramesList factors, value)
 
 numPermutations :: M.Map a (S.IndexedSet b) -> Int
 numPermutations = product . map S.size . M.elems
