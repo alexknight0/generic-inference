@@ -45,13 +45,13 @@ collect tree = JT.unsafeUpdatePostboxesAndCache newPostboxesAndCaches tree
         -- Get message for us from each subtree
         subTreeMessages = map toMessage subTrees
             where
-                toMessage :: JT.JoinTree (v a) -> ReceiveResults (v a)
+                toMessage :: JT.JoinTree (v a) -> MsgResults (v a)
                 toMessage subTree = messageForNode2 tree.root subTree.root
 
         newSubTrees = zipWith JT.unsafeUpdateRootCache subTrees (map (.newSenderCache) subTreeMessages)
 
         -- Creates new root filling postbox with messages
-        newRoot = tree.root { JT.postbox = Just $ M.fromList $ map (\m -> (m.sender, m.message)) subTreeMessages }
+        newRoot = tree.root { JT.postbox = Just $ M.fromList $ map (\m -> (m.sender, m.msg)) subTreeMessages }
 
         -- Creates a mapping from ids to the new postboxes and caches
         -- (used for updating the original tree)
@@ -66,30 +66,36 @@ distribute :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => JT.JoinTree (v a
 distribute tree | assert (JT.verticesHavePostboxes tree) False = undefined
 distribute tree = distribute' Nothing tree
 
-distribute' :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => Maybe (JT.Id, v a) -> JT.JoinTree (v a) -> JT.JoinTree (v a)
-distribute' incoming tree = JT.unsafeUpdatePostboxes newNodes tree
+distribute' :: forall v a . (P.NFData (v a), V.ValuationFamily v, V.Var a) => Maybe (JT.Id, v a) -> JT.JoinTree (v a) -> JT.JoinTree (v a)
+distribute' incoming tree = JT.unsafeUpdatePostboxesAndCache newPostboxesAndCaches tree
 
     where
         -- Insert the new message into the nodes postbox
-        newRoot = case incoming of
+        rootWithPostbox = case incoming of
                     Nothing             -> tree.root
                     Just (sender, sent) -> tree.root { JT.postbox = fmap (M.insert sender sent) tree.root.postbox }
 
         subTrees = JT.subTrees tree
 
-        -- receiveMessage :: JT.JoinTree (v a) -> JT.Node (v a) -> JT.Node (v a)
-        -- receiveMessage subTree receiver = undefined
-        --     where
-        --         message = messageForNode receiver subTree.root
+        getMessageToSend :: JT.JoinTree (v a) -> (JT.Node (v a), [v a]) -> (JT.Node (v a), [v a])
+        getMessageToSend subTree (sender, msgs) = (sender { JT.cache = result.newSenderCache }, result.msg : msgs)
+            where
+                result = messageForNode2 subTree.root sender
 
         -- Compute messages to send to subtrees
-        subTreeMessages = fmap (\subTree -> Just (newRoot.id, messageForNode subTree.root newRoot)) subTrees
+        (newRoot, subTreeMessages) = foldr getMessageToSend (rootWithPostbox, []) subTrees
 
         -- Computes distribute on all subtrees
-        distributed = P.parMap P.rdeepseq (uncurry distribute') $ zip subTreeMessages subTrees
+        distributed = P.parMap P.rdeepseq (uncurry distribute') $ zip subTreeMessagesWithId subTrees
+            where
+                -- Reformat messages for use with distribute
+                subTreeMessagesWithId = map (\m -> Just (newRoot.id, m)) subTreeMessages
 
-        -- Creates a mapping from the old nodes to the new updated ones
-        newNodes = foldr (M.union . JT.toPostboxMap) (M.singleton newRoot.id newRoot.postbox) distributed
+        -- Creates a mapping from ids to the new postboxes and caches
+        -- (used for updating the original tree)
+        newPostboxesAndCaches = foldr (M.union . JT.toPostboxAndCacheMap)
+                                      (M.singleton newRoot.id (newRoot.postbox, newRoot.cache))
+                                      distributed
 
 messageForNode :: (V.ValuationFamily v, V.Var a) => JT.Node (v a) -> JT.Node (v a) -> v a
 messageForNode receiver sender = V.project (V.combines1 (sender.v : postbox))
@@ -97,14 +103,14 @@ messageForNode receiver sender = V.project (V.combines1 (sender.v : postbox))
     where
         postbox = M.elems . M.filterKeys (/= receiver.id) . fromJust $ sender.postbox
 
-data ReceiveResults v = ReceiveResults { newSenderCache :: JT.Cache v, sender :: JT.Id, message :: v }
+data MsgResults v = MsgResults { newSenderCache :: JT.Cache v, sender :: JT.Id, msg :: v }
 
-messageForNode2 :: (V.ValuationFamily v, V.Var a) => JT.Node (v a) -> JT.Node (v a) -> ReceiveResults (v a)
-messageForNode2 receiver sender = ReceiveResults { newSenderCache = newSenderCache
-                                                 , sender = sender.id
-                                                 , message = V.project (combined)
-                                                                       (S.intersection receiver.d sender.d)
-                                                }
+messageForNode2 :: (V.ValuationFamily v, V.Var a) => JT.Node (v a) -> JT.Node (v a) -> MsgResults (v a)
+messageForNode2 receiver sender = MsgResults { newSenderCache = newSenderCache
+                                             , sender = sender.id
+                                             , msg = V.project (combined)
+                                                                   (S.intersection receiver.d sender.d)
+                                            }
     where
         postbox = M.toList . M.filterKeys (/= receiver.id) . fromJust $ sender.postbox
         ids = map fst postbox ++ [sender.id]

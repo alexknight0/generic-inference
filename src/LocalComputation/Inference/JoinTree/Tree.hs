@@ -429,8 +429,17 @@ verticesHaveValidPostbox t = (allHavePostboxes || allDontHavePostboxes)
 verticesHaveValidCache :: forall v . JoinTree v -> Bool
 verticesHaveValidCache t = all vertexHasValidCache (vertexList t)
     where
+        root = t.root
+
         vertexHasValidCache :: Node v -> Bool
-        vertexHasValidCache n = all (all (`elem` neighboursAndSelf n)) (cachedIds n.cache)
+        vertexHasValidCache n
+            | n == root = all (U.allButMaybeOne (`elem` neighboursAndSelf n)) (cachedIds n.cache)  -- [*]
+            | otherwise = all (all              (`elem` neighboursAndSelf n)) (cachedIds n.cache)
+
+        -- [*] Condition is slightly weakened to support an easier implementation
+        -- of distribute for `MessagePassing.Threads` - the algorithm used there
+        -- suffers from the fact that the root node of a subtree may contain a message
+        -- from its child in the real tree.
 
         neighboursAndSelf :: Node v -> [Id]
         neighboursAndSelf n = n.id : neighbours n
