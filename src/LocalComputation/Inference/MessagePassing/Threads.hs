@@ -119,6 +119,10 @@ messageForNode2 receiver sender = MsgResults { newSenderCache = newSenderCache
         newSenderCache = cachedCombine sender.cache ids vs
         combined = fromJust $ JT.lookupCache ids newSenderCache
 
+-- | Variant of cachedCombine that discards the resulting cache and just returns the result
+cachedCombine_ :: (V.Valuation v a) => JT.Cache (v a) -> [JT.Id] -> [v a] -> v a
+cachedCombine_ c ids vs = fromJust $ JT.lookupCache ids $ cachedCombine c ids vs
+
 cachedCombine :: (V.Valuation v a) => JT.Cache (v a) -> [JT.Id] -> [v a] -> JT.Cache (v a)
 cachedCombine c []        _             = c
 cachedCombine c _         []            = c
@@ -130,19 +134,10 @@ cachedCombine c ids@(_ : ids') (v : vs) = case JT.lookupCache ids c of
 
         vsCombined = fromJust $ JT.lookupCache ids' newCache
 
--- cachedCombine :: JT.Cache (v a) -> [(JT.Id, v a)] -> (JT.Cache (v a), v a)
--- cachedCombine c [(i, v)]      = (c, v)
--- cachedCombine c ((i, v) : vs)
---     | Just result <- JT.lookupCache ids c = (c, result)
---     | otherwise = (JT.updateCache (i : ids)
---     where
---         ids = map fst vs
---
---         (newCache, result) = cachedCombine c vs
-
-
 -- | Takes a tree that has had collect and then distribute performed on it, and returns the tree
 -- after computing the resulting valuations of each node.
+--
+-- Doesn't cache anything from the last combination computation, although it could if it would be beneficial.
 calculate :: forall v a . (P.NFData (v a), V.ValuationFamily v, V.Var a) => JT.JoinTree (v a) -> JT.JoinTree (v a)
 calculate tree = JT.unsafeUpdateValuations mapping tree
     where
@@ -151,8 +146,10 @@ calculate tree = JT.unsafeUpdateValuations mapping tree
         mapping = M.fromList $ zipWith (\n v -> (n.id, v)) vertices newValuations
 
         updatedValuation :: JT.Node (v a) -> v a
-        updatedValuation n = V.combines1 (n.v : postbox)
+        updatedValuation n = cachedCombine_ n.cache ids vs
             where
-                postbox = M.elems . fromJust $ n.postbox
+                postbox = M.toList . fromJust $ n.postbox
+                ids = map fst postbox ++ [n.id]
+                vs = map snd postbox ++ [n.v]
 
 
