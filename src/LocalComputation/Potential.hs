@@ -97,14 +97,22 @@ combine union p1 p2 = unsafeCreate newFrame newValues
 
         newFrame = M.unionA p1.frames p2.frames
 
+-- TODO: fromPermutationMap call here is unnecessary isnt it?
 project :: forall a b c . (Ord a, Ord b) => (c -> c -> c) -> Potential a b c -> Set.Set a  -> Potential a b c
-project union p domain = fromPermutationMap projectedToValue
+project union p domain = unsafeCreate newFrames newValues
     where
 
-        projectedToValue :: M.Map (M.Map a b) c
-        projectedToValue = M.fromListWith union $ zipWith f (permutationList p.frames) (A.elems p.values)
+        newFrames = M.restrictKeys p.frames domain
+        newFramesList = M.toAscList $ M.restrictKeys p.frames domain
+        factors = getFactors newFramesList
 
-        f permutation value = (M.restrictKeys permutation domain, value)
+        newValues = A.listArray0 $ IntMap.elems $ projectedToValue
+
+        -- TODO: could be skipped straight into array
+        projectedToValue :: IntMap.IntMap c
+        projectedToValue = IntMap.fromListWith union $ zipWith f (permutationList p.frames) (A.elems p.values)
+
+        f permutation value = (unsafeGetIndex' (M.restrictKeys permutation domain) newFramesList factors, value)
 
 numPermutations :: M.Map a (S.IndexedSet b) -> Int
 numPermutations = product . map S.size . M.elems
@@ -129,6 +137,7 @@ unsafeGetIndex' assignment frames factors = sum $ zipWith (*) choiceIndices fact
 
         f (var, value) (_var, values) = assert (var == _var) $ S.unsafeElemIndex values value
 
+-- | Returns the value of a given variable assignment in a given potential
 unsafeGetValue :: (Ord a, Ord b) => Potential a b c -> M.Map a b -> c
 unsafeGetValue p a = unsafeGetValue' p a (M.toAscList p.frames) (getFactors $ M.toAscList p.frames)
 
