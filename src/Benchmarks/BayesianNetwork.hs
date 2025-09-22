@@ -15,6 +15,7 @@ where
 --    large query.
 
 import qualified Benchmarks.BayesianNetwork.Data                   as D
+import qualified Benchmarks.Utils                                  as U
 import           Control.Monad.IO.Class                            (MonadIO)
 import           Criterion.Main
 import qualified LocalComputation.Inference                        as I
@@ -38,7 +39,7 @@ benchmarks = do
         smallNet  <- U.unsafeParseFile' P.network D.asiaFilepath
         mediumNet <- U.unsafeParseFile' P.network D.alarmFilepath
 
-        problems <- sequence $ [ -- createProblem smallNet 10 1 0
+        problems <- sequence $ zipWith ($) [ -- createProblem smallNet 10 1 0
                                -- , createProblem smallNet 20 4 10
                                -- , createProblem smallNet  20 4 40
                                -- createProblem mediumNet 20 1 0
@@ -57,21 +58,7 @@ benchmarks = do
                                , createProblem mediumNet 3  1 1
                                , createProblem mediumNet 3  1 1
 
-                               , createProblem mediumNet 3  1 1
-                               , createProblem mediumNet 3  1 1
-                               , createProblem mediumNet 3  1 1
-                               , createProblem mediumNet 3  1 1
-
-                               , createProblem mediumNet 3  1 1
-                               , createProblem mediumNet 3  1 1
-                               , createProblem mediumNet 3  1 1
-                               , createProblem mediumNet 3  1 1
-
-                               , createProblem mediumNet 3  1 1
-                               , createProblem mediumNet 3  1 1
-                               , createProblem mediumNet 3  1 1
-                               , createProblem mediumNet 3  1 1
-                              ]
+                              ] seeds
 
         let algorithm mode = bench ("localcomputation-" ++ show mode) $ nfIO $ multipleGetProbability mode problems
 
@@ -80,10 +67,12 @@ benchmarks = do
                                                           I.Shenoy MP.Threads
                                                           -- , I.Shenoy MP.Distributed
                                                          ]
+        where
+            seeds = [0..]
 
-createProblem :: (MonadIO m) => BN.Network String String -> Int -> Int -> Int -> m Problem
-createProblem net numQueries maxConditioned maxConditional = do
-    qs <- D.sample $ D.genQueries net numQueries maxConditioned maxConditional
+createProblem :: (MonadIO m) => BN.Network String String -> Int -> Int -> Int -> U.Word64 -> m Problem
+createProblem net numQueries maxConditioned maxConditional seed = do
+    qs <- U.sample (U.getSeed seed) $ D.genQueries net numQueries maxConditioned maxConditional
     pure $ Problem net qs
 
 multipleGetProbability :: (MonadIO m) => I.Mode -> [Problem] -> m [[BN.Probability]]
@@ -96,3 +85,11 @@ benchmark net queryGen = do
     pure $ bgroup ("Bayesian/" ++ net.name ++ "/" ++ queryGen.name) [
                   bench "localcomputation-current"   $ nfIO $ P.run $ BN.getProbability I.BruteForce D.def queries net.value
             ]
+
+foobar = U.getSeed 3
+{-
+
+>>> do mediumNet <- U.unsafeParseFile' P.network D.alarmFilepath; U.sample (U.getSeed 5) $ D.genQueries mediumNet 1 1 1
+[Query {conditioned = fromList [("ANAPHYLAXIS","TRUE")], conditional = fromList []}]
+
+-}
