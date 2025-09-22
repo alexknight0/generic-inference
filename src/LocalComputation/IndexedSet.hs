@@ -44,6 +44,7 @@ fromSet s = unsafeFromMap . M.fromDistinctAscList $ zip (S.toAscList s) [0..]
 satisfiesInvariants :: IndexedSet a -> Bool
 satisfiesInvariants s = M.elems s.m == [0 .. M.size s.m - 1]
 
+{-# INLINE unsafeElemIndex #-}
 unsafeElemIndex :: (Ord a) => IndexedSet a -> a -> Int
 unsafeElemIndex s x = s.m M.! x
 

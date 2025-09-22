@@ -153,6 +153,7 @@ zipWithAssert f xs ys
     | length xs /= length ys = error "Length of lists didn't match"
     | otherwise = zipWith f xs ys
 
+{-# INLINE zipWithA #-}
 zipWithA :: (a -> b -> c) -> [a] -> [b] -> [c]
 zipWithA f xs ys = assert (length xs == length ys) $ zipWith f xs ys
 
