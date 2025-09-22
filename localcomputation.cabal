@@ -98,6 +98,7 @@ library
     , colour
     , containers
     , criterion
+    , data-memocombinators
     , deepseq
     , diagrams
     , diagrams-lib
@@ -151,6 +152,7 @@ executable localcomputation-exe
     , colour
     , containers
     , criterion
+    , data-memocombinators
     , deepseq
     , diagrams
     , diagrams-lib
@@ -210,6 +212,7 @@ test-suite localcomputation-test
     , colour
     , containers
     , criterion
+    , data-memocombinators
     , deepseq
     , diagrams
     , diagrams-lib
@@ -269,6 +272,7 @@ benchmark localcomputation-benchmark
     , colour
     , containers
     , criterion
+    , data-memocombinators
     , deepseq
     , diagrams
     , diagrams-lib

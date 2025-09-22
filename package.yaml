@@ -61,6 +61,7 @@ dependencies:
 - filepath
 - parallel
 - vector
+- data-memocombinators
 
 ghc-options:
 - -Wall

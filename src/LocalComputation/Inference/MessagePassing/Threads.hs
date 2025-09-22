@@ -36,20 +36,28 @@ messagePassing' = calculate . distribute . collect
 
 -- TODO: If the constant recalculation of roots is showing poor upon profiling
 -- consider fixing this function rather than reimplementing the join tree (for now).
-collect :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => JT.JoinTree (v a) -> JT.JoinTree (v a)
-collect tree = JT.unsafeUpdatePostboxes newNodes tree
+collect :: forall v a . (P.NFData (v a), V.ValuationFamily v, V.Var a) => JT.JoinTree (v a) -> JT.JoinTree (v a)
+collect tree = JT.unsafeUpdatePostboxesAndCache newPostboxesAndCaches tree
     where
         -- Computes collect on all subtrees, filling their postboxes
         subTrees = P.parMap P.rdeepseq collect $ JT.subTrees tree
 
         -- Get message for us from each subtree
-        subTreeMessages = map (\subTree -> (subTree.root.id, messageForNode tree.root subTree.root)) subTrees
+        subTreeMessages = map toMessage subTrees
+            where
+                toMessage :: JT.JoinTree (v a) -> ReceiveResults (v a)
+                toMessage subTree = messageForNode2 tree.root subTree.root
+
+        newSubTrees = zipWith JT.unsafeUpdateRootCache subTrees (map (.newSenderCache) subTreeMessages)
 
         -- Creates new root filling postbox with messages
-        newRoot = tree.root { JT.postbox = Just $ M.fromList subTreeMessages }
+        newRoot = tree.root { JT.postbox = Just $ M.fromList $ map (\m -> (m.sender, m.message)) subTreeMessages }
 
-        -- Creates a mapping an id to the new postbox of that node
-        newNodes = foldr (M.union . JT.toPostboxMap) (M.singleton newRoot.id newRoot.postbox) subTrees
+        -- Creates a mapping from ids to the new postboxes and caches
+        -- (used for updating the original tree)
+        newPostboxesAndCaches = foldr (M.union . JT.toPostboxAndCacheMap)
+                                      (M.singleton newRoot.id (newRoot.postbox, newRoot.cache))
+                                      newSubTrees
 
 -- | Takes a tree that has had collect performed on it, and returns the tree after distribute has been performed.
 --
@@ -69,6 +77,11 @@ distribute' incoming tree = JT.unsafeUpdatePostboxes newNodes tree
 
         subTrees = JT.subTrees tree
 
+        -- receiveMessage :: JT.JoinTree (v a) -> JT.Node (v a) -> JT.Node (v a)
+        -- receiveMessage subTree receiver = undefined
+        --     where
+        --         message = messageForNode receiver subTree.root
+
         -- Compute messages to send to subtrees
         subTreeMessages = fmap (\subTree -> Just (newRoot.id, messageForNode subTree.root newRoot)) subTrees
 
@@ -83,6 +96,44 @@ messageForNode receiver sender = V.project (V.combines1 (sender.v : postbox))
                                            (S.intersection receiver.d sender.d)
     where
         postbox = M.elems . M.filterKeys (/= receiver.id) . fromJust $ sender.postbox
+
+data ReceiveResults v = ReceiveResults { newSenderCache :: JT.Cache v, sender :: JT.Id, message :: v }
+
+messageForNode2 :: (V.ValuationFamily v, V.Var a) => JT.Node (v a) -> JT.Node (v a) -> ReceiveResults (v a)
+messageForNode2 receiver sender = ReceiveResults { newSenderCache = newSenderCache
+                                                 , sender = sender.id
+                                                 , message = V.project (combined)
+                                                                       (S.intersection receiver.d sender.d)
+                                                }
+    where
+        postbox = M.toList . M.filterKeys (/= receiver.id) . fromJust $ sender.postbox
+        ids = map fst postbox ++ [sender.id]
+        vs = map snd postbox ++ [sender.v]
+
+        newSenderCache = cachedCombine sender.cache ids vs
+        combined = fromJust $ JT.lookupCache ids newSenderCache
+
+cachedCombine :: (V.Valuation v a) => JT.Cache (v a) -> [JT.Id] -> [v a] -> JT.Cache (v a)
+cachedCombine c []        _             = c
+cachedCombine c _         []            = c
+cachedCombine c ids@(_ : ids') (v : vs) = case JT.lookupCache ids c of
+                                                Just _  -> c
+                                                Nothing -> JT.updateCache newCache ids (V.combine v vsCombined)
+    where
+        newCache = cachedCombine c ids' vs
+
+        vsCombined = fromJust $ JT.lookupCache ids' newCache
+
+-- cachedCombine :: JT.Cache (v a) -> [(JT.Id, v a)] -> (JT.Cache (v a), v a)
+-- cachedCombine c [(i, v)]      = (c, v)
+-- cachedCombine c ((i, v) : vs)
+--     | Just result <- JT.lookupCache ids c = (c, result)
+--     | otherwise = (JT.updateCache (i : ids)
+--     where
+--         ids = map fst vs
+--
+--         (newCache, result) = cachedCombine c vs
+
 
 -- | Takes a tree that has had collect and then distribute performed on it, and returns the tree
 -- after computing the resulting valuations of each node.

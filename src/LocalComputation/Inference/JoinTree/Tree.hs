@@ -11,11 +11,18 @@
 module LocalComputation.Inference.JoinTree.Tree (
 
     -- Nodes
-      Node (id, v, t, postbox)
+      Node (id, v, t, postbox, cache)
     , node
     , changeContent
     , NodeType (Valuation, Query, Union, Projection)
     , Id
+
+    -- Node combination cache
+    , Cache
+    , updateCache
+    , lookupCache
+    , emptyCache
+    , unionsCache
 
     -- Join Trees
     , JoinTree (g)
@@ -34,8 +41,11 @@ module LocalComputation.Inference.JoinTree.Tree (
     , toMap
     , toValuationMap
     , toPostboxMap
+    , toPostboxAndCacheMap
     , unsafeUpdateValuations
     , unsafeUpdatePostboxes
+    , unsafeUpdatePostboxesAndCache
+    , unsafeUpdateRootCache
     , verticesHavePostboxes
 
     -- Utilities
@@ -46,6 +56,7 @@ module LocalComputation.Inference.JoinTree.Tree (
 import           GHC.Records                        (HasField, getField)
 import           LocalComputation.ValuationAlgebra  hiding (assertInvariants,
                                                      satisfiesInvariants)
+import           Prelude                            hiding (lookup)
 
 import qualified Algebra.Graph                      as G
 import qualified Algebra.Graph.Acyclic.AdjacencyMap as G (toAcyclic)
@@ -60,6 +71,7 @@ import qualified Data.List                          as L
 import qualified Data.Map                           as M
 import           Data.Maybe                         (fromJust, isJust,
                                                      isNothing)
+import qualified Data.Set                           as S
 import           Data.Text.Lazy                     (unpack)
 import           GHC.Stack                          (HasCallStack)
 import qualified LocalComputation.Utils             as L (count)
@@ -77,14 +89,15 @@ data Node v = Node {
     , v       :: v
     , t       :: NodeType
     , postbox :: Maybe (M.Map Id v)
+    , cache   :: Cache v
 } deriving (Generic, Typeable, Binary, NFData)
 
 type Id = Integer
 
 data NodeType = Valuation | Query | Union | Projection deriving (Show, Generic, Binary, Enum, Bounded, Eq, NFData)
 
-node :: Id -> v -> NodeType -> Node v
-node i v t = Node i v t Nothing
+node :: Valuation v a => Id -> (v a) -> NodeType -> Node (v a)
+node i v t = Node i v t Nothing emptyCache
 
 changeContent :: Node a -> a -> Node a
 changeContent n v = n { v = v }
@@ -111,6 +124,32 @@ instance (ValuationFamily v, Ord a, Show a) => Show (Node (v a)) where
     show n = unpack $ pShow (n.id, n.d)
 
 --------------------------------------------------------------------------------
+-- Combination Cache
+--------------------------------------------------------------------------------
+newtype Cache v = Cache { m :: M.Map [Id] v } deriving (Binary, NFData, Generic)
+
+satisfiesInvariantsCache :: Cache v -> Bool
+satisfiesInvariantsCache c = M.member [] c.m
+
+unsafeCache :: M.Map [Id] v -> Cache v
+unsafeCache = U.assertP satisfiesInvariantsCache . Cache
+
+emptyCache :: (Valuation v a) => Cache (v a)
+emptyCache = unsafeCache $ M.singleton [] (identity S.empty)
+
+updateCache :: Cache v -> [Id] -> v -> Cache v
+updateCache c k v = unsafeCache $ M.insert k v c.m
+
+lookupCache :: [Id] -> Cache v -> Maybe v
+lookupCache k c = M.lookup k c.m
+
+unionsCache :: [Cache v] -> Cache v
+unionsCache cs = unsafeCache $ M.unions (fmap (.m) cs)
+
+cachedIds :: Cache v -> [[Id]]
+cachedIds c = M.keys c.m
+
+--------------------------------------------------------------------------------
 -- Join trees
 --------------------------------------------------------------------------------
 
@@ -120,7 +159,8 @@ instance (ValuationFamily v, Ord a, Show a) => Show (Node (v a)) where
     3. it is directed toward a node called the 'root',
     4. and has the running intersection property.
     5. If a join tree node has a postbox, all join tree nodes have postboxes,
-       and they only contain messages from their neighbours
+       and they only contain messages from their neighbours.
+    6. Any cached cached combinations are valid combinations from that node.
 
     2 & 3 => root is the node with the largest id
     1 & 3 => root has no outgoing edges
@@ -143,6 +183,7 @@ satisfiesInvariants t = vertexCount t > 0 && isAcyclic t          -- (1)
                             && isDirectedTowardsRoot t            -- (3)
                             && hasRunningIntersectionProperty t   -- (4)
                             && verticesHaveValidPostbox t         -- (5)
+                            && verticesHaveValidCache t           -- (6)
 
 instance HasField "root" (JoinTree v) (Node v) where
     getField t = last $ vertexList t
@@ -205,6 +246,25 @@ unsafeUpdatePostboxes m t = unsafeFromGraph $ fmap f t.g
                 Nothing -> n
                 Just p  -> n { postbox = p }
 
+-- | Updates postboxes for nodes of the given ids.
+unsafeUpdatePostboxesAndCache :: (V.ValuationFamily v, Var a)
+    => M.Map Id (Maybe (M.Map Id (v a)), Cache (v a))
+    -> JoinTree (v a)
+    -> JoinTree (v a)
+unsafeUpdatePostboxesAndCache m t = unsafeFromGraph $ fmap f t.g
+    where
+        f n = case M.lookup n.id m of
+                Nothing -> n
+                Just p  -> n { postbox = fst p
+                             , cache = snd p
+                             }
+
+-- | Replacement must have the same id as the old root
+unsafeUpdateRootCache :: (Valuation v a) => JoinTree (v a) -> Cache (v a) -> JoinTree (v a)
+unsafeUpdateRootCache t cache = unsafeFromGraph $ G.replaceVertex t.root newRoot t.g
+    where
+        newRoot = t.root { cache = cache }
+
 --------------------------------------------------------------------------------
 -- Properties
 --------------------------------------------------------------------------------
@@ -238,6 +298,9 @@ toValuationMap = fmap (.v) . toMap
 
 toPostboxMap :: JoinTree v -> M.Map Id (Maybe (M.Map Id v))
 toPostboxMap = fmap (.postbox) . toMap
+
+toPostboxAndCacheMap :: JoinTree v -> M.Map Id (Maybe (M.Map Id v), Cache v)
+toPostboxAndCacheMap = fmap (\n -> (n.postbox, n.cache)) . toMap
 
 -- | Creates a mapping from a node id to its neighbours in the graph.
 --
@@ -357,6 +420,20 @@ verticesHaveValidPostbox t = (allHavePostboxes || allDontHavePostboxes)
         -- of distribute for `MessagePassing.Threads` - the algorithm used there
         -- suffers from the fact that the root node of a subtree may contain a message
         -- from its child in the real tree.
+
+        neighbours :: Node v -> [Id]
+        neighbours n = map (.id) $ (M.!) neighbourMap' n.id
+
+        neighbourMap' = neighbourMap t
+
+verticesHaveValidCache :: forall v . JoinTree v -> Bool
+verticesHaveValidCache t = all vertexHasValidCache (vertexList t)
+    where
+        vertexHasValidCache :: Node v -> Bool
+        vertexHasValidCache n = all (all (`elem` neighboursAndSelf n)) (cachedIds n.cache)
+
+        neighboursAndSelf :: Node v -> [Id]
+        neighboursAndSelf n = n.id : neighbours n
 
         neighbours :: Node v -> [Id]
         neighbours n = map (.id) $ (M.!) neighbourMap' n.id
