@@ -87,13 +87,11 @@ combine union p1 p2 = unsafeCreate newFrame newValues
     where
         newValues = A.listArray0 $ map f (permutationList newFrame)
 
-        p1Frames = M.toAscList p1.frames
-        p1Factors = getFactors p1Frames
-        p2Frames = M.toAscList p2.frames
-        p2Factors = getFactors p2Frames
-
-        f assignment = union (unsafeGetValue' p1 (M.intersection assignment p1.frames) p1Frames p1Factors)
-                             (unsafeGetValue' p2 (M.intersection assignment p2.frames) p2Frames p2Factors)
+        f assignment = union (getValueP1 $ M.intersection assignment p1.frames)
+                             (getValueP2 $ M.intersection assignment p2.frames)
+            where
+                getValueP1 = unsafeGetValue' p1 (M.toAscList p1.frames) (getFactors $ M.toAscList p1.frames)
+                getValueP2 = unsafeGetValue' p2 (M.toAscList p2.frames) (getFactors $ M.toAscList p2.frames)
 
         newFrame = M.unionA p1.frames p2.frames
 
@@ -102,8 +100,6 @@ project union p domain = unsafeCreate newFrames newValues
     where
 
         newFrames = M.restrictKeys p.frames domain
-        newFramesList = M.toAscList $ M.restrictKeys p.frames domain
-        factors = getFactors newFramesList
 
         newValues = fmap fromJust $ A.accumArray g Nothing (0, numPermutations newFrames - 1) newIndicesOfValues
             where
@@ -113,7 +109,9 @@ project union p domain = unsafeCreate newFrames newValues
 
         newIndicesOfValues = zipWith f (permutationList p.frames) (A.elems p.values)
             where
-                f permutation value = (unsafeGetIndex' (M.restrictKeys permutation domain) newFramesList factors, value)
+                f permutation value = (getIndex (M.restrictKeys permutation domain), value)
+
+                getIndex = unsafeGetIndex' (M.toAscList newFrames) (getFactors $ M.toAscList newFrames)
 
 numPermutations :: M.Map a (S.IndexedSet b) -> Int
 numPermutations = product . map S.size . M.elems
@@ -122,35 +120,35 @@ numPermutations = product . map S.size . M.elems
 unsafeGetAssignment :: (Ord a) => M.Map a (S.IndexedSet b) -> Int -> M.Map a b
 unsafeGetAssignment frames index = permutationList frames !! index
 
-unsafeGetIndex :: (Ord a, Ord b) => M.Map a b -> M.Map a (S.IndexedSet b) -> Int
-unsafeGetIndex assignment frames = unsafeGetIndex' assignment (M.toAscList frames) (getFactors $ M.toAscList frames)
+unsafeGetIndex :: (Ord a, Ord b) => M.Map a (S.IndexedSet b) -> M.Map a b -> Int
+unsafeGetIndex frames = unsafeGetIndex' (M.toAscList frames) (getFactors $ M.toAscList frames)
+
+-- | Variant of `unsafeGetIndex` that has `M.toAscList` applied to its second parameter and factors precalculated
+unsafeGetIndex' :: (Eq a, Ord b) => [(a, S.IndexedSet b)] -> [Int] -> M.Map a b -> Int
+unsafeGetIndex' frames factors assignment = sum $ zipWith (*) choiceIndices factors
+    where
+        choiceIndices = U.zipWithA f (M.toAscList assignment) frames
+
+        f (var, value) (_var, values) = assert (var == _var) $ S.unsafeElemIndex values value
 
 getFactors :: [(a, S.IndexedSet b)] -> [Int]
 getFactors frames = tail $ scanr (*) 1 numChoices
     where
         numChoices = map (S.size . snd) frames
 
--- | Variant of `unsafeGetIndex` that has `M.toAscList` applied to its second parameter and factors precalculated
-unsafeGetIndex' :: (Eq a, Ord b) => M.Map a b -> [(a, S.IndexedSet b)] -> [Int] -> Int
-unsafeGetIndex' assignment frames factors = sum $ zipWith (*) choiceIndices factors
-    where
-        choiceIndices = U.zipWithA f (M.toAscList assignment) frames
-
-        f (var, value) (_var, values) = assert (var == _var) $ S.unsafeElemIndex values value
-
 -- | Returns the value of a given variable assignment in a given potential
 unsafeGetValue :: (Ord a, Ord b) => Potential a b c -> M.Map a b -> c
-unsafeGetValue p a = unsafeGetValue' p a (M.toAscList p.frames) (getFactors $ M.toAscList p.frames)
+unsafeGetValue p = unsafeGetValue' p (M.toAscList p.frames) (getFactors $ M.toAscList p.frames)
 
 -- | Variant of `unsafeGetValue` that has `M.toAscList` applied to `p.frame` as a parameter and factors precalculated
-unsafeGetValue' :: (Ord a, Ord b) => Potential a b c -> M.Map a b -> [(a, S.IndexedSet b)] -> [Int] -> c
-unsafeGetValue' p a frames factors = p.values A.! unsafeGetIndex' a frames factors
+unsafeGetValue' :: (Ord a, Ord b) => Potential a b c -> [(a, S.IndexedSet b)] -> [Int] -> M.Map a b -> c
+unsafeGetValue' p frames factors a = p.values A.! unsafeGetIndex' frames factors a
 
-permutationList :: (Ord a) => M.Map a (S.IndexedSet b) -> [M.Map a b]
-permutationList m = map M.fromList $ toPermutations
-                                   $ M.toList
-                                   $ M.map S.toList
-                                   $ m
+permutationList :: M.Map a (S.IndexedSet b) -> [M.Map a b]
+permutationList m = map M.fromDistinctAscList $ toPermutations
+                                              $ M.toAscList
+                                              $ M.map S.toList
+                                              $ m
 
 permutationMap :: (Ord a, Ord b) => Potential a b c -> M.Map (M.Map a b) c
 permutationMap p = M.fromList $ zip (permutationList p.frames) (A.elems p.values)
