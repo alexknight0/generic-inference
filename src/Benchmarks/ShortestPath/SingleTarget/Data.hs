@@ -1,17 +1,17 @@
 {- | Tests for benchmarking suite. Also exposes some example problems that can be used in a test suite -}
 module Benchmarks.ShortestPath.SingleTarget.Data (
       Problem (..)
+    , BenchmarkProblem (..)
     , genQuery
     , genConnectedQuery
     , genConnectedQueries
     , genGraph
     , genGraphs
-    , sample
+    , genProblem
     , p0Graphs
     , p0Queries
     , p1
     , p2
-    , p3
     , p3VerySmallGraph
     , p3SmallGraph
     , p3SmallGraph'
@@ -20,6 +20,7 @@ module Benchmarks.ShortestPath.SingleTarget.Data (
     , p3VeryLargeGraph
 ) where
 
+import qualified Benchmarks.Utils                                     as U
 import qualified LocalComputation.Graph                               as G
 import qualified LocalComputation.Instances.ShortestPath.Parser       as P
 import           LocalComputation.Utils                               (fromRight,
@@ -43,9 +44,9 @@ data Problem = Problem {
 
 -- | A problem where solutions are not specified - only used for benchmarking
 -- Can specify multiple queries.
-data BenchmarkProblem = BenchmarkProblem {
-      graphs :: IO [G.Graph Natural Double]
-    , qs     :: [Query Natural]
+data BenchmarkProblem a = BenchmarkProblem {
+      g  :: G.Graph a Double
+    , qs :: [Query a]
 }
 
 dataDirectory :: FilePath
@@ -85,7 +86,6 @@ genEdge genNode genCost = do
     cost <- genCost
     pure (G.Edge arcHead arcTail cost)
 
-
 -- | Generates a random graph with the given number of nodes and edges.
 -- The nodes are numbered from 0 to numNodes - 1. Edge costs range from 0 to 100.
 -- Graph may be disconnected. After generation of the graph, one 0 cost self loop
@@ -116,9 +116,12 @@ genGraphs nodes arcs = do
                   $ L.chunksOf (max 1 $ div (fromIntegral nodes) 5)
                   $ G.toList original
 
--- | Takes a hedgehog generator and generates a random sample.
-sample :: Gen a -> IO a
-sample = Gen.sample
+genProblem :: Natural -> Natural -> Natural -> Gen (BenchmarkProblem Natural)
+genProblem nodes edges numQueries = do
+    g <- genGraph nodes edges
+    qs <- genConnectedQueries numQueries g
+
+    pure $ BenchmarkProblem g qs
 
 --------------------------------------------------------------------------------
 -- Manual tests
@@ -216,23 +219,6 @@ p2 = Problem {
                 , 14
                ]
 }
-
--- | A test on a small graph of 78 nodes and 93 arcs.
-p3 :: BenchmarkProblem
-p3 = BenchmarkProblem {
-      graphs = p3Graphs
-    , qs = p3Queries
-}
-
-p3Graphs :: IO [G.Graph Natural Double]
-p3Graphs = fmap (:[]) $ parseGraph' (dataDirectory ++ "Small-USA-road-d.NY.gr")
-
--- Randomly generated (but fixed) query. See 'HLS eval plugin' if unsure how to regenerate.
---
--- >>> let reverseAdjacencyList = G.reverseAdjacencyList p3Graphs
--- >>> sample $ genConnectedQuery (reverseAdjacencyList)
-p3Queries :: a
-p3Queries = undefined
 
 -------------------------------------------------------------------------------
 -- Utils

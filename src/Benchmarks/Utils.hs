@@ -1,9 +1,17 @@
+{-# OPTIONS_GHC -Wno-unused-imports #-}
+
+-- | Utilities for the benchmarks suite.
+--
+-- This module depends on hedgehog internals and hence is
+-- highly vulnerable to future updates to the hedgehog library.
 module Benchmarks.Utils (
       sample
     , getSeed
     , Seed
     , Word64
 ) where
+
+-- These imports match imports used in hedgehog internals
 import           Control.Applicative            (Alternative (..), liftA2)
 import           Control.Monad                  (MonadPlus (..), filterM, guard,
                                                  join, replicateM)
@@ -46,43 +54,34 @@ import qualified Hedgehog.Internal.Tree         as Tree
 import           Hedgehog.Range                 (Range, Size)
 import qualified Hedgehog.Range                 as Range
 
+import qualified System.Random                  as R
+
 ------------------------------------------------------------------------
 
--- Sampling
-
--- | Generate a sample from a generator.
+-- | Generate a sample from a generator, with a set seed.
 --
 -- This function is useful for examining a 'Gen' in GHCi or other contexts.
 -- It is not appropriate for use in a test suite directly. You will only
 -- get a single sample from this function, and it will not give you
--- a property test. The seed is random, so the test is not deterministic.
---
--- If you only want a single test to run, then use @'withTests' 1@:
---
--- @
--- prop_OnlyRunOnce :: Property
--- prop_OnlyRunOnce =
---   'withTests' 1 $ 'property' $ do
---     i <- Gen.int
---     i /== 0
--- @
-sample :: (HasCallStack, MonadIO m) => Seed -> Gen a -> m a
-sample initialSeed gen =
-  withFrozenCallStack $
-    liftIO $
-      let
-        loop n seed =
-          if n <= 0 then
-            error "Hedgehog.Gen.sample: too many discards, could not generate a sample"
-          else do
-            let (thisSeed, nextSeed) = split seed
-            case evalGen 30 thisSeed gen of
-              Nothing ->
-                loop (n - 1) nextSeed
-              Just x ->
-                pure $ Tree.treeValue x
-      in
-        loop (100 :: Int) initialSeed
+-- a property test.
+sample :: (HasCallStack, MonadIO m) => Int -> Gen a -> m a
+sample seed gen = withFrozenCallStack $ liftIO $ trySample (getSeed seedForGen)     -- Seed for generator
+                                                           gen                      -- Generator
+                                                           (fromInteger randomSize) -- Random value for size
+                                                           (100 :: Int)             -- Num discards before failure
+
+    where
+        (randomSize, newGen) = R.randomR (0, 100) (R.mkStdGen seed)
+        (seedForGen, _)      = R.randomR (0, maxBound :: Word64) newGen
+
+trySample :: (Ord t, Num t, Applicative f) => Seed -> Gen a -> Size -> t -> f a
+trySample seed gen size n
+    | n <= 0 = error "Hedgehog.Gen.sample: too many discards, could not generate a sample"
+    | otherwise = case evalGen size currentSeed gen of
+                      Nothing -> trySample nextSeed gen size (n - 1)
+                      Just x  -> pure $ Tree.treeValue x
+    where
+        (currentSeed, nextSeed) = split seed
 
 getSeed :: Word64 -> Seed
 getSeed = from

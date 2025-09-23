@@ -70,9 +70,9 @@ benchmarks = do
         where
             seeds = [0..]
 
-createProblem :: (MonadIO m) => BN.Network String String -> Int -> Int -> Int -> U.Word64 -> m Problem
+createProblem :: (MonadIO m) => BN.Network String String -> Int -> Int -> Int -> Int -> m Problem
 createProblem net numQueries maxConditioned maxConditional seed = do
-    qs <- U.sample (U.getSeed seed) $ D.genQueries net numQueries maxConditioned maxConditional
+    qs <- U.sample (seed) $ D.genQueries net numQueries maxConditioned maxConditional
     pure $ Problem net qs
 
 multipleGetProbability :: (MonadIO m) => I.Mode -> [Problem] -> m [[BN.Probability]]
@@ -89,7 +89,7 @@ benchmark net queryGen = do
 foobar = U.getSeed 3
 {-
 
->>> do mediumNet <- U.unsafeParseFile' P.network D.alarmFilepath; U.sample (U.getSeed 5) $ D.genQueries mediumNet 1 1 1
-[Query {conditioned = fromList [("ANAPHYLAXIS","TRUE")], conditional = fromList []}]
+>>> do mediumNet <- U.unsafeParseFile' P.network D.alarmFilepath; U.sample 15 $ D.genQueries mediumNet 1 1 1
+[Query {conditioned = fromList [("ERRCAUTER","TRUE")], conditional = fromList [("HR","NORMAL")]}]
 
 -}

@@ -40,7 +40,7 @@ collect :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => JT.JoinTree (v a) -
 collect tree = JT.unsafeUpdatePostboxes newPostboxes tree
     where
         -- Computes collect on all subtrees, filling their postboxes
-        --subTrees = P.parMap P.rdeepseq collect $ JT.subTrees tree
+        -- subTrees = P.parMap P.rdeepseq collect $ JT.subTrees tree
         subTrees = -- P.withStrategy (P.parListChunk 3 P.rdeepseq)
                                   (fmap collect $ JT.subTrees tree)
 

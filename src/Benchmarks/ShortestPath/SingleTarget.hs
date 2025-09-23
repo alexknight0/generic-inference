@@ -27,8 +27,6 @@ module Benchmarks.ShortestPath.SingleTarget (
 import qualified Benchmarks.ShortestPath.SingleTarget.Data            as D
 
 import qualified Benchmarks.ShortestPath.SingleTarget.Baseline        as H
-import           Benchmarks.ShortestPath.SingleTarget.Data            (genConnectedQueries,
-                                                                       sample)
 import           Criterion.Main
 import qualified LocalComputation.Graph                               as G
 import qualified LocalComputation.Inference                           as I
@@ -36,9 +34,8 @@ import qualified LocalComputation.Instances.ShortestPath.SingleTarget as ST
 import           LocalComputation.Utils                               (fromRight,
                                                                        infinity)
 
+import qualified Benchmarks.Utils                                     as U
 import           Control.DeepSeq                                      (deepseq)
-import qualified Control.DeepSeq                                      as D
-import qualified Control.Exception                                    as D
 import qualified Control.Monad                                        as M
 import           Control.Monad.IO.Class                               (MonadIO)
 import qualified Data.Hashable                                        as H
@@ -52,31 +49,27 @@ import qualified LocalComputation.ValuationAlgebra                    as V
 
 benchmarks :: IO [Benchmark]
 benchmarks = do
-    graphs <- sequence [ sample $ D.genGraph 5   10
-                       , sample $ D.genGraph 10  20
-                       , sample $ D.genGraph 30  100
-                       , sample $ D.genGraph 50  100
-                       , sample $ D.genGraph 50  100
-                       , sample $ D.genGraph 50  200
-                       , sample $ D.genGraph 50  200
-                       , sample $ D.genGraph 50  200
-                       ]
-    queries <- mapM (sample . genConnectedQueries 10) graphs
+    problems <- sequence $ zipWith U.sample seeds [ D.genProblem 5  10  10
+                                                  , D.genProblem 30 100 10
+                                                  , D.genProblem 50 100 10
+                                               ]
 
-    let problems = zipWith Problem graphs queries
-        algorithm mode = multipleSingleTargets mode D.def problems
+    let algorithm mode = multipleSingleTargets mode D.def problems
 
     bruteForce  <- algorithm (Generic I.BruteForce)
     fusion      <- algorithm (Generic I.Fusion)
-    -- shenoy      <- algorithm (Generic (I.Shenoy MP.Threads))
+    shenoy      <- algorithm (Generic (I.Shenoy MP.Threads))
     -- baseline    <- algorithm (Baseline)
 
     pure $ pure $ bgroup "Shortest Path" [
-                bench "localcomputation-bruteForce" $ nfIO bruteForce
-                , bench "localcomputation-fusion"   $ nfIO fusion
-                -- , bench "localcomputation-shenoy"     $ nfIO shenoy
+                -- bench "localcomputation-bruteForce" $ nfIO bruteForce
+                -- , bench "localcomputation-fusion"   $ nfIO fusion
+                bench "localcomputation-shenoy"     $ nfIO shenoy
                 -- , bench "djikstra"                    $ nfIO baseline
             ]
+    where
+        seeds = [0..]
+
 
 --------------------------------------------------------------------------------
 -- Utilities
@@ -135,11 +128,10 @@ singleTargets mode s g qs = pure $ mapM (\q -> fromRight $ algorithm s g q) qs
 --------------------------------------------------------------------------------
 -- Variants of `singleTargets`
 --------------------------------------------------------------------------------
-data Problem a = Problem { g :: G.Graph a Double, qs :: [ST.Query a] }
 -- | Multiple problem variant of `singleTargets`. Not to be confused with `singleTargetsSplit` which
 -- handles multiple graphs but considers it as one problem.
 multipleSingleTargets :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
-    => Implementation -> D.DrawSettings -> [Problem a] -> m (m [[[Double]]])
+    => Implementation -> D.DrawSettings -> [D.BenchmarkProblem a] -> m (m [[[Double]]])
 multipleSingleTargets mode s ps = fmap sequence $ mapM (\p -> singleTargets mode s p.g p.qs) ps
 
 -- | Single query variant of `singleTargets`
