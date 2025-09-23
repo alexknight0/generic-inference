@@ -22,6 +22,7 @@ module LocalComputation.Inference.JoinTree.Tree (
     , satisfiesInvariants
     , unsafeFromGraph
     , supportsCollect
+    , vertexCount
     , vertexList
     , vertexMap
     , redirectToQueryNode

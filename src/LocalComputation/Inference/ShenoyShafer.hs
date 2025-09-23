@@ -50,9 +50,11 @@ extractQueryResult :: forall v a. (ValuationFamily v, Var a)
     -> [v a]
 extractQueryResult queryDomains results = map f queryDomains
     where
-        -- Find valuation with domain equal to query then get the valuation
+        -- Find valuation of a query node with domain equal to query then get the valuation
+        -- Needs to be a query node as `calculate` of `MessagePassing.Threads` only calculates
+        -- results on query nodes (although this can be changed)
         f :: Domain a -> v a
-        f q = (.v) $ fromJust $ L.find (\n -> q == n.d) (JT.vertexList results)
+        f q = (.v) $ fromJust $ L.find (\n -> n.t == JT.Query && q == n.d) (JT.vertexList results)
 
 
 -- | Performs shenoy shafer inference.
