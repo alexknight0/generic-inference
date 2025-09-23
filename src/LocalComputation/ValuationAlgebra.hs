@@ -56,6 +56,10 @@ type Var a = (Show a, Ord a)
 
 type Valuation v a = (ValuationFamily v, Var a)
 
+-- TODO: Add to future work
+-- page 132 generic inference - shenoy has worse speed but better memory use,
+-- should consider other methods...
+
 -- TODO: Do we want to undo the _fusion _combine change?
 -- Answer: No, because of the assumption we check on 'project'
 -- TODO: If the above is the case, then we should have the same
@@ -78,7 +82,10 @@ type Valuation v a = (ValuationFamily v, Var a)
 -- This is done to simplify the implementation of join tree construction
 -- and message passing - with this implementation, the domain of a node in
 -- a join tree is always the same as the label of the valuation (identity
--- or otherwise) that has been assigned to that node
+-- or otherwise) that has been assigned to that node. This can be changed,
+-- but asserts should then be updated to no longer enforce that projections
+-- must occur to subsets of domains when occuring between an identity element
+-- and a valuation.
 class ValuationFamily v where
 
     type VarAssignment v a b
