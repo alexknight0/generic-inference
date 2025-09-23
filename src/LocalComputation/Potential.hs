@@ -19,13 +19,12 @@ module LocalComputation.Potential (
   , fromPermutationMap
   , mapFrames
   , mapVariables
+  , unsafeGetIndex
 
 ) where
 
 import           Control.Exception                 (assert)
 import qualified Data.Array                        as A
-import qualified Data.IntMap                       as IntMap
-import qualified Data.List                         as L
 import qualified Data.Map                          as M
 import           Data.Maybe                        (fromJust)
 import qualified Data.Set                          as Set
@@ -117,7 +116,7 @@ numPermutations :: M.Map a (S.IndexedSet b) -> Int
 numPermutations = product . map S.size . M.elems
 
 -- TODO: There exists a more efficent way to do this.
-unsafeGetAssignment :: (Ord a) => M.Map a (S.IndexedSet b) -> Int -> M.Map a b
+unsafeGetAssignment :: M.Map a (S.IndexedSet b) -> Int -> M.Map a b
 unsafeGetAssignment frames index = permutationList frames !! index
 
 unsafeGetIndex :: (Ord a, Ord b) => M.Map a (S.IndexedSet b) -> M.Map a b -> Int
