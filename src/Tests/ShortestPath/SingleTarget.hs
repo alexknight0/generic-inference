@@ -38,6 +38,13 @@ import           Tests.Utils                                          (checkAnsw
                                                                        unitTest)
 import           Type.Reflection                                      (Typeable)
 
+import           Data.IORef                                           (IORef,
+                                                                       atomicModifyIORef',
+                                                                       newIORef,
+                                                                       readIORef)
+import           System.IO.Unsafe                                     (unsafePerformIO)
+import qualified System.Random                                        as R
+
 group :: GroupName
 group = "Tests.ShorestPath.SingleTarget"
 
@@ -46,9 +53,9 @@ group = "Tests.ShorestPath.SingleTarget"
 --------------------------------------------------------------------------------
 tests :: IO Bool
 tests = fmap and $ sequence [
-        -- checkParallel $$(discover)
-      -- , checkMatchesBaselineP3
-      checkMatchesBaselineRandom
+        checkParallel $$(discover)
+      , checkMatchesBaselineP3
+      , checkMatchesBaselineRandom
    ]
 
 checkMatchesBaselineP3 :: IO Bool
@@ -131,6 +138,16 @@ matchesBaselineOnGraph :: forall a . (NFData a, H.Hashable a, Binary a, Typeable
     -> Property
 matchesBaselineOnGraph g mode numTests = withTests numTests . property $ matchesBaselineForRandomQuery [g] mode
 
+globalGraphCounter :: IORef Int
+{-# NOINLINE globalGraphCounter #-}
+globalGraphCounter = unsafePerformIO (newIORef 1)
+
+getGlobal :: IO Int
+getGlobal = readIORef globalGraphCounter
+
+incrementGlobal :: IO Int
+incrementGlobal = atomicModifyIORef' globalGraphCounter (\x -> let x' = x + 1 in (x', x'))
+
 matchesBaselineForRandomQuery :: forall a . (NFData a, H.Hashable a, Binary a, Typeable a, Show a, Ord a)
     => [G.Graph a Double]
     -> Implementation
@@ -138,9 +155,12 @@ matchesBaselineForRandomQuery :: forall a . (NFData a, H.Hashable a, Binary a, T
 matchesBaselineForRandomQuery gs mode = do
     query <- forAll $ genConnectedQuery reverseAdjacencyList
 
+    graphNum <- liftIO $ getGlobal
+    _ <- liftIO $ incrementGlobal
+
     baseline     <- go        Baseline query
     local        <- go        mode query
-    localUnsplit <- goUnsplit mode query
+    localUnsplit <- goUnsplit mode query graphNum
 
     checkAnswers approx local        baseline
     checkAnswers approx localUnsplit baseline
@@ -149,8 +169,14 @@ matchesBaselineForRandomQuery gs mode = do
         go :: (MonadIO m) => Implementation -> ST.Query a -> m [Double]
         go m query = ST.singleTargetSplit' m D.def gs query
 
-        goUnsplit :: (MonadIO m) => Implementation -> ST.Query a -> m [Double]
-        goUnsplit m query = ST.singleTarget' m D.def fullGraph query
+        goUnsplit :: (MonadIO m) => Implementation -> ST.Query a -> Int -> m [Double]
+        goUnsplit m query graphNum = ST.singleTarget' m s fullGraph query
+            where
+                drawGraph = True
+
+                s = case drawGraph of
+                        True  -> D.def { D.beforeInference = Just $ "diagrams/test/" ++ show graphNum ++ ".svg" }
+                        False -> D.def
 
         fullGraph = G.merges1 gs
 
@@ -188,7 +214,7 @@ checkMatchesBaseline :: (ST.Implementation -> String)
                    -> IO Bool
 checkMatchesBaseline name getGraph test numTests = do
     graph <- getGraph
-    checkParallel $ Group group $ map (toProperty graph) ([Generic  $ I.Shenoy MP.Threads])
+    checkParallel $ Group group $ map (toProperty graph) (ST.allButBaseline)
 
     where
         toProperty :: G.Graph Natural Double -> Implementation -> (PropertyName, Property)
