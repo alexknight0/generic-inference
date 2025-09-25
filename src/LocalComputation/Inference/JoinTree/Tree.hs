@@ -24,6 +24,7 @@ module LocalComputation.Inference.JoinTree.Tree (
     , supportsCollect
     , vertexCount
     , vertexList
+    , hasQueryNode
     , vertexMap
     , redirectToQueryNode
     , incomingEdges
@@ -221,6 +222,9 @@ vertexList t = G.vertexList t.g
 
 vertexMap :: JoinTree v -> M.Map Id (Node v)
 vertexMap t = M.fromList . map (\n -> (n.id, n)) $ vertexList t
+
+hasQueryNode :: JoinTree v -> Bool
+hasQueryNode t = isJust $ L.find (\n -> n.t == Query) $ vertexList t
 
 incomingEdges :: Id -> JoinTree v -> Maybe [Node v]
 incomingEdges = (fmap snd .) . incomingEdges'

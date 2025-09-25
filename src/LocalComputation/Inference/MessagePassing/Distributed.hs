@@ -137,11 +137,14 @@ data CollectResults a = CollectResults {
 -- | The collect phase of a message passing process where each node waits for every neighbour bar one
 -- to send the node a message before the node sends off a message to the neighbour that didn't send it
 -- a message.
+--
+-- __Warning__: Assumes the target node has at least one neighbour.
 collect :: (SerializableValuation v a)
     => NodeWithPid (v a)
     -> [NodeWithPid (v a)]
     -> ComputeMessage (v a)
     -> Process (CollectResults (v a))
+collect _    []         _      = error "Collect assumes node has at least one neighbour."
 collect this neighbours action = do
     -- Wait for messages from all neighbours bar one
     postbox <- replicateM (length neighbours - 1) expect
@@ -167,12 +170,15 @@ data DistributeResults a = DistributeResults {
 
 -- | The distribute phase of a message passing process where each node waits to receive a final message
 -- and then distributes messages to all nodes it has not previously sent messages to.
+--
+-- __Warning__: Assumes the target node has at least one neighbour.
 distribute :: (SerializableValuation v a)
     => CollectResults (v a)
     -> NodeWithPid (v a)
     -> [NodeWithPid (v a)]
     -> ComputeMessage (v a)
     -> Process (DistributeResults (v a))
+distribute _              _    []         _      = error "Distribute assumes node has at least one neighbour."
 distribute collectResults this neighbours action = do
     -- Wait for response from neighbour we just sent a message to
     message :: Message (v a) <- expect

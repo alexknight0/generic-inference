@@ -17,16 +17,13 @@ module LocalComputation.ValuationAlgebra.Semiring
     , findValue
     , mapTableKeys
     , mapVariableValues
-    , fromPermutationMap
     , toFrames
     )
 where
 
-import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra                hiding
                                                                   (Valuation)
 
-import           Control.Exception                                (assert)
 import qualified Data.Map                                         as M
 import qualified Data.Set                                         as S
 import qualified LocalComputation.Pretty                          as P
@@ -106,12 +103,12 @@ data Valuation c b a = Identity { _d :: Domain a } | Valuation {
 } deriving (Generic, Binary, NFData)
 
 -- | Accessor for domain. Not O(1)!
-instance (Eq b) => HasField "d" (Valuation c b a) (Domain a) where
+instance HasField "d" (Valuation c b a) (Domain a) where
     getField i@Identity{}  = i._d
     getField v@Valuation{} = M.keysSet $ P.toFrames v._p
 
 -- | Returns 'False' if the data structure does not satisfy it's given description.
-isWellFormed :: forall a b c. (Ord a, Eq b) => Valuation c b a -> Bool
+isWellFormed :: forall a b c. (Ord a) => Valuation c b a -> Bool
 isWellFormed Identity{} = True
 isWellFormed t@Valuation{}
     | not (S.disjoint t.d t._e) = False
@@ -119,14 +116,14 @@ isWellFormed t@Valuation{}
 
 -- | Creates a valuation, returning 'Nothing' if the given parameters would lead to the creation
 -- of a valuation that is not well formed.
-create :: (Ord a, Eq b) => P.Potential a b c -> Domain a -> Maybe (Valuation c b a)
+create :: (Ord a) => P.Potential a b c -> Domain a -> Maybe (Valuation c b a)
 create x y
     | isWellFormed result = Just result
     | otherwise = Nothing
     where
         result = Valuation x y
 
-unsafeCreate :: (Ord a, Eq b) => P.Potential a b c -> Domain a -> Valuation c b a
+unsafeCreate :: (Ord a) => P.Potential a b c -> Domain a -> Valuation c b a
 unsafeCreate p e = U.assertP isWellFormed $ Valuation p e
 
 instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (Valuation c b) where
@@ -162,7 +159,6 @@ toTable Identity{}    = error "Not Implemented"
 toTable v@Valuation{} = P.unsafeTable headings rows
     where
         assignedValues a = map show $ M.elems a
-        keys a = map show $ M.keys a
 
         headings = (map show . M.keys . P.toFrames $ v._p) ++ ["Probability"]
         rows     = map (\(assignment, value) -> assignedValues assignment ++ [show value]) $ M.toAscList
@@ -218,8 +214,9 @@ mapVariableValues f v@Valuation{} = unsafeCreate (P.mapFrames f v._p) v._e
 --     where
 --         sumOfAllXs = sum $ M.elems rowMap
 
-toFrames :: (Eq b) => Valuation c b a -> M.Map a (Domain b)
+toFrames :: Valuation c b a -> M.Map a (Domain b)
 toFrames Identity{}    = error "Called 'toFrames' on identity element"
 toFrames v@Valuation{} = P.toFrames v._p
 
+fromPermutationMap :: (Ord a, Ord b) => M.Map (M.Map a b) c -> Valuation c b a
 fromPermutationMap m = unsafeCreate (P.fromPermutationMap m) S.empty

@@ -31,6 +31,8 @@ import qualified Data.Char                                         as C
 import           LocalComputation.Inference                        (Mode (..),
                                                                     queriesDrawGraph)
 
+import qualified Benchmarks.BayesianNetwork.Data                   as B
+import qualified Data.Map                                          as M
 import qualified LocalComputation.Inference                        as I
 import qualified LocalComputation.Inference.JoinTree.Diagram       as D
 import qualified LocalComputation.Inference.MessagePassing         as MP
@@ -38,16 +40,110 @@ import qualified LocalComputation.Inference.MessagePassing         as MP
 tests :: IO Bool
 tests = checkParallel $$(discover)
 
--- This value is not as precise as might be expected as the values entere for manual testcases
+--------------------------------------------------------------------------------
+-- Tests
+--------------------------------------------------------------------------------
+prop_genericP1 :: Property
+prop_genericP1 = testGeneric asiaQueriesP1 asiaAnswersP1 asiaValuationsP1
+
+prop_genericP2 :: Property
+prop_genericP2 = testGeneric asiaQueriesP2 asiaAnswersP2 asiaValuationsP2
+
+-- The valuations for this test differ from the valuations inside the asia.net file.
+prop_genericP3 :: Property
+prop_genericP3 = testGeneric asiaQueriesP3 asiaAnswersP3 asiaValuationsP3
+
+prop_genericAfterParsingP1 :: Property
+prop_genericAfterParsingP1 = unitTest $ checkQueries asiaQueriesP1
+                                                              asiaAnswersP1
+                                                              (fmap convertToAsia $ parseNetwork asiaFilepath)
+
+prop_genericAfterParsingP2 :: Property
+prop_genericAfterParsingP2 = unitTest $ checkQueries asiaQueriesP2
+                                                              asiaAnswersP2
+                                                              (fmap convertToAsia $ parseNetwork asiaFilepath)
+
+prop_baselineP1 :: Property
+prop_baselineP1 = unitTest $ do
+    let results = runQueries (createNetwork asiaValuationsP1) asiaQueriesP1
+    checkAnswers approxEqual results asiaAnswersP1
+
+prop_baselineP3 :: Property
+prop_baselineP3 = unitTest $ do
+    let results = runQueries (createNetwork asiaValuationsP3) asiaQueriesP3
+    checkAnswers approxEqual results asiaAnswersP3
+
+prop_genericMatchesBaseline :: Property
+prop_genericMatchesBaseline = withTests 100 . property $ do
+    qs <- forAll genQueries'
+    prebuiltResults' <- prebuiltResults qs
+    net <- fmap convertToAsia $ parseNetwork asiaFilepath
+
+    case prebuiltResults' of
+        -- Some queries result in underflow as when we incrementally impose conditions as in
+        -- the prebuit case, we may attempt to impose a condition that has a 0% chance of occuring.
+        -- Discard these cases.
+        Left (E.RatioZeroDenominator) -> discard
+        Left _ -> failure
+        Right prebuiltResults'' -> do
+            algebraResults' <- algebraResults qs net
+            checkAnswers approxEqual algebraResults' prebuiltResults''
+
+    where
+        genQueries' :: Gen ([Query AsiaVar Bool])
+        genQueries' = Gen.list (Range.linear 1 6)
+                               (genAsiaQuery 1 4)  -- Baseline can only handle max 1 conditioned variable.
+
+        algebraResults qs net = run $ getProbability (I.Shenoy MP.Distributed) D.def qs net
+        prebuiltResults qs = liftIO $ E.try $ E.evaluate $ force $ runQueries (createNetwork asiaValuationsP1) qs
+
+-- prop_drawAsiaGraph :: Property
+-- prop_drawAsiaGraph = unitTest $ do
+--     net <- fmap convertToAsia $ parseNetwork asiaFilepath
+--     fromRight $ queriesDrawGraph settings (Shenoy MP.Threads) net (toInferenceQuery asiaQueriesP1)
+--
+--     where settings = D.def { D.beforeInference = Just "diagrams/asia_before.svg"
+--                            , D.afterInference = Just "diagrams/asia_after.svg"
+--                           }
+
+-- prop_drawAlarm :: Property
+-- prop_drawAlarm = unitTest $ do
+--     net <- parseNetwork alarmFilepath
+--     fromRight $ queriesDrawGraph settings (Shenoy MP.Threads) net (toInferenceQuery alarmQueries)
+--
+--     where settings = D.def { D.beforeInference = Just "diagrams/alarm_before.svg"
+--                            , D.afterInference  = Just "diagrams/alarm_after.svg"
+--                           }
+
+prop_alarm :: Property
+prop_alarm = unitTest $ do
+    checkQueries alarmQueries alarmAnswers (parseNetwork alarmFilepath)
+
+prop_drawThesisExample :: Property
+prop_drawThesisExample = unitTest $ do
+    fromRight $ queriesDrawGraph settings (Shenoy MP.Threads) (dataToValuations thesisExampleValuations) (toInferenceQuery [thesisExampleQuery])
+
+    where settings = D.def { D.beforeInference = Just "diagrams/thesis_before.svg"
+                           , D.afterInference = Nothing
+                          }
+
+-- prop_parsesMunin :: Property
+-- prop_parsesMunin = unitTest $ do
+--     checkQueries muninQueries muninAnswers (parseNetwork muninFilepath)
+
+--------------------------------------------------------------------------------
+-- Settings
+--------------------------------------------------------------------------------
+-- This value is not as precise as might be expected as the values entered for manual testcases
 -- are truncated to ~7 / 8 significant figures.
 approxEqual :: Probability -> Probability -> Bool
 approxEqual x y = abs (x - y) < 1 * 10 ^^ (-7 :: Integer)
 
-dataToValuations :: forall a . (Ord a) => [([a], [Probability])] -> Network a Bool
-dataToValuations vs = map (uncurry getRows) withVariableDomains
-    where
-        withVariableDomains :: [([(a, [Bool])], [Probability])]
-        withVariableDomains = map (\(xs, ps) -> (map boolify xs, ps)) vs
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
+testGeneric :: [Query AsiaVar Bool] -> [Probability] -> [([AsiaVar], [Probability])] -> Property
+testGeneric qs as vs = unitTest $ checkQueries qs as (pure $ dataToValuations vs)
 
 checkQueries :: (Show a, Show b, Serializable a, Serializable b, Ord a, Ord b, NFData a, NFData b)
     => [Query a b]
@@ -60,6 +156,12 @@ checkQueries qs ps getNetwork = do
     checkAnswers approxEqual results ps
     pure network
 
+dataToValuations :: forall a . (Ord a) => [([a], [Probability])] -> Network a Bool
+dataToValuations vs = map (uncurry getRows) withVariableDomains
+    where
+        withVariableDomains :: [([(a, [Bool])], [Probability])]
+        withVariableDomains = map (\(xs, ps) -> (map boolify xs, ps)) vs
+
 parseNetwork :: FilePath -> PropertyT IO (Network String String)
 parseNetwork filename = do
     parsed <- liftIO $ parseFile P.network filename
@@ -67,6 +169,11 @@ parseNetwork filename = do
         Left e        -> do annotateShow e; failure
         Right network -> pure network
 
+--------------------------------------------------------------------------------
+-- Utilities - converting asia problems to typed representation
+--------------------------------------------------------------------------------
+genAsiaQuery :: Int -> Int -> Gen (Query AsiaVar Bool)
+genAsiaQuery maxConditioned maxConditional = B.genQuery maxConditioned maxConditional asiaVariables
 
 convertToAsia :: Network String String -> Network AsiaVar Bool
 convertToAsia network = map (mapTableKeys stringToAsiaVar) . boolifyNet $ network
@@ -85,106 +192,4 @@ boolifyNet = map (mapVariableValues readBool)
 
 boolify :: a -> (a, [Bool])
 boolify x = (x, [False, True])
-
-inferenceAnswers :: [Query AsiaVar Bool] -> [Probability] -> [([AsiaVar], [Probability])] -> Property
-inferenceAnswers qs as vs = unitTest $ checkQueries qs as (pure $ dataToValuations vs)
-
-prop_inferenceAnswersP1 :: Property
-prop_inferenceAnswersP1 = inferenceAnswers asiaQueriesP1 asiaAnswersP1 asiaValuationsP1
-
-prop_inferenceAnswersP2 :: Property
-prop_inferenceAnswersP2 = inferenceAnswers asiaQueriesP2 asiaAnswersP2 asiaValuationsP2
-
--- The valuations for this test differ from the valuations inside the asia.net file.
-prop_inferenceAnswersP3 :: Property
-prop_inferenceAnswersP3 = inferenceAnswers asiaQueriesP3 asiaAnswersP3 asiaValuationsP3
-
-prop_inferenceAnswersAfterParsingP1 :: Property
-prop_inferenceAnswersAfterParsingP1 = unitTest $ checkQueries asiaQueriesP1
-                                                              asiaAnswersP1
-                                                              (fmap convertToAsia $ parseNetwork asiaFilepath)
-
-prop_inferenceAnswersAfterParsingP2 :: Property
-prop_inferenceAnswersAfterParsingP2 = unitTest $ checkQueries asiaQueriesP2
-                                                              asiaAnswersP2
-                                                              (fmap convertToAsia $ parseNetwork asiaFilepath)
-
-prop_prebuiltAnswersP1 :: Property
-prop_prebuiltAnswersP1 = unitTest $ do
-    let results = runQueries (createNetwork asiaValuationsP1) asiaQueriesP1
-    checkAnswers approxEqual results asiaAnswersP1
-
-prop_prebuiltAnswersP3 :: Property
-prop_prebuiltAnswersP3 = unitTest $ do
-    let results = runQueries (createNetwork asiaValuationsP3) asiaQueriesP3
-    checkAnswers approxEqual results asiaAnswersP3
-
-genQuery :: Gen (Query AsiaVar Bool)
-genQuery = do
-    vars <- genVarsWithAssignedValue
-    conditionedVarIndex <- Gen.int (Range.linear 0 (length vars - 1))
-    let conditionedVar = vars !! conditionedVarIndex
-        conditionalVars = filter (\x -> x /= conditionedVar) vars
-    pure $ toQueryA ([conditionedVar], conditionalVars)
-
-    where
-        genVars = Gen.set (Range.linear 1 numVarsToChooseFrom)
-                          (Gen.enum minAsiaP1 maxAsiaP1)
-
-        genVarsWithAssignedValue = do
-            vars <- genVars
-            forM (S.toList vars) $ \x -> do
-                b <- Gen.bool
-                pure (x, b)
-
-        numVarsToChooseFrom = length [minAsiaP1 .. maxAsiaP1]
-
-prop_inferenceAnswersMatchPrebuilt :: Property
-prop_inferenceAnswersMatchPrebuilt = withTests 100 . property $ do
-    qs <- forAll genQueries'
-    prebuiltResults' <- prebuiltResults qs
-    net <- fmap convertToAsia $ parseNetwork asiaFilepath
-
-    case prebuiltResults' of
-        -- Some queries result in underflow as when we incrementally impose conditions as in
-        -- the prebuit case, we may attempt to impose a condition that has a 0% chance of occuring.
-        -- Discard these cases.
-        Left (E.RatioZeroDenominator) -> discard
-        Left _ -> failure
-        Right prebuiltResults'' -> do
-            algebraResults' <- algebraResults qs net
-            checkAnswers approxEqual algebraResults' prebuiltResults''
-
-    where
-        genQueries' :: Gen ([Query AsiaVar Bool])
-        genQueries' = Gen.list (Range.linear 1 6) genQuery
-
-        algebraResults qs net = run $ getProbability (I.Shenoy MP.Distributed) D.def qs net
-        prebuiltResults qs = liftIO $ E.try $ E.evaluate $ force $ runQueries (createNetwork asiaValuationsP1) qs
-
-prop_drawAsiaGraph :: Property
-prop_drawAsiaGraph = unitTest $ do
-    net <- fmap convertToAsia $ parseNetwork asiaFilepath
-    fromRight $ queriesDrawGraph settings (Shenoy MP.Threads) net (toInferenceQuery asiaQueriesP1)
-
-    where settings = D.def { D.beforeInference = Just "diagrams/asia_before.svg"
-                           , D.afterInference = Just "diagrams/asia_after.svg"
-                          }
-
-prop_alarm :: Property
-prop_alarm = unitTest $ do
-    checkQueries alarmQueries alarmAnswers (parseNetwork alarmFilepath)
-
-prop_drawThesisExample :: Property
-prop_drawThesisExample = unitTest $ do
-    fromRight $ queriesDrawGraph settings (Shenoy MP.Threads) (dataToValuations thesisExampleValuations) (toInferenceQuery [thesisExampleQuery])
-
-    where settings = D.def { D.beforeInference = Just "diagrams/thesis_before.svg"
-                           , D.afterInference = Nothing
-                          }
-
--- prop_parsesMunin :: Property
--- prop_parsesMunin = unitTest $ do
---     checkQueries muninQueries muninAnswers (parseNetwork muninFilepath)
-
 

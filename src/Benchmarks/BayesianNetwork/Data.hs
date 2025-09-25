@@ -17,6 +17,7 @@ module Benchmarks.BayesianNetwork.Data
     , asiaAnswersP1
     , asiaAnswersP2
     , asiaAnswersP3
+    , asiaVariables
     , muninQueries
     , muninAnswers
     , alarmQueries
@@ -30,10 +31,12 @@ module Benchmarks.BayesianNetwork.Data
     , asiaFilepath
     , alarmFilepath
     , muninFilepath
+    , genQuery
     , genQueries
     , genQueriesExact
     , Gen.sample
     , H.Gen
+    , Variables
     )
 where
 
@@ -58,17 +61,16 @@ type Variables a b = M.Map a (V.Domain b)
 -- | Generates a variable assignment from a set of variables and their possible values.
 -- If the requested `numVars` exceeds the number of variables in `vars` then simply
 -- assigns as many as possible.
-genVarAssignment :: Int -> Variables String String -> H.Gen (BN.VarAssignment String String)
+genVarAssignment :: (Ord a) => Int -> Variables a b -> H.Gen (BN.VarAssignment a b)
 genVarAssignment numVars _
     | numVars < 0           = U.assertError
 genVarAssignment numVars vars = do
     randomSubMap <- fmap (M.fromList . take numVars) $ Gen.shuffle (M.toList vars)
-    sequence $ M.map (\possibleValues -> Gen.element possibleValues)
-                     randomSubMap
+    sequence $ M.map Gen.element randomSubMap
 
 -- | Generates a random query using the given naturals as upper bounds on the number
 -- of variables that can be found in the conditioned and conditional variables respectively.
-genQuery :: Int -> Int -> Variables String String -> H.Gen (BN.Query String String)
+genQuery :: (Ord a) => Int -> Int -> Variables a b -> H.Gen (BN.Query a b)
 genQuery maxConditioned maxConditional vars
     | maxConditioned <= 0 = U.assertError
     | maxConditional <  0 = U.assertError
@@ -79,8 +81,7 @@ genQuery maxConditioned maxConditional vars = do
 
     genQueryExact numConditioned numConditional vars
 
-
-genQueryExact :: Int -> Int -> Variables String String -> H.Gen (BN.Query String String)
+genQueryExact :: (Ord a) => Int -> Int -> Variables a b -> H.Gen (BN.Query a b)
 genQueryExact numConditioned numConditional vars
     | numConditioned <= 0 = U.assertError
     | numConditional <  0 = U.assertError
@@ -91,30 +92,29 @@ genQueryExact numConditioned numConditional vars = do
 
     pure $ BN.Query conditioned conditional
 
-
-genQueries :: BN.Network String String -> Int -> Int -> Int -> H.Gen ([BN.Query String String])
+genQueries :: (Ord a, Eq b) => BN.Network a b -> Int -> Int -> Int -> H.Gen ([BN.Query a b])
 genQueries valuations = genQueries' variables
     where
         variables = foldr M.union M.empty $ map S.toFrames valuations
 
-genQueries' :: Variables String String -> Int -> Int -> Int -> H.Gen ([BN.Query String String])
+genQueries' :: (Ord a) => Variables a b -> Int -> Int -> Int -> H.Gen ([BN.Query a b])
 genQueries' _    numQueries _ _ | numQueries == 0 = U.assertError
 genQueries' vars numQueries maxConditioned maxConditional = Gen.list (Range.singleton numQueries)
                                                                      (genQuery maxConditioned maxConditional vars)
 
-genQueriesExact :: BN.Network String String -> Int -> Int -> Int -> H.Gen ([BN.Query String String])
+genQueriesExact :: (Ord a, Eq b) => BN.Network a b -> Int -> Int -> Int -> H.Gen ([BN.Query a b])
 genQueriesExact valuations = genQueriesExact' variables
     where
         variables = foldr M.union M.empty $ map S.toFrames valuations
 
-genQueriesExact' :: Variables String String -> Int -> Int -> Int -> H.Gen ([BN.Query String String])
+genQueriesExact' :: (Ord a) => Variables a b -> Int -> Int -> Int -> H.Gen ([BN.Query a b])
 genQueriesExact' _    numQueries _ _ | numQueries == 0 = U.assertError
 genQueriesExact' vars numQueries numConditioned numConditional = Gen.list (Range.singleton numQueries)
                                                                           (genQueryExact numConditioned numConditional vars)
 
 
 --------------------------------------------------------------------------------
--- Manual test cases
+-- Hardcoded test cases
 --------------------------------------------------------------------------------
 
 dataDirectory :: String
@@ -128,6 +128,10 @@ alarmFilepath = dataDirectory ++ "alarm.net"
 
 muninFilepath :: String
 muninFilepath = dataDirectory ++ "munin.net"
+
+--------------------------------------------------------------------------------
+-- Hardcoded asia data
+--------------------------------------------------------------------------------
 
 -- | Variables (AKA nodes) of the asia example. XRayResultAndDyspnea appears only in P3.
 -- If order is updated, also update minAsiaP1 and maxAsiaP1 to define the range of values
@@ -152,6 +156,8 @@ stringToAsiaVar "xray"   = XRayResult
 stringToAsiaVar "dysp"   = Dyspnea
 stringToAsiaVar _        = error "Unexpected string representing an asia var."
 
+asiaVariables :: Variables AsiaVar Bool
+asiaVariables = M.fromList $ map (\x -> (x, [False, True])) [minAsiaP1 .. maxAsiaP1]
 
 -- These valuations match the commonly used probability potentials, which slightly differ from
 -- the example displayed in the thesis report in the values for 'Smoker'.
@@ -200,6 +206,7 @@ asiaAnswersP1 = [0.05, 0.0595, 1, 0.01, 0.1854545]
 asiaValuationsP2 :: [([AsiaVar], [BN.Probability])]
 asiaValuationsP2 = asiaValuations
 
+-- | Queries that the baseline model can't handle, but the generic implementation can.
 asiaQueriesP2 :: [BN.Query AsiaVar Bool]
 asiaQueriesP2 = map BN.toQueryA [
           (
@@ -245,6 +252,9 @@ asiaQueriesP3 = map BN.toQueryA [
 asiaAnswersP3 :: [BN.Probability]
 asiaAnswersP3 = [0.09882268]
 
+--------------------------------------------------------------------------------
+-- Other hardcoded test cases
+--------------------------------------------------------------------------------
 muninQueries :: [BN.Query String String]
 muninQueries = map BN.toQueryA [
         -- Pretty sure we want underscores instead of '.'s here. Also may need to replace the dashes? idk. Maybe not.

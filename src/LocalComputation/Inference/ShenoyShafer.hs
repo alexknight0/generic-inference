@@ -88,19 +88,25 @@ queries mode settings vs queryDomains = do
         drawTree Nothing         _    = pure ()
         drawTree (Just filename) tree = liftIO $ D.drawForest filename tree
 
--- TODO: A lot of combines are repeated in this process. This could definitely be
--- improved with a dynamic programming solution.
 nodeActions :: (DMP.SerializableValuation v a)
     => DMP.NodeActions v a
 nodeActions this neighbours resultPort = do
 
-    collectResults    <- DMP.collect                   this neighbours computeMessage'
-    distributeResults <- DMP.distribute collectResults this neighbours computeMessage
+    postbox <- case neighbours of
+                    [] -> pure []
+                    _  -> do
+                        -- Collect and distribute assume the given node has a neighbour
+                        collectResults    <- DMP.collect                   this neighbours computeMessage'
+                        distributeResults <- DMP.distribute collectResults this neighbours computeMessage
+                        pure $ distributeResults.postbox
 
     -- Send result back to parent process
-    let result = combines1 (this.node.v : map (.msg) distributeResults.postbox)
-    assert (this.node.d == label result) (pure ())
+    let result = combines1 (this.node.v : map (.msg) postbox)
+    assertLabelUnchanged result
     sendChan resultPort $ J.changeContent this.node result
+
+    where
+        assertLabelUnchanged result = assert (this.node.d == label result) $ pure ()
 
 -- | Computes a message to send to the given neighbour.
 --

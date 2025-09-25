@@ -25,6 +25,9 @@ import qualified Data.Tuple.Extra                           as B
 --  3. consider if we are spending all our time garbage collecting (does this show in the profiler?)
 --          (see 40:45 of https://www.youtube.com/watch?v=trDqqZldxQA)
 
+-- | Performs message passing over the given forest.
+--
+-- Only query nodes will have their valuations updated.
 messagePassing :: (P.NFData (v a), V.ValuationFamily v, V.Var a)
     => JT.JoinForest (v a)
     -> JT.JoinForest (v a)
@@ -34,7 +37,9 @@ messagePassing t = JT.unsafeToForest' $ map messagePassing' $ JT.treeList t
 messagePassing' :: (P.NFData (v a), V.ValuationFamily v, V.Var a)
     => JT.JoinTree (v a)
     -> JT.JoinTree (v a)
-messagePassing' = calculate . distribute . collect
+messagePassing' t
+    | JT.hasQueryNode t = calculate . distribute . collect $ t
+    | otherwise         = t
 
 collect :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => JT.JoinTree (v a) -> JT.JoinTree (v a)
 collect tree = JT.unsafeUpdatePostboxes newPostboxes tree
@@ -81,7 +86,7 @@ distribute' incoming tree = JT.unsafeUpdatePostboxes newPostboxes tree
             where
                 results = fmap (uncurry distribute') $ zip subTreeMessages subTrees
 
-                toPar = map (\t -> JT.vertexCount t < 3) subTrees
+                toPar = map (\t -> False) subTrees
 
 
         -- Creates a mapping from ids to postboxes

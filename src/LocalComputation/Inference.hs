@@ -34,7 +34,21 @@ import qualified LocalComputation.Inference.MessagePassing             as MP
 import qualified LocalComputation.LabelledMatrix                       as M
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular        as Q
 
-data Error = QueryNotSubsetOfValuations deriving (NFData, Generic, Show)
+-- | Errors that could occur during inference
+--
+-- UnanswerableQuery indicates that there exists a variable in the query that is not
+-- present in any valuation, making the query impossible to answer.
+--
+-- The problem with an empty query is that it is always trivially covered by the knowledgebase
+-- of zero valuations. As a result, the empty query needs to have a set, hardcoded answer.
+--
+-- Developers note: if we impose that we must have at least one valuation, we still have
+-- another problem to handle before empty queries willl work. The binary join tree construction
+-- method will place the query node in a disconnected join tree as it does not relate to any
+-- other node. The valuation attached to this query node will then never be updated from 'identity'
+-- as it never interacts with a non-identity node. A different node that has an empty domain but
+-- is attached to a join tree with valuations should be selected and labelled the query node.
+data Error = UnanswerableQuery | EmptyQuery deriving (NFData, Generic, Show)
 
 data Mode = BruteForce | Fusion | Shenoy { _mode :: MP.Mode } deriving (Show, Eq)
 
@@ -46,7 +60,8 @@ queries = queriesDrawGraph D.def
 queriesDrawGraph :: (SerializableValuation v a, Show (v a), NFData (v a), MonadIO m)
     => D.DrawSettings -> Mode -> [v a] -> [Domain a] -> Either Error (m [v a])
 queriesDrawGraph _ _ vs qs
-    | not $ queryIsCovered vs qs    = Left  $ QueryNotSubsetOfValuations
+    | not $ queryIsCovered vs qs    = Left  $ UnanswerableQuery
+    | any S.null qs                 = Left  $ EmptyQuery
 queriesDrawGraph _ BruteForce vs qs = Right $ pure $ bruteForces vs qs
 queriesDrawGraph _ Fusion     vs qs = Right $ mapM (\q -> pure $ F.fusion vs q) qs
 queriesDrawGraph s (Shenoy m) vs qs = Right $ run $ SS.queries m s vs qs
@@ -67,7 +82,7 @@ queryDPDrawGraph :: (MonadIO m, Q.SemiringValue b, Show b, Var a, NFData a, NFDa
     -> Domain a
     -> Either Error (m (M.LabelledMatrix a () b))
 queryDPDrawGraph _ vs q
-    | not $ queryIsCovered vs [q] = Left $ QueryNotSubsetOfValuations
+    | not $ queryIsCovered vs [q] = Left $ UnanswerableQuery
 queryDPDrawGraph s vs q           = Right $ run $ fmap D.solution $ F.fusionPass s vs q
 
 --------------------------------------------------------------------------------

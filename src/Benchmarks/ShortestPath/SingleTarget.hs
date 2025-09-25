@@ -52,6 +52,7 @@ benchmarks = do
     problems <- sequence $ zipWith U.sample seeds [ D.genProblem 5  10  10
                                                   , D.genProblem 30 100 10
                                                   , D.genProblem 50 100 10
+                                                  , D.genProblem 50 500 10
                                                ]
 
     let algorithm mode = multipleSingleTargets mode D.def problems

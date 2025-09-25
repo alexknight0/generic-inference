@@ -172,7 +172,12 @@ matchesBaselineForRandomQuery gs mode = do
         goUnsplit :: (MonadIO m) => Implementation -> ST.Query a -> Int -> m [Double]
         goUnsplit m query graphNum = ST.singleTarget' m s fullGraph query
             where
-                drawGraph = True
+                -- | Toggle this test drawing graphs for debugging purposes.
+                -- The parent function is used by multiple tests - only one test that uses
+                -- the parent function should probably be active otherwise the drawn graphs
+                -- will continuously get overridden, and it may crash if two tests try to
+                -- write at the same time.
+                drawGraph = False
 
                 s = case drawGraph of
                         True  -> D.def { D.beforeInference = Just $ "diagrams/test/" ++ show graphNum ++ ".svg" }
@@ -181,7 +186,6 @@ matchesBaselineForRandomQuery gs mode = do
         fullGraph = G.merges1 gs
 
         reverseAdjacencyList = G.reverseAdjacencyList fullGraph
-
 
 -- TODO: do we test empty queries?
 
