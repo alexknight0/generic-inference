@@ -59,6 +59,7 @@ type Valuation v a = (ValuationFamily v, Var a)
 -- TODO: Add to future work
 -- page 132 generic inference - shenoy has worse speed but better memory use,
 -- should consider other methods...
+-- We don't do a fantastic decomposition either.
 
 -- TODO: Do we want to undo the _fusion _combine change?
 -- Answer: No, because of the assumption we check on 'project'

@@ -161,6 +161,9 @@ unsafeConvertToCollectTree f q = U.assertP JT.supportsCollect $ JT.redirectToQue
 --------------------------------------------------------------------------------
 -- Invariants
 --------------------------------------------------------------------------------
+-- TODO: add fact that no variables in any of the join trees are shared.
+-- TODO: Should we even ever have a join forest? Isn't there always a way to form
+-- a tree from a join forest?
 satisfiesInvariants :: Valuation v a => JoinForest (v a) -> Bool
 satisfiesInvariants f = all JT.satisfiesInvariants (treeList f)
 

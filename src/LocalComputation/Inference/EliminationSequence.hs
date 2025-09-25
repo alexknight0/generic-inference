@@ -5,6 +5,7 @@ module LocalComputation.Inference.EliminationSequence
     , createAndExclude
     , eliminateNext
     , isEmpty
+    , size
     , EliminationSequence
     )
 where
@@ -21,7 +22,7 @@ import           Control.Exception (assert)
 Implemented as a heap. Does not implement the variable valuation linked list (VVLL) described page 25 of
 "A generic Architecture for local Computation" (Marc Pouly) and hence performance could easily be improved.
 -}
-newtype EliminationSequence a = EliminationSequence (H.MinPrioHeap (OrderByLength S.Set a) a)
+newtype EliminationSequence a = EliminationSequence (H.MinPrioHeap (OrderByLength S.Set a) a) deriving Show
 
 data StructureError a = DuplicateVariable | VariableNotMemberOfOwnClique a
 
@@ -57,6 +58,9 @@ createAndExclude ds excluded = EliminationSequence $ H.fromList
 isEmpty :: EliminationSequence a -> Bool
 isEmpty (EliminationSequence xs) = H.isEmpty xs
 
+size :: EliminationSequence a -> Int
+size (EliminationSequence xs) = H.size xs
+
 getCliques :: (Ord a) => [S.Set a] -> M.Map a (S.Set a)
 getCliques ds = M.unionsWith S.union $ map f ds
     where
@@ -78,7 +82,7 @@ eliminateNext (EliminationSequence vars)
             where
                 f (OrderByLength clique, y) = (OrderByLength $ S.delete var clique, y)
 
-newtype OrderByLength f a = OrderByLength (f a)
+newtype OrderByLength f a = OrderByLength (f a) deriving Show
 
 instance (Foldable f) => Foldable (OrderByLength f) where
     foldr f acc (OrderByLength xs) = foldr f acc xs

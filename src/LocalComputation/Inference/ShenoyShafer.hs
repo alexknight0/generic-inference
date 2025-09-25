@@ -13,11 +13,14 @@ import           Control.Distributed.Process                           hiding
 import           Data.Set                                              (intersection)
 
 
+import           Control.DeepSeq                                       (rnf)
 import           Control.Exception                                     (assert)
+import           Control.Exception.Base                                (evaluate)
 import qualified Data.List                                             as L
 import           Data.Maybe                                            (fromJust)
 import           LocalComputation.Inference.JoinTree                   (Node (..),
-                                                                        baseJoinForest)
+                                                                        baseJoinForest,
+                                                                        binaryJoinForest)
 import qualified LocalComputation.Inference.JoinTree                   as J
 import qualified LocalComputation.Inference.JoinTree                   as JT
 import qualified LocalComputation.Inference.JoinTree.Diagram           as D
@@ -26,6 +29,8 @@ import qualified LocalComputation.Inference.MessagePassing             as MP
 import qualified LocalComputation.Inference.MessagePassing.Distributed as DMP
 import qualified LocalComputation.Inference.MessagePassing.Threads     as TMP
 import           LocalComputation.ValuationAlgebra
+import           System.IO                                             (hFlush,
+                                                                        stdout)
 
 -- TODO: [Hypothesis]... Due to the high serialization cost, using the Cloud Haskell library to represent
 -- the message passing process by treating each node as a seperate computer is not efficent.
@@ -78,7 +83,7 @@ queries mode settings vs queryDomains = do
     pure $ extractQueryResult queryDomains treeAfterInference
 
     where
-        treeBeforeInference = baseJoinForest vs queryDomains
+        treeBeforeInference = binaryJoinForest vs queryDomains
 
         drawTree Nothing         _    = pure ()
         drawTree (Just filename) tree = liftIO $ D.drawForest filename tree

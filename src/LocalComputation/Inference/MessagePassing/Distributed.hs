@@ -147,6 +147,8 @@ collect this neighbours action = do
     postbox <- replicateM (length neighbours - 1) expect
 
     let senders = map (.sender) postbox
+        -- TODO: remove assert; we allow nodes with no neighbours in the join tree.
+
         -- The target neighbour is the neighbour who didn't send a message to us
         target = U.findAssertSingleMatch (\n -> n.id `notElem` senders) neighbours
 

@@ -108,6 +108,7 @@ snd4 (_, x, _, _) = x
 fth4 :: (a, b, c, d) -> d
 fth4 (_, _, _, x) = x
 
+-- TODO: not an assert
 findAssertSingleMatch :: (a -> Bool) -> [a] -> a
 findAssertSingleMatch p xs
     | [y] <- filter p xs = y

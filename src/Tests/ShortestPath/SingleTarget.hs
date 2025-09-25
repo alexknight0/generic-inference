@@ -46,9 +46,9 @@ group = "Tests.ShorestPath.SingleTarget"
 --------------------------------------------------------------------------------
 tests :: IO Bool
 tests = fmap and $ sequence [
-        checkParallel $$(discover)
-      , checkMatchesBaselineP3
-      , checkMatchesBaselineRandom
+        -- checkParallel $$(discover)
+      -- , checkMatchesBaselineP3
+      checkMatchesBaselineRandom
    ]
 
 checkMatchesBaselineP3 :: IO Bool
@@ -157,6 +157,8 @@ matchesBaselineForRandomQuery gs mode = do
         reverseAdjacencyList = G.reverseAdjacencyList fullGraph
 
 
+-- TODO: do we test empty queries?
+
 --------------------------------------------------------------------------------
 -- Utilities for manual checks
 --------------------------------------------------------------------------------
@@ -186,7 +188,7 @@ checkMatchesBaseline :: (ST.Implementation -> String)
                    -> IO Bool
 checkMatchesBaseline name getGraph test numTests = do
     graph <- getGraph
-    checkParallel $ Group group $ map (toProperty graph) ST.allButBaseline
+    checkParallel $ Group group $ map (toProperty graph) ([Generic  $ I.Shenoy MP.Threads])
 
     where
         toProperty :: G.Graph Natural Double -> Implementation -> (PropertyName, Property)

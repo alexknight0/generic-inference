@@ -97,7 +97,9 @@ instance (ValuationFamily v, Ord a, Show a) => HasField "d" (Node (v a)) (Domain
 
 -- | Equality of nodes defers to id.
 instance Eq (Node v) where
-    -- Equality is necessary for use with Algebra.Graph
+    -- Equality is necessary for use with Algebra.Graph,
+    -- and a lot of functions also utilise this property
+    -- for easy 'is this the same node' checking.
     x == y = x.id == y.id
 
 -- | Ordering of nodes defers to id.
@@ -109,14 +111,14 @@ instance Ord (Node v) where
     x <= y = x.id <= y.id
 
 instance (ValuationFamily v, Ord a, Show a) => Show (Node (v a)) where
-    show n = unpack $ pShow (n.id, n.d)
+    show n = unpack $ pShow (n.id, n.d, n.t)
 
 --------------------------------------------------------------------------------
 -- Join trees
 --------------------------------------------------------------------------------
 
 {- | A join tree is:
-    1. a non-empty tree (connected, acyclic graph),
+    1. a non-empty directed tree (connected, acyclic graph, with at most |V| - 1 edges),
     2. such that the node 'id' fields form a topological ordering,
     3. it is directed toward a node called the 'root',
     4. and has the running intersection property.
@@ -144,6 +146,7 @@ satisfiesInvariants t = vertexCount t > 0 && isAcyclic t          -- (1)
                             && isDirectedTowardsRoot t            -- (3)
                             && hasRunningIntersectionProperty t   -- (4)
                             && verticesHaveValidPostbox t         -- (5)
+                            -- TODO: Check edge count.
 
 instance HasField "root" (JoinTree v) (Node v) where
     getField t = last $ vertexList t
@@ -308,7 +311,6 @@ isConnected g = case G.vertexList g of
 isAcyclic :: JoinTree v -> Bool
 isAcyclic t = isJust . G.toAcyclic . G.toAdjacencyMap $ t.g
 
--- TODO: Implement
 hasRunningIntersectionProperty :: forall v a . (Valuation v a) => JoinTree (v a) -> Bool
 hasRunningIntersectionProperty t = all (isConnected . inducedByVar) (M.keys variableMap')
     where

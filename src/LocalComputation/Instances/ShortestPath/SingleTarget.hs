@@ -126,8 +126,10 @@ type ComputeInference m a = D.DrawSettings
 --------------------------------------------------------------------------------
 -- Decomposition
 --------------------------------------------------------------------------------
+-- TODO: Is this filter right? Should it be handled differently?
 decomposition :: forall a b . (Ord a) => G.Graph a b -> [G.Graph a b]
-decomposition g = decomposition' (E.create $ map (.neighbourhood) nHoods) nHoods
+decomposition g = filter (not . G.isEmpty) $
+                    decomposition' (E.create $ map (.neighbourhood) nHoods) nHoods
     where
         decomposition' :: E.EliminationSequence a -> [Vertex a] -> [G.Graph a b]
         decomposition' _ []      = []
