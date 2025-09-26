@@ -50,7 +50,7 @@ import           Type.Reflection                                      (Typeable)
 -- TODO: Can this handle negative weights / negative weight cycles?
 
 -- | Query for a multiple-source single-target problem.
-data Query a = Query { sources :: [a], target :: a } deriving Show
+data Query a = Query { sources :: [a], target :: a } deriving (Show, V.Generic, NFData)
 
 {- | Returns the shortest distance between a single target and multiple sources.
 

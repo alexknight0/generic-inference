@@ -35,7 +35,9 @@ import           LocalComputation.Utils                               (fromRight
                                                                        infinity)
 
 import qualified Benchmarks.Utils                                     as U
-import           Control.DeepSeq                                      (deepseq)
+import           Control.DeepSeq                                      (deepseq,
+                                                                       rnf)
+import           Control.Exception.Base                               (evaluate)
 import qualified Control.Monad                                        as M
 import           Control.Monad.IO.Class                               (MonadIO)
 import qualified Data.Hashable                                        as H
@@ -49,27 +51,35 @@ import qualified LocalComputation.ValuationAlgebra                    as V
 
 benchmarks :: IO [Benchmark]
 benchmarks = do
-    problems <- sequence $ zipWith U.sample seeds [ D.genProblem 5  10  10
-                                                  , D.genProblem 30 100 10
-                                                  , D.genProblem 50 100 10
-                                                  , D.genProblem 50 500 10
+    problems <- sequence $ zipWith U.sample seeds $ concat [
+                                                    take 10 $ repeat $ D.genProblem 50 100 1
+                                                  , take 10 $ repeat $ D.genProblem 50 250 1
+                                                  , take 10 $ repeat $ D.genProblem 50 500 1
                                                ]
+    evaluate (rnf problems)
 
     let algorithm mode = multipleSingleTargets mode D.def problems
 
     bruteForce  <- algorithm (Generic I.BruteForce)
     fusion      <- algorithm (Generic I.Fusion)
     shenoy      <- algorithm (Generic (I.Shenoy MP.Threads))
-    -- baseline    <- algorithm (Baseline)
+    baseline    <- algorithm (Baseline)
 
-    pure $ pure $ bgroup "Shortest Path" [
-                -- bench "localcomputation-bruteForce" $ nfIO bruteForce
-                -- , bench "localcomputation-fusion"   $ nfIO fusion
-                bench "localcomputation-shenoy"     $ nfIO shenoy
-                -- , bench "djikstra"                    $ nfIO baseline
-            ]
+    benches <- mapM (benchMode problems)  [
+              Baseline
+            , Generic  $ I.Fusion
+            , Generic  $ I.Shenoy MP.Threads
+            , Generic  $ I.Shenoy MP.Distributed
+            , DynamicP $ MP.Distributed
+        ]
+
+    pure $ pure $ bgroup "Shortest Path" $ benches
     where
         seeds = [0..]
+
+        benchMode problems mode = do
+            afterSetup <- multipleSingleTargets mode D.def problems
+            pure $ bench (show mode) $ nfIO afterSetup
 
 
 --------------------------------------------------------------------------------

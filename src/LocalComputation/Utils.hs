@@ -50,6 +50,7 @@ module LocalComputation.Utils
     , filterKeys
     , allButMaybeOne
     , listArray0
+    , spin
     )
 where
 
@@ -62,7 +63,8 @@ import           Data.Map                      (Map, adjust, elems, insert,
 import qualified Data.Map                      as M
 import           Data.Set                      (Set)
 import qualified Data.Set                      as S
-import           Data.Time                     (UTCTime, utctDayTime)
+import           Data.Time                     (UTCTime, addUTCTime,
+                                                getCurrentTime, utctDayTime)
 import           Text.Printf                   (printf)
 
 import qualified Text.ParserCombinators.Parsec as P
@@ -70,6 +72,8 @@ import qualified Text.ParserCombinators.Parsec as P
 import qualified Control.DeepSeq               as D
 import           Control.Exception             (assert)
 import qualified Control.Exception             as D
+import           Control.Monad                 (when)
+import           Control.Monad.IO.Class        (MonadIO (liftIO))
 import qualified Data.Array                    as A
 import qualified Data.List                     as L
 import           GHC.Stack                     (HasCallStack)
@@ -300,4 +304,13 @@ allButMaybeOne p xs = falseCount < 2
             | p x = acc
             | otherwise = acc + 1
 
+-- | Busy waits for the given number of seconds
+spin :: (MonadIO m) => Natural -> m ()
+spin seconds = do
+    start <- liftIO $ getCurrentTime
+    let end = addUTCTime (fromIntegral seconds) start
+    let loop = do
+          now <- getCurrentTime
+          when (now < end) loop
+    liftIO $ loop
 

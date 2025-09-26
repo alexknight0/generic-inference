@@ -18,6 +18,7 @@ import qualified Benchmarks.BayesianNetwork.Data                   as D
 import qualified Benchmarks.Utils                                  as U
 import           Control.Monad.IO.Class                            (MonadIO)
 import           Criterion.Main
+import           Data.Function                                     ((&))
 import qualified LocalComputation.Inference                        as I
 import qualified LocalComputation.Inference.JoinTree.Diagram       as D
 import qualified LocalComputation.Inference.MessagePassing         as MP
@@ -39,36 +40,36 @@ benchmarks = do
         smallNet  <- U.unsafeParseFile' P.network D.asiaFilepath
         mediumNet <- U.unsafeParseFile' P.network D.alarmFilepath
 
-        problems <- sequence $ zipWith ($) [ -- createProblem smallNet 10 1 0
-                               -- , createProblem smallNet 20 4 10
-                               -- , createProblem smallNet  20 4 40
-                               -- createProblem mediumNet 20 1 0
-                                 createProblem mediumNet 3  1 1
-                               , createProblem mediumNet 3  1 1
-                               , createProblem mediumNet 3  1 1
-                               , createProblem mediumNet 3  1 1
+        singleQueryProblems <- sequence $ zipWith (&) seeds $ concat [
+                                                       take 5 $ repeat $ createProblem mediumNet 1  1 0
+                                                     , take 5 $ repeat $ createProblem mediumNet 1  1 1
+                                                     , take 5 $ repeat $ createProblem mediumNet 1  2 1
+                                                     , take 5 $ repeat $ createProblem mediumNet 1  2 2
+                                                  ]
 
-                               , createProblem mediumNet 3  1 1
-                               , createProblem mediumNet 3  1 1
-                               , createProblem mediumNet 3  1 1
-                               , createProblem mediumNet 3  1 1
+        multipleQueryProblems <- sequence $ zipWith (&) seeds $ concat [
+                                                       take 5 $ repeat $ createProblem mediumNet 5  1 0
+                                                     , take 5 $ repeat $ createProblem mediumNet 5  1 1
+                                                     , take 5 $ repeat $ createProblem mediumNet 5  2 1
+                                                     , take 5 $ repeat $ createProblem mediumNet 5  2 2
+                                                  ]
 
-                               , createProblem mediumNet 3  1 1
-                               , createProblem mediumNet 3  1 1
-                               , createProblem mediumNet 3  1 1
-                               , createProblem mediumNet 3  1 1
-
-                              ] seeds
-
-        let algorithm mode = bench ("localcomputation-" ++ show mode) $ nfIO $ multipleGetProbability mode problems
-
-        pure $ pure $ bgroup ("Bayesian") $ map algorithm [
-                                                            -- I.Fusion
-                                                          I.Shenoy MP.Threads
-                                                          -- , I.Shenoy MP.Distributed
+        pure $ [ bgroup ("Bayesian - single query") $ map (benchMode singleQueryProblems) [
+                                                            I.Fusion
+                                                          , I.Shenoy MP.Threads
+                                                          , I.Shenoy MP.Distributed
                                                          ]
+               , bgroup ("Bayesian - multiple queries") $ map (benchMode multipleQueryProblems) [
+                                                            I.Fusion
+                                                          , I.Shenoy MP.Threads
+                                                          , I.Shenoy MP.Distributed
+                                                         ]
+            ]
         where
             seeds = [0..]
+
+
+            benchMode problems mode = bench (show mode) $ nfIO $ multipleGetProbability mode problems
 
 createProblem :: (MonadIO m) => BN.Network String String -> Int -> Int -> Int -> Int -> m Problem
 createProblem net numQueries maxConditioned maxConditional seed = do

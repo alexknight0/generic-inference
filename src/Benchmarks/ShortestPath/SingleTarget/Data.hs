@@ -1,3 +1,6 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric  #-}
+
 {- | Tests for benchmarking suite. Also exposes some example problems that can be used in a test suite -}
 module Benchmarks.ShortestPath.SingleTarget.Data (
       Problem (..)
@@ -34,6 +37,7 @@ import           Hedgehog
 import qualified Hedgehog.Gen                                         as Gen
 import qualified Hedgehog.Range                                       as Range
 import           LocalComputation.Instances.ShortestPath.SingleTarget (Query (..))
+import qualified LocalComputation.ValuationAlgebra                    as V
 
 -- | Problem definition
 data Problem = Problem {
@@ -47,7 +51,7 @@ data Problem = Problem {
 data BenchmarkProblem a = BenchmarkProblem {
       g  :: G.Graph a Double
     , qs :: [Query a]
-}
+} deriving (V.Generic, V.NFData)
 
 dataDirectory :: FilePath
 dataDirectory = "src/Benchmarks/ShortestPath/SingleTarget/Data/"
