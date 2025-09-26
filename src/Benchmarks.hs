@@ -7,6 +7,7 @@ import qualified Benchmarks.FastFourierTransform      as FFT
 import qualified Benchmarks.ShortestPath.SingleTarget as ST
 
 import           Criterion.Main
+import           Criterion.Types                      (Config, resamples)
 
 allBenchmarks :: IO ()
 allBenchmarks = do
@@ -15,15 +16,13 @@ allBenchmarks = do
                           -- , FFT.benchmarks
                             -- , BN.benchmarks
                           ]
-    defaultMain (concat benchmarks)
+    defaultMainWith customConfig (concat benchmarks)
 
--- --    defaultMainWith customConfig [
--- customConfig :: Config
--- customConfig = defaultConfig
---   { resamples = 10000       -- Number of bootstrap resamples (default is 1000)
---   , timeLimit = 100
---   }
---
+customConfig :: Config
+customConfig = defaultConfig {
+    resamples = 2       -- Number of bootstrap resamples (default is 1000)
+  }
+
 
 
 

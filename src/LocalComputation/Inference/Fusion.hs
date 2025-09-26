@@ -15,8 +15,11 @@ import qualified Data.Set                                              as S
 import qualified LocalComputation.Inference.EliminationSequence        as E
 import qualified LocalComputation.Inference.JoinTree                   as JT
 import qualified LocalComputation.Inference.JoinTree.Diagram           as D
-import qualified LocalComputation.Inference.MessagePassing.Distributed as MP
+import qualified LocalComputation.Inference.MessagePassing             as MP
+import qualified LocalComputation.Inference.MessagePassing.Distributed as DMP
+import qualified LocalComputation.Inference.MessagePassing.Threads     as TMP
 import           LocalComputation.ValuationAlgebra                     (Domain,
+                                                                        NFData,
                                                                         ValuationFamily (eliminate, label),
                                                                         Var,
                                                                         combines1)
@@ -84,12 +87,14 @@ fusion' uniqueId upperPsi e
 -- | Takes a join tree and returns the join tree after a fusion pass over a given join tree.
 --
 -- __Warning__: will fail if a disconnected join tree is given.
-fusionPass :: (MP.SerializableValuation v a, Show (v a))
-    => D.DrawSettings -> [v a] -> Domain a -> Process (JT.JoinTree (v a))
-fusionPass settings vs queryDomain = do
+fusionPass :: (NFData (v a), DMP.SerializableValuation v a, Show (v a))
+    => MP.Mode -> D.DrawSettings -> [v a] -> Domain a -> Process (JT.JoinTree (v a))
+fusionPass mode settings vs queryDomain = do
     drawTree settings.beforeInference treeBeforeInference
 
-    treeAfterInference <- MP.messagePassing' treeBeforeInference nodeActions
+    treeAfterInference <- case mode of
+                            MP.Distributed ->        DMP.messagePassing' treeBeforeInference nodeActions
+                            MP.Threads     -> pure $ TMP.collectAndCalculate treeBeforeInference
 
     drawTree settings.afterInference treeAfterInference
 
@@ -101,7 +106,7 @@ fusionPass settings vs queryDomain = do
         drawTree Nothing         _    = pure ()
         drawTree (Just filename) tree = liftIO $ D.drawTree filename tree
 
-nodeActions :: (MP.SerializableValuation v a) => MP.NodeActions v a
+nodeActions :: (DMP.SerializableValuation v a) => DMP.NodeActions v a
 nodeActions this neighbours resultPort = do
 
     postbox <- case isRootNode of
@@ -112,7 +117,7 @@ nodeActions this neighbours resultPort = do
         True  -> replicateM (length neighbours) expect
 
         -- If not root node, execute collect algorithm.
-        False -> fmap (.postbox) $ MP.collect this neighbours computeMessage
+        False -> fmap (.postbox) $ DMP.collect this neighbours computeMessage
 
     -- TODO: In the non-root-node case (most cases!), we duplicated a 'combines' operation here.
     let result = combines1 (this.node.v : map (.msg) postbox)
@@ -130,9 +135,9 @@ nodeActions this neighbours resultPort = do
 --  2. combining this result with the sender's valuation
 --  3. eliminating all variables not in the receivers domain
 computeMessage :: forall v a . (ValuationFamily v, Var a)
-    => [MP.Message (v a)]
-    -> MP.NodeWithPid (v a)
-    -> MP.NodeWithPid (v a)
+    => [DMP.Message (v a)]
+    -> DMP.NodeWithPid (v a)
+    -> DMP.NodeWithPid (v a)
     -> v a
 computeMessage postbox sender recipient = eliminate combined varsToEliminate
     where

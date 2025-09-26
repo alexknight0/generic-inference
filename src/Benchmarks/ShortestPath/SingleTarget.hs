@@ -53,8 +53,8 @@ benchmarks :: IO [Benchmark]
 benchmarks = do
     problems <- sequence $ zipWith U.sample seeds $ concat [
                                                     take 10 $ repeat $ D.genProblem 50 100 1
-                                                  -- , take 10 $ repeat $ D.genProblem 50 250 1
-                                                  -- , take 10 $ repeat $ D.genProblem 50 500 1
+                                                  , take 10 $ repeat $ D.genProblem 50 250 1
+                                                  , take 10 $ repeat $ D.genProblem 50 500 1
                                                ]
     evaluate (rnf problems)
 
@@ -70,7 +70,8 @@ benchmarks = do
             -- , Generic  $ I.Fusion
             -- , Generic  $ I.Shenoy MP.Threads
             -- , Generic  $ I.Shenoy MP.Distributed
-            DynamicP $ MP.Distributed
+              DynamicP $ MP.Distributed
+            , DynamicP $ MP.Threads
         ]
 
     pure $ pure $ bgroup "Shortest Path" $ benches
@@ -97,6 +98,7 @@ allImplementations = [ Baseline
                      , Generic  $ I.Fusion
                      , Generic  $ I.Shenoy MP.Threads
                      , Generic  $ I.Shenoy MP.Distributed
+                     , DynamicP $ MP.Threads
                      , DynamicP $ MP.Distributed
                     ]
 
@@ -134,7 +136,7 @@ singleTargets mode s g qs = pure $ mapM (\q -> fromRight $ algorithm s g q) qs
     where
         algorithm = case mode of
                         (Generic m)  -> ST.singleTarget m
-                        (DynamicP _) -> ST.singleTargetDP
+                        (DynamicP m) -> ST.singleTargetDP m
 
 --------------------------------------------------------------------------------
 -- Variants of `singleTargets`
@@ -185,7 +187,7 @@ singleTargetsSplit mode s gs qs = pure $ mapM (\q -> fromRight $ algorithm s gs 
     where
         algorithm = case mode of
                         (Generic m)  -> ST.singleTargetSplit m
-                        (DynamicP _) -> ST.singleTargetSplitDP
+                        (DynamicP m) -> ST.singleTargetSplitDP m
 
 -- | Single query variant of `singleTargetsSplit`
 singleTargetSplit :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)

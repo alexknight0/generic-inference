@@ -1,7 +1,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module LocalComputation.Inference.MessagePassing.Threads (
-    messagePassing
+      messagePassing
+    , messagePassing'
+    , collectAndCalculate
 ) where
 import           Control.Exception                          (assert)
 import qualified Data.Map                                   as M
@@ -25,6 +27,9 @@ import qualified Data.Tuple.Extra                           as B
 --  3. consider if we are spending all our time garbage collecting (does this show in the profiler?)
 --          (see 40:45 of https://www.youtube.com/watch?v=trDqqZldxQA)
 
+--------------------------------------------------------------------------------
+-- Full message propagation (answering all queries)
+--------------------------------------------------------------------------------
 -- | Performs message passing over the given forest.
 --
 -- Only query nodes will have their valuations updated.
@@ -41,6 +46,11 @@ messagePassing' t
     | JT.hasQueryNode t = calculate . distribute . collect $ t
     | otherwise         = t
 
+-- TODO: It does seem like we are copying the tree alot of times; but i don't know whats going on under the hood.
+-- Additionally it seems like we update all postboxes over and over when we really want something thats
+-- more like 'attatching the current node to the updated tree'.
+
+-- | Performs collect on the given tree.
 collect :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => JT.JoinTree (v a) -> JT.JoinTree (v a)
 collect tree = JT.unsafeUpdatePostboxes newPostboxes tree
     where
@@ -100,10 +110,10 @@ parSome xs parStates = P.withStrategy (P.parListN (length shouldPar) P.rdeepseq)
         (shouldPar, shouldNotPar) = B.both (map fst) $ L.partition snd $ zip xs parStates
 
 messageForNode :: (V.ValuationFamily v, V.Var a) => JT.Node (v a) -> JT.Node (v a) -> v a
-messageForNode receiver sender = V.project (V.combines1 (sender.v : postbox))
+messageForNode receiver sender = V.project (V.combines1 (sender.v : senderPostbox))
                                            (S.intersection receiver.d sender.d)
     where
-        postbox = M.elems . M.filterKeys (/= receiver.id) . fromJust $ sender.postbox
+        senderPostbox = M.elems . M.filterKeys (/= receiver.id) . fromJust $ sender.postbox
 
 -- | Takes a tree that has had collect and then distribute performed on it, and returns the tree
 -- after computing the resulting valuations of each query node.
@@ -122,4 +132,30 @@ calculate tree = JT.unsafeUpdateValuations mapping tree
         updatedValuation n = V.combines1 (n.v : postbox)
             where
                 postbox = M.elems . fromJust $ n.postbox
+
+--------------------------------------------------------------------------------
+-- Partial message propagation (answering one query)
+--------------------------------------------------------------------------------
+-- TODO: Test elimination vs projection here; does it make a difference?
+collectAndCalculate :: forall v a . (P.NFData (v a), V.ValuationFamily v, V.Var a)
+    => JT.JoinTree (v a) -> JT.JoinTree (v a)
+collectAndCalculate tree = JT.unsafeUpdateValuations newValuations tree
+    where
+        -- Computes collect on all subtrees, filling their postboxes
+        -- subTrees = P.parMap P.rdeepseq collect $ JT.subTrees tree
+        subTrees = fmap collectAndCalculate $ JT.subTrees tree
+
+        -- Get message for us from each subtree
+        subTreeMessages = map (\subTree -> (subTree.root.id, messageForThis tree.root subTree.root)) subTrees
+
+        -- Creates new root by updating valuation on current root
+        newRoot = tree.root { JT.v = V.combines1 (tree.root.v : map snd subTreeMessages) }
+
+        -- Creates a mapping from ids to postboxes
+        -- (used for updating nodes in the original tree)
+        newValuations = foldr (M.union . JT.toValuationMap) (M.singleton newRoot.id newRoot.v) subTrees
+
+        messageForThis :: JT.Node (v a) -> JT.Node (v a) -> v a
+        messageForThis this sender = V.project sender.v (S.intersection this.d sender.d)
+
 

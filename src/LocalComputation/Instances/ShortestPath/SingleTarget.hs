@@ -19,7 +19,6 @@ import qualified LocalComputation.LabelledMatrix                      as M
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular       as Q (SemiringValue,
                                                                             TropicalSemiringValue,
                                                                             Valuation,
-                                                                            create,
                                                                             one,
                                                                             solution,
                                                                             unsafeCreate,
@@ -35,6 +34,7 @@ import qualified LocalComputation.Graph                               as G
 import qualified LocalComputation.Inference                           as I
 import qualified LocalComputation.Inference.EliminationSequence       as E
 import qualified LocalComputation.Inference.JoinTree.Diagram          as D
+import qualified LocalComputation.Inference.MessagePassing            as MP
 import           LocalComputation.Utils                               (fromRight)
 import qualified LocalComputation.ValuationAlgebra                    as V
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular.Value as Q (TropicalSemiringValue (..),
@@ -68,11 +68,12 @@ singleTargetSplit mode settings gs q = usingDouble (singleTargetSplitGeneric inf
         inference s k domain = fmap (fmap Q.solution) $ I.queryDrawGraph s mode k domain
 
 singleTargetSplitDP :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => D.DrawSettings
+    => MP.Mode
+    -> D.DrawSettings
     -> [G.Graph a Double]
     -> Query a
     -> Either I.Error (m [Double])
-singleTargetSplitDP = usingDouble (singleTargetSplitGeneric I.queryDPDrawGraph)
+singleTargetSplitDP mode = usingDouble (singleTargetSplitGeneric (I.queryDPDrawGraph mode))
 
 singleTargetSplitGeneric :: ( MonadIO m, Show a, H.Hashable a, Ord a)
     => ComputeInference m a
@@ -126,9 +127,8 @@ type ComputeInference m a = D.DrawSettings
 --------------------------------------------------------------------------------
 -- Decomposition
 --------------------------------------------------------------------------------
--- TODO: Is this filter right? Should it be handled differently?
 decomposition :: forall a b . (Ord a) => G.Graph a b -> [G.Graph a b]
-decomposition g = -- filter (not . G.isEmpty) $
+decomposition g = filter (not . G.isEmpty) $
                     decomposition' (E.create $ map (.neighbourhood) nHoods) nHoods
     where
         decomposition' :: E.EliminationSequence a -> [Vertex a] -> [G.Graph a b]
@@ -168,11 +168,12 @@ singleTarget :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a
 singleTarget mode settings g = singleTargetSplit mode settings (decomposition g)
 
 singleTargetDP :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
-    => D.DrawSettings
+    => MP.Mode
+    -> D.DrawSettings
     -> G.Graph a Double
     -> Query a
     -> Either I.Error (m [Double])
-singleTargetDP settings g = singleTargetSplitDP settings (decomposition g)
+singleTargetDP mode settings g = singleTargetSplitDP mode settings (decomposition g)
 
 --------------------------------------------------------------------------------
 -- Multiple query variants

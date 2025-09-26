@@ -133,6 +133,8 @@ data CollectResults a = CollectResults {
 }
 
 -- TODO: Can place postbox on node.
+-- TODO: I think we have unnecessary duplicate operations in the case that we are performing
+-- ONLY collect; we can just update the valuation itself instead of the postbox.
 
 -- | The collect phase of a message passing process where each node waits for every neighbour bar one
 -- to send the node a message before the node sends off a message to the neighbour that didn't send it

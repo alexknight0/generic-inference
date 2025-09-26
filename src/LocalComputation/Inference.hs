@@ -77,13 +77,14 @@ queryIsCovered vs qs = not $ any (\q -> not $ S.isSubsetOf q coveredDomain) qs
 -- | Perform a [query] using a [D]ynamic [P]rogramming implementation and draw a graph
 -- of the join tree used during inference.
 queryDPDrawGraph :: (MonadIO m, Q.SemiringValue b, Show b, Var a, NFData a, NFData b, Serializable a, Serializable b, Eq b)
-    => D.DrawSettings
+    => MP.Mode
+    -> D.DrawSettings
     -> [Q.Valuation b a]
     -> Domain a
     -> Either Error (m (M.LabelledMatrix a () b))
-queryDPDrawGraph _ vs q
+queryDPDrawGraph _ _ vs q
     | not $ queryIsCovered vs [q] = Left $ UnanswerableQuery
-queryDPDrawGraph s vs q           = Right $ run $ fmap D.solution $ F.fusionPass s vs q
+queryDPDrawGraph mode s vs q      = Right $ run $ fmap D.solution $ F.fusionPass mode s vs q
 
 --------------------------------------------------------------------------------
 -- Singular variants

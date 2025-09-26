@@ -142,12 +142,11 @@ newtype JoinTree v = UnsafeJoinTree { g :: G.Graph (Node v) } deriving (NFData, 
 -- | Checks a given join tree satisfies the invariants (1), (2), (3), and (4)
 -- specified in the declaration of the join tree.
 satisfiesInvariants :: (V.ValuationFamily v, V.Var a) => JoinTree (v a) -> Bool
-satisfiesInvariants t = vertexCount t > 0 && isAcyclic t          -- (1)
-                            && hasTopologicalNumbering t          -- (2)
-                            && isDirectedTowardsRoot t            -- (3)
-                            && hasRunningIntersectionProperty t   -- (4)
-                            && verticesHaveValidPostbox t         -- (5)
-                            -- TODO: Check edge count.
+satisfiesInvariants t = vertexCount t > 0 && isTree t                -- (1)
+                            && hasTopologicalNumbering t             -- (2)
+                            && isConnectedAndDirectedTowardsRoot t   -- (3)
+                            && hasRunningIntersectionProperty t      -- (4)
+                            && verticesHaveValidPostbox t            -- (5)
 
 instance HasField "root" (JoinTree v) (Node v) where
     getField t = last $ vertexList t
@@ -312,6 +311,15 @@ isConnected g = case G.vertexList g of
 --------------------------------------------------------------------------------
 -- Invariants
 --------------------------------------------------------------------------------
+-- | Invariant checking the underlying graph forms a tree
+-- (connected, acyclic graph, with at most |V| - 1 edges)
+--
+-- __Warning__: Doesn't check whether graph is connected, as this is checked
+-- by another invariant anyway.
+isTree :: JoinTree v -> Bool
+isTree t = G.edgeCount t.g == G.vertexCount t.g - 1
+                && isAcyclic t
+
 isAcyclic :: JoinTree v -> Bool
 isAcyclic t = isJust . G.toAcyclic . G.toAdjacencyMap $ t.g
 
@@ -325,8 +333,8 @@ hasRunningIntersectionProperty t = all (isConnected . inducedByVar) (M.keys vari
 
 -- | Returns true if the given tree is directed towards the root node.
 -- Assumes given tree is acyclic.
-isDirectedTowardsRoot :: JoinTree v -> Bool
-isDirectedTowardsRoot t = length canReachRoot == vertexCount t
+isConnectedAndDirectedTowardsRoot :: JoinTree v -> Bool
+isConnectedAndDirectedTowardsRoot t = length canReachRoot == vertexCount t
     where
         canReachRoot = G.reachable (G.transpose $ t.g) t.root
 
