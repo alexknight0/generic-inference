@@ -35,6 +35,14 @@ data WithName a = WithName {
 data Problem    = Problem    { net :: BN.Network String String, qs    ::       [BN.Query String String] }
 data GenProblem = GenProblem { net :: BN.Network String String, qsGen :: D.Gen [BN.Query String String] }
 
+-- --    defaultMainWith customConfig [
+-- customConfig :: Config
+-- customConfig = defaultConfig
+--   { resamples = 10000       -- Number of bootstrap resamples (default is 1000)
+--   , timeLimit = 100
+--   }
+--
+
 benchmarks :: IO [Benchmark]
 benchmarks = do
         smallNet  <- U.unsafeParseFile' P.network D.asiaFilepath

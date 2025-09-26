@@ -53,8 +53,8 @@ benchmarks :: IO [Benchmark]
 benchmarks = do
     problems <- sequence $ zipWith U.sample seeds $ concat [
                                                     take 10 $ repeat $ D.genProblem 50 100 1
-                                                  , take 10 $ repeat $ D.genProblem 50 250 1
-                                                  , take 10 $ repeat $ D.genProblem 50 500 1
+                                                  -- , take 10 $ repeat $ D.genProblem 50 250 1
+                                                  -- , take 10 $ repeat $ D.genProblem 50 500 1
                                                ]
     evaluate (rnf problems)
 
@@ -66,11 +66,11 @@ benchmarks = do
     baseline    <- algorithm (Baseline)
 
     benches <- mapM (benchMode problems)  [
-              Baseline
-            , Generic  $ I.Fusion
-            , Generic  $ I.Shenoy MP.Threads
-            , Generic  $ I.Shenoy MP.Distributed
-            , DynamicP $ MP.Distributed
+            --   Baseline
+            -- , Generic  $ I.Fusion
+            -- , Generic  $ I.Shenoy MP.Threads
+            -- , Generic  $ I.Shenoy MP.Distributed
+            DynamicP $ MP.Distributed
         ]
 
     pure $ pure $ bgroup "Shortest Path" $ benches

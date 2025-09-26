@@ -13,7 +13,7 @@ allBenchmarks = do
     benchmarks <- sequence [
                             ST.benchmarks
                           -- , FFT.benchmarks
-                            , BN.benchmarks
+                            -- , BN.benchmarks
                           ]
     defaultMain (concat benchmarks)
 
