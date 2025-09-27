@@ -52,9 +52,12 @@ import qualified LocalComputation.ValuationAlgebra                    as V
 benchmarks :: IO [Benchmark]
 benchmarks = do
     problems <- sequence $ zipWith U.sample seeds $ concat [
-                                                    take 10 $ repeat $ D.genProblem 50 100 1
-                                                  , take 10 $ repeat $ D.genProblem 50 250 1
-                                                  , take 10 $ repeat $ D.genProblem 50 500 1
+                                                  --   take 10 $ repeat $ D.genProblem 50 100 1
+                                                  -- , take 10 $ repeat $ D.genProblem 50 250 1
+                                                  -- , take 10 $ repeat $ D.genProblem 50 500 1
+                                                  --  take 10 $ repeat $ D.genProblem 100 500 1
+                                                  --, take 10 $ repeat $ D.genProblem 100 2000 1
+                                                    take 10 $ repeat $ D.genProblem 200 4000 1
                                                ]
     evaluate (rnf problems)
 
@@ -70,8 +73,8 @@ benchmarks = do
             -- , Generic  $ I.Fusion
             -- , Generic  $ I.Shenoy MP.Threads
             -- , Generic  $ I.Shenoy MP.Distributed
-              DynamicP $ MP.Distributed
-            , DynamicP $ MP.Threads
+              -- DynamicP $ MP.Distributed
+              DynamicP $ MP.Threads
         ]
 
     pure $ pure $ bgroup "Shortest Path" $ benches

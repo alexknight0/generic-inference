@@ -201,7 +201,9 @@ toSquare m defaultElem = fromJust $ extension m squareLabelSet squareLabelSet de
 
 -- | Reshapes a matrix, filling empty spots with the given default element.
 reshape :: forall a b c . (Ord a, Ord b) => c -> LabelledMatrix a b c -> S.Set a -> S.Set b -> LabelledMatrix a b c
-reshape defaultElem m rowLabelSet colLabelSet = Matrix matrix rowLabels colLabels
+reshape defaultElem m rowLabelSet colLabelSet
+    | m.rowLabelSet == rowLabelSet && m.colLabelSet == colLabelSet = m
+    | otherwise                                                    = Matrix matrix rowLabels colLabels
     where
         rowLabels = enumerate rowLabelSet
         colLabels = enumerate colLabelSet

@@ -127,6 +127,7 @@ type ComputeInference m a = D.DrawSettings
 --------------------------------------------------------------------------------
 -- Decomposition
 --------------------------------------------------------------------------------
+-- TODO: Add to future work: a more sophisticated decomposition algorithm
 decomposition :: forall a b . (Ord a) => G.Graph a b -> [G.Graph a b]
 decomposition g = filter (not . G.isEmpty) $
                     decomposition' (E.create $ map (.neighbourhood) nHoods) nHoods

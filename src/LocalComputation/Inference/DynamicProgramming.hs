@@ -19,8 +19,6 @@ import qualified LocalComputation.ValuationAlgebra              as V
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular as Q
 
 
--- TODO: Have the function detect an invalid graph? (Bad numbering)
-
 -- TODO: Update argument
 
 -- | Computes a single solution from the solution set by repeatedly extending a solution set

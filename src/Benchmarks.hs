@@ -16,12 +16,13 @@ allBenchmarks = do
                           -- , FFT.benchmarks
                             -- , BN.benchmarks
                           ]
-    defaultMainWith customConfig (concat benchmarks)
+    defaultMain (concat benchmarks)
 
-customConfig :: Config
-customConfig = defaultConfig {
-    resamples = 2       -- Number of bootstrap resamples (default is 1000)
-  }
+-- defaultMainWith customConfig
+-- customConfig :: Config
+-- customConfig = defaultConfig {
+--     minSamples = 1       -- Number of bootstrap resamples (default is 1000)
+-- }
 
 
 
