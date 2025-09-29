@@ -38,10 +38,22 @@ import           LocalComputation.ValuationAlgebra
 import qualified Algebra.Graph                                  as G
 import           Control.Exception                              (assert)
 import           Extra                                          (minimumOn)
+import qualified LocalComputation.Utils                         as U
 
 --------------------------------------------------------------------------------
 -- Join tree creation algorithms
 --------------------------------------------------------------------------------
+-- Both join tree creation algorithms are built such that projections that occur during
+-- a collect phase at most remove one variable (i.e. they are equivalent to variable eliminations).
+-- When the distribute phase starts, projections may occur that remove more than one variable as
+-- union nodes will feed information back to 'parents', which may include valuations and queries
+-- which may have much smaller domains.
+--
+-- Notably if the join tree is redirected, as in `collectTree`, we may get some projections that
+-- remove more than one variable during the collect phase. For example, the query node will have
+-- been attached to a union node during construction, and this union node may have a much larger
+-- domain than the query node. When tree is redirected, we now have a large projection on the message
+-- sent to the query node as it is received. However, there should not be too many such projections.
 
 {- | The core join tree construction algorithm that all required join trees are built from.
 This is precisely the join tree construction algorithm described on page 22 of
@@ -230,7 +242,7 @@ innerLoop phiY edges k
                                                     if length (S.union x1.d x2.d) < length (S.union y1.d y2.d)
                                                             then (x1, x2) else (y1, y2))
 
-                            $ map toTuple $ combinations 2 phiY
+                            $ map U.toTuple $ U.combinations 2 phiY
 
         sK :: Node (v a)
         sK = node k (identity $ S.union r1.d r2.d) Union
@@ -243,25 +255,13 @@ innerLoop phiY edges k
         invariant = length newPhiY == length phiY - 1
 
 
-toTuple :: [a] -> (a, a)
-toTuple (x : y : []) = (x, y)
-toTuple _            = error "List of wrong length given to 'toTuple'"
-
--- | Computes the possible combinations when choosing 'k' elements from the given list.
---
--- Performance could likely be improved.
-combinations :: Int -> [a] -> [[a]]
-combinations 0 _      = [[]]
-combinations _ []     = []
-combinations k (x:xs) = map (x:) (combinations (k - 1) xs)
-
-
 -- | Creates a join tree that can be used for collect problems.
 collectTree :: (Show a, ValuationFamily v, Ord a)
     => [v a]
     -> Domain a
     -> JoinTree (v a)
-collectTree vs q = unsafeConvertToCollectTree (baseJoinForest vs [q]) q
+-- TODO: UPDATE UPDATE UPDATE to binary join tree i think
+collectTree vs q = unsafeConvertToCollectTree (binaryJoinForest vs [q]) q
                 -- ^^^ call is safe in this case.
 
 --------------------------------------------------------------------------------

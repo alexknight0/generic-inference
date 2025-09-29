@@ -49,15 +49,20 @@ import qualified LocalComputation.ValuationAlgebra                    as V
 -- Benchmarks
 --------------------------------------------------------------------------------
 
+-- TODO: I think our graph decomposition algorithm simply isn't up to scratch for sparse graphs...
+
 benchmarks :: IO [Benchmark]
 benchmarks = do
+
     problems <- sequence $ zipWith U.sample seeds $ concat [
                                                   --   take 10 $ repeat $ D.genProblem 50 100 1
-                                                  -- , take 10 $ repeat $ D.genProblem 50 250 1
+                                                  -- take 1 $ repeat $ D.genProblem 50 250 1
                                                   -- , take 10 $ repeat $ D.genProblem 50 500 1
-                                                  --  take 10 $ repeat $ D.genProblem 100 500 1
-                                                  --, take 10 $ repeat $ D.genProblem 100 2000 1
-                                                    take 10 $ repeat $ D.genProblem 200 4000 1
+                                                  -- , take 10 $ repeat $ D.genProblem 100 500 1
+                                                  -- , take 10 $ repeat $ D.genProblem 100 2000 1
+                                                  -- take 3 $ repeat $ D.genProblem 200 1000 1
+                                                  -- take 1 $ repeat $ D.genProblem 200 4000 1
+                                                  take 1 $ repeat $ D.genProblem 400 8000 1
                                                ]
     evaluate (rnf problems)
 
@@ -69,12 +74,12 @@ benchmarks = do
     baseline    <- algorithm (Baseline)
 
     benches <- mapM (benchMode problems)  [
-            --   Baseline
-            -- , Generic  $ I.Fusion
+            -- Baseline
+              -- Generic  $ I.Fusion
             -- , Generic  $ I.Shenoy MP.Threads
             -- , Generic  $ I.Shenoy MP.Distributed
               -- DynamicP $ MP.Distributed
-              DynamicP $ MP.Threads
+            DynamicP $ MP.Threads
         ]
 
     pure $ pure $ bgroup "Shortest Path" $ benches
@@ -82,8 +87,10 @@ benchmarks = do
         seeds = [0..]
 
         benchMode problems mode = do
-            afterSetup <- multipleSingleTargets mode D.def problems
+            afterSetup <- multipleSingleTargetsSplit mode debug problems
             pure $ bench (show mode) $ nfIO afterSetup
+
+        debug = D.def -- { D.beforeInference = Just "diagrams/debugging3.svg" }
 
 
 --------------------------------------------------------------------------------
@@ -169,6 +176,12 @@ singleTarget' mode s g q = M.join $ singleTarget mode s g q
 --------------------------------------------------------------------------------
 -- Split variants of `singleTargets`
 --------------------------------------------------------------------------------
+-- | Multiple problem variant of `singleTargets`. Not to be confused with `singleTargetsSplit` which
+-- handles multiple graphs but considers it as one problem.
+multipleSingleTargetsSplit :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
+    => Implementation -> D.DrawSettings -> [D.BenchmarkProblem a] -> m (m [[[Double]]])
+multipleSingleTargetsSplit mode s ps = fmap sequence $ mapM (\p -> singleTargetsSplit mode s [p.g] p.qs) ps
+
 -- | Variant of `singleTargets` that takes a graph that has been split across multiple graphs.
 singleTargetsSplit :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
     => Implementation -> D.DrawSettings -> [G.Graph a Double] -> [ST.Query a] -> m (m [[Double]])

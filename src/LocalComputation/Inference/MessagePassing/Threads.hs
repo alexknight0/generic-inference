@@ -20,6 +20,7 @@ import qualified LocalComputation.ValuationAlgebra          as V
 import qualified Control.Parallel.Strategies                as P
 import qualified Data.List                                  as L
 import qualified Data.Tuple.Extra                           as B
+import qualified LocalComputation.Utils                     as U
 
 -- TODO: For performance;
 --  1. Profile to investigate whats taking the most time
@@ -158,4 +159,18 @@ collectAndCalculate tree = JT.unsafeUpdateValuations newValuations tree
         messageForThis :: JT.Node (v a) -> JT.Node (v a) -> v a
         messageForThis this sender = V.project sender.v (S.intersection this.d sender.d)
 
+-- TODO: Remove. Tested, and makes no difference.
+
+-- | __Warning__: Assumes 'd' is a subset of 'label v'
+projectByElimination :: (V.Valuation v a) => v a -> V.Domain a -> v a
+projectByElimination v d
+    | S.size diff > 0 = projectByElimination (V.project v smallerDomain) d
+    | otherwise       = v
+    where
+
+        diff = S.difference (V.label v) d
+
+        elementInDiff = S.findMin diff
+
+        smallerDomain = S.delete elementInDiff (V.label v)
 

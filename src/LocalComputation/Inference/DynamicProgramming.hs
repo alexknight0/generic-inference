@@ -9,6 +9,10 @@ module LocalComputation.Inference.DynamicProgramming (
 ) where
 
 import           Control.Exception                              (assert)
+import           Data.IORef                                     (IORef,
+                                                                 atomicModifyIORef',
+                                                                 newIORef,
+                                                                 readIORef)
 import qualified Data.Map                                       as Map
 import qualified Data.Set                                       as S
 import qualified LocalComputation.Inference.JoinTree            as JT
@@ -17,9 +21,6 @@ import qualified LocalComputation.LabelledMatrix                as M
 import qualified LocalComputation.Utils                         as U
 import qualified LocalComputation.ValuationAlgebra              as V
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular as Q
-
-
--- TODO: Update argument
 
 -- | Computes a single solution from the solution set by repeatedly extending a solution set
 -- until it encompasses the whole query. In this case of a quasiregular valuation there is

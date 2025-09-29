@@ -21,6 +21,9 @@ import           Control.Exception (assert)
 
 Implemented as a heap. Does not implement the variable valuation linked list (VVLL) described page 25 of
 "A generic Architecture for local Computation" (Marc Pouly) and hence performance could easily be improved.
+
+Finding the 'clique' of a given variable is taking the set of valuations that contain that variable and then
+unioning all of their variables together.
 -}
 newtype EliminationSequence a = EliminationSequence (H.MinPrioHeap (OrderByLength S.Set a) a) deriving Show
 
@@ -54,6 +57,7 @@ createAndExclude ds excluded = EliminationSequence $ H.fromList
                                                    $ (`M.withoutKeys` excluded)
                                                    $ getCliques ds
 
+
 -- | Returns true if there are no variables left to eliminate.
 isEmpty :: EliminationSequence a -> Bool
 isEmpty (EliminationSequence xs) = H.isEmpty xs
@@ -62,12 +66,15 @@ size :: EliminationSequence a -> Int
 size (EliminationSequence xs) = H.size xs
 
 getCliques :: (Ord a) => [S.Set a] -> M.Map a (S.Set a)
-getCliques ds = M.unionsWith S.union $ map f ds
+getCliques ds = M.unionsWith S.union $ map toVarCliques ds
     where
-        f :: (Ord a) => S.Set a -> M.Map a (S.Set a)
-        f ys = foldr g (M.empty) ys
+        -- Takes a domain and returns a map where each element of the map points back to that domain, i.e.
+        -- toVarCliques {1,2} = 1 -> {1,2}
+        --                      2 -> {1,2}
+        toVarCliques :: (Ord a) => S.Set a -> M.Map a (S.Set a)
+        toVarCliques d = foldr g M.empty d
             where
-                g y acc = M.insert y ys acc
+                g variable acc = M.insert variable d acc
 
 eliminateNext :: (Ord a) => EliminationSequence a -> Maybe (a, EliminationSequence a)
 eliminateNext vars | assertIsWellFormed vars = undefined

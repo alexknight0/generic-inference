@@ -34,4 +34,4 @@ However, this may not work if your code spawns another process that does the log
 hedgehog output to a file, so only the logging output remains. This can be done with `stack test > /dev/null`.
 -}
 allTests :: IO ()
-allTests = B.tests >> F.tests >> M.tests >> S.tests >> U.tests >> pure ()
+allTests = U.tests >> B.tests >> F.tests >> M.tests >> S.tests >> pure ()

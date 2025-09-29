@@ -29,6 +29,9 @@ module LocalComputation.Graph
     , isConnected
     , outgoingSubgraph
     , neighbours
+    , induce
+    , toAlgebraGraph
+    , toAlgebraGraph'
     )
 where
 
@@ -142,6 +145,9 @@ merges1 gs = foldr1 merge gs
 toAlgebraGraph :: Graph a b -> G.Graph a
 toAlgebraGraph g = G.overlays [G.edge e.arcHead e.arcTail | e <- toList g]
 
+toAlgebraGraph' :: Graph a b -> UG.Graph a
+toAlgebraGraph' = UG.toUndirected . toAlgebraGraph
+
 -- TODO: Very inefficent
 neighbours :: (Ord a) => Graph a b -> [(a, [a])]
 neighbours = UG.adjacencyList . UG.toUndirected . toAlgebraGraph
@@ -167,6 +173,9 @@ isEmpty (Graph g) = length g == 0
 deleteVertex :: (Ord a) => a -> Graph a b -> Graph a b
 deleteVertex x g = fromList $ filter (\e -> e.arcHead /= x && e.arcTail /= x) $ toList g
 
+deleteVertices :: (Ord a) => S.Set a -> Graph a b -> Graph a b
+deleteVertices xs g = fromList $ filter (\e -> not (e.arcHead `S.member` xs) && not (e.arcTail `S.member` xs)) $ toList g
+
 makeUndirected :: (Ord a) => G.Graph a -> G.Graph a
 makeUndirected g = AM.toGraph $ AM.overlay g' (AM.transpose g')
     where
@@ -177,3 +186,6 @@ isConnected g = all (\x -> length (AM.reachable undirected x) == length vertices
     where
         undirected = makeUndirected $ toAlgebraGraph g
         vertices = G.vertexList $ toAlgebraGraph g
+
+induce :: (Ord a) => (a -> Bool) -> Graph a b -> Graph a b
+induce p g =  deleteVertices (S.filter (not . p) (nodes g)) g

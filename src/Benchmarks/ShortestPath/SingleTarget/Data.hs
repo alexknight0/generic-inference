@@ -11,6 +11,7 @@ module Benchmarks.ShortestPath.SingleTarget.Data (
     , genGraph
     , genGraphs
     , genProblem
+    , genProblemOnGraph
     , p0Graphs
     , p0Queries
     , p1
@@ -120,12 +121,16 @@ genGraphs nodes arcs = do
                   $ L.chunksOf (max 1 $ div (fromIntegral nodes) 5)
                   $ G.toList original
 
-genProblem :: Natural -> Natural -> Natural -> Gen (BenchmarkProblem Natural)
-genProblem nodes edges numQueries = do
-    g <- genGraph nodes edges
+genProblemOnGraph :: (Ord a) => G.Graph a Double -> Natural -> Gen (BenchmarkProblem a)
+genProblemOnGraph g numQueries = do
     qs <- genConnectedQueries numQueries g
 
     pure $ BenchmarkProblem g qs
+
+genProblem :: Natural -> Natural -> Natural -> Gen (BenchmarkProblem Natural)
+genProblem nodes edges numQueries = do
+    g <- genGraph nodes edges
+    genProblemOnGraph g numQueries
 
 --------------------------------------------------------------------------------
 -- Manual tests

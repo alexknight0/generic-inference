@@ -35,6 +35,7 @@ import qualified LocalComputation.Inference                           as I
 import qualified LocalComputation.Inference.EliminationSequence       as E
 import qualified LocalComputation.Inference.JoinTree.Diagram          as D
 import qualified LocalComputation.Inference.MessagePassing            as MP
+import qualified LocalComputation.Inference.Triangulation             as T
 import           LocalComputation.Utils                               (fromRight)
 import qualified LocalComputation.ValuationAlgebra                    as V
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular.Value as Q (TropicalSemiringValue (..),
@@ -127,9 +128,14 @@ type ComputeInference m a = D.DrawSettings
 --------------------------------------------------------------------------------
 -- Decomposition
 --------------------------------------------------------------------------------
--- TODO: Add to future work: a more sophisticated decomposition algorithm
 decomposition :: forall a b . (Ord a) => G.Graph a b -> [G.Graph a b]
-decomposition g = filter (not . G.isEmpty) $
+decomposition g = map (\c -> G.induce (`S.member` c) g) cliques
+    where
+        cliques = T.maximalCliques (G.toAlgebraGraph' g)
+
+-- TODO: Add to future work: a more sophisticated decomposition algorithm
+oldDecomposition :: forall a b . (Ord a) => G.Graph a b -> [G.Graph a b]
+oldDecomposition g = filter (not . G.isEmpty) $
                     decomposition' (E.create $ map (.neighbourhood) nHoods) nHoods
     where
         decomposition' :: E.EliminationSequence a -> [Vertex a] -> [G.Graph a b]

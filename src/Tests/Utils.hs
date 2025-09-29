@@ -22,6 +22,7 @@ import           Control.Monad                             (void)
 import qualified LocalComputation.Inference                as I
 import qualified LocalComputation.Inference.MessagePassing as MP
 import           LocalComputation.Utils                    (zipWithAssert)
+import qualified LocalComputation.Utils                    as U
 
 -------------------------------------------------------------------------------
 -- Tests                                                                     --
@@ -46,6 +47,22 @@ prop_assertsAreStillPresent = withTests 100 . property $ do
         f :: Int -> Int
         f _ | E.assert False False = undefined
         f _ = 4
+
+prop_combinations :: Property
+prop_combinations = withTests 100 . property $ do
+    n <- forAll $ Gen.int (Range.linear 0 12)
+    r <- forAll $ Gen.int (Range.linear 0 n)
+    xs <- forAll $ Gen.list (Range.singleton n)
+                            (Gen.int $ Range.linear 1 10)
+
+    let nChooseR = div (factorial n)
+                       (factorial r * factorial (n - r))
+
+    length (U.combinations r xs) === nChooseR
+
+    where
+        factorial n = product [1..n]
+
 
 -------------------------------------------------------------------------------
 -- Utils                                                                     --

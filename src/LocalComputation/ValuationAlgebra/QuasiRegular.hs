@@ -105,6 +105,15 @@ _extension (Valuation m b) t = unsafeCreate (fromJust $ M.extension m t t Q.zero
 -- add comments to help understanding. Then investigate how to get around the
 -- 'identity' problem...
 
+
+-- TODO: It seems unavoidable that we will have one large projection from the domain of
+-- the parent node of the query in the join tree to the query. This is because the query
+-- node is added to a union node, and then the path is flipped when the tree is rediected
+-- to the query. However, I don't think this is an avoidable cost. Even if we build the join
+-- tree with the query as the root, we at some point will need to get
+
+
+
 -- | Produces the configuration extension set.
 --
 -- Given a variable assignment 'x', and a valuation of domain 's', we may want a
@@ -118,7 +127,9 @@ configExtSet :: (Q.SemiringValue c, Show a, Show c, Ord a)
     -> VarAssignment (Valuation c) a c
     -> S.Set (VarAssignment (Valuation c) a c)
 configExtSet     (Identity _)    _ = error "Not implemented error"
-configExtSet phi@(Valuation m b) x = S.singleton result
+configExtSet phi@(Valuation m b) x
+    | S.null sMinusT = S.singleton empty   -- shortcut if nothing to extend
+    | otherwise      = S.singleton result
     where
         result = matrixMultiply (matrixQuasiInverse (matrixProject m sMinusT sMinusT))
                                 (matrixAdd (matrixMultiply (matrixProject m sMinusT t)
@@ -129,6 +140,8 @@ configExtSet phi@(Valuation m b) x = S.singleton result
         t = x.rowLabelSet
         s = label phi
         sMinusT = S.difference s t
+
+        empty = fromJust $ M.extension M.empty S.empty (S.singleton ()) U.unusedArg
 
 ------------------------------------------------------------------------------
 -- Unsafe & quasiregular variants of matrix operations.                     --

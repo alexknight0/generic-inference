@@ -51,6 +51,7 @@ library
       LocalComputation.Inference.MessagePassing.Distributed
       LocalComputation.Inference.MessagePassing.Threads
       LocalComputation.Inference.ShenoyShafer
+      LocalComputation.Inference.Triangulation
       LocalComputation.Instances.BayesianNetwork
       LocalComputation.Instances.BayesianNetwork.Parser
       LocalComputation.Instances.FastFourierTransform

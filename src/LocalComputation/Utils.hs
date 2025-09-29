@@ -51,6 +51,10 @@ module LocalComputation.Utils
     , allButMaybeOne
     , listArray0
     , spin
+    , countPredicateHits
+    , debugWithCounter
+    , combinations
+    , toTuple
     )
 where
 
@@ -76,6 +80,9 @@ import           Control.Monad                 (when)
 import           Control.Monad.IO.Class        (MonadIO (liftIO))
 import qualified Data.Array                    as A
 import qualified Data.List                     as L
+import           GHC.IO                        (unsafePerformIO)
+import           GHC.IORef                     (IORef, atomicModifyIORef',
+                                                newIORef, readIORef)
 import           GHC.Stack                     (HasCallStack)
 import           Numeric.Natural
 import           System.IO                     (IOMode (ReadMode),
@@ -314,3 +321,44 @@ spin seconds = do
           when (now < end) loop
     liftIO $ loop
 
+
+predicateHitCounter :: IORef Int
+{-# NOINLINE predicateHitCounter #-}
+predicateHitCounter = unsafePerformIO (newIORef 0)
+
+getGlobal :: IO Int
+getGlobal = readIORef predicateHitCounter
+
+incrementGlobal :: Num b => IORef b -> IO b
+incrementGlobal x = atomicModifyIORef' x (\x -> let x' = x + 1 in (x', x'))
+
+countPredicateHits :: (a -> Bool) -> a -> a
+countPredicateHits p x
+    | not $ p x = x
+    | otherwise = unsafePerformIO $ do
+        new <- incrementGlobal predicateHitCounter
+        putStrLn $ "predicate hits: " ++ show new
+        pure x
+
+debugTraceHitCounter :: IORef Int
+{-# NOINLINE debugTraceHitCounter #-}
+debugTraceHitCounter = unsafePerformIO (newIORef 0)
+
+debugWithCounter :: (Int -> IO ()) -> a -> a
+debugWithCounter f x = unsafePerformIO $ do
+        new <- incrementGlobal debugTraceHitCounter
+        putStrLn $ "debugCounter: " ++ show new
+        f new
+        pure x
+
+-- | Computes the possible combinations when choosing 'k' elements from the given list.
+--
+-- Performance could likely be improved.
+combinations :: Int -> [a] -> [[a]]
+combinations 0 _      = [[]]
+combinations _ []     = []
+combinations k (x:xs) = map (x:) (combinations (k - 1) xs) ++ combinations k xs
+
+toTuple :: [a] -> (a, a)
+toTuple [x,y] = (x, y)
+toTuple xs    = error $ "List of size " ++ show (length xs) ++ " given to `toTuple`"
