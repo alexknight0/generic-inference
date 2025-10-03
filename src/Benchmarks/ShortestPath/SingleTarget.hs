@@ -178,18 +178,6 @@ singleTargets mode s g qs = pure $ mapM (\q -> fromRight $ algorithm s g q) qs
                         (Generic m)  -> ST.singleTarget m
                         (DynamicP m) -> ST.singleTargetDP m
 
-        --TODO: remove
-        -- debug = U.debugWithCounter f
-        --     where
-        --         f count v
-        --             | Left e <- v, count == 1 = do hPutStrLn stderr (show e); hPutStrLn stderr str; pure True
-        --             | otherwise = pure False
-        --
-        --             where
-        --                 str = "\nBefore decomposition:" ++ show g
-        --                     ++ "\nAfter decomposition:" ++ show (ST.decomposition g)
-        --                     ++ "\n" ++ show qs
-
 --------------------------------------------------------------------------------
 -- Variants of `singleTargets`
 --------------------------------------------------------------------------------

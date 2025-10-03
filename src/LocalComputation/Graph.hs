@@ -166,7 +166,8 @@ toAlgebraGraph' = UG.toUndirected . toAlgebraGraph
 neighbours :: (Ord a) => Graph a b -> [(a, [a])]
 neighbours = UG.adjacencyList . UG.toUndirected . toAlgebraGraph
 
--- TODO: What... why dont we just unwrap the map...
+-- TODO: Stupidly complicated because the keys dont necessarily represent the full number of vertices...
+-- The whole data structure should be reworked.
 adjacencyList :: (Ord a) => Graph a b -> [(a, [a])]
 adjacencyList g = G.adjacencyList $ toAlgebraGraph g
 

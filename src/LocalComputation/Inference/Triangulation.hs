@@ -30,7 +30,7 @@ enableAsserts = False
 --
 -- Inspired by: https://www.cs.uoi.gr/~stavros/MSc-Algorithmic-GT/Triangulated.pdf
 maximalCliques :: (Ord a) => G.Graph a -> [S.Set a]
-maximalCliques g = maximalCliques' $ G.fromAlgebraGraph (triangulate (G.toAlgebraGraph g))
+maximalCliques g = maximalCliques' $ triangulate g
 
 -- | Returns the maximal cliques as calculated on a triangulated graph.
 --
@@ -62,13 +62,12 @@ isSimplicial x g = G.isComplete graphOfNeighbourhood
 --------------------------------------------------------------------------------
 -- Triangulation
 --------------------------------------------------------------------------------
-triangulate :: (Ord a) => UG.Graph a -> UG.Graph a
-triangulate g = assertP' isTriangulated' $
-                    UG.overlay g (UG.edges $ triangulate' g [])
+triangulate :: (Ord a) => G.Graph a -> G.Graph a
+triangulate g = assertP' isTriangulated $ G.addEdges (triangulate' g []) g
 
-triangulate' :: Ord a => UG.Graph a -> [(a, a)] -> [(a, a)]
+triangulate' :: Ord a => G.Graph a -> [(a, a)] -> [(a, a)]
 triangulate' g newEdges
-    | UG.isEmpty g = newEdges
+    | G.isEmpty g = newEdges
     | otherwise = triangulate' graphAfterElimination (newEdges ++ addedEdges)
 
     where
@@ -77,12 +76,12 @@ triangulate' g newEdges
 -- Eliminates a node from the given graph, connecting all pairs of nodes that were neighbours
 -- to the eliminated node. Returns a tuple of the new graph after elimination, and the edges
 -- that were added to the new graph as a result of the elimination.
-eliminateNode :: (Ord a) => UG.Graph a -> (UG.Graph a, [(a, a)])
-eliminateNode g | assert' (not . UG.isEmpty $ g) False = undefined  -- Can't eliminate a node when no nodes.
-eliminateNode g = (UG.overlay (UG.edges newEdges) (UG.removeVertex toEliminate g), newEdges)
+eliminateNode :: (Ord a) => G.Graph a -> (G.Graph a, [(a, a)])
+eliminateNode g | assert' (not . G.isEmpty $ g) False = undefined  -- Can't eliminate a node when no nodes.
+eliminateNode g = (G.addEdges newEdges (G.removeVertex toEliminate g), newEdges)
     where
-        toEliminate = head $ UG.vertexList g
-        newEdges = map U.toTuple $ U.combinations 2 $ S.toList $ UG.neighbours toEliminate g
+        toEliminate = G.unsafeHead g
+        newEdges = map U.toTuple $ U.combinations 2 $ S.toList $ G.unsafeNeighbours toEliminate g
 
 --------------------------------------------------------------------------------
 -- Triangulation detection

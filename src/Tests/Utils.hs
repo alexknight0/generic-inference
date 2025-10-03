@@ -111,19 +111,19 @@ prop_isComplete = unitTest $ do
 
 prop_triangulationLoneVertex :: Property
 prop_triangulationLoneVertex = unitTest $ do
-    graph <- fmap UG.toAlgebraGraph' $ forAll $ ST.genGraph 1 0
+    graph <- fmap G.fromGraph $ forAll $ ST.genGraph 1 0
     T.triangulate graph === graph
 
 prop_triangulation :: Property
 prop_triangulation = withTests 100 . property $ do
     nodes <- forAll $ Gen.int (Range.linear 1 50)   -- There is no valid query for 0 nodes.
     edges <- forAll $ Gen.int (Range.linear 0 500)
-    graph <- fmap UG.toAlgebraGraph' $ forAll $ ST.genGraph (fromIntegral nodes) (fromIntegral edges)
+    graph <- fmap G.fromGraph $ forAll $ ST.genGraph (fromIntegral nodes) (fromIntegral edges)
 
     let triangulated = T.triangulate graph
 
-    UG.vertexList triangulated === UG.vertexList graph
-    H.assert $ S.isSubsetOf (UG.edgeSet graph) (UG.edgeSet triangulated)
+    G.vertexSet triangulated === G.vertexSet graph
+    H.assert $ S.isSubsetOf (G.edgeSet graph) (G.edgeSet triangulated)
 
 -------------------------------------------------------------------------------
 -- Utils                                                                     --

@@ -17,17 +17,22 @@ module LocalComputation.Graph.Undirected (
     , isEmpty
     , isComplete
     , ascVertexList
+    , vertexSet
+    , edgeSet
+    , unsafeHead
 
     -- Transformations
     , unsafeNeighbours
     , induce
     , removeVertex
+    , addEdges
 ) where
 import qualified Algebra.Graph.Undirected as UG
 import           Control.DeepSeq          (NFData)
 import qualified Data.Bifunctor           as B
 import qualified Data.Map                 as M
 import qualified Data.Set                 as S
+import qualified Data.Text.Lazy           as LT
 import           Data.Tuple               (swap)
 import           GHC.Generics             (Generic)
 import qualified LocalComputation.Graph   as G
@@ -35,9 +40,13 @@ import qualified LocalComputation.Utils   as M (filterKeys)
 import qualified LocalComputation.Utils   as U
 import           Prelude                  hiding (all)
 import qualified Prelude                  as P
+import           Text.Pretty.Simple       (pShowNoColor)
 
 -- | A undirected, weightless graph with no self loops or double edges.
-newtype Graph a = Graph { m :: M.Map a (S.Set a) } deriving (Generic, NFData)
+newtype Graph a = Graph { m :: M.Map a (S.Set a) } deriving (Generic, NFData, Eq)
+
+instance (Show a) => Show (Graph a) where
+    show (Graph g) = LT.unpack $ pShowNoColor g
 
 --------------------------------------------------------------------------------
 -- Construction
@@ -111,6 +120,10 @@ ascVertexList g = M.keys g.m
 vertexSet :: Graph a -> S.Set a
 vertexSet g = M.keysSet g.m
 
+-- | Returns the edge list of a given graph
+--
+-- __Warning__: If there are any vertices that are not present
+-- in any edges, they will not be returned in this list!!
 ascEdgeList :: Graph a -> [(a, a)]
 ascEdgeList g = edgeListFromAdjacencyList $ adjacencyList g
 
@@ -132,6 +145,9 @@ all p g = M.foldrWithKey f True g.m
     where
         f key value acc = p key value && acc
 
+unsafeHead :: Graph a -> a
+unsafeHead g = fst $ M.findMin g.m
+
 --------------------------------------------------------------------------------
 -- Transformations
 --------------------------------------------------------------------------------
@@ -146,6 +162,18 @@ removeVertex x g = unsafeFromMap $ M.map (\adjs -> S.delete x adjs)     -- Remov
 
 unsafeNeighbours :: (Ord a) => a -> Graph a -> S.Set a
 unsafeNeighbours x g = (M.!) g.m x
+
+addVertex :: (Ord a) => a -> Graph a -> Graph a
+addVertex x g = unsafeFromMap $ M.insertWith (\x _ -> x) x S.empty g.m
+
+addEdge :: (Ord a) => (a, a) -> Graph a -> Graph a
+addEdge (x, y) g
+    | x == y    = addVertex x g  -- We aren't adding the edge, but if the vertex isn't there we should add it.
+    | otherwise = unsafeFromMap $ M.insertWith S.union y (S.singleton x)        -- Add the revered edge
+                                $ M.insertWith S.union x (S.singleton y) g.m    -- Add the edge
+
+addEdges :: (Ord a) => [(a, a)] -> Graph a -> Graph a
+addEdges edges g = foldr addEdge g edges
 
 
 --------------------------------------------------------------------------------
