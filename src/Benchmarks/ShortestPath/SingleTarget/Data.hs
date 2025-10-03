@@ -140,12 +140,9 @@ genGraphs :: Natural -> Natural -> Gen [G.Graph Natural Double]
 genGraphs nodes arcs = do
     original <- genGraph nodes arcs
 
-    -- TODO: Don't think we need the self loops here? That should be handled by the wrapper
-    -- function...?
-    pure $ map (G.addSelfLoops 0)
-                  $ map G.fromList
-                  $ L.chunksOf (max 1 $ div (fromIntegral nodes) 5)
-                  $ G.toList original
+    pure $ map G.fromList
+         $ L.chunksOf (max 1 $ div (fromIntegral nodes) 5)
+         $ G.toList original
 
 genQueryOnGraph :: (Ord a) => G.Graph a Double -> Natural -> Gen (GraphAndQuery a)
 genQueryOnGraph g numQueries = do
@@ -217,8 +214,7 @@ p1AndP2Basis = [
 
 p1 :: Problem
 p1 = Problem {
-    -- TODO: Don't think we need the self loops here? That should be handled by the wrapper
-    -- function...?
+     -- Our fixed query answers assume 0 cost self loops
       graphs = [G.addSelfLoops 0 $ G.fromList' p1AndP2Basis]
     , q = Query [ 0
                 , 1
@@ -245,8 +241,7 @@ p1 = Problem {
 -- P1 but with the information split across 8 individual graphs that must be combined together.
 p2 :: Problem
 p2 = Problem {
-    -- TODO: Don't think we need the self loops here? That should be handled by the wrapper
-    -- function...?
+      -- Our fixed query answers assume 0 cost self loops
       graphs = map (G.addSelfLoops 0 . G.fromList' . (:[])) p1AndP2Basis
     , q = Query [ 0
                 , 5
@@ -269,7 +264,7 @@ p2 = Problem {
 -- TODO: Don't think we need the self loops here? That should be handled by the wrapper
 -- function...?
 parseGraph :: FilePath -> IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural Double)))
-parseGraph filepath = fmap (fmap (fmap (G.addSelfLoops 0))) $ fmap (P.mapParseResult (fromInteger)) $ parseFile P.graph filepath
+parseGraph filepath = fmap (P.mapParseResult (fromInteger)) $ parseFile P.graph filepath
 
 parseGraph' :: FilePath -> IO (G.Graph Natural Double)
 parseGraph' filepath = fmap (fromRight . fromRight) $ parseGraph filepath
