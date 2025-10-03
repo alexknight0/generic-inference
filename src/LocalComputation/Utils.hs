@@ -41,6 +41,7 @@ module LocalComputation.Utils
     , lookupDefaultR
     , fromList''
     , formatTimeNicely
+    , putStdErr
     , infinity
     , neighbours
     , unusedArg
@@ -76,7 +77,7 @@ import qualified Text.ParserCombinators.Parsec as P
 import qualified Control.DeepSeq               as D
 import           Control.Exception             (assert)
 import qualified Control.Exception             as D
-import           Control.Monad                 (when)
+import           Control.Monad                 (void, when)
 import           Control.Monad.IO.Class        (MonadIO (liftIO))
 import qualified Data.Array                    as A
 import qualified Data.List                     as L
@@ -86,7 +87,8 @@ import           GHC.IORef                     (IORef, atomicModifyIORef',
 import           GHC.Stack                     (HasCallStack)
 import           Numeric.Natural
 import           System.IO                     (IOMode (ReadMode),
-                                                hGetContents', openFile)
+                                                hGetContents', hPutStrLn,
+                                                openFile, stderr)
 
 listArray0 :: [a] -> A.Array Int a
 listArray0 xs = A.listArray (0, length xs - 1) xs
@@ -326,11 +328,11 @@ predicateHitCounter :: IORef Int
 {-# NOINLINE predicateHitCounter #-}
 predicateHitCounter = unsafePerformIO (newIORef 0)
 
-getGlobal :: IO Int
-getGlobal = readIORef predicateHitCounter
+getGlobal :: Num b => IORef b -> IO b
+getGlobal x = readIORef x
 
 incrementGlobal :: Num b => IORef b -> IO b
-incrementGlobal x = atomicModifyIORef' x (\x -> let x' = x + 1 in (x', x'))
+incrementGlobal x = atomicModifyIORef' x (\y -> let x' = y + 1 in (x', x'))
 
 countPredicateHits :: (a -> Bool) -> a -> a
 countPredicateHits p x
@@ -340,15 +342,21 @@ countPredicateHits p x
         putStrLn $ "predicate hits: " ++ show new
         pure x
 
+putStdErr :: String -> IO ()
+putStdErr = hPutStrLn stderr
+
 debugTraceHitCounter :: IORef Int
 {-# NOINLINE debugTraceHitCounter #-}
-debugTraceHitCounter = unsafePerformIO (newIORef 0)
+debugTraceHitCounter = unsafePerformIO (newIORef 1)
 
-debugWithCounter :: (Int -> IO ()) -> a -> a
+debugWithCounter :: (Int -> a -> IO Bool) -> a -> a
 debugWithCounter f x = unsafePerformIO $ do
-        new <- incrementGlobal debugTraceHitCounter
-        putStrLn $ "debugCounter: " ++ show new
-        f new
+        current <- getGlobal debugTraceHitCounter
+        increment <- f current x
+        case increment of
+            True  -> void $ incrementGlobal debugTraceHitCounter
+            False -> pure ()
+        -- putStrLn $ "debugCounter: " ++ show increment
         pure x
 
 -- | Computes the possible combinations when choosing 'k' elements from the given list.

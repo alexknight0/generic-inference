@@ -16,11 +16,7 @@ module Benchmarks.ShortestPath.SingleTarget (
 -- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
 -- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
 -- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
--- 1. Make fusion construct a better join tree for itself.
 -- And after:
--- 1. Test singleTarget with a multiple query architecture, splitting
---    the 'domain' into pairs of (target, source) instead of a single
---    large query.
 -- 2. Test with different numbers of calls
 -- 3. Investigate garbage collection pressure
 
@@ -34,63 +30,97 @@ import qualified LocalComputation.Instances.ShortestPath.SingleTarget as ST
 import           LocalComputation.Utils                               (fromRight,
                                                                        infinity)
 
-import qualified Benchmarks.Utils                                     as U
 import           Control.DeepSeq                                      (deepseq,
                                                                        rnf)
 import           Control.Exception.Base                               (evaluate)
 import qualified Control.Monad                                        as M
 import           Control.Monad.IO.Class                               (MonadIO)
+import           Data.Function                                        ((&))
 import qualified Data.Hashable                                        as H
 import qualified LocalComputation.Inference.JoinTree.Diagram          as D
 import qualified LocalComputation.Inference.MessagePassing            as MP
+import qualified LocalComputation.Utils                               as U
 import qualified LocalComputation.ValuationAlgebra                    as V
+import           System.IO                                            (hPutStrLn,
+                                                                       stderr)
 
 --------------------------------------------------------------------------------
 -- Benchmarks
 --------------------------------------------------------------------------------
 
--- TODO: I think our graph decomposition algorithm simply isn't up to scratch for sparse graphs...
+-- TODO: test graph composition diff.
+-- TODO: filter by trees with query for message passing
+
+-- The graph generation is not part of the benchmark (we don't want it to take up time!), so we can't
+-- have it use different graphs between benchmarks unless we created some 'state', pregenerated all the
+-- graphs it was going to use (we don't know how many graphs that will be) and then swapped between those
+-- based on this state (where the state is hidden by the IO)
 
 benchmarks :: IO [Benchmark]
 benchmarks = do
 
-    problems <- sequence $ zipWith U.sample seeds $ concat [
-                                                  --   take 10 $ repeat $ D.genProblem 50 100 1
+    problems <- sequence $ zipWith (&) seeds [
+                                              D.createRandomProblem 1 1 35 4
+                                              -- take 10 $ repeat $ D.genProblem 50 100 1
                                                   -- take 1 $ repeat $ D.genProblem 50 250 1
                                                   -- , take 10 $ repeat $ D.genProblem 50 500 1
                                                   -- , take 10 $ repeat $ D.genProblem 100 500 1
                                                   -- , take 10 $ repeat $ D.genProblem 100 2000 1
                                                   -- take 3 $ repeat $ D.genProblem 200 1000 1
-                                                  -- take 1 $ repeat $ D.genProblem 200 4000 1
-                                                  take 1 $ repeat $ D.genProblem 400 8000 1
-                                               ]
+                                                  -- D.genProblem 200 4000 1
+                                                  -- take 1 $ repeat $ D.genProblem 50 100 1
+                                                  -- , take 1 $ repeat $ D.genProblem 400 8000 1
+                                             ]
     evaluate (rnf problems)
 
-    let algorithm mode = multipleSingleTargets mode D.def problems
-
-    bruteForce  <- algorithm (Generic I.BruteForce)
-    fusion      <- algorithm (Generic I.Fusion)
-    shenoy      <- algorithm (Generic (I.Shenoy MP.Threads))
-    baseline    <- algorithm (Baseline)
-
-    benches <- mapM (benchMode problems)  [
-            -- Baseline
-              -- Generic  $ I.Fusion
-            -- , Generic  $ I.Shenoy MP.Threads
-            -- , Generic  $ I.Shenoy MP.Distributed
-              -- DynamicP $ MP.Distributed
-            DynamicP $ MP.Threads
-        ]
+    benches <- mapM (benchModes modes) problems
 
     pure $ pure $ bgroup "Shortest Path" $ benches
     where
         seeds = [0..]
 
-        benchMode problems mode = do
-            afterSetup <- multipleSingleTargetsSplit mode debug problems
-            pure $ bench (show mode) $ nfIO afterSetup
+        modes = [
+            -- Baseline
+              Generic  $ I.Fusion
+            -- , Generic  $ I.Shenoy MP.Threads
+            -- , Generic  $ I.Shenoy MP.Distributed
+            -- , DynamicP $ MP.Distributed
+            -- , DynamicP $ MP.Threads
+         ]
 
-        debug = D.def -- { D.beforeInference = Just "diagrams/debugging3.svg" }
+
+benchModes :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashable a)
+    => [Implementation]
+    -> D.BenchmarkProblem a
+    -> IO Benchmark
+benchModes modes p = fmap (bgroup name) $ mapM (\m -> benchMode m p) modes
+    where
+        name =        show p.numProblems
+            ++ "/" ++ show p.numQueries
+            ++ "/" ++ show p.numVertices
+            ++ "/" ++ show p.edgeRatio
+
+benchMode :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashable a)
+    => Implementation
+    -> D.BenchmarkProblem a
+    -> IO Benchmark
+benchMode mode p = do
+    -- TODO: if we were using split why was decomposition slowing it down... Wait that means decomposition was
+    -- taking a while no?? Wait no it literally just should not have affected it - it never would have been called...
+    afterSetup <- multipleSingleTargets mode D.def p
+    pure $ bench name $ nfIO afterSetup
+
+    where
+        name = implementationName mode
+
+implementationName :: Implementation -> String
+implementationName (Baseline)                          = "Djikstra's Algorithm"
+implementationName (Generic I.BruteForce)              = "Brute Force"
+implementationName (Generic I.Fusion)                  = "Fusion"
+implementationName (Generic (I.Shenoy MP.Threads))     = "Shenoy (threads)"
+implementationName (Generic (I.Shenoy MP.Distributed)) = "Shenoy (distributed)"
+implementationName (DynamicP (MP.Threads))             = "Dynamic Programming (threads)"
+implementationName (DynamicP (MP.Distributed))         = "Dynamic Programming (distributed)"
 
 
 --------------------------------------------------------------------------------
@@ -148,14 +178,26 @@ singleTargets mode s g qs = pure $ mapM (\q -> fromRight $ algorithm s g q) qs
                         (Generic m)  -> ST.singleTarget m
                         (DynamicP m) -> ST.singleTargetDP m
 
+        --TODO: remove
+        -- debug = U.debugWithCounter f
+        --     where
+        --         f count v
+        --             | Left e <- v, count == 1 = do hPutStrLn stderr (show e); hPutStrLn stderr str; pure True
+        --             | otherwise = pure False
+        --
+        --             where
+        --                 str = "\nBefore decomposition:" ++ show g
+        --                     ++ "\nAfter decomposition:" ++ show (ST.decomposition g)
+        --                     ++ "\n" ++ show qs
+
 --------------------------------------------------------------------------------
 -- Variants of `singleTargets`
 --------------------------------------------------------------------------------
 -- | Multiple problem variant of `singleTargets`. Not to be confused with `singleTargetsSplit` which
 -- handles multiple graphs but considers it as one problem.
 multipleSingleTargets :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
-    => Implementation -> D.DrawSettings -> [D.BenchmarkProblem a] -> m (m [[[Double]]])
-multipleSingleTargets mode s ps = fmap sequence $ mapM (\p -> singleTargets mode s p.g p.qs) ps
+    => Implementation -> D.DrawSettings -> D.BenchmarkProblem a -> m (m [[[Double]]])
+multipleSingleTargets mode s ps = fmap sequence $ mapM (\p -> singleTargets mode s p.g p.qs) ps.ps
 
 -- | Single query variant of `singleTargets`
 singleTarget :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
@@ -179,8 +221,8 @@ singleTarget' mode s g q = M.join $ singleTarget mode s g q
 -- | Multiple problem variant of `singleTargets`. Not to be confused with `singleTargetsSplit` which
 -- handles multiple graphs but considers it as one problem.
 multipleSingleTargetsSplit :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
-    => Implementation -> D.DrawSettings -> [D.BenchmarkProblem a] -> m (m [[[Double]]])
-multipleSingleTargetsSplit mode s ps = fmap sequence $ mapM (\p -> singleTargetsSplit mode s [p.g] p.qs) ps
+    => Implementation -> D.DrawSettings -> D.BenchmarkProblem a -> m (m [[[Double]]])
+multipleSingleTargetsSplit mode s ps = fmap sequence $ mapM (\p -> singleTargetsSplit mode s [p.g] p.qs) ps.ps
 
 -- | Variant of `singleTargets` that takes a graph that has been split across multiple graphs.
 singleTargetsSplit :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)

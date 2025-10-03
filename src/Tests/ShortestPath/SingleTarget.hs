@@ -12,7 +12,8 @@ where
 import           Benchmarks.ShortestPath.SingleTarget                 as ST
 import           Benchmarks.ShortestPath.SingleTarget.Data
 import qualified LocalComputation.Graph                               as G
-import qualified LocalComputation.Instances.ShortestPath.SingleTarget as ST (Query)
+import qualified LocalComputation.Instances.ShortestPath.SingleTarget as ST (Query,
+                                                                             decomposition)
 
 import           Hedgehog                                             hiding
                                                                       (test)
@@ -43,7 +44,6 @@ import           Data.IORef                                           (IORef,
                                                                        newIORef,
                                                                        readIORef)
 import           System.IO.Unsafe                                     (unsafePerformIO)
-import qualified System.Random                                        as R
 
 group :: GroupName
 group = "Tests.ShorestPath.SingleTarget"
@@ -104,6 +104,18 @@ prop_parser :: Property
 prop_parser = unitTest $ do
     _ <- parseGraph p3SmallGraph
     parseGraph p3MediumGraph
+
+prop_decomposition_keepsVertices :: Property
+prop_decomposition_keepsVertices = withTests 100 . property $ do
+    nodes <- forAll $ Gen.int (Range.linear 1 50)   -- There is no valid query for 0 nodes.
+    edges <- forAll $ Gen.int (Range.linear 0 500)
+    graph <- forAll $ genGraph (fromIntegral nodes) (fromIntegral edges)
+
+    let decomposition = ST.decomposition graph
+
+    (length decomposition >= 1) === True  -- Since nodes >= 1; check required as merges1 requires at least 1 elem.
+
+    G.minimiseEdgeCosts (G.merges1 (ST.decomposition graph)) === G.minimiseEdgeCosts graph
 
 --------------------------------------------------------------------------------
 -- Settings
@@ -196,11 +208,8 @@ pX :: Problem -> Property
 pX p = unitTest $ do
     -- TODO: fix
     forM [DynamicP $ MP.Threads] $ \mode -> do
-        results <- ST.singleTargetSplit' mode drawme p.graphs p.q
+        results <- ST.singleTargetSplit' mode D.def p.graphs p.q
         checkAnswers approx (results) p.answers
-
-    where
-        drawme = D.def { D.beforeInference = Just "diagrams/debugging2.svg" }
 
 -- | Parses the given graph. Fails if a parse error occurs.
 parseGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile a)) -> PropertyT IO a

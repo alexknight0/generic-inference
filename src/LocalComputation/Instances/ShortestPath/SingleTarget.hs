@@ -9,6 +9,8 @@ module LocalComputation.Instances.ShortestPath.SingleTarget (
     , singleTargetSplitDP
     , singleTargetsSplit
     , Query (..)
+    -- TODO: no need to export probably.
+    , decomposition
 ) where
 
 import           Data.Maybe                                           (fromJust)
@@ -31,12 +33,15 @@ import           Data.Binary                                          (Binary)
 import qualified Data.Hashable                                        as H
 import qualified Data.List                                            as L
 import qualified LocalComputation.Graph                               as G
+import qualified LocalComputation.Graph.Undirected                    as UG
 import qualified LocalComputation.Inference                           as I
 import qualified LocalComputation.Inference.EliminationSequence       as E
 import qualified LocalComputation.Inference.JoinTree.Diagram          as D
 import qualified LocalComputation.Inference.MessagePassing            as MP
+import           LocalComputation.Inference.Triangulation
 import qualified LocalComputation.Inference.Triangulation             as T
 import           LocalComputation.Utils                               (fromRight)
+import qualified LocalComputation.Utils                               as U
 import qualified LocalComputation.ValuationAlgebra                    as V
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular.Value as Q (TropicalSemiringValue (..),
                                                                             toDouble)
@@ -128,10 +133,14 @@ type ComputeInference m a = D.DrawSettings
 --------------------------------------------------------------------------------
 -- Decomposition
 --------------------------------------------------------------------------------
-decomposition :: forall a b . (Ord a) => G.Graph a b -> [G.Graph a b]
+-- TODO: Decomposition technically will duplicate edges.
+-- i.e. if we have cliques {A, B, C} and cliques {B, C, D} then edges between 'b' and 'c' will be present
+-- in multiple graphs, even though we could communicate that information by only including the
+-- edges in one graph. Would solving this problem may result in speedups?
+decomposition :: forall a b . (Show a, Ord a, Eq b) => G.Graph a b -> [G.Graph a b]
 decomposition g = map (\c -> G.induce (`S.member` c) g) cliques
     where
-        cliques = T.maximalCliques (G.toAlgebraGraph' g)
+        cliques = T.maximalCliques (UG.fromGraph g)
 
 -- TODO: Add to future work: a more sophisticated decomposition algorithm
 oldDecomposition :: forall a b . (Ord a) => G.Graph a b -> [G.Graph a b]

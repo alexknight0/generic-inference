@@ -1,17 +1,17 @@
+{-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric  #-}
 
 {- | Tests for benchmarking suite. Also exposes some example problems that can be used in a test suite -}
 module Benchmarks.ShortestPath.SingleTarget.Data (
       Problem (..)
+    , GraphAndQuery (..)
     , BenchmarkProblem (..)
     , genQuery
     , genConnectedQuery
     , genConnectedQueries
     , genGraph
     , genGraphs
-    , genProblem
-    , genProblemOnGraph
     , p0Graphs
     , p0Queries
     , p1
@@ -22,6 +22,7 @@ module Benchmarks.ShortestPath.SingleTarget.Data (
     , p3MediumGraph
     , p3MediumGraph'
     , p3VeryLargeGraph
+    , createRandomProblem
 ) where
 
 import qualified Benchmarks.Utils                                     as U
@@ -40,6 +41,8 @@ import qualified Hedgehog.Range                                       as Range
 import           LocalComputation.Instances.ShortestPath.SingleTarget (Query (..))
 import qualified LocalComputation.ValuationAlgebra                    as V
 
+import           Control.Monad.IO.Class                               (MonadIO (liftIO))
+
 -- | Problem definition
 data Problem = Problem {
       graphs  :: [G.Graph Integer Double]
@@ -49,10 +52,31 @@ data Problem = Problem {
 
 -- | A problem where solutions are not specified - only used for benchmarking
 -- Can specify multiple queries.
-data BenchmarkProblem a = BenchmarkProblem {
+data GraphAndQuery a = GraphAndQuery {
       g  :: G.Graph a Double
     , qs :: [Query a]
 } deriving (V.Generic, V.NFData)
+
+data BenchmarkProblem a = BenchmarkProblem {
+      name        :: String
+    , numProblems :: Natural
+    , numQueries  :: Natural
+    , numVertices :: Natural
+    , numEdges    :: Natural
+    , edgeRatio   :: Double
+    , ps          :: [GraphAndQuery a]
+} deriving (V.Generic, V.NFData)
+
+createRandomProblem :: (MonadIO m) => Natural -> Natural -> Natural -> Double -> Int -> m (BenchmarkProblem Natural)
+createRandomProblem numProblems numQueries numVertices edgeRatio seed = do
+    problems <- liftIO $ U.sample seed $ genGraphsAndQueries numProblems numQueries numVertices numEdges
+
+    pure $ BenchmarkProblem "Randomly Generated" numProblems numQueries numVertices numEdges edgeRatio problems
+
+    where
+        numEdges = negativeBecomesZero $ floor $ fromIntegral numVertices * edgeRatio
+
+        negativeBecomesZero = max 0
 
 dataDirectory :: FilePath
 dataDirectory = "src/Benchmarks/ShortestPath/SingleTarget/Data/"
@@ -116,22 +140,27 @@ genGraphs :: Natural -> Natural -> Gen [G.Graph Natural Double]
 genGraphs nodes arcs = do
     original <- genGraph nodes arcs
 
+    -- TODO: Don't think we need the self loops here? That should be handled by the wrapper
+    -- function...?
     pure $ map (G.addSelfLoops 0)
                   $ map G.fromList
                   $ L.chunksOf (max 1 $ div (fromIntegral nodes) 5)
                   $ G.toList original
 
-genProblemOnGraph :: (Ord a) => G.Graph a Double -> Natural -> Gen (BenchmarkProblem a)
-genProblemOnGraph g numQueries = do
+genQueryOnGraph :: (Ord a) => G.Graph a Double -> Natural -> Gen (GraphAndQuery a)
+genQueryOnGraph g numQueries = do
     qs <- genConnectedQueries numQueries g
 
-    pure $ BenchmarkProblem g qs
+    pure $ GraphAndQuery g qs
 
-genProblem :: Natural -> Natural -> Natural -> Gen (BenchmarkProblem Natural)
-genProblem nodes edges numQueries = do
+genGraphAndQuery :: Natural -> Natural -> Natural -> Gen (GraphAndQuery Natural)
+genGraphAndQuery numQueries nodes edges = do
     g <- genGraph nodes edges
-    genProblemOnGraph g numQueries
+    genQueryOnGraph g numQueries
 
+genGraphsAndQueries :: Natural -> Natural -> Natural -> Natural -> Gen [GraphAndQuery Natural]
+genGraphsAndQueries numProblems numQueries nodes edges = Gen.list (Range.singleton (fromIntegral numProblems))
+                                                                  (genGraphAndQuery numQueries nodes edges)
 --------------------------------------------------------------------------------
 -- Manual tests
 --------------------------------------------------------------------------------
@@ -188,6 +217,8 @@ p1AndP2Basis = [
 
 p1 :: Problem
 p1 = Problem {
+    -- TODO: Don't think we need the self loops here? That should be handled by the wrapper
+    -- function...?
       graphs = [G.addSelfLoops 0 $ G.fromList' p1AndP2Basis]
     , q = Query [ 0
                 , 1
@@ -214,6 +245,8 @@ p1 = Problem {
 -- P1 but with the information split across 8 individual graphs that must be combined together.
 p2 :: Problem
 p2 = Problem {
+    -- TODO: Don't think we need the self loops here? That should be handled by the wrapper
+    -- function...?
       graphs = map (G.addSelfLoops 0 . G.fromList' . (:[])) p1AndP2Basis
     , q = Query [ 0
                 , 5
@@ -233,6 +266,8 @@ p2 = Problem {
 -- Utils
 -------------------------------------------------------------------------------
 
+-- TODO: Don't think we need the self loops here? That should be handled by the wrapper
+-- function...?
 parseGraph :: FilePath -> IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural Double)))
 parseGraph filepath = fmap (fmap (fmap (G.addSelfLoops 0))) $ fmap (P.mapParseResult (fromInteger)) $ parseFile P.graph filepath
 

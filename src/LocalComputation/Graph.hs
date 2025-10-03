@@ -15,6 +15,8 @@ module LocalComputation.Graph
     , nodes
     , flipArcDirections
     , nodeList
+    , vertexCount
+    , edgeCount
     , addSelfLoops
     , hasZeroCostSelfLoops
     , nonSymmetricEdges
@@ -22,6 +24,7 @@ module LocalComputation.Graph
     , merges
     , merges1
     , adjacencyList
+    , minimiseEdgeCosts
     , reverseAdjacencyList
     , empty
     , isEmpty
@@ -48,9 +51,11 @@ import           Text.Pretty.Simple         (pShowNoColor)
 import qualified Algebra.Graph.AdjacencyMap as AM
 import qualified Algebra.Graph.ToGraph      as AM
 import           Control.DeepSeq            (NFData)
+import           Control.Exception          (assert)
 import           GHC.Generics               (Generic)
+import qualified LocalComputation.Utils     as U
 
-newtype Graph a b = Graph (M.Map a [(a, b)]) deriving (Generic, NFData)
+newtype Graph a b = Graph (M.Map a [(a, b)]) deriving (Generic, NFData, Eq)
 
 instance (Show a, Show b) => Show (Graph a b) where
     show (Graph g) = LT.unpack $ pShowNoColor g
@@ -87,11 +92,17 @@ fromList = Graph . foldr f M.empty
 fromList' :: (Ord a) => [(a, [(a, b)])] -> Graph a b
 fromList' = Graph . M.fromList
 
+-- TODO: Inefficent, but not used for anything important
+edgeCount :: Graph a b -> Int
+edgeCount = length . toList
+
 fromMap :: M.Map a [(a, b)] -> Graph a b
 fromMap m = Graph m
 
 toMap :: Graph a b -> M.Map a [(a, b)]
 toMap (Graph g) = g
+
+-- TODO: Rename to vertexSet and vertexList
 
 -- TODO: The performance of this operation could be improved by adding an invariant that the underlying map contains
 -- every node in it's keySet, regardless of whether the key has an arc leaving from it.
@@ -100,6 +111,9 @@ nodes (Graph g) = S.union (M.keysSet g) (S.fromList $ concat $ map (map fst) (M.
 
 nodeList :: (Ord a) => Graph a b -> [a]
 nodeList g = S.toList $ nodes g
+
+vertexCount :: (Ord a) => Graph a b -> Int
+vertexCount = length . nodeList
 
 flipArcDirections :: (Ord a) => Graph a b -> Graph a b
 flipArcDirections g = fromList [Edge x.arcTail x.arcHead x.weight | x <- toList g]
@@ -152,6 +166,7 @@ toAlgebraGraph' = UG.toUndirected . toAlgebraGraph
 neighbours :: (Ord a) => Graph a b -> [(a, [a])]
 neighbours = UG.adjacencyList . UG.toUndirected . toAlgebraGraph
 
+-- TODO: What... why dont we just unwrap the map...
 adjacencyList :: (Ord a) => Graph a b -> [(a, [a])]
 adjacencyList g = G.adjacencyList $ toAlgebraGraph g
 
@@ -171,10 +186,12 @@ isEmpty :: Graph a b -> Bool
 isEmpty (Graph g) = length g == 0
 
 deleteVertex :: (Ord a) => a -> Graph a b -> Graph a b
-deleteVertex x g = fromList $ filter (\e -> e.arcHead /= x && e.arcTail /= x) $ toList g
+deleteVertex x g = fromList $ filter (\e -> e.arcHead /= x
+                                         && e.arcTail /= x) $ toList g
 
 deleteVertices :: (Ord a) => S.Set a -> Graph a b -> Graph a b
-deleteVertices xs g = fromList $ filter (\e -> not (e.arcHead `S.member` xs) && not (e.arcTail `S.member` xs)) $ toList g
+deleteVertices xs g = fromList $ filter (\e -> e.arcHead `S.notMember` xs
+                                            && e.arcTail `S.notMember` xs) $ toList g
 
 makeUndirected :: (Ord a) => G.Graph a -> G.Graph a
 makeUndirected g = AM.toGraph $ AM.overlay g' (AM.transpose g')
@@ -189,3 +206,8 @@ isConnected g = all (\x -> length (AM.reachable undirected x) == length vertices
 
 induce :: (Ord a) => (a -> Bool) -> Graph a b -> Graph a b
 induce p g =  deleteVertices (S.filter (not . p) (nodes g)) g
+
+minimiseEdgeCosts :: (Ord a, Ord b) => Graph a b -> Graph a b
+minimiseEdgeCosts (Graph m) = fromMap $ M.map (\adj -> U.nubWithBy fst minimise adj) m
+    where
+        minimise (x1, c1) (x2, c2) = assert (x1 == x2) $ (x1, min c1 c2)
