@@ -132,8 +132,10 @@ genGraph nodes arcs = do
         genCost = fmap fromIntegral $ Gen.int (Range.constant 0 100)
 
         -- This approach of adding self loops also ensures that each node is actually
-        -- present in the graph.
+        -- present in the graph; however as long as this is handled properly, we can
+        -- remove the self loops.
         selfLoops = [G.Edge x x 0 | x <- [0 .. nodes - 1]]
+
 
 -- | Generates a bunch of graphs that together build a larger graph.
 genGraphs :: Natural -> Natural -> Gen [G.Graph Natural Double]

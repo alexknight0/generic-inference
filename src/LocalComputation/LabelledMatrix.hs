@@ -32,6 +32,13 @@ module LocalComputation.LabelledMatrix
     , joinSquare
     , isWellFormed
     , unsafeAppendRows
+    , mapWithKey
+    , update
+    , updates
+    , unsafeRow
+    , rowList
+    , all'
+    , unsafeLookup
     )
 where
 
@@ -64,8 +71,9 @@ import           Debug.Trace                                          (trace)
 import qualified LocalComputation.Pretty                              as P
 import qualified LocalComputation.Utils                               as U
 
--- TODO: Change asserts to take place *after* the function is called;
--- much safer this way.
+-- TODO: could experiment with using Unbox or Storable for speedups.
+-- TODO: could experiment with using delayed arrays.
+-- TODO: consider changing to parallel matrix ops
 
 data InvalidFormat = NotTotalMapping
 
@@ -108,6 +116,14 @@ instance HasField "rowLabelSet" (LabelledMatrix a b c) (S.Set a) where
 -- | O(n) accessor for column label set where n is the number of column labels.
 instance HasField "colLabelSet" (LabelledMatrix a b c) (S.Set b) where
     getField m = Map.keysSet $ BM.toMapR m.colLabels
+
+-- | O(n) accessor for row label set where n is the number of row labels.
+instance HasField "rowLabelList" (LabelledMatrix a b c) [a] where
+    getField m = Map.keys $ BM.toMapR m.rowLabels
+
+-- | O(n) accessor for column label set where n is the number of column labels.
+instance HasField "colLabelList" (LabelledMatrix a b c) [b] where
+    getField m = Map.keys $ BM.toMapR m.colLabels
 
 instance (Binary a, Binary b, Binary c, Ord a, Ord b) => Binary (LabelledMatrix a b c) where
     put m = do
@@ -430,14 +446,62 @@ appendRows m1 m2
 empty :: (Eq a, Eq b) => LabelledMatrix a b c
 empty = unsafeCreate M.empty BM.empty BM.empty
 
-update :: a -> b -> c -> LabelledMatrix a b c -> LabelledMatrix a b c
-update = undefined
+unsafeLookup :: (Ord a, Ord b) => a -> b -> LabelledMatrix a b c -> c
+unsafeLookup x y m = M.index' m.matrix index
+    where
+        index = (unsafeRowIndex x m) :. (unsafeColIndex y m)
+
+-- | Update a single index of the matrix. Prefer `updates` for updating
+-- multiple values.
+update :: (Ord a, Ord b) => a -> b -> c -> LabelledMatrix a b c -> LabelledMatrix a b c
+update row col value m = updates [((row, col), value)] m
+
+-- | Updates the given indexes of the matrices to hold the given values.
+-- If multiple updates for the same input are contained in the list, the latest entry overwrites previous ones.
+updates :: (Ord a, Ord b) => [((a, b), c)] -> LabelledMatrix a b c -> LabelledMatrix a b c
+updates values m = mapWithKey f m
+    where
+        valueMap = Map.fromList values
+
+        f row col old = case Map.lookup (row, col) valueMap of
+                                Just new -> new
+                                Nothing  -> old
+
+mapWithKey :: (Ord a, Ord b) => (a -> b -> c -> c) -> LabelledMatrix a b c -> LabelledMatrix a b c
+mapWithKey f m = unsafeCreate updatedMatrix m.rowLabels m.colLabels
+    where
+        updatedMatrix = M.computeAs M.B $ M.imap g m.matrix
+
+        g (i :. j) old = f (unsafeRowLabel i m) (unsafeColLabel j m) old
+
+unsafeRow :: (Ord a) => a -> LabelledMatrix a b c -> [c]
+unsafeRow x m = M.toList $ (M.!>) m.matrix (unsafeRowIndex x m)
+
+rowList :: LabelledMatrix a b c -> [[c]]
+rowList m = M.toLists2 m.matrix
+
+all' :: (Ord a, Ord b) => (a -> b -> c -> Bool) -> LabelledMatrix a b c -> Bool
+all' p m = M.and $ M.imap g m.matrix
+    where
+        g (i :. j) old = p (unsafeRowLabel i m) (unsafeColLabel j m) old
 
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------
 enumerate :: (Ord a) => S.Set a -> BM.Bimap M.Ix1 a
 enumerate xs = (BM.fromAscPairList . assert' checkIsAscPairList) $ zip [M.Ix1 0..] (S.toAscList xs)
+
+unsafeRowIndex :: (Ord a) => a -> LabelledMatrix a b c -> M.Ix1
+unsafeRowIndex x m = (BM.!>) m.rowLabels x
+
+unsafeColIndex :: (Ord b) => b -> LabelledMatrix a b c -> M.Ix1
+unsafeColIndex x m = (BM.!>) m.colLabels x
+
+unsafeRowLabel :: (Ord a) => M.Ix1 -> LabelledMatrix a b c -> a
+unsafeRowLabel i m = (BM.!) m.rowLabels i
+
+unsafeColLabel :: (Ord b) => M.Ix1 -> LabelledMatrix a b c -> b
+unsafeColLabel i m = (BM.!) m.colLabels i
 
 --------------------------------------------------------------------------------
 -- Invariants

@@ -82,29 +82,29 @@ prop_isComplete = unitTest $ do
 
     where
         k0 :: G.Graph Int
-        k0 = G.unsafeFromList []
+        k0 = G.fromList []
 
         k1 :: G.Graph Int
-        k1 = G.unsafeFromList [(1, [])]
+        k1 = G.fromList [(1, [])]
 
         k2 :: G.Graph Int
-        k2 = G.unsafeFromList [ (1, [2])
+        k2 = G.fromList [ (1, [2])
                               , (2, [1])
                              ]
 
         k3 :: G.Graph Int
-        k3 = G.unsafeFromList [ (1, [2, 3])
+        k3 = G.fromList [ (1, [2, 3])
                               , (2, [1, 3])
                               , (3, [1, 2])
                              ]
 
         notK2 :: G.Graph Int
-        notK2 = G.unsafeFromList [ (1, [])
+        notK2 = G.fromList [ (1, [])
                                  , (2, [])
                                 ]
 
         notK3 :: G.Graph Int
-        notK3 = G.unsafeFromList [ (1, [2])
+        notK3 = G.fromList [ (1, [2])
                                  , (2, [1])
                                  , (3, [])
                                 ]

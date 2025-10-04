@@ -58,6 +58,7 @@ module LocalComputation.Utils
     , toTuple
     , removeSubsets
     , one
+    , boolMask
     )
 where
 
@@ -378,7 +379,14 @@ removeSubsets :: (Ord a) => [S.Set a] -> [S.Set a]
 removeSubsets xs = filter (\x -> one (\y -> S.isSubsetOf x y) xs) xs
 
 one :: (a -> Bool) -> [a] -> Bool
-one p []        = False
+one _ []        = False
 one p (x:xs)
     | p x       = not $ any p xs
     | otherwise = one p xs
+
+boolMask :: [a] -> [Bool] -> [a]
+boolMask [] _  = []
+boolMask _  [] = []
+boolMask (x:xs) (y:ys)
+    | y         = x : boolMask xs ys
+    | otherwise = boolMask xs ys
