@@ -10,22 +10,30 @@ module Tests.ShortestPath.SingleTarget
 where
 
 import           Benchmarks.ShortestPath.SingleTarget                 as ST
-import           Benchmarks.ShortestPath.SingleTarget.Data
+import           Benchmarks.ShortestPath.SingleTarget.Data            (Problem (answers, graphs, q),
+                                                                       genConnectedQuery,
+                                                                       genGraph,
+                                                                       genGraphs,
+                                                                       p1, p2,
+                                                                       p3MediumGraph,
+                                                                       p3SmallGraph,
+                                                                       p3VerySmallGraph)
 import qualified LocalComputation.Graph                               as G
 import qualified LocalComputation.Instances.ShortestPath.SingleTarget as ST (Query,
                                                                              decomposition)
 
 import           Hedgehog                                             hiding
-                                                                      (test)
+                                                                      (assert,
+                                                                       test)
+import qualified Hedgehog                                             as H (assert)
 import qualified Hedgehog.Gen                                         as Gen
 import qualified Hedgehog.Internal.Property                           as Hedgehog (PropertyName (..))
 import qualified Hedgehog.Range                                       as Range
 
+import qualified Benchmarks.ShortestPath.SingleTarget.Data            as D
 import           Control.Distributed.Process                          (liftIO)
 import           Control.Monad                                        (forM)
 import qualified LocalComputation.Inference.JoinTree.Diagram          as D
-import qualified LocalComputation.Instances.ShortestPath.Parser       as P
-import qualified Text.Parsec                                          as P
 
 -- Typeclasses
 import           Control.DeepSeq                                      (NFData)
@@ -62,7 +70,7 @@ checkMatchesBaselineP3 :: IO Bool
 checkMatchesBaselineP3 = checkMatchesBaseline name getGraph test 100
     where
         name mode = "prop_matchesBaseline_onP3 " ++ show mode
-        getGraph = P.fromValid p3VerySmallGraph
+        getGraph = D.unsafeParseFullGraph p3VerySmallGraph
         test = matchesBaselineOnGraph
 
 checkMatchesBaselineRandom :: IO Bool
@@ -99,11 +107,20 @@ prop_p1 = pX p1
 prop_p2 :: Property
 prop_p2 = pX p2
 
--- | Tests the parser doesn't fail on a known working example.
+-- | Tests the parser doesn't fail on known working examples.
 prop_parser :: Property
 prop_parser = unitTest $ do
-    _ <- parseGraph p3SmallGraph
-    parseGraph p3MediumGraph
+    smallByExactParser <- parseFullGraph p3SmallGraph
+    mediumByExactParser <- parseFullGraph p3MediumGraph
+
+    smallByPartialParser <- parseGraph (edgeCount smallByExactParser) D.p3FullGraph
+    mediumByPartialParser <- parseGraph (edgeCount mediumByExactParser) D.p3FullGraph
+
+    smallByExactParser === smallByPartialParser
+    mediumByExactParser === mediumByPartialParser
+
+    where
+        edgeCount = fromIntegral . G.edgeCount
 
 prop_decomposition_keepsVertices :: Property
 prop_decomposition_keepsVertices = withTests 100 . property $ do
@@ -212,14 +229,22 @@ pX p = unitTest $ do
         checkAnswers approx (results) p.answers
 
 -- | Parses the given graph. Fails if a parse error occurs.
-parseGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile a)) -> PropertyT IO a
-parseGraph g = do
-    parsed <- liftIO g
+parseFullGraph :: FilePath -> PropertyT IO (G.Graph Natural Double)
+parseFullGraph filepath = do
+    parsed <- liftIO $ D.parseFullGraph filepath
     case parsed of
         Left e  -> do annotateShow e; failure
         Right parseResult -> case parseResult of
             Left e  -> do annotateShow e; failure
-            Right x -> pure x
+            Right g -> pure g
+
+-- | Parses a given number of lines of the given graph. Fails if a parse error occurs.
+parseGraph :: Natural -> FilePath -> PropertyT IO (G.Graph Natural Double)
+parseGraph numArcs filepath = do
+    parsed <- liftIO $ D.parseGraph numArcs filepath
+    case parsed of
+        Left e  -> do annotateShow e; failure
+        Right g -> pure g
 
 --------------------------------------------------------------------------------
 -- Utilities

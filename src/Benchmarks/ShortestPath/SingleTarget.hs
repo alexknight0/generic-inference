@@ -60,19 +60,14 @@ benchmarks :: IO [Benchmark]
 benchmarks = do
 
     problems <- sequence $ zipWith (&) seeds [
-                                                D.createRandomProblem 3 1 100 0.25
-                                              , D.createRandomProblem 3 1 100 1
-                                              , D.createRandomProblem 3 1 100 5
-                                              , D.createRandomProblem 3 1 100 10
-                                              -- take 10 $ repeat $ D.genProblem 50 100 1
-                                                  -- take 1 $ repeat $ D.genProblem 50 250 1
-                                                  -- , take 10 $ repeat $ D.genProblem 50 500 1
-                                                  -- , take 10 $ repeat $ D.genProblem 100 500 1
-                                                  -- , take 10 $ repeat $ D.genProblem 100 2000 1
-                                                  -- take 3 $ repeat $ D.genProblem 200 1000 1
-                                                  -- D.genProblem 200 4000 1
-                                                  -- take 1 $ repeat $ D.genProblem 50 100 1
-                                                  -- , take 1 $ repeat $ D.genProblem 400 8000 1
+                                              --   D.createRandomProblem 3 1 100 0.25
+                                              -- , D.createRandomProblem 3 1 100 1
+                                              -- , D.createRandomProblem 3 1 100 5
+                                              -- , D.createRandomProblem 3 1 100 10
+                                                D.createRandomProblem 3 1 200 0.25
+                                              , D.createRandomProblem 3 1 200 1
+                                              , D.createRandomProblem 3 1 200 5
+                                              , D.createRandomProblem 3 1 200 10
                                              ]
     evaluate (rnf problems)
 

@@ -18,11 +18,12 @@ module Benchmarks.ShortestPath.SingleTarget.Data (
     , p2
     , p3VerySmallGraph
     , p3SmallGraph
-    , p3SmallGraph'
     , p3MediumGraph
-    , p3MediumGraph'
-    , p3VeryLargeGraph
+    , p3FullGraph
     , createRandomProblem
+    , parseFullGraph
+    , unsafeParseFullGraph
+    , parseGraph
 ) where
 
 import qualified Benchmarks.Utils                                     as U
@@ -262,30 +263,28 @@ p2 = Problem {
 -------------------------------------------------------------------------------
 -- Utils
 -------------------------------------------------------------------------------
+-- TODO: Lets just have one const here and use parse with numlines
 
 -- TODO: Don't think we need the self loops here? That should be handled by the wrapper
 -- function...?
-parseGraph :: FilePath -> IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural Double)))
-parseGraph filepath = fmap (P.mapParseResult (fromInteger)) $ parseFile P.graph filepath
+parseFullGraph :: FilePath -> IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural Double)))
+parseFullGraph filepath = fmap (P.mapParseResult (fromInteger)) $ parseFile P.fullGraph filepath
 
-parseGraph' :: FilePath -> IO (G.Graph Natural Double)
-parseGraph' filepath = fmap (fromRight . fromRight) $ parseGraph filepath
+parseGraph :: Natural -> FilePath -> IO (Either P.ParseError (G.Graph Natural Double))
+parseGraph numArcs filepath = fmap (fmap (fmap fromInteger)) $ parseFile (P.graph numArcs) filepath
 
-p3VerySmallGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural Double)))
-p3VerySmallGraph = parseGraph $ dataDirectory ++ "VerySmall-USA-road-d.NY.gr"
+unsafeParseFullGraph :: FilePath -> IO (G.Graph Natural Double)
+unsafeParseFullGraph filepath = fmap (fromRight . fromRight) $ parseFullGraph filepath
 
-p3SmallGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural Double)))
-p3SmallGraph = parseGraph $ dataDirectory ++ "Small-USA-road-d.NY.gr"
+p3VerySmallGraph :: FilePath
+p3VerySmallGraph = dataDirectory ++ "VerySmall-USA-road-d.NY.gr"
 
-p3SmallGraph' :: IO (G.Graph Natural Double)
-p3SmallGraph' = P.fromValid $ p3SmallGraph
+p3SmallGraph :: FilePath
+p3SmallGraph = dataDirectory ++ "Small-USA-road-d.NY.gr"
 
-p3MediumGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural Double)))
-p3MediumGraph = parseGraph $ dataDirectory ++ "Medium-USA-road-d.NY.gr"
+p3MediumGraph :: FilePath
+p3MediumGraph = dataDirectory ++ "Medium-USA-road-d.NY.gr"
 
-p3MediumGraph' :: IO (G.Graph Natural Double)
-p3MediumGraph' = P.fromValid $ p3MediumGraph
-
-p3VeryLargeGraph :: IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural Double)))
-p3VeryLargeGraph = parseGraph $ dataDirectory ++ "VeryLarge-USA-road-d.NY.gr"
+p3FullGraph :: FilePath
+p3FullGraph = dataDirectory ++ "USA-road-d.NY.gr"
 

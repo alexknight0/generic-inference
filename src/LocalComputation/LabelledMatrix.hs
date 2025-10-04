@@ -73,6 +73,7 @@ import qualified LocalComputation.Utils                               as U
 
 -- TODO: could experiment with using Unbox or Storable for speedups.
 -- TODO: could experiment with using delayed arrays.
+-- TODO: could experiment with using mutable arrays.
 -- TODO: consider changing to parallel matrix ops
 
 data InvalidFormat = NotTotalMapping

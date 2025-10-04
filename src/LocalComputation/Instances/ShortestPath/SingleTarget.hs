@@ -138,7 +138,7 @@ type ComputeInference m a = D.DrawSettings
 -- in multiple graphs, even though we could communicate that information by only including the
 -- edges in one graph. Would solving this problem may result in speedups?
 decomposition :: forall a b . (Show a, Ord a, Eq b) => G.Graph a b -> [G.Graph a b]
-decomposition g = map (\c -> G.induce (`S.member` c) g) cliques
+decomposition g = oldDecomposition g -- map (\c -> G.induce (`S.member` c) g) cliques
     where
         cliques = U.removeSubsets $ T.maximalCliques (UG.fromGraph g)
 
