@@ -35,7 +35,6 @@ module LocalComputation.LabelledMatrix
     )
 where
 
-import           Control.Exception                                    (assert)
 import qualified Control.Monad                                        as Monad
 import qualified Data.Bimap                                           as BM
 import qualified Data.Map                                             as Map
@@ -45,7 +44,6 @@ import           Data.Maybe                                           (fromJust,
 import qualified Data.Set                                             as S
 import           LocalComputation.Utils                               (assert',
                                                                        fromRight)
-import qualified LocalComputation.Utils                               as Map (fromList'')
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular.Value as Q
 
 -- Typeclasses
@@ -64,11 +62,12 @@ import qualified Data.Massiv.Array                                    as M
 import qualified Data.Tuple.Extra                                     as T
 import           Debug.Trace                                          (trace)
 import qualified LocalComputation.Pretty                              as P
+import qualified LocalComputation.Utils                               as U
 
 -- TODO: Change asserts to take place *after* the function is called;
 -- much safer this way.
 
-data InvalidFormat = DuplicateKeys | NotTotalMapping
+data InvalidFormat = NotTotalMapping
 
 {- | A labelled matrix.
 
@@ -122,8 +121,8 @@ instance (Binary a, Binary b, Binary c, Ord a, Ord b) => Binary (LabelledMatrix 
         colLabels <- fmap (BM.fromAscPairList . assert' checkIsAscPairList) get :: B.Get (BM.Bimap M.Ix1 b)
         pure (Matrix matrix rowLabels colLabels)
 
-instance Functor (LabelledMatrix a b) where
-    fmap f m = Matrix (M.computeAs M.B $ M.map f m.matrix) m.rowLabels m.colLabels
+instance (Eq a, Eq b) => Functor (LabelledMatrix a b) where
+    fmap f m = unsafeCreate (M.computeAs M.B $ M.map f m.matrix) m.rowLabels m.colLabels
 
 -- | The computational [s]trategy used for this data structure.
 -- This argument is passed to every function that uses the Data.Massiv.Array library. This simply indicates
@@ -141,6 +140,9 @@ fromMatrix m = fromRight $ fromList $ zip indexes (M'.toList m)
         indexes = [(fromIntegral rowLabel, fromIntegral colLabel) | rowLabel <- [0 .. M'.nrows m - 1],
                                                                     colLabel <- [0 .. M'.ncols m - 1]]
 
+unsafeCreate :: (Eq a, Eq b) => M.Matrix M.B c -> BM.Bimap M.Ix1 a -> BM.Bimap M.Ix1 b -> LabelledMatrix a b c
+unsafeCreate m rowLabels colLabels = U.assertP isWellFormed $ Matrix m rowLabels colLabels
+
 -- | \(O(n \log n)\) - Creates a matrix from the given association list.
 fromList :: forall a b c . (Ord a, Ord b)
     => [((a, b), c)]
@@ -152,8 +154,8 @@ fromList xs = fromList' xs Nothing
 fromListDefault :: forall a b c . (Ord a, Ord b)
     => c
     -> [((a, b), c)]
-    -> Either InvalidFormat (LabelledMatrix a b c)
-fromListDefault defaultElem xs = fromList' xs (Just defaultElem)
+    -> LabelledMatrix a b c
+fromListDefault defaultElem xs = fromRight $ fromList' xs (Just defaultElem)
 
 -- | Internal function used to create a list with an optional default element.
 fromList' :: forall a b c . (Ord a, Ord b)
@@ -161,24 +163,23 @@ fromList' :: forall a b c . (Ord a, Ord b)
     -> Maybe c
     -> Either InvalidFormat (LabelledMatrix a b c)
 fromList' xs defaultElem
-    | Nothing <- m'                                                                           = Left DuplicateKeys
-    | Just m <- m', Nothing <- defaultElem, BM.size rowLabels * BM.size colLabels /= length m = Left NotTotalMapping
-    | Just m <- m'                                                                            = Right $ Matrix (matrix m) rowLabels colLabels
+    | Nothing <- defaultElem, BM.size rowLabels * BM.size colLabels /= length keyMap = Left NotTotalMapping
+    | otherwise                                                                      = Right $ unsafeCreate matrix rowLabels colLabels
     where
         rowLabels = enumerate $ S.fromList $ map (fst . fst) xs
         colLabels = enumerate $ S.fromList $ map (snd . fst) xs
 
-        matrix :: Map.Map (a, b) c -> M.Matrix M.B c
-        matrix m = M.makeArray s shape (f m)
+        matrix :: M.Matrix M.B c
+        matrix = M.makeArray s shape f
 
         shape = M.Sz (BM.size rowLabels :. BM.size colLabels)
-        f m (i :. j) = Map.findWithDefault defaultElem' (iLabel, jLabel) m
+        f (i :. j) = Map.findWithDefault defaultElem' (iLabel, jLabel) keyMap
             where
                 iLabel = (BM.!) rowLabels i
                 jLabel = (BM.!) colLabels j
 
-        m' :: Maybe (Map.Map (a, b) c)
-        m' = Map.fromList'' xs
+        keyMap :: Map.Map (a, b) c
+        keyMap = Map.fromList xs
 
         defaultElem'
             | Just x <- defaultElem = x
@@ -186,15 +187,13 @@ fromList' xs defaultElem
 
 -- TODO: Should be renamed - we use an overloaded term 'square' here to refer to
 -- square matricies, and matrices that have the same labels on rows and columns.
-isSquare :: (Eq a, Eq b) => LabelledMatrix a b c -> Bool
-isSquare x | assertIsWellFormed x = undefined
+isSquare :: LabelledMatrix a b c -> Bool
 isSquare m = m.numRows == m.numCols
 
 domain :: LabelledMatrix a b c -> (S.Set a, S.Set b)
 domain m = (m.rowLabelSet, m.colLabelSet)
 
 toSquare :: (Ord a) => LabelledMatrix a a c -> c -> LabelledMatrix a a c
-toSquare x _ | assertIsWellFormed x = undefined
 toSquare m defaultElem = fromJust $ extension m squareLabelSet squareLabelSet defaultElem
     where
         squareLabelSet = S.union m.rowLabelSet m.colLabelSet
@@ -203,7 +202,7 @@ toSquare m defaultElem = fromJust $ extension m squareLabelSet squareLabelSet de
 reshape :: forall a b c . (Ord a, Ord b) => c -> LabelledMatrix a b c -> S.Set a -> S.Set b -> LabelledMatrix a b c
 reshape defaultElem m rowLabelSet colLabelSet
     | m.rowLabelSet == rowLabelSet && m.colLabelSet == colLabelSet = m
-    | otherwise                                                    = Matrix matrix rowLabels colLabels
+    | otherwise                                                    = unsafeCreate matrix rowLabels colLabels
     where
         rowLabels = enumerate rowLabelSet
         colLabels = enumerate colLabelSet
@@ -237,7 +236,6 @@ reshape defaultElem m rowLabelSet colLabelSet
 
 -- | Extend a matrix to a larger domain, filling spots with the given default element. Returns Nothing if the domain to extend to is not a superset.
 extension :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> c -> Maybe (LabelledMatrix a b c)
-extension x _ _ _ | assertIsWellFormed x = undefined
 extension m rowLabelSet colLabelSet defaultElem
     | m.rowLabelSet == rowLabelSet && m.colLabelSet == colLabelSet = Just $ m
     | m.rowLabelSet `S.isSubsetOf` rowLabelSet && m.colLabelSet `S.isSubsetOf` colLabelSet = Just $ reshape defaultElem m rowLabelSet colLabelSet
@@ -245,7 +243,6 @@ extension m rowLabelSet colLabelSet defaultElem
 
 -- | Project the domain of a matrix down to a new domain. Returns nothing if the given domain is not a subset of the old domain.
 project :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> Maybe (LabelledMatrix a b c)
-project m _ _ | assertIsWellFormed m = undefined
 project m rowLabelSet colLabelSet
     | not (S.isSubsetOf rowLabelSet m.rowLabelSet) || not (S.isSubsetOf colLabelSet m.colLabelSet) = Nothing
     | otherwise = Just $ reshape unusedArg m rowLabelSet colLabelSet
@@ -253,12 +250,10 @@ project m rowLabelSet colLabelSet
         unusedArg = error "Should never be evaluated"
 
 projectRows :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> Maybe (LabelledMatrix a b c)
-projectRows m _ | assertIsWellFormed m = undefined
 projectRows m rowLabelSet = project m rowLabelSet m.colLabelSet
 
 -- | Returns an element from the matrix. Returns Nothing if the element is not in the domain of the matrix.
 find :: (Ord a, Ord b) => (a, b) -> LabelledMatrix a b c -> Maybe c
-find _ x | assertIsWellFormed x = undefined
 find (a, b) m = do
     aIndex <- BM.lookupR a m.rowLabels
     bIndex <- BM.lookupR b m.colLabels
@@ -271,7 +266,6 @@ add :: (Ord a, Ord b)
     -> LabelledMatrix a b c
     -> LabelledMatrix a b c
     -> Maybe (LabelledMatrix a b c)
-add _ x y | assertAllWellFormed [x, y] = undefined
 add addElems m1 m2 = pointwise addElems m1 m2
 
 -- | Perform an operation over the matrix pointwise.
@@ -280,10 +274,9 @@ pointwise :: (Eq a, Eq b)
     -> LabelledMatrix a b c
     -> LabelledMatrix a b d
     -> Maybe (LabelledMatrix a b e)
-pointwise _ m1 m2 | assertIsWellFormed m1 || assertIsWellFormed m2 = undefined
 pointwise f m1 m2
     | m1.rowLabels /= m2.rowLabels || m1.colLabels /= m2.colLabels = Nothing
-    | otherwise = Just $ Matrix matrix m1.rowLabels m1.colLabels
+    | otherwise = Just $ unsafeCreate matrix m1.rowLabels m1.colLabels
     where
         matrix = M.computeAs M.B $ M.zipWith f m1.matrix m2.matrix
 
@@ -295,11 +288,10 @@ multiply :: forall a b c d . (Eq a, Eq b, Eq c)
     -> LabelledMatrix a b d
     -> LabelledMatrix b c d
     -> Maybe (LabelledMatrix a c d)
-multiply _ _ _ m1 m2 | assertIsWellFormed m1 || assertIsWellFormed m2 = undefined
 multiply zero addElems multiplyElems m1 m2
     | m1.colLabels /= m2.rowLabels = Nothing
-    | m1.numRows == 0 || m1.numCols == 0 || m2.numRows == 0 || m2.numCols == 0 = Just $ Matrix emptyMatrix m1.rowLabels m2.colLabels
-    | otherwise = Just $ Matrix matrix m1.rowLabels m2.colLabels
+    | m1.numRows == 0 || m1.numCols == 0 || m2.numRows == 0 || m2.numCols == 0 = Just $ unsafeCreate emptyMatrix m1.rowLabels m2.colLabels
+    | otherwise = Just $ unsafeCreate matrix m1.rowLabels m2.colLabels
 
     where
         emptyMatrix :: M.Matrix M.B d
@@ -319,7 +311,6 @@ multiplys :: (Eq a, Functor t, Foldable t)
     -> (c -> c -> c)
     -> t (LabelledMatrix a a c)
     -> Maybe (LabelledMatrix a a c)
-multiplys _ _ _ ms | assertAllWellFormed ms = undefined
 multiplys zero addElems multiplyElems ms
     | null ms = Nothing
     | otherwise = foldl1 (liftA2' (multiply zero addElems multiplyElems)) (fmap Just ms)
@@ -333,7 +324,6 @@ This formula is detailed in "Generic Inference" (Pouly and Kohlas, 2012).
 quasiInverse :: (Ord a, Q.SemiringValue c, Show a, Show c)
     => LabelledMatrix a a c
     -> Maybe (LabelledMatrix a a c)
-quasiInverse x | assertIsWellFormed x = undefined
 quasiInverse m
     | m.numRows /= m.numCols = Nothing
     | m.numRows == 0 = Just $ m
@@ -370,7 +360,6 @@ Where D is of shape `div numRows 2` x `div numCols 2`.
 Returns Nothing if the given matrix is empty.   TODO: it probably doesn't have to return Nothing here.
 -}
 decompose :: (Ord a) => LabelledMatrix a a c -> Maybe (LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c)
-decompose x | assertIsWellFormed x = undefined
 decompose m
     | m.numRows == 0 && m.numCols == 0 = Nothing
     | otherwise = Just (project' m aRows    aCols, project' m aRows    notACols,
@@ -398,7 +387,6 @@ For inputs A -> B -> C -> D returns:
 Note that this does not indicate that the resulting matrix is a square matrix.
 -}
 joinSquare :: forall a b c . (Ord a, Ord b) => LabelledMatrix a b c -> LabelledMatrix a b c -> LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
-joinSquare a b c d | assertAllWellFormed [a, b, c, d] = undefined
 joinSquare a b c d
     -- Row / column labels match where they coincide in the overall square matrix.
     |    a.rowLabels /= b.rowLabels
@@ -409,7 +397,7 @@ joinSquare a b c d
     -- (this also handles checking disjointness)
     |    (fst $ BM.findMaxR a.rowLabels) >= (fst $ BM.findMinR c.rowLabels)
       || (fst $ BM.findMaxR a.colLabels) >= (fst $ BM.findMinR b.colLabels) = Nothing
-    | otherwise = Just $ Matrix matrix rowLabels colLabels
+    | otherwise = Just $ unsafeCreate matrix rowLabels colLabels
     where
         matrix = append 2 (append 1 a.matrix b.matrix)
                           (append 1 c.matrix d.matrix)
@@ -425,11 +413,10 @@ joinSquare a b c d
 -- TODO: Because of (unnecesary?) assumption about both the indexes and labels being sorted
 -- such that both ascend simultaenously, this function is a lot more complicated than it needs to be.
 appendRows :: (Ord a, Eq b) => LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
-appendRows m1 m2 | assertAllWellFormed  [m1, m2] = undefined
 appendRows m1 m2
     | m1.colLabels /= m2.colLabels = Nothing
     | not $ S.disjoint m1.rowLabelSet m2.rowLabelSet = Nothing
-    | otherwise = Just $ Matrix matrix rowLabels m1.colLabels
+    | otherwise = Just $ unsafeCreate matrix rowLabels m1.colLabels
     where
         rows = L.sortOn fst $ zip (map snd $ BM.toAscList m1.rowLabels ++ BM.toAscList m2.rowLabels)
                                   (M.toLists $ append 2 m1.matrix m2.matrix)
@@ -440,8 +427,11 @@ appendRows m1 m2
 
         append = ((M.computeAs M.B .) .) . M.append'
 
-empty :: LabelledMatrix a b c
-empty = Matrix M.empty BM.empty BM.empty
+empty :: (Eq a, Eq b) => LabelledMatrix a b c
+empty = unsafeCreate M.empty BM.empty BM.empty
+
+update :: a -> b -> c -> LabelledMatrix a b c -> LabelledMatrix a b c
+update = undefined
 
 --------------------------------------------------------------------------------
 -- Utilities
@@ -469,12 +459,6 @@ isWellFormed m
     | BM.toAscList m.rowLabels /= map T.swap (BM.toAscListR m.rowLabels)   = False
     | BM.toAscList m.colLabels /= map T.swap (BM.toAscListR m.colLabels)   = False
     | otherwise = True
-
-assertIsWellFormed :: (Eq a, Eq b) => LabelledMatrix a b c -> Bool
-assertIsWellFormed x = assert (isWellFormed x) False
-
-assertAllWellFormed :: (Eq a, Eq b, Foldable t) => t (LabelledMatrix a b c) -> Bool
-assertAllWellFormed = any (\x -> assert (isWellFormed x) False)
 
 checkIsAscPairList :: (Ord a, Ord b) => [(a, b)] -> Bool
 checkIsAscPairList []            = True

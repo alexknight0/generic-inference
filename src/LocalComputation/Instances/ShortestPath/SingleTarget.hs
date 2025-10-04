@@ -112,7 +112,7 @@ knowledgeBase gs target = map f gs
                 b = fromRight $ M.fromList [((a, ()), if a == target then Q.one else Q.zero) | a <- S.toList $ fst (M.domain m)]
 
         matrixFromGraph :: (Ord b, Q.SemiringValue b) => G.Graph a b -> M.LabelledMatrix a a b
-        matrixFromGraph g = fromRight $ M.fromListDefault Q.zero (MP.toList $ rearrangedGraph g)
+        matrixFromGraph g = M.fromListDefault Q.zero (MP.toList $ rearrangedGraph g)
 
         -- Rearranges the graph from `MP.Map a [(a, b)]` to `MP.Map (a, a) b`.
         -- If multiple arcs exist between a node, retains only the minimum cost arc.

@@ -174,7 +174,7 @@ addEdge (x, y) g
                                 $ M.insertWith S.union x (S.singleton y) g.m    -- Add the edge
 
 addEdges :: (Ord a) => [(a, a)] -> Graph a -> Graph a
-addEdges edges g = foldr addEdge g edges -- union g (fromEdgeList edges)
+addEdges edges g = union g (fromEdgeList edges)
 
 union :: (Ord a) => Graph a -> Graph a -> Graph a
 union g1 g2 = unsafeFromMap $ M.unionWith S.union g1.m g2.m
