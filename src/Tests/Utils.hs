@@ -125,6 +125,8 @@ prop_triangulation = withTests 100 . property $ do
     G.vertexSet triangulated === G.vertexSet graph
     H.assert $ S.isSubsetOf (G.edgeSet graph) (G.edgeSet triangulated)
 
+
+
 -------------------------------------------------------------------------------
 -- Utils                                                                     --
 -------------------------------------------------------------------------------

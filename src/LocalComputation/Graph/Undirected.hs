@@ -36,11 +36,12 @@ import qualified Data.Text.Lazy           as LT
 import           Data.Tuple               (swap)
 import           GHC.Generics             (Generic)
 import qualified LocalComputation.Graph   as G
-import qualified LocalComputation.Utils   as M (filterKeys)
 import qualified LocalComputation.Utils   as U
 import           Prelude                  hiding (all)
 import qualified Prelude                  as P
 import           Text.Pretty.Simple       (pShowNoColor)
+
+-- TODO: We could try an adjacency matrix representation and see if that changes the complexity.
 
 -- | A undirected, weightless graph with no self loops or double edges.
 newtype Graph a = Graph { m :: M.Map a (S.Set a) } deriving (Generic, NFData, Eq)
@@ -164,7 +165,7 @@ unsafeNeighbours :: (Ord a) => a -> Graph a -> S.Set a
 unsafeNeighbours x g = (M.!) g.m x
 
 addVertex :: (Ord a) => a -> Graph a -> Graph a
-addVertex x g = unsafeFromMap $ M.insertWith (\x _ -> x) x S.empty g.m
+addVertex x g = unsafeFromMap $ M.insertWith (\y _ -> y) x S.empty g.m
 
 addEdge :: (Ord a) => (a, a) -> Graph a -> Graph a
 addEdge (x, y) g
@@ -173,8 +174,10 @@ addEdge (x, y) g
                                 $ M.insertWith S.union x (S.singleton y) g.m    -- Add the edge
 
 addEdges :: (Ord a) => [(a, a)] -> Graph a -> Graph a
-addEdges edges g = foldr addEdge g edges
+addEdges edges g = foldr addEdge g edges -- union g (fromEdgeList edges)
 
+union :: (Ord a) => Graph a -> Graph a -> Graph a
+union g1 g2 = unsafeFromMap $ M.unionWith S.union g1.m g2.m
 
 --------------------------------------------------------------------------------
 -- Utilities

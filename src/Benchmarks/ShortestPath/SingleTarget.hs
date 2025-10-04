@@ -60,7 +60,10 @@ benchmarks :: IO [Benchmark]
 benchmarks = do
 
     problems <- sequence $ zipWith (&) seeds [
-                                              D.createRandomProblem 1 1 35 4
+                                                D.createRandomProblem 3 1 100 0.25
+                                              , D.createRandomProblem 3 1 100 1
+                                              , D.createRandomProblem 3 1 100 5
+                                              , D.createRandomProblem 3 1 100 10
                                               -- take 10 $ repeat $ D.genProblem 50 100 1
                                                   -- take 1 $ repeat $ D.genProblem 50 250 1
                                                   -- , take 10 $ repeat $ D.genProblem 50 500 1

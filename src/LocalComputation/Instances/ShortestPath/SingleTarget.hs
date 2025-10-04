@@ -140,7 +140,7 @@ type ComputeInference m a = D.DrawSettings
 decomposition :: forall a b . (Show a, Ord a, Eq b) => G.Graph a b -> [G.Graph a b]
 decomposition g = map (\c -> G.induce (`S.member` c) g) cliques
     where
-        cliques = T.maximalCliques (UG.fromGraph g)
+        cliques = U.removeSubsets $ T.maximalCliques (UG.fromGraph g)
 
 -- TODO: Add to future work: a more sophisticated decomposition algorithm
 oldDecomposition :: forall a b . (Ord a) => G.Graph a b -> [G.Graph a b]

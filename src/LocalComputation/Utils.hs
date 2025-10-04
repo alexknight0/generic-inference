@@ -56,6 +56,8 @@ module LocalComputation.Utils
     , debugWithCounter
     , combinations
     , toTuple
+    , removeSubsets
+    , one
     )
 where
 
@@ -370,3 +372,13 @@ combinations k (x:xs) = map (x:) (combinations (k - 1) xs) ++ combinations k xs
 toTuple :: [a] -> (a, a)
 toTuple [x,y] = (x, y)
 toTuple xs    = error $ "List of size " ++ show (length xs) ++ " given to `toTuple`"
+
+-- TODO: Not efficent
+removeSubsets :: (Ord a) => [S.Set a] -> [S.Set a]
+removeSubsets xs = filter (\x -> one (\y -> S.isSubsetOf x y) xs) xs
+
+one :: (a -> Bool) -> [a] -> Bool
+one p []        = False
+one p (x:xs)
+    | p x       = not $ any p xs
+    | otherwise = one p xs
