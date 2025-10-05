@@ -128,6 +128,7 @@ library
     , text
     , time
     , unordered-containers
+    , vector-th-unbox
   default-language: Haskell2010
 
 executable localcomputation-exe
@@ -181,6 +182,7 @@ executable localcomputation-exe
     , text
     , time
     , unordered-containers
+    , vector-th-unbox
   default-language: Haskell2010
 
 test-suite localcomputation-test
@@ -239,6 +241,7 @@ test-suite localcomputation-test
     , text
     , time
     , unordered-containers
+    , vector-th-unbox
   default-language: Haskell2010
 
 benchmark localcomputation-benchmark
@@ -297,4 +300,5 @@ benchmark localcomputation-benchmark
     , text
     , time
     , unordered-containers
+    , vector-th-unbox
   default-language: Haskell2010

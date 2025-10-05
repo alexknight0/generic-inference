@@ -1,5 +1,9 @@
 {-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE TypeFamilies               #-}
 
 module LocalComputation.ValuationAlgebra.QuasiRegular.Value
     ( SemiringValue (quasiInverse)
@@ -14,6 +18,8 @@ import qualified LocalComputation.ValuationAlgebra.Semiring as S
 -- Typeclasses
 import           Control.DeepSeq                            (NFData)
 import           Data.Binary                                (Binary)
+import qualified Data.Massiv.Array                          as M
+import           Data.Vector.Unboxed.Deriving               (derivingUnbox)
 import           GHC.Generics                               (Generic)
 
 -- | A Quasi-regular semiring is also known as a 'closed' semiring
@@ -41,6 +47,11 @@ one = S.one
 --
 -- Detailed page 232 of "Generic Inference" (Pouly & Kohlas, 2012).
 newtype TropicalSemiringValue = T Double deriving (Ord, Num, Real, Enum, Show, NFData, Eq, Generic, Read, Binary)
+
+derivingUnbox "TropicalSemiringValue"
+  [t| TropicalSemiringValue -> Double |]
+  [| \(T x) -> x |]
+  [| T |]
 
 toDouble :: TropicalSemiringValue -> Double
 toDouble (T x) = x

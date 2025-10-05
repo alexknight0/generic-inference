@@ -78,12 +78,26 @@ import qualified LocalComputation.Utils                               as U
 
 data InvalidFormat = NotTotalMapping
 
+type Manifest = M.B
+
+manifest :: Manifest
+manifest = M.B
+
+-- | The computational [s]trategy used for this data structure.
+-- This argument is passed to every function that uses the Data.Massiv.Array library. This simply indicates
+-- whether or not we wish to parallelize the operation. We choose to use sequential here as the inference
+-- process is sufficently parallelized such that it uses all cores anyway.
+--
+-- If changing to parallel, consider also updating use of 'foldrS' in the code (if it is still being used).
+s :: M.Comp
+s = M.Seq
+
 {- | A labelled matrix.
 
 A column or row matrix can be created by specifying `LabelledMatrix () b c` or `LabelledMatrix a () c`
 -}
 data LabelledMatrix a b c = Matrix {
-      matrix    :: M.Matrix M.B c
+      matrix    :: M.Matrix Manifest c
     , rowLabels :: BM.Bimap M.Ix1 a
     , colLabels :: BM.Bimap M.Ix1 b
 } deriving (Eq, NFData, Ord, Generic)
@@ -133,22 +147,13 @@ instance (Binary a, Binary b, Binary c, Ord a, Ord b) => Binary (LabelledMatrix 
         put (BM.toAscList m.colLabels)
 
     get = do
-        matrix    <- fmap (M.fromLists' s) get   :: B.Get (M.Matrix M.B c)
+        matrix    <- fmap (M.fromLists' s) get   :: B.Get (M.Matrix Manifest c)
         rowLabels <- fmap (BM.fromAscPairList . assert' checkIsAscPairList) get :: B.Get (BM.Bimap M.Ix1 a)
         colLabels <- fmap (BM.fromAscPairList . assert' checkIsAscPairList) get :: B.Get (BM.Bimap M.Ix1 b)
         pure (Matrix matrix rowLabels colLabels)
 
 instance (Eq a, Eq b) => Functor (LabelledMatrix a b) where
-    fmap f m = unsafeCreate (M.computeAs M.B $ M.map f m.matrix) m.rowLabels m.colLabels
-
--- | The computational [s]trategy used for this data structure.
--- This argument is passed to every function that uses the Data.Massiv.Array library. This simply indicates
--- whether or not we wish to parallelize the operation. We choose to use sequential here as the inference
--- process is sufficently parallelized such that it uses all cores anyway.
---
--- If changing to parallel, consider also updating use of 'foldrS' in the code (if it is still being used).
-s :: M.Comp
-s = M.Seq
+    fmap f m = unsafeCreate (M.computeAs manifest $ M.map f m.matrix) m.rowLabels m.colLabels
 
 -- | Transforms a regular matrix from Data.Matrix into a matrix labelled by Integers.
 fromMatrix :: M'.Matrix a -> LabelledMatrix Integer Integer a
@@ -157,7 +162,7 @@ fromMatrix m = fromRight $ fromList $ zip indexes (M'.toList m)
         indexes = [(fromIntegral rowLabel, fromIntegral colLabel) | rowLabel <- [0 .. M'.nrows m - 1],
                                                                     colLabel <- [0 .. M'.ncols m - 1]]
 
-unsafeCreate :: (Eq a, Eq b) => M.Matrix M.B c -> BM.Bimap M.Ix1 a -> BM.Bimap M.Ix1 b -> LabelledMatrix a b c
+unsafeCreate :: (Eq a, Eq b) => M.Matrix Manifest c -> BM.Bimap M.Ix1 a -> BM.Bimap M.Ix1 b -> LabelledMatrix a b c
 unsafeCreate m rowLabels colLabels = U.assertP isWellFormed $ Matrix m rowLabels colLabels
 
 -- | \(O(n \log n)\) - Creates a matrix from the given association list.
@@ -186,7 +191,7 @@ fromList' xs defaultElem
         rowLabels = enumerate $ S.fromList $ map (fst . fst) xs
         colLabels = enumerate $ S.fromList $ map (snd . fst) xs
 
-        matrix :: M.Matrix M.B c
+        matrix :: M.Matrix Manifest c
         matrix = M.makeArray s shape f
 
         shape = M.Sz (BM.size rowLabels :. BM.size colLabels)
@@ -227,12 +232,12 @@ reshape defaultElem m rowLabelSet colLabelSet
         nCols = BM.size colLabels
 
         -- TODO: Clean up code
-        matrix :: M.Matrix M.B c
+        matrix :: M.Matrix Manifest c
         matrix
             | nRows == 0 || nCols == 0 = emptyMatrix
             | otherwise = M.fromLists' s [getRow i (neededJs [0 .. nCols - 1]) | i <- [0 .. nRows - 1]]
             where
-                emptyMatrix :: M.Matrix M.B c
+                emptyMatrix :: M.Matrix Manifest c
                 emptyMatrix = M.makeArray s (M.Sz2 nRows nCols) $ \_ -> defaultElem
 
                 getRow i cache
@@ -295,7 +300,7 @@ pointwise f m1 m2
     | m1.rowLabels /= m2.rowLabels || m1.colLabels /= m2.colLabels = Nothing
     | otherwise = Just $ unsafeCreate matrix m1.rowLabels m1.colLabels
     where
-        matrix = M.computeAs M.B $ M.zipWith f m1.matrix m2.matrix
+        matrix = M.computeAs manifest $ M.zipWith f m1.matrix m2.matrix
 
 -- | Basic matrix multiplication on two matrices. Returns Nothing if the provided matrices have the wrong shape for matrix multiplication.
 multiply :: forall a b c d . (Eq a, Eq b, Eq c)
@@ -311,10 +316,10 @@ multiply zero addElems multiplyElems m1 m2
     | otherwise = Just $ unsafeCreate matrix m1.rowLabels m2.colLabels
 
     where
-        emptyMatrix :: M.Matrix M.B d
+        emptyMatrix :: M.Matrix Manifest d
         emptyMatrix = M.makeArray s (M.Sz2 m1.numRows m2.numCols) $ \_ -> zero
 
-        matrix :: M.Matrix M.B d
+        matrix :: M.Matrix Manifest d
         matrix = M.makeArray s (M.Sz2 m1.numRows m2.numCols) f
 
         f (i :. j) = M.foldrS addElems zero $ M.zipWith multiplyElems row col
@@ -425,7 +430,7 @@ joinSquare a b c d
         colLabels = BM.fromAscPairList $ (++) (BM.toAscList a.colLabels)
                                               (BM.toAscList $ BM.mapMonotonic (+ a.numCols) b.colLabels)
 
-        append = ((M.computeAs M.B .) .) . M.append'
+        append = ((M.computeAs manifest .) .) . M.append'
 
 -- TODO: Because of (unnecesary?) assumption about both the indexes and labels being sorted
 -- such that both ascend simultaenously, this function is a lot more complicated than it needs to be.
@@ -442,7 +447,7 @@ appendRows m1 m2
 
         rowLabels = enumerate $ S.union (m1.rowLabelSet) (m2.rowLabelSet)
 
-        append = ((M.computeAs M.B .) .) . M.append'
+        append = ((M.computeAs manifest .) .) . M.append'
 
 empty :: (Eq a, Eq b) => LabelledMatrix a b c
 empty = unsafeCreate M.empty BM.empty BM.empty
@@ -471,7 +476,7 @@ updates values m = mapWithKey f m
 mapWithKey :: (Ord a, Ord b) => (a -> b -> c -> c) -> LabelledMatrix a b c -> LabelledMatrix a b c
 mapWithKey f m = unsafeCreate updatedMatrix m.rowLabels m.colLabels
     where
-        updatedMatrix = M.computeAs M.B $ M.imap g m.matrix
+        updatedMatrix = M.computeAs manifest $ M.imap g m.matrix
 
         g (i :. j) old = f (unsafeRowLabel i m) (unsafeColLabel j m) old
 

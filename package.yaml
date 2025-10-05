@@ -60,6 +60,7 @@ dependencies:
 - boxes
 - filepath
 - parallel
+- vector-th-unbox
 
 ghc-options:
 - -Wall
