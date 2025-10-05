@@ -37,6 +37,7 @@ import qualified Control.Monad                                        as M
 import           Control.Monad.IO.Class                               (MonadIO)
 import           Data.Function                                        ((&))
 import qualified Data.Hashable                                        as H
+import qualified Data.List                                            as L
 import qualified LocalComputation.Inference.JoinTree.Diagram          as D
 import qualified LocalComputation.Inference.MessagePassing            as MP
 import qualified LocalComputation.Utils                               as U
@@ -68,6 +69,9 @@ benchmarks = do
                                               , D.createRandomProblem 3 1 200 1
                                               , D.createRandomProblem 3 1 200 5
                                               , D.createRandomProblem 3 1 200 10
+                                              , D.newYorkProblem 1 200
+                                              , D.newYorkProblem 1 1000
+                                              , D.newYorkProblem 1 2000
                                              ]
     evaluate (rnf problems)
 
@@ -93,10 +97,12 @@ benchModes :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashable a
     -> IO Benchmark
 benchModes modes p = fmap (bgroup name) $ mapM (\m -> benchMode m p) modes
     where
-        name =        show p.numProblems
-            ++ "/" ++ show p.numQueries
-            ++ "/" ++ show p.numVertices
-            ++ "/" ++ show p.edgeRatio
+        name = L.intercalate "/" [      p.name
+                                 , show p.numProblems
+                                 , show p.numQueries
+                                 , show p.numVertices
+                                 , show p.edgeRatio
+                                ]
 
 benchMode :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashable a)
     => Implementation

@@ -20,6 +20,7 @@ module Benchmarks.ShortestPath.SingleTarget.Data (
     , newYorkSmall
     , newYorkMedium
     , newYork
+    , newYorkProblem
     , createRandomProblem
     , createParsedProblem
     , parseFullGraph
@@ -271,6 +272,11 @@ p2 = Problem {
                 , 14
                ]
 }
+
+newYorkProblem :: (MonadIO m) => Natural -> Natural -> Int -> m (BenchmarkProblem Natural)
+newYorkProblem numQueries numArcs seed = do
+    g <- liftIO $ unsafeParseGraph numArcs newYork
+    createParsedProblem "New York" g numQueries seed
 
 -------------------------------------------------------------------------------
 -- Utils
