@@ -8,6 +8,7 @@ module LocalComputation.Instances.ShortestPath.Parser
     , InvalidGraphFile
     , mapParseResult
     , fromValid
+    , manyN
     )
 where
 
@@ -17,7 +18,6 @@ import           Control.Monad                 (void)
 import           Data.Either                   (isRight)
 import           Data.Functor.Identity         (Identity)
 import           Data.List                     (genericLength)
-import qualified Data.List                     as L
 import           Data.Tuple.Extra              (uncurry3)
 import           LocalComputation.Utils
 import           Numeric.Natural               (Natural)

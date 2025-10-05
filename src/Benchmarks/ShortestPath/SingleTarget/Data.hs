@@ -16,14 +16,16 @@ module Benchmarks.ShortestPath.SingleTarget.Data (
     , p0Queries
     , p1
     , p2
-    , p3VerySmallGraph
-    , p3SmallGraph
-    , p3MediumGraph
-    , p3FullGraph
+    , newYorkVerySmall
+    , newYorkSmall
+    , newYorkMedium
+    , newYork
     , createRandomProblem
+    , createParsedProblem
     , parseFullGraph
     , unsafeParseFullGraph
     , parseGraph
+    , unsafeParseGraph
 ) where
 
 import qualified Benchmarks.Utils                                     as U
@@ -78,6 +80,16 @@ createRandomProblem numProblems numQueries numVertices edgeRatio seed = do
         numEdges = negativeBecomesZero $ floor $ fromIntegral numVertices * edgeRatio
 
         negativeBecomesZero = max 0
+
+createParsedProblem :: (Ord a, MonadIO m) => String -> G.Graph a Double -> Natural -> Int -> m (BenchmarkProblem a)
+createParsedProblem name g numQueries seed = do
+    qs <- U.sample seed $ genConnectedQueries numQueries g
+    let p = GraphAndQuery g qs
+    pure $ BenchmarkProblem name 1 numQueries vertices edges edgeRatio [p]
+    where
+        vertices = fromIntegral $ G.vertexCount g
+        edges = fromIntegral $ G.edgeCount g
+        edgeRatio = fromIntegral (G.vertexCount g) / fromIntegral (G.edgeCount g)
 
 dataDirectory :: FilePath
 dataDirectory = "src/Benchmarks/ShortestPath/SingleTarget/Data/"
@@ -263,28 +275,29 @@ p2 = Problem {
 -------------------------------------------------------------------------------
 -- Utils
 -------------------------------------------------------------------------------
--- TODO: Lets just have one const here and use parse with numlines
-
 -- TODO: Don't think we need the self loops here? That should be handled by the wrapper
 -- function...?
 parseFullGraph :: FilePath -> IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural Double)))
 parseFullGraph filepath = fmap (P.mapParseResult (fromInteger)) $ parseFile P.fullGraph filepath
 
-parseGraph :: Natural -> FilePath -> IO (Either P.ParseError (G.Graph Natural Double))
-parseGraph numArcs filepath = fmap (fmap (fmap fromInteger)) $ parseFile (P.graph numArcs) filepath
-
 unsafeParseFullGraph :: FilePath -> IO (G.Graph Natural Double)
 unsafeParseFullGraph filepath = fmap (fromRight . fromRight) $ parseFullGraph filepath
 
-p3VerySmallGraph :: FilePath
-p3VerySmallGraph = dataDirectory ++ "VerySmall-USA-road-d.NY.gr"
+parseGraph :: Natural -> FilePath -> IO (Either P.ParseError (G.Graph Natural Double))
+parseGraph numArcs filepath = fmap (fmap (fmap fromInteger)) $ parseFile (P.graph numArcs) filepath
 
-p3SmallGraph :: FilePath
-p3SmallGraph = dataDirectory ++ "Small-USA-road-d.NY.gr"
+unsafeParseGraph :: Natural -> FilePath -> IO (G.Graph Natural Double)
+unsafeParseGraph numArcs filepath = fmap (fromRight) $ parseGraph numArcs filepath
 
-p3MediumGraph :: FilePath
-p3MediumGraph = dataDirectory ++ "Medium-USA-road-d.NY.gr"
+newYorkVerySmall :: FilePath
+newYorkVerySmall = dataDirectory ++ "VerySmall-USA-road-d.NY.gr"
 
-p3FullGraph :: FilePath
-p3FullGraph = dataDirectory ++ "USA-road-d.NY.gr"
+newYorkSmall :: FilePath
+newYorkSmall = dataDirectory ++ "Small-USA-road-d.NY.gr"
+
+newYorkMedium :: FilePath
+newYorkMedium = dataDirectory ++ "Medium-USA-road-d.NY.gr"
+
+newYork :: FilePath
+newYork = dataDirectory ++ "USA-road-d.NY.gr"
 

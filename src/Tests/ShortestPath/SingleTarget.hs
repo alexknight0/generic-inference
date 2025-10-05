@@ -14,10 +14,10 @@ import           Benchmarks.ShortestPath.SingleTarget.Data            (Problem (
                                                                        genConnectedQuery,
                                                                        genGraph,
                                                                        genGraphs,
-                                                                       p1, p2,
-                                                                       p3MediumGraph,
-                                                                       p3SmallGraph,
-                                                                       p3VerySmallGraph)
+                                                                       newYorkMedium,
+                                                                       newYorkSmall,
+                                                                       newYorkVerySmall,
+                                                                       p1, p2)
 import qualified LocalComputation.Graph                               as G
 import qualified LocalComputation.Instances.ShortestPath.SingleTarget as ST (Query,
                                                                              decomposition)
@@ -25,7 +25,6 @@ import qualified LocalComputation.Instances.ShortestPath.SingleTarget as ST (Que
 import           Hedgehog                                             hiding
                                                                       (assert,
                                                                        test)
-import qualified Hedgehog                                             as H (assert)
 import qualified Hedgehog.Gen                                         as Gen
 import qualified Hedgehog.Internal.Property                           as Hedgehog (PropertyName (..))
 import qualified Hedgehog.Range                                       as Range
@@ -62,15 +61,15 @@ group = "Tests.ShorestPath.SingleTarget"
 tests :: IO Bool
 tests = fmap and $ sequence [
         checkParallel $$(discover)
-      , checkMatchesBaselineP3
+      , checkMatchesBaselineNewYork
       , checkMatchesBaselineRandom
    ]
 
-checkMatchesBaselineP3 :: IO Bool
-checkMatchesBaselineP3 = checkMatchesBaseline name getGraph test 100
+checkMatchesBaselineNewYork :: IO Bool
+checkMatchesBaselineNewYork = checkMatchesBaseline name getGraph test 100
     where
         name mode = "prop_matchesBaseline_onP3 " ++ show mode
-        getGraph = D.unsafeParseFullGraph p3VerySmallGraph
+        getGraph = D.unsafeParseFullGraph newYorkVerySmall
         test = matchesBaselineOnGraph
 
 checkMatchesBaselineRandom :: IO Bool
@@ -110,11 +109,11 @@ prop_p2 = pX p2
 -- | Tests the parser doesn't fail on known working examples.
 prop_parser :: Property
 prop_parser = unitTest $ do
-    smallByExactParser <- parseFullGraph p3SmallGraph
-    mediumByExactParser <- parseFullGraph p3MediumGraph
+    smallByExactParser <- parseFullGraph newYorkSmall
+    mediumByExactParser <- parseFullGraph newYorkMedium
 
-    smallByPartialParser <- parseGraph (edgeCount smallByExactParser) D.p3FullGraph
-    mediumByPartialParser <- parseGraph (edgeCount mediumByExactParser) D.p3FullGraph
+    smallByPartialParser <- parseGraph (edgeCount smallByExactParser) D.newYork
+    mediumByPartialParser <- parseGraph (edgeCount mediumByExactParser) D.newYork
 
     smallByExactParser === smallByPartialParser
     mediumByExactParser === mediumByPartialParser
