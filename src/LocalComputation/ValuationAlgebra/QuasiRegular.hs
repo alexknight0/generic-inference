@@ -28,20 +28,20 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular.Value as Q
 
 data Valuation b a = Valuation (M.LabelledMatrix a a b) (M.LabelledMatrix a () b) | Identity (Domain a) deriving (Binary, NFData, Ord, Eq, Generic)
 
-instance (Show b, Show a) => Show (Valuation b a) where
+instance (M.Unbox b, Show b, Show a) => Show (Valuation b a) where
     show (Identity _)    = "Identity"
     show (Valuation m b) = show m ++ "\n" ++ show b
 
-create :: (Var a, Show b, Q.SemiringValue b) => M.LabelledMatrix a a b -> M.LabelledMatrix a () b -> Maybe (Valuation b a)
+create :: (Var a, Show b, Q.SemiringValue b, M.Unbox b) => M.LabelledMatrix a a b -> M.LabelledMatrix a () b -> Maybe (Valuation b a)
 create m b
     | satisfiesInvariants (Valuation m b) = Just (Valuation m b)
     | otherwise = Nothing
 
-unsafeCreate :: (Var a, Q.SemiringValue b, Show b) => M.LabelledMatrix a a b -> M.LabelledMatrix a () b -> Valuation b a
+unsafeCreate :: (Var a, Q.SemiringValue b, Show b, M.Unbox b) => M.LabelledMatrix a a b -> M.LabelledMatrix a () b -> Valuation b a
 unsafeCreate m b = U.assertP satisfiesInvariants $ Valuation m b
 
 -- TODO: Probably can remove instance of Show? It doens't contribute to the 'label', 'combine', 'project' functionality no?
-instance (Show b, Q.SemiringValue b) => ValuationFamily (Valuation b) where
+instance (Show b, Q.SemiringValue b, M.Unbox b) => ValuationFamily (Valuation b) where
 
     type VarAssignment (Valuation b) a b = M.LabelledMatrix a () b
 
@@ -76,23 +76,23 @@ instance (Show b, Q.SemiringValue b) => ValuationFamily (Valuation b) where
 
 
 -- | Returns a product useful for the solution of fixpoint systems. Detailed page 367 of "Generic Inference" (Pouly & Kohlas, 2012)
-solution :: (Show a, Ord a, Show b, Q.SemiringValue b) => Valuation b a -> M.LabelledMatrix a () b
+solution :: (Show a, Ord a, Show b, Q.SemiringValue b, M.Unbox b) => Valuation b a -> M.LabelledMatrix a () b
 solution (Valuation m b) = matrixMultiply (matrixQuasiInverse m) b
 solution (Identity _)    = error "'solution' called on identity valuation."
 
 -- | Adds two valuations. Unsafe.
-add :: (Var a, Show b, Q.SemiringValue b) => Valuation b a -> Valuation b a -> Valuation b a
+add :: (Var a, Show b, Q.SemiringValue b, M.Unbox b) => Valuation b a -> Valuation b a -> Valuation b a
 add v1 v2 = assertInvariants $ _add v1 v2
 
-_add :: (Var a, Show b, Q.SemiringValue b) => Valuation b a -> Valuation b a -> Valuation b a
+_add :: (Var a, Show b, Q.SemiringValue b, M.Unbox b) => Valuation b a -> Valuation b a -> Valuation b a
 _add (Valuation m1 b1) (Valuation m2 b2) = unsafeCreate (matrixAdd m1 m2) (matrixAdd b1 b2)
 _add _                 _                 = error "Not implemented error."
 
 -- | Extends a valuation. Unsafe.
-extension :: (Var a, Show b, Q.SemiringValue b) => Valuation b a -> S.Set a -> Valuation b a
+extension :: (Var a, Show b, Q.SemiringValue b, M.Unbox b) => Valuation b a -> S.Set a -> Valuation b a
 extension v d = assertInvariants $ _extension v d
 
-_extension :: (Var a, Show b, Q.SemiringValue b) => Valuation b a -> S.Set a -> Valuation b a
+_extension :: (Var a, Show b, Q.SemiringValue b, M.Unbox b) => Valuation b a -> S.Set a -> Valuation b a
 _extension (Identity _) d = Identity d
 _extension (Valuation m b) t = unsafeCreate (fromJust $ M.extension m t t Q.zero) (fromJust $ M.extension b t (S.singleton ()) Q.zero)
 
@@ -122,7 +122,7 @@ _extension (Valuation m b) t = unsafeCreate (fromJust $ M.extension m t t Q.zero
 -- of valid variable assignments we could add to 'x' to achieve this.
 --
 -- See page 368 of Marc Pouly's "Generic Inference" for more details.
-configExtSet :: (Q.SemiringValue c, Show a, Show c, Ord a)
+configExtSet :: (Q.SemiringValue c, Show a, Show c, Ord a, M.Unbox c)
     => Valuation c a
     -> VarAssignment (Valuation c) a c
     -> S.Set (VarAssignment (Valuation c) a c)
@@ -147,18 +147,18 @@ configExtSet phi@(Valuation m b) x
 -- Unsafe & quasiregular variants of matrix operations.                     --
 ------------------------------------------------------------------------------
 
-matrixQuasiInverse :: (Show a, Ord a, Show c, Q.SemiringValue c) => M.LabelledMatrix a a c -> M.LabelledMatrix a a c
+matrixQuasiInverse :: (Show a, Ord a, Show c, Q.SemiringValue c, M.Unbox c) => M.LabelledMatrix a a c -> M.LabelledMatrix a a c
 matrixQuasiInverse = M.unsafeQuasiInverse
 
-matrixProject :: (Ord a, Ord b) => M.LabelledMatrix a b c -> S.Set a -> S.Set b -> M.LabelledMatrix a b c
+matrixProject :: (Ord a, Ord b, M.Unbox c) => M.LabelledMatrix a b c -> S.Set a -> S.Set b -> M.LabelledMatrix a b c
 matrixProject = M.unsafeProject
 
-matrixProjectRows :: (Ord a, Ord b) => M.LabelledMatrix a b c -> S.Set a -> M.LabelledMatrix a b c
+matrixProjectRows :: (Ord a, Ord b, M.Unbox c) => M.LabelledMatrix a b c -> S.Set a -> M.LabelledMatrix a b c
 matrixProjectRows = M.unsafeProjectRows
 
-matrixAdd :: (Ord a, Ord b, Q.SemiringValue c) => M.LabelledMatrix a b c -> M.LabelledMatrix a b c -> M.LabelledMatrix a b c
+matrixAdd :: (Ord a, Ord b, Q.SemiringValue c, M.Unbox c) => M.LabelledMatrix a b c -> M.LabelledMatrix a b c -> M.LabelledMatrix a b c
 matrixAdd = M.unsafeAdd Q.add
 
-matrixMultiply :: (Eq a, Eq b, Eq c, Q.SemiringValue d) => M.LabelledMatrix a b d -> M.LabelledMatrix b c d -> M.LabelledMatrix a c d
+matrixMultiply :: (Eq a, Eq b, Eq c, Q.SemiringValue d, M.Unbox d) => M.LabelledMatrix a b d -> M.LabelledMatrix b c d -> M.LabelledMatrix a c d
 matrixMultiply = M.unsafeMultiply Q.zero Q.add Q.multiply
 

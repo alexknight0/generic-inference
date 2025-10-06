@@ -111,7 +111,7 @@ knowledgeBase gs target = map f gs
                 m = M.toSquare (matrixFromGraph g) Q.zero
                 b = fromRight $ M.fromList [((a, ()), if a == target then Q.one else Q.zero) | a <- S.toList $ fst (M.domain m)]
 
-        matrixFromGraph :: (Ord b, Q.SemiringValue b) => G.Graph a b -> M.LabelledMatrix a a b
+        matrixFromGraph :: (Ord b, Q.SemiringValue b, M.Unbox b) => G.Graph a b -> M.LabelledMatrix a a b
         matrixFromGraph g = M.fromListDefault Q.zero (MP.toList $ rearrangedGraph g)
 
         -- Rearranges the graph from `MP.Map a [(a, b)]` to `MP.Map (a, a) b`.

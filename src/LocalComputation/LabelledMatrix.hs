@@ -39,6 +39,7 @@ module LocalComputation.LabelledMatrix
     , rowList
     , all'
     , unsafeLookup
+    , M.Unbox
     )
 where
 
@@ -78,10 +79,10 @@ import qualified LocalComputation.Utils                               as U
 
 data InvalidFormat = NotTotalMapping
 
-type Manifest = M.B
+type Manifest = M.U
 
 manifest :: Manifest
-manifest = M.B
+manifest = M.U
 
 -- | The computational [s]trategy used for this data structure.
 -- This argument is passed to every function that uses the Data.Massiv.Array library. This simply indicates
@@ -102,10 +103,10 @@ data LabelledMatrix a b c = Matrix {
     , colLabels :: BM.Bimap M.Ix1 b
 } deriving (Eq, NFData, Ord, Generic)
 
-instance (Show a, Show b, Show c) => Show (LabelledMatrix a b c) where
+instance (Show a, Show b, Show c, M.Unbox c) => Show (LabelledMatrix a b c) where
     show m = P.showTable $ P.unsafeTable headings rows
         where
-            matrixRows = M.toLists $ fmap show $ m.matrix
+            matrixRows = fmap (fmap show) $ M.toLists2 m.matrix
 
             rowLabels = map (show . snd) $ BM.toAscList m.rowLabels
             colLabels = map (show . snd) $ BM.toAscList m.colLabels
@@ -140,7 +141,7 @@ instance HasField "rowLabelList" (LabelledMatrix a b c) [a] where
 instance HasField "colLabelList" (LabelledMatrix a b c) [b] where
     getField m = Map.keys $ BM.toMapR m.colLabels
 
-instance (Binary a, Binary b, Binary c, Ord a, Ord b) => Binary (LabelledMatrix a b c) where
+instance (Binary a, Binary b, Binary c, Ord a, Ord b, M.Unbox c) => Binary (LabelledMatrix a b c) where
     put m = do
         put (M.toLists m.matrix)
         put (BM.toAscList m.rowLabels)
@@ -152,11 +153,11 @@ instance (Binary a, Binary b, Binary c, Ord a, Ord b) => Binary (LabelledMatrix 
         colLabels <- fmap (BM.fromAscPairList . assert' checkIsAscPairList) get :: B.Get (BM.Bimap M.Ix1 b)
         pure (Matrix matrix rowLabels colLabels)
 
-instance (Eq a, Eq b) => Functor (LabelledMatrix a b) where
-    fmap f m = unsafeCreate (M.computeAs manifest $ M.map f m.matrix) m.rowLabels m.colLabels
+mapValues :: (Eq a, Eq b, M.Unbox c1, M.Unbox c2) => (c1 -> c2) -> LabelledMatrix a b c1 -> LabelledMatrix a b c2
+mapValues f m = unsafeCreate (M.computeAs manifest $ M.map f m.matrix) m.rowLabels m.colLabels
 
 -- | Transforms a regular matrix from Data.Matrix into a matrix labelled by Integers.
-fromMatrix :: M'.Matrix a -> LabelledMatrix Integer Integer a
+fromMatrix :: M.Unbox a => M'.Matrix a -> LabelledMatrix Integer Integer a
 fromMatrix m = fromRight $ fromList $ zip indexes (M'.toList m)
     where
         indexes = [(fromIntegral rowLabel, fromIntegral colLabel) | rowLabel <- [0 .. M'.nrows m - 1],
@@ -166,21 +167,21 @@ unsafeCreate :: (Eq a, Eq b) => M.Matrix Manifest c -> BM.Bimap M.Ix1 a -> BM.Bi
 unsafeCreate m rowLabels colLabels = U.assertP isWellFormed $ Matrix m rowLabels colLabels
 
 -- | \(O(n \log n)\) - Creates a matrix from the given association list.
-fromList :: forall a b c . (Ord a, Ord b)
+fromList :: forall a b c . (Ord a, Ord b, M.Unbox c)
     => [((a, b), c)]
     -> Either InvalidFormat (LabelledMatrix a b c)
 fromList xs = fromList' xs Nothing
 
 -- | Creates a matrix from the given association list. Doesn't require the input list to be a total mapping - will
 -- fill unset values with the given default element.
-fromListDefault :: forall a b c . (Ord a, Ord b)
+fromListDefault :: forall a b c . (Ord a, Ord b, M.Unbox c)
     => c
     -> [((a, b), c)]
     -> LabelledMatrix a b c
 fromListDefault defaultElem xs = fromRight $ fromList' xs (Just defaultElem)
 
 -- | Internal function used to create a list with an optional default element.
-fromList' :: forall a b c . (Ord a, Ord b)
+fromList' :: forall a b c . (Ord a, Ord b, M.Unbox c)
     => [((a, b), c)]
     -> Maybe c
     -> Either InvalidFormat (LabelledMatrix a b c)
@@ -215,13 +216,13 @@ isSquare m = m.numRows == m.numCols
 domain :: LabelledMatrix a b c -> (S.Set a, S.Set b)
 domain m = (m.rowLabelSet, m.colLabelSet)
 
-toSquare :: (Ord a) => LabelledMatrix a a c -> c -> LabelledMatrix a a c
+toSquare :: (Ord a, M.Unbox c) => LabelledMatrix a a c -> c -> LabelledMatrix a a c
 toSquare m defaultElem = fromJust $ extension m squareLabelSet squareLabelSet defaultElem
     where
         squareLabelSet = S.union m.rowLabelSet m.colLabelSet
 
 -- | Reshapes a matrix, filling empty spots with the given default element.
-reshape :: forall a b c . (Ord a, Ord b) => c -> LabelledMatrix a b c -> S.Set a -> S.Set b -> LabelledMatrix a b c
+reshape :: forall a b c . (Ord a, Ord b, M.Unbox c) => c -> LabelledMatrix a b c -> S.Set a -> S.Set b -> LabelledMatrix a b c
 reshape defaultElem m rowLabelSet colLabelSet
     | m.rowLabelSet == rowLabelSet && m.colLabelSet == colLabelSet = m
     | otherwise                                                    = unsafeCreate matrix rowLabels colLabels
@@ -257,25 +258,25 @@ reshape defaultElem m rowLabelSet colLabelSet
                         oldJ' j = BM.lookupR (jLabel j) m.colLabels
 
 -- | Extend a matrix to a larger domain, filling spots with the given default element. Returns Nothing if the domain to extend to is not a superset.
-extension :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> c -> Maybe (LabelledMatrix a b c)
+extension :: (Ord a, Ord b, M.Unbox c) => LabelledMatrix a b c -> S.Set a -> S.Set b -> c -> Maybe (LabelledMatrix a b c)
 extension m rowLabelSet colLabelSet defaultElem
     | m.rowLabelSet == rowLabelSet && m.colLabelSet == colLabelSet = Just $ m
     | m.rowLabelSet `S.isSubsetOf` rowLabelSet && m.colLabelSet `S.isSubsetOf` colLabelSet = Just $ reshape defaultElem m rowLabelSet colLabelSet
     | otherwise = Nothing
 
 -- | Project the domain of a matrix down to a new domain. Returns nothing if the given domain is not a subset of the old domain.
-project :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> Maybe (LabelledMatrix a b c)
+project :: (Ord a, Ord b, M.Unbox c) => LabelledMatrix a b c -> S.Set a -> S.Set b -> Maybe (LabelledMatrix a b c)
 project m rowLabelSet colLabelSet
     | not (S.isSubsetOf rowLabelSet m.rowLabelSet) || not (S.isSubsetOf colLabelSet m.colLabelSet) = Nothing
     | otherwise = Just $ reshape unusedArg m rowLabelSet colLabelSet
     where
         unusedArg = error "Should never be evaluated"
 
-projectRows :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> Maybe (LabelledMatrix a b c)
+projectRows :: (Ord a, Ord b, M.Unbox c) => LabelledMatrix a b c -> S.Set a -> Maybe (LabelledMatrix a b c)
 projectRows m rowLabelSet = project m rowLabelSet m.colLabelSet
 
 -- | Returns an element from the matrix. Returns Nothing if the element is not in the domain of the matrix.
-find :: (Ord a, Ord b) => (a, b) -> LabelledMatrix a b c -> Maybe c
+find :: (Ord a, Ord b, M.Unbox c) => (a, b) -> LabelledMatrix a b c -> Maybe c
 find (a, b) m = do
     aIndex <- BM.lookupR a m.rowLabels
     bIndex <- BM.lookupR b m.colLabels
@@ -283,7 +284,7 @@ find (a, b) m = do
     pure $ M.index' m.matrix (aIndex :. bIndex)
 
 -- | Basic addition on two matrices. Returns Nothing if the provided matrices have different shapes.
-add :: (Ord a, Ord b)
+add :: (Ord a, Ord b, M.Unbox c)
     => (c -> c -> c)
     -> LabelledMatrix a b c
     -> LabelledMatrix a b c
@@ -291,11 +292,11 @@ add :: (Ord a, Ord b)
 add addElems m1 m2 = pointwise addElems m1 m2
 
 -- | Perform an operation over the matrix pointwise.
-pointwise :: (Eq a, Eq b)
-    => (c -> d -> e)
-    -> LabelledMatrix a b c
-    -> LabelledMatrix a b d
-    -> Maybe (LabelledMatrix a b e)
+pointwise :: (Eq a, Eq b, M.Unbox c1, M.Unbox c2, M.Unbox c3)
+    => (c1 -> c2 -> c3)
+    -> LabelledMatrix a b c1
+    -> LabelledMatrix a b c2
+    -> Maybe (LabelledMatrix a b c3)
 pointwise f m1 m2
     | m1.rowLabels /= m2.rowLabels || m1.colLabels /= m2.colLabels = Nothing
     | otherwise = Just $ unsafeCreate matrix m1.rowLabels m1.colLabels
@@ -303,7 +304,7 @@ pointwise f m1 m2
         matrix = M.computeAs manifest $ M.zipWith f m1.matrix m2.matrix
 
 -- | Basic matrix multiplication on two matrices. Returns Nothing if the provided matrices have the wrong shape for matrix multiplication.
-multiply :: forall a b c d . (Eq a, Eq b, Eq c)
+multiply :: forall a b c d . (Eq a, Eq b, Eq c, M.Unbox d)
     => d
     -> (d -> d -> d)
     -> (d -> d -> d)
@@ -327,7 +328,7 @@ multiply zero addElems multiplyElems m1 m2
                 row = (M.!>) m1.matrix i
                 col = (M.<!) m2.matrix j
 
-multiplys :: (Eq a, Functor t, Foldable t)
+multiplys :: (Eq a, Functor t, Foldable t, M.Unbox c)
     => c
     -> (c -> c -> c)
     -> (c -> c -> c)
@@ -343,13 +344,13 @@ multiplys zero addElems multiplyElems ms
 
 This formula is detailed in "Generic Inference" (Pouly and Kohlas, 2012).
 -}
-quasiInverse :: (Ord a, Q.SemiringValue c, Show a, Show c)
+quasiInverse :: (Ord a, Q.SemiringValue c, Show a, Show c, M.Unbox c)
     => LabelledMatrix a a c
     -> Maybe (LabelledMatrix a a c)
 quasiInverse m
     | m.numRows /= m.numCols = Nothing
     | m.numRows == 0 = Just $ m
-    | m.numRows == 1 = Just $ fmap Q.quasiInverse m
+    | m.numRows == 1 = Just $ mapValues Q.quasiInverse m
     | otherwise = assert' isJust $ joinSquare newB newC newD newE
     where
         (b, c, d, e) = fromJust $ decompose m
@@ -381,7 +382,7 @@ Where D is of shape `div numRows 2` x `div numCols 2`.
 
 Returns Nothing if the given matrix is empty.   TODO: it probably doesn't have to return Nothing here.
 -}
-decompose :: (Ord a) => LabelledMatrix a a c -> Maybe (LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c)
+decompose :: (Ord a, M.Unbox c) => LabelledMatrix a a c -> Maybe (LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c)
 decompose m
     | m.numRows == 0 && m.numCols == 0 = Nothing
     | otherwise = Just (project' m aRows    aCols, project' m aRows    notACols,
@@ -408,7 +409,7 @@ For inputs A -> B -> C -> D returns:
 
 Note that this does not indicate that the resulting matrix is a square matrix.
 -}
-joinSquare :: forall a b c . (Ord a, Ord b) => LabelledMatrix a b c -> LabelledMatrix a b c -> LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
+joinSquare :: forall a b c . (Ord a, Ord b, M.Unbox c) => LabelledMatrix a b c -> LabelledMatrix a b c -> LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
 joinSquare a b c d
     -- Row / column labels match where they coincide in the overall square matrix.
     |    a.rowLabels /= b.rowLabels
@@ -434,7 +435,7 @@ joinSquare a b c d
 
 -- TODO: Because of (unnecesary?) assumption about both the indexes and labels being sorted
 -- such that both ascend simultaenously, this function is a lot more complicated than it needs to be.
-appendRows :: (Ord a, Eq b) => LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
+appendRows :: (Ord a, Eq b, M.Unbox c) => LabelledMatrix a b c -> LabelledMatrix a b c -> Maybe (LabelledMatrix a b c)
 appendRows m1 m2
     | m1.colLabels /= m2.colLabels = Nothing
     | not $ S.disjoint m1.rowLabelSet m2.rowLabelSet = Nothing
@@ -449,22 +450,22 @@ appendRows m1 m2
 
         append = ((M.computeAs manifest .) .) . M.append'
 
-empty :: (Eq a, Eq b) => LabelledMatrix a b c
+empty :: (Eq a, Eq b, M.Unbox c) => LabelledMatrix a b c
 empty = unsafeCreate M.empty BM.empty BM.empty
 
-unsafeLookup :: (Ord a, Ord b) => a -> b -> LabelledMatrix a b c -> c
+unsafeLookup :: (Ord a, Ord b, M.Unbox c) => a -> b -> LabelledMatrix a b c -> c
 unsafeLookup x y m = M.index' m.matrix index
     where
         index = (unsafeRowIndex x m) :. (unsafeColIndex y m)
 
 -- | Update a single index of the matrix. Prefer `updates` for updating
 -- multiple values.
-update :: (Ord a, Ord b) => a -> b -> c -> LabelledMatrix a b c -> LabelledMatrix a b c
+update :: (Ord a, Ord b, M.Unbox c) => a -> b -> c -> LabelledMatrix a b c -> LabelledMatrix a b c
 update row col value m = updates [((row, col), value)] m
 
 -- | Updates the given indexes of the matrices to hold the given values.
 -- If multiple updates for the same input are contained in the list, the latest entry overwrites previous ones.
-updates :: (Ord a, Ord b) => [((a, b), c)] -> LabelledMatrix a b c -> LabelledMatrix a b c
+updates :: (Ord a, Ord b, M.Unbox c) => [((a, b), c)] -> LabelledMatrix a b c -> LabelledMatrix a b c
 updates values m = mapWithKey f m
     where
         valueMap = Map.fromList values
@@ -473,20 +474,20 @@ updates values m = mapWithKey f m
                                 Just new -> new
                                 Nothing  -> old
 
-mapWithKey :: (Ord a, Ord b) => (a -> b -> c -> c) -> LabelledMatrix a b c -> LabelledMatrix a b c
+mapWithKey :: (Ord a, Ord b, M.Unbox c) => (a -> b -> c -> c) -> LabelledMatrix a b c -> LabelledMatrix a b c
 mapWithKey f m = unsafeCreate updatedMatrix m.rowLabels m.colLabels
     where
         updatedMatrix = M.computeAs manifest $ M.imap g m.matrix
 
         g (i :. j) old = f (unsafeRowLabel i m) (unsafeColLabel j m) old
 
-unsafeRow :: (Ord a) => a -> LabelledMatrix a b c -> [c]
+unsafeRow :: (Ord a, M.Unbox c) => a -> LabelledMatrix a b c -> [c]
 unsafeRow x m = M.toList $ (M.!>) m.matrix (unsafeRowIndex x m)
 
-rowList :: LabelledMatrix a b c -> [[c]]
+rowList :: (M.Unbox c) => LabelledMatrix a b c -> [[c]]
 rowList m = M.toLists2 m.matrix
 
-all' :: (Ord a, Ord b) => (a -> b -> c -> Bool) -> LabelledMatrix a b c -> Bool
+all' :: (Ord a, Ord b, M.Unbox c) => (a -> b -> c -> Bool) -> LabelledMatrix a b c -> Bool
 all' p m = M.and $ M.imap g m.matrix
     where
         g (i :. j) old = p (unsafeRowLabel i m) (unsafeColLabel j m) old
@@ -537,29 +538,30 @@ checkIsAscPairList ((x, y) : zs) = all (\(x', y') -> x < x' && y < y') zs
 --------------------------------------------------------------------------------
 -- Unsafe variants
 --------------------------------------------------------------------------------
-unsafeAppendRows :: (Ord a, Eq b) => LabelledMatrix a b c -> LabelledMatrix a b c -> LabelledMatrix a b c
+-- TODO: Try auto typeclass filling?
+unsafeAppendRows :: (Ord a, Eq b, M.Unbox c) => LabelledMatrix a b c -> LabelledMatrix a b c -> LabelledMatrix a b c
 unsafeAppendRows = (fromJust .) . appendRows
 
-unsafeProject :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> LabelledMatrix a b c
+unsafeProject :: (Ord a, Ord b, M.Unbox c) => LabelledMatrix a b c -> S.Set a -> S.Set b -> LabelledMatrix a b c
 unsafeProject = ((fromJust .) .) . project
 
-unsafeProjectRows :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> LabelledMatrix a b c
+unsafeProjectRows :: (Ord a, Ord b, M.Unbox c) => LabelledMatrix a b c -> S.Set a -> LabelledMatrix a b c
 unsafeProjectRows = (fromJust .) . projectRows
 
-unsafeQuasiInverse :: (Ord a, Q.SemiringValue c, Show a, Show c)
+unsafeQuasiInverse :: (Ord a, Q.SemiringValue c, Show a, Show c, M.Unbox c)
     => LabelledMatrix a a c
     -> LabelledMatrix a a c
 unsafeQuasiInverse = fromJust . quasiInverse
 
 -- | Basic addition on two matrices. Returns Nothing if the provided matrices have different shapes.
-unsafeAdd :: (Ord a, Ord b)
+unsafeAdd :: (Ord a, Ord b, M.Unbox c)
     => (c -> c -> c)
     -> LabelledMatrix a b c
     -> LabelledMatrix a b c
     -> LabelledMatrix a b c
 unsafeAdd = ((fromJust .) .) . add
 
-unsafeMultiply :: forall a b c d . (Eq a, Eq b, Eq c)
+unsafeMultiply :: forall a b c d . (Eq a, Eq b, Eq c, M.Unbox d)
     => d
     -> (d -> d -> d)
     -> (d -> d -> d)

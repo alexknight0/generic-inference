@@ -260,7 +260,6 @@ collectTree :: (Show a, ValuationFamily v, Ord a)
     => [v a]
     -> Domain a
     -> JoinTree (v a)
--- TODO: UPDATE UPDATE UPDATE to binary join tree i think
 collectTree vs q = unsafeConvertToCollectTree (binaryJoinForest vs [q]) q
                 -- ^^^ call is safe in this case.
 
