@@ -65,13 +65,13 @@ benchmarks = do
                                               -- , D.createRandomProblem 3 1 100 1
                                               -- , D.createRandomProblem 3 1 100 5
                                               -- , D.createRandomProblem 3 1 100 10
-                                                D.createRandomProblem 3 1 200 0.25
-                                              , D.createRandomProblem 3 1 200 1
-                                              , D.createRandomProblem 3 1 200 5
-                                              , D.createRandomProblem 3 1 200 10
-                                              , D.newYorkProblem 1 200
-                                              , D.newYorkProblem 1 1000
-                                              , D.newYorkProblem 1 2000
+                                              --   D.createRandomProblem 3 1 200 0.25
+                                              -- , D.createRandomProblem 3 1 200 1
+                                              -- , D.createRandomProblem 3 1 200 5
+                                                D.createRandomProblem 3 1 200 10
+                                              -- , D.newYorkProblem 1 200
+                                              -- , D.newYorkProblem 1 1000
+                                              -- , D.newYorkProblem 1 2000
                                              ]
     evaluate (rnf problems)
 
@@ -79,7 +79,7 @@ benchmarks = do
 
     pure $ pure $ bgroup "Shortest Path" $ benches
     where
-        seeds = [0..]
+        seeds = [3..]
 
         modes = [
             -- Baseline

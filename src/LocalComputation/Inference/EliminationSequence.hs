@@ -28,10 +28,12 @@ Implemented as a heap. Does not implement the variable valuation linked list (VV
 Finding the 'clique' of a given variable is taking the set of valuations that contain that variable and then
 unioning all of their variables together.
 -}
-newtype EliminationSequence a = EliminationSequence { pq :: P.PSQ a (OrderByLength S.Set a) } deriving Show
+data EliminationSequence a = EliminationSequence { pq :: P.PSQ a (OrderByLength S.Set a)
+                                                    , vvl :: M.Map a (S.Set a)
+                                                } deriving Show
 
-unsafeFromPQ :: (Ord a) => P.PSQ a (OrderByLength S.Set a) -> EliminationSequence a
-unsafeFromPQ = U.assertP (isRight . isWellFormed) . EliminationSequence
+unsafeCreate :: (Ord a) => P.PSQ a (OrderByLength S.Set a) -> M.Map a (S.Set a) -> EliminationSequence a
+unsafeCreate pq vvl = U.assertP (isRight . isWellFormed) $ EliminationSequence pq vvl
 
 data StructureError a = DuplicateVariable | VariableNotMemberOfOwnClique a
 
@@ -47,19 +49,32 @@ create ds = createAndExclude ds S.empty
 -- i.e. while the excluded variables will be counted in the cliques of other variables,
 -- they won't be in the elimination sequence produced by repeated calls to 'eliminateNext'
 createAndExclude :: (Ord a) => [S.Set a] -> S.Set a -> EliminationSequence a
-createAndExclude ds excluded = unsafeFromPQ $ P.fromList
-                                            $ map (\(var, clique) -> var :-> OrderByLength clique)
-                                            $ M.toList
-                                            $ (`M.withoutKeys` excluded)
-                                            $ getCliques ds
+createAndExclude ds excluded = unsafeCreate pq vvl
+    where
+        pq = P.fromList $ map (\(var, clique) -> var :-> OrderByLength clique)
+                        $ M.toList
+                        $ (`M.withoutKeys` excluded)
+                        $ getCliques ds
+
+        cliques = getCliques ds
+        vvl = vvlFromCliques cliques
 
 
 -- | Returns true if there are no variables left to eliminate.
 isEmpty :: EliminationSequence a -> Bool
-isEmpty (EliminationSequence xs) = P.null xs
+isEmpty (EliminationSequence xs _) = P.null xs
 
 size :: EliminationSequence a -> Int
-size (EliminationSequence xs) = P.size xs
+size (EliminationSequence xs _) = P.size xs
+
+vvlFromCliques :: (Ord a) => M.Map a (S.Set a) -> M.Map a (S.Set a)
+vvlFromCliques cliques = M.unions $ map vvlFromEntry $ M.toList cliques
+    where
+
+        vvlFromEntry :: (Eq a) => (a, S.Set a) -> M.Map a (S.Set a)
+        vvlFromEntry (var, clique) = M.fromAscList $ map (\v -> (v, S.singleton var)) $ S.toAscList clique
+
+
 
 getCliques :: (Ord a) => [S.Set a] -> M.Map a (S.Set a)
 getCliques ds = M.unionsWith S.union $ map toVarCliques ds
@@ -73,22 +88,26 @@ getCliques ds = M.unionsWith S.union $ map toVarCliques ds
                 g variable acc = M.insert variable d acc
 
 eliminateNext :: (Ord a) => EliminationSequence a -> Maybe (a, EliminationSequence a)
-eliminateNext (EliminationSequence vars) = do
-    (eliminated :-> _, vars') <- P.minView vars
-    pure $ (eliminated, unsafeFromPQ $ removeFromAllCliques eliminated vars')
+eliminateNext e = do
+    (eliminated :-> _, pqAfterElimination) <- P.minView e.pq
+
+    let newPQ = adjusts updatePriority varsWhoseCliqueChanged pqAfterElimination
+        updatePriority (OrderByLength c) = OrderByLength $ S.delete eliminated c
+        varsWhoseCliqueChanged = S.toList $ (M.!) e.vvl eliminated
+
+    pure $ (eliminated, unsafeCreate newPQ newVVL)
 
     where
-        -- Seems like may get rid of the benefit of using a heap; if performance is an issue
-        -- look further into how a heap is supposed to be utilised here.
-        removeFromAllCliques :: (Ord a) => a -> P.PSQ a (OrderByLength S.Set a) -> P.PSQ a (OrderByLength S.Set a)
-        removeFromAllCliques eliminated eSequence = foldr updatePriority eSequence entriesContainingVar
-            where
-                entriesContainingVar = filter cliqueContainsVar $ P.toList eSequence
+        -- The new vvl could be updated by removing a key, but as we don't care
+        -- too much about the memory use, it's probably better to save the computation.
+        newVVL = e.vvl
 
-                cliqueContainsVar (_ :-> OrderByLength clique) = S.member eliminated clique
 
-                updatePriority (v :-> _) acc = P.adjust (\(OrderByLength c) -> OrderByLength $ S.delete eliminated c) v acc
-
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
+adjusts :: (Ord k, Ord p) => (p -> p) -> [k] -> P.PSQ k p -> P.PSQ k p
+adjusts p ks pq = foldr (P.adjust p) pq ks
 
 
 
@@ -110,18 +129,11 @@ instance (Foldable f) => Ord (OrderByLength f a) where
 --------------------------------------------------------------------------------
 {- | Returns 'Right ()' if the elimination sequence is well formed, otherwise indicates the error with the structure. -}
 isWellFormed :: (Ord a) => EliminationSequence a -> Either (StructureError a) ()
-isWellFormed (EliminationSequence xs)
+isWellFormed (EliminationSequence xs _)
     | Just (y :-> _) <- L.find p xs'        = Left (VariableNotMemberOfOwnClique y)
     | length (S.fromList xs') /= length xs' = Left DuplicateVariable
     | otherwise                             = Right ()
     where
         xs' = P.toList xs
         p (x :-> clique) = x `notElem` clique
-
-assertIsWellFormed :: (Ord a) => EliminationSequence a -> Bool
-assertIsWellFormed xs = assert p False
-    where
-        p = case isWellFormed xs of
-                Left _   -> False
-                Right () -> True
 

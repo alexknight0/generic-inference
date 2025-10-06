@@ -88,7 +88,8 @@ library
       OverloadedRecordDot
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
-      SVGFonts
+      PSQueue
+    , SVGFonts
     , algebraic-graphs ==0.7
     , array
     , base >=4.7 && <5
@@ -141,7 +142,8 @@ executable localcomputation-exe
       OverloadedRecordDot
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      SVGFonts
+      PSQueue
+    , SVGFonts
     , algebraic-graphs ==0.7
     , array
     , base >=4.7 && <5
@@ -200,7 +202,8 @@ test-suite localcomputation-test
       OverloadedRecordDot
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      SVGFonts
+      PSQueue
+    , SVGFonts
     , algebraic-graphs ==0.7
     , array
     , base >=4.7 && <5
@@ -259,7 +262,8 @@ benchmark localcomputation-benchmark
       OverloadedRecordDot
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N -O2
   build-depends:
-      SVGFonts
+      PSQueue
+    , SVGFonts
     , algebraic-graphs ==0.7
     , array
     , base >=4.7 && <5
