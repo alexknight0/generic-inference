@@ -68,6 +68,7 @@ data BenchmarkProblem a = BenchmarkProblem {
     , numVertices :: Natural
     , numEdges    :: Natural
     , edgeRatio   :: Double
+    , seed        :: Maybe Int
     , ps          :: [GraphAndQuery a]
 } deriving (V.Generic, V.NFData)
 
@@ -75,18 +76,32 @@ createRandomProblem :: (MonadIO m) => Natural -> Natural -> Natural -> Double ->
 createRandomProblem numProblems numQueries numVertices edgeRatio seed = do
     problems <- liftIO $ U.sample seed $ genGraphsAndQueries numProblems numQueries numVertices numEdges
 
-    pure $ BenchmarkProblem "Randomly Generated" numProblems numQueries numVertices numEdges edgeRatio problems
+    pure $ BenchmarkProblem "Randomly Generated" numProblems numQueries numVertices numEdges edgeRatio (Just seed) problems
 
     where
         numEdges = negativeBecomesZero $ floor $ fromIntegral numVertices * edgeRatio
 
         negativeBecomesZero = max 0
 
-createParsedProblem :: (Ord a, MonadIO m) => String -> G.Graph a Double -> Natural -> Int -> m (BenchmarkProblem a)
-createParsedProblem name g numQueries seed = do
+createParsedProblem :: (Ord a) => String -> G.Graph a Double -> BenchmarkProblem a
+createParsedProblem name g = BenchmarkProblem name 1 (L.genericLength qs) vertexCount edgeCount edgeRatio Nothing [p]
+    where
+
+        vertexCount = fromIntegral $ G.vertexCount g
+        edgeCount = fromIntegral $ G.edgeCount g
+        edgeRatio = fromIntegral (G.vertexCount g) / fromIntegral (G.edgeCount g)
+
+        qs = map (\target -> Query vertices target) vertices
+
+        vertices = G.nodeList g
+
+        p = GraphAndQuery g qs
+
+createParsedProblemWithQueries :: (Ord a, MonadIO m) => String -> G.Graph a Double -> Natural -> Int -> m (BenchmarkProblem a)
+createParsedProblemWithQueries name g numQueries seed = do
     qs <- U.sample seed $ genConnectedQueries numQueries g
     let p = GraphAndQuery g qs
-    pure $ BenchmarkProblem name 1 numQueries vertices edges edgeRatio [p]
+    pure $ BenchmarkProblem name 1 numQueries vertices edges edgeRatio (Just seed) [p]
     where
         vertices = fromIntegral $ G.vertexCount g
         edges = fromIntegral $ G.edgeCount g
@@ -273,10 +288,15 @@ p2 = Problem {
                ]
 }
 
-newYorkProblem :: (MonadIO m) => Natural -> Natural -> Int -> m (BenchmarkProblem Natural)
-newYorkProblem numQueries numArcs seed = do
+newYorkProblem :: (MonadIO m) => Natural -> m (BenchmarkProblem Natural)
+newYorkProblem numArcs = do
     g <- liftIO $ unsafeParseGraph numArcs newYork
-    createParsedProblem "New York" g numQueries seed
+    pure $ createParsedProblem "New York" g
+
+oldNewYorkProblem :: (MonadIO m) => Natural -> Natural -> Int -> m (BenchmarkProblem Natural)
+oldNewYorkProblem numQueries numArcs seed = do
+    g <- liftIO $ unsafeParseGraph numArcs newYork
+    createParsedProblemWithQueries "New York" g numQueries seed
 
 -------------------------------------------------------------------------------
 -- Utils

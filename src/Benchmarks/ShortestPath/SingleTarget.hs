@@ -68,10 +68,16 @@ benchmarks = do
                                               --   D.createRandomProblem 3 1 200 0.25
                                               -- , D.createRandomProblem 3 1 200 1
                                               -- , D.createRandomProblem 3 1 200 5
-                                                D.createRandomProblem 3 1 200 10
-                                              -- , D.newYorkProblem 1 200
-                                              -- , D.newYorkProblem 1 1000
-                                              -- , D.newYorkProblem 1 2000
+                                              -- D.createRandomProblem 3 1 200 10
+                                              --   const $ D.newYorkProblem 10
+                                              -- , const $ D.newYorkProblem 25
+                                              const $ D.newYorkProblem 50
+                                              -- , const $ D.newYorkProblem 100
+                                              -- , const $ D.newYorkProblem 200
+                                              -- , const $ D.newYorkProblem 1000
+                                              -- , const $ D.newYorkProblem 2000
+                                              -- , const $ D.newYorkProblem 4000
+                                              -- , const $ D.newYorkProblem 8000
                                              ]
     evaluate (rnf problems)
 
@@ -79,15 +85,16 @@ benchmarks = do
 
     pure $ pure $ bgroup "Shortest Path" $ benches
     where
-        seeds = [3..]
+        seeds :: [Integer]
+        seeds = [0..]
 
         modes = [
-            -- Baseline
-              Generic  $ I.Fusion
+            --   Baseline
+            -- , Generic  $ I.Fusion
             -- , Generic  $ I.Shenoy MP.Threads
             -- , Generic  $ I.Shenoy MP.Distributed
             -- , DynamicP $ MP.Distributed
-            -- , DynamicP $ MP.Threads
+            DynamicP $ MP.Threads
          ]
 
 
@@ -102,7 +109,11 @@ benchModes modes p = fmap (bgroup name) $ mapM (\m -> benchMode m p) modes
                                  , show p.numQueries
                                  , show p.numVertices
                                  , show p.edgeRatio
+                                 ,      seed
                                 ]
+        seed = case p.seed of
+                Nothing -> "No seed"
+                Just s  -> show s
 
 benchMode :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashable a)
     => Implementation
