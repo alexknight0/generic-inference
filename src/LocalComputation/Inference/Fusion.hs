@@ -69,8 +69,8 @@ fusion' uniqueId upperPsi e
         (eliminated, e') = fromJust $ E.eliminateNext e
         upperGamma = S.filter (\phi -> S.member eliminated (label phi.content)) upperPsi
         psi = combines1 $ map (.content) $ S.toList upperGamma
-        upperPsi' = S.union (S.difference upperPsi upperGamma)
-                            (S.singleton (WithId uniqueId $ eliminate psi (S.singleton eliminated)))
+        upperPsi' = S.insert (WithId uniqueId $ eliminate psi (S.singleton eliminated))
+                             (S.difference upperPsi upperGamma)
 
 
 --------------------------------------------------------------------------------
