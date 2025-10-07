@@ -82,20 +82,13 @@ solution (Identity _)    = error "'solution' called on identity valuation."
 
 -- | Adds two valuations. Unsafe.
 add :: (Var a, Show b, Q.SemiringValue b) => Valuation b a -> Valuation b a -> Valuation b a
-add v1 v2 = assertInvariants $ _add v1 v2
-
-_add :: (Var a, Show b, Q.SemiringValue b) => Valuation b a -> Valuation b a -> Valuation b a
-_add (Valuation m1 b1) (Valuation m2 b2) = unsafeCreate (matrixAdd m1 m2) (matrixAdd b1 b2)
-_add _                 _                 = error "Not implemented error."
+add (Valuation m1 b1) (Valuation m2 b2) = unsafeCreate (matrixAdd m1 m2) (matrixAdd b1 b2)
+add _                 _                 = error "Not implemented error."
 
 -- | Extends a valuation. Unsafe.
 extension :: (Var a, Show b, Q.SemiringValue b) => Valuation b a -> S.Set a -> Valuation b a
-extension v d = assertInvariants $ _extension v d
-
-_extension :: (Var a, Show b, Q.SemiringValue b) => Valuation b a -> S.Set a -> Valuation b a
-_extension (Identity _) d = Identity d
-_extension (Valuation m b) t = unsafeCreate (fromJust $ M.extension m t t Q.zero) (fromJust $ M.extension b t (S.singleton ()) Q.zero)
-
+extension (Identity _) d    = Identity d
+extension (Valuation m b) t = unsafeCreate (fromJust $ M.extension m t t Q.zero) (fromJust $ M.extension b t (S.singleton ()) Q.zero)
 
 ------------------------------------------------------------------------------
 -- Valuation Extension Sets
