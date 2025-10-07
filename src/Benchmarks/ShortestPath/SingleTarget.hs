@@ -90,11 +90,11 @@ benchmarks = do
 
         modes = [
             --   Baseline
-            -- Generic  $ I.Fusion
+            Generic  $ I.Fusion
             -- , Generic  $ I.Shenoy MP.Threads
             -- , Generic  $ I.Shenoy MP.Distributed
             -- , DynamicP $ MP.Distributed
-             DynamicP $ MP.Threads
+             -- ,DynamicP $ MP.Threads
          ]
 
 

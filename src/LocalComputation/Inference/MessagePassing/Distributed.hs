@@ -15,6 +15,7 @@ module LocalComputation.Inference.MessagePassing.Distributed (
     , CollectResults (target, postbox)
     , distribute
     , DistributeResults (postbox)
+    , collectAndCalculate
 ) where
 
 import           Control.Distributed.Process                hiding (Message)
@@ -23,6 +24,7 @@ import           Control.Distributed.Process.Serializable
 import           Control.Exception                          (assert)
 import           Control.Monad                              (forM_, replicateM)
 import qualified Data.Map                                   as M
+import qualified Data.Set                                   as S
 import qualified LocalComputation.Inference.JoinTree        as JT
 import qualified LocalComputation.Inference.JoinTree.Forest as JT
 import qualified LocalComputation.Utils                     as U
@@ -133,8 +135,30 @@ data CollectResults a = CollectResults {
 }
 
 -- TODO: Can place postbox on node.
--- TODO: I think we have unnecessary duplicate operations in the case that we are performing
--- ONLY collect; we can just update the valuation itself instead of the postbox.
+
+collectAndCalculate :: forall v a . (SerializableValuation v a)
+    => NodeWithPid (v a)
+    -> [NodeWithPid (v a)]
+    -> Process (v a)
+collectAndCalculate _    []         = error "Collect and calculate assumes node has at least one neighbour."
+collectAndCalculate this neighbours = do
+    -- Wait for messages from all neighbours bar one
+    postbox <- replicateM (length neighbours - 1) expect :: Process [Message (v a)]
+
+    let senders = map (.sender) postbox
+
+        -- The target neighbour is the neighbour who didn't send a message to us
+        target = U.findAssertSingleMatch (\n -> n.id `notElem` senders) neighbours
+
+        newValuation = V.combines1 (this.node.v : map (.msg) postbox)
+        messageForTarget = V.project newValuation (S.intersection this.node.d target.node.d)
+
+
+    -- Perform some action with these messages and send to remaining neighbour
+    sendMsg this target messageForTarget
+
+    -- Return results
+    pure $ newValuation
 
 -- | The collect phase of a message passing process where each node waits for every neighbour bar one
 -- to send the node a message before the node sends off a message to the neighbour that didn't send it
@@ -152,7 +176,6 @@ collect this neighbours action = do
     postbox <- replicateM (length neighbours - 1) expect
 
     let senders = map (.sender) postbox
-        -- TODO: remove assert; we allow nodes with no neighbours in the join tree.
 
         -- The target neighbour is the neighbour who didn't send a message to us
         target = U.findAssertSingleMatch (\n -> n.id `notElem` senders) neighbours

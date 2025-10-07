@@ -23,6 +23,7 @@ import           LocalComputation.ValuationAlgebra                     (Domain,
                                                                         ValuationFamily (eliminate, label),
                                                                         Var,
                                                                         combines1)
+import qualified LocalComputation.ValuationAlgebra                     as V
 import           Numeric.Natural                                       (Natural)
 
 data WithId a = WithId {
@@ -106,21 +107,21 @@ fusionPass mode settings vs queryDomain = do
         drawTree Nothing         _    = pure ()
         drawTree (Just filename) tree = liftIO $ D.drawTree filename tree
 
-nodeActions :: (DMP.SerializableValuation v a) => DMP.NodeActions v a
+nodeActions :: forall v a . (DMP.SerializableValuation v a) => DMP.NodeActions v a
 nodeActions this neighbours resultPort = do
 
-    postbox <- case isRootNode of
-        -- If root node collect a message from each neighbour, but don't send a message.
+    result <- case isRootNode of
+        -- The root node collects a message from each neighbour, but never sends a message.
         -- If the root node never sends out a message, messages will naturally propagate
-        -- down to the root node following the logic that each node sends its message
+        -- down to the root node, assuming each node root node sends its message
         -- to the neighbour that doesn't send it a message.
-        True  -> replicateM (length neighbours) expect
+        True  -> do
+            msgs <- replicateM (length neighbours) expect :: Process [DMP.Message (v a)]
+            pure $ V.combines1 (this.node.v : map (.msg) msgs)
 
         -- If not root node, execute collect algorithm.
-        False -> fmap (.postbox) $ DMP.collect this neighbours computeMessage
+        False -> DMP.collectAndCalculate this neighbours
 
-    -- TODO: In the non-root-node case (most cases!), we duplicated a 'combines' operation here.
-    let result = combines1 (this.node.v : map (.msg) postbox)
     assert (this.node.d == label result) (pure ())
 
     sendChan resultPort $ JT.changeContent this.node result
