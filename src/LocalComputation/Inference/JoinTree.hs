@@ -35,7 +35,7 @@ import           LocalComputation.Inference.JoinTree.Tree       (Id, JoinTree,
 import           Data.Maybe                                     (fromJust)
 import           LocalComputation.ValuationAlgebra
 
-import qualified Algebra.Graph                                  as G
+import qualified Algebra.Graph.AdjacencyMap                     as G
 import           Control.Exception                              (assert)
 import           Extra                                          (minimumOn)
 import qualified LocalComputation.Utils                         as U

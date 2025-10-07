@@ -40,6 +40,10 @@ module LocalComputation.Inference.JoinTree.Tree (
     , unsafeUpdatePostboxes
     , verticesHavePostboxes
 
+    -- Conversions
+    , toTree
+    , unsafeFromTree
+
     -- Utilities
     , outgoingGraphEdges
     , renumberTopological
@@ -49,9 +53,10 @@ import           GHC.Records                        (HasField, getField)
 import           LocalComputation.ValuationAlgebra  hiding (assertInvariants,
                                                      satisfiesInvariants)
 
-import qualified Algebra.Graph                      as G
 import qualified Algebra.Graph.Acyclic.AdjacencyMap as G (toAcyclic)
-import qualified Algebra.Graph.ToGraph              as G (isTopSortOf,
+import qualified Algebra.Graph.AdjacencyMap         as G
+import qualified Algebra.Graph.ToGraph              as G (ToGraph (toGraph),
+                                                          isTopSortOf,
                                                           reachable,
                                                           toAdjacencyMap,
                                                           topSort)
@@ -62,7 +67,9 @@ import qualified Data.List                          as L
 import qualified Data.Map                           as M
 import           Data.Maybe                         (fromJust, isJust,
                                                      isNothing)
+import qualified Data.Set                           as S
 import           Data.Text.Lazy                     (unpack)
+import qualified Data.Tree                          as T
 import           GHC.Stack                          (HasCallStack)
 import qualified LocalComputation.Utils             as L (count)
 import qualified LocalComputation.Utils             as U
@@ -137,7 +144,7 @@ For example, there may exist nodes with ids of 3 and 5 without the existence of 
 
 For the definition of the running intersection property, see Marc Pouly's "Generic Inference".
 -}
-newtype JoinTree v = UnsafeJoinTree { g :: G.Graph (Node v) } deriving (NFData, Generic)
+newtype JoinTree v = UnsafeJoinTree { g :: G.AdjacencyMap (Node v) } deriving (NFData, Generic)
 
 -- | Checks a given join tree satisfies the invariants (1), (2), (3), and (4)
 -- specified in the declaration of the join tree.
@@ -156,7 +163,7 @@ instance HasField "root" (JoinTree v) (Node v) where
 -- __Warning__: Unsafe - if assertions are enabled, will check some invariants associated with a join tree
 -- and throw an error if the graph doesn't satisfy these invariants. If assertions are disabled, may
 -- result in a malformed data structure.
-unsafeFromGraph :: (HasCallStack, V.ValuationFamily v, V.Var a) => G.Graph (Node (v a)) -> JoinTree (v a)
+unsafeFromGraph :: (HasCallStack, V.ValuationFamily v, V.Var a) => G.AdjacencyMap (Node (v a)) -> JoinTree (v a)
 unsafeFromGraph = U.assertP satisfiesInvariants . UnsafeJoinTree
 
 --------------------------------------------------------------------------------
@@ -171,12 +178,12 @@ redirectTree i' t = unsafeFromGraph . renumberTopological . redirectTree' i' $ t
 
         -- Works by traversing out from the given node,
         -- flipping any edges that it uses along its journey
-        redirectTree' :: Id -> G.Graph (Node (v a)) -> G.Graph (Node (v a))
+        redirectTree' :: Id -> G.AdjacencyMap (Node (v a)) -> G.AdjacencyMap (Node (v a))
         redirectTree' i g = foldr f g outgoingNodes
             where
                 (this, outgoingNodes) = fromJust $ outgoingGraphEdges i g
 
-                f :: Node (v a) -> G.Graph (Node (v a)) -> G.Graph (Node (v a))
+                f :: Node (v a) -> G.AdjacencyMap (Node (v a)) -> G.AdjacencyMap (Node (v a))
                 f n acc = flipEdge this n $ redirectTree' n.id acc
 
 -- | Redirects the given join tree to reverse edges to face a query node of the given domain.
@@ -194,7 +201,7 @@ redirectToQueryNode d g = redirectTree (queryNode.id) g
 -- __Warning__: Unsafe - asserts that for a given node, the domain of the new valuation
 -- does not differ from the domain of the old valuation.
 unsafeUpdateValuations :: (V.ValuationFamily v, Var a) => M.Map Id (v a) -> JoinTree (v a) -> JoinTree (v a)
-unsafeUpdateValuations m t = unsafeFromGraph $ fmap f t.g
+unsafeUpdateValuations m t = unsafeFromGraph $ G.gmap f t.g
     where
         f n = case M.lookup n.id m of
                 Nothing -> n
@@ -203,11 +210,33 @@ unsafeUpdateValuations m t = unsafeFromGraph $ fmap f t.g
 
 -- | Updates postboxes for nodes of the given ids.
 unsafeUpdatePostboxes :: (V.ValuationFamily v, Var a) => M.Map Id (Maybe (M.Map Id (v a))) -> JoinTree (v a) -> JoinTree (v a)
-unsafeUpdatePostboxes m t = unsafeFromGraph $ fmap f t.g
+unsafeUpdatePostboxes m t = unsafeFromGraph $ G.gmap f t.g
     where
         f n = case M.lookup n.id m of
                 Nothing -> n
                 Just p  -> n { postbox = p }
+
+--------------------------------------------------------------------------------
+-- Conversions
+--------------------------------------------------------------------------------
+-- | Returns a data structure that may allow more efficent traversal of subtrees.
+toTree :: JoinTree v -> T.Tree (Node v)
+toTree t = toTree' (G.transpose t.g) t.root
+
+-- | Creates a tree from a graph where each outgoing edge is to a child node (a subtree).
+-- Assumes the graph is formed as a transposed join tree.
+toTree' :: G.AdjacencyMap (Node v) -> Node v -> T.Tree (Node v)
+toTree' g root = T.Node root subTrees
+    where
+        subTreeRoots = S.toList $ (M.!) (G.adjacencyMap g) root
+        subTrees = map (toTree' g) subTreeRoots
+
+unsafeFromTree :: (ValuationFamily v, Var a) => T.Tree (Node (v a)) -> JoinTree (v a)
+unsafeFromTree t = unsafeFromGraph graph
+    where
+        graph = case t of
+                    T.Node root [] -> G.vertex root             -- If single node, then won't show up in edge list.
+                    _              -> G.edges $ edgesOfTree t
 
 --------------------------------------------------------------------------------
 -- Properties
@@ -251,7 +280,7 @@ toPostboxMap = fmap (.postbox) . toMap
 -- The neighbours list will not include the node itself
 -- (no self loops possible in the join tree).
 neighbourMap :: JoinTree v -> M.Map Id [Node v]
-neighbourMap t = M.fromList . map (B.first (.id)) . UG.adjacencyList . UG.toUndirected $ t.g
+neighbourMap t = M.fromList . map (B.first (.id)) . UG.adjacencyList . UG.toUndirected $ G.toGraph $ t.g
 
 -- | Returns true if all vertices have postboxes
 --
@@ -281,32 +310,50 @@ unsafeOutgoingEdges i t = snd . fromJust . outgoingGraphEdges i $ t.g
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------
-outgoingGraphEdges :: Id -> G.Graph (Node v) -> Maybe (Node v, [Node v])
+outgoingGraphEdges :: Id -> G.AdjacencyMap (Node v) -> Maybe (Node v, [Node v])
 outgoingGraphEdges i g = L.find (\(n, _) -> n.id == i) . G.adjacencyList $ g
 
-flipEdge :: Node a -> Node a -> G.Graph (Node a) -> G.Graph (Node a)
+flipEdge :: Node a -> Node a -> G.AdjacencyMap (Node a) -> G.AdjacencyMap (Node a)
 flipEdge x y g
     | G.hasEdge x y g = addEdge y x $ G.removeEdge x y $ g
     | otherwise = g
 
     where
-        addEdge :: a -> a -> G.Graph a -> G.Graph a
+        addEdge :: (Ord a) => a -> a -> G.AdjacencyMap a -> G.AdjacencyMap a
         addEdge x1 x2 g' = G.overlay (G.connect (G.vertex x1) (G.vertex x2)) g'
 
-renumberTopological :: G.Graph (Node a) -> G.Graph (Node a)
-renumberTopological g = fmap (\n -> changeId n $ (M.!) newNumbering n.id) g
+renumberTopological :: G.AdjacencyMap (Node a) -> G.AdjacencyMap (Node a)
+renumberTopological g = G.gmap (\n -> changeId n $ (M.!) newNumbering n.id) g
     where
         topological = U.fromRight $ G.topSort $ G.toAdjacencyMap g
         newNumbering = M.fromList $ zip (map (.id) topological) [0..]
 
         changeId n newId = n { id = newId }
 
-isConnected :: (Ord a) => G.Graph a -> Bool
+isConnected :: (Ord a) => G.AdjacencyMap a -> Bool
 isConnected g = case G.vertexList g of
     []       -> True
     xs@(x:_) -> length (G.reachable undirected x) == length xs
     where
         undirected = G.overlay g (G.transpose g)
+
+
+-- | Returns the edges of a given tree such that the arrows point *up* the tree as follows:
+--
+--                                  1
+--                                  ▲
+--                                  │
+--                              ┌───│───┐
+--                              │   │   │
+--                              4   2   3
+--
+edgesOfTree :: T.Tree a -> [(a, a)]
+edgesOfTree (T.Node _    [])       = []
+edgesOfTree (T.Node root subTrees) = map (\s -> (s, root)) subTreeRoots  -- The edges from subtrees to root
+                                      ++ concatMap edgesOfTree subTrees  -- plus the edges of all subtrees
+    where
+        subTreeRoots = map (.rootLabel) subTrees
+
 
 --------------------------------------------------------------------------------
 -- Invariants
@@ -328,7 +375,7 @@ hasRunningIntersectionProperty t = all (isConnected . inducedByVar) (M.keys vari
     where
         variableMap' = variableMap t
 
-        inducedByVar :: a -> G.Graph (Node (v a))
+        inducedByVar :: a -> G.AdjacencyMap (Node (v a))
         inducedByVar var = G.induce (\n -> n `elem` (M.!) variableMap' var) t.g
 
 -- | Returns true if the given tree is directed towards the root node.

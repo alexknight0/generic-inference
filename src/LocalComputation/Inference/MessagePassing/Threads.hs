@@ -19,6 +19,7 @@ import qualified LocalComputation.ValuationAlgebra          as V
 
 import qualified Control.Parallel.Strategies                as P
 import qualified Data.List                                  as L
+import qualified Data.Tree                                  as T
 import qualified Data.Tuple.Extra                           as B
 import qualified LocalComputation.Utils                     as U
 
@@ -44,7 +45,7 @@ messagePassing' :: (P.NFData (v a), V.ValuationFamily v, V.Var a)
     => JT.JoinTree (v a)
     -> JT.JoinTree (v a)
 messagePassing' t
-    | JT.hasQueryNode t = calculate . distribute . collect $ t
+    | JT.hasQueryNode t = calculate . JT.unsafeFromTree . distribute' Nothing . collect' . JT.toTree $ t
     | otherwise         = t
 
 -- TODO: It does seem like we are copying the tree alot of times; but i don't know whats going on under the hood.
@@ -53,56 +54,51 @@ messagePassing' t
 
 -- | Performs collect on the given tree.
 collect :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => JT.JoinTree (v a) -> JT.JoinTree (v a)
-collect tree = JT.unsafeUpdatePostboxes newPostboxes tree
+collect = JT.unsafeFromTree . collect' . JT.toTree
+
+collect' :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => T.Tree (JT.Node (v a)) -> T.Tree (JT.Node (v a))
+collect' (T.Node root subTrees) = T.Node newRoot newSubTrees
     where
         -- Computes collect on all subtrees, filling their postboxes
         -- subTrees = P.parMap P.rdeepseq collect $ JT.subTrees tree
-        subTrees = -- P.withStrategy (P.parListChunk 3 P.rdeepseq)
-                                  (fmap collect $ JT.subTrees tree)
+        newSubTrees = -- P.withStrategy (P.parListChunk 3 P.rdeepseq)
+                                (fmap collect' subTrees)
 
         -- Get message for us from each subtree
-        subTreeMessages = map (\subTree -> (subTree.root.id, messageForNode tree.root subTree.root)) subTrees
+        subTreeMessages = map (\subTree -> (subTree.rootLabel.id, messageForNode root subTree.rootLabel)) newSubTrees
 
         -- Creates new root filling postbox with messages
-        newRoot = tree.root { JT.postbox = Just $ M.fromList subTreeMessages }
-
-        -- Creates a mapping from ids to postboxes
-        -- (used for updating nodes in the original tree)
-        newPostboxes = foldr (M.union . JT.toPostboxMap) (M.singleton newRoot.id newRoot.postbox) subTrees
+        newRoot = root { JT.postbox = Just $ M.fromList subTreeMessages }
 
 -- | Takes a tree that has had collect performed on it, and returns the tree after distribute has been performed.
 --
 -- __Warning__: Assumes collect has been performed on the tree.
 distribute :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => JT.JoinTree (v a) -> JT.JoinTree (v a)
 distribute tree | assert (JT.verticesHavePostboxes tree) False = undefined
-distribute tree = distribute' Nothing tree
+distribute tree = JT.unsafeFromTree $ distribute' Nothing (JT.toTree tree)
 
-distribute' :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => Maybe (JT.Id, v a) -> JT.JoinTree (v a) -> JT.JoinTree (v a)
-distribute' incoming tree = JT.unsafeUpdatePostboxes newPostboxes tree
+distribute' :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => Maybe (JT.Id, v a) -> T.Tree (JT.Node (v a)) -> T.Tree (JT.Node (v a))
+distribute' incoming (T.Node root subTrees) = T.Node newRoot newSubTrees
 
     where
         -- Insert the new message into the nodes postbox
         newRoot = case incoming of
-                    Nothing             -> tree.root
-                    Just (sender, sent) -> tree.root { JT.postbox = fmap (M.insert sender sent) tree.root.postbox }
+                    Nothing             -> root
+                    Just (sender, sent) -> root { JT.postbox = fmap (M.insert sender sent) root.postbox }
 
         -- The subtrees, sorted by length so that the largest
         -- tree gets evaluated first during the foldr later on.
-        subTrees = L.sortOn JT.vertexCount $ JT.subTrees tree
+        -- DEPRECATED as we don't parallelise currently.
+        sortedSubTrees = subTrees -- L.sortOn JT.vertexCount subTrees
 
         -- Compute messages to send to subtrees
-        subTreeMessages = fmap (\subTree -> Just (newRoot.id, messageForNode subTree.root newRoot)) subTrees
+        subTreeMessages = fmap (\subTree -> Just (newRoot.id, messageForNode subTree.rootLabel newRoot)) sortedSubTrees
 
-        distributed = parSome results toPar
+        newSubTrees = parSome results toPar
             where
-                results = fmap (uncurry distribute') $ zip subTreeMessages subTrees
+                results = fmap (uncurry distribute') $ zip subTreeMessages sortedSubTrees
 
-                toPar = map (\t -> False) subTrees
-
-
-        -- Creates a mapping from ids to postboxes
-        -- (used for updating nodes in the original tree)
-        newPostboxes = foldr (M.union . JT.toPostboxMap) (M.singleton newRoot.id newRoot.postbox) distributed
+                toPar = map (\_ -> False) sortedSubTrees
 
 parSome :: (P.NFData a) => [a] -> [Bool] -> [a]
 parSome xs parStates = P.withStrategy (P.parListN (length shouldPar) P.rdeepseq)
@@ -137,27 +133,31 @@ calculate tree = JT.unsafeUpdateValuations mapping tree
 --------------------------------------------------------------------------------
 -- Partial message propagation (answering one query)
 --------------------------------------------------------------------------------
--- TODO: Test elimination vs projection here; does it make a difference?
 collectAndCalculate :: forall v a . (P.NFData (v a), V.ValuationFamily v, V.Var a)
     => JT.JoinTree (v a) -> JT.JoinTree (v a)
-collectAndCalculate tree = JT.unsafeUpdateValuations newValuations tree
+collectAndCalculate = JT.unsafeFromTree . collectAndCalculate' . JT.toTree
+
+collectAndCalculate' :: forall v a . (P.NFData (v a), V.ValuationFamily v, V.Var a)
+    => T.Tree (JT.Node (v a)) -> T.Tree (JT.Node (v a))
+collectAndCalculate' (T.Node root subTrees) = T.Node newRoot newSubTrees
     where
         -- Computes collect on all subtrees, filling their postboxes
         -- subTrees = P.parMap P.rdeepseq collect $ JT.subTrees tree
-        subTrees = fmap collectAndCalculate $ JT.subTrees tree
+        newSubTrees = fmap collectAndCalculate' subTrees
 
         -- Get message for us from each subtree
-        subTreeMessages = map (\subTree -> (subTree.root.id, messageForThis tree.root subTree.root)) subTrees
+        subTreeMessages = map (\subTree -> (subTree.rootLabel.id, messageForThis root subTree.rootLabel)) newSubTrees
 
         -- Creates new root by updating valuation on current root
-        newRoot = tree.root { JT.v = V.combines1 (tree.root.v : map snd subTreeMessages) }
-
-        -- Creates a mapping from ids to postboxes
-        -- (used for updating nodes in the original tree)
-        newValuations = foldr (M.union . JT.toValuationMap) (M.singleton newRoot.id newRoot.v) subTrees
+        newRoot = root { JT.v = V.combines1 (root.v : map snd subTreeMessages) }
 
         messageForThis :: JT.Node (v a) -> JT.Node (v a) -> v a
         messageForThis this sender = V.project sender.v (S.intersection this.d sender.d)
+
+
+
+
+
 
 -- TODO: Remove. Tested, and makes no difference.
 

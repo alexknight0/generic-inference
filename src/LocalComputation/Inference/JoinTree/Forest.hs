@@ -24,15 +24,15 @@ module LocalComputation.Inference.JoinTree.Forest (
     , unsafeGetTree
     , treeList
     , subTrees
-    , subTrees'
 ) where
 
 import           LocalComputation.ValuationAlgebra        hiding
                                                           (assertInvariants,
                                                            satisfiesInvariants)
 
-import qualified Algebra.Graph                            as G
-import qualified Algebra.Graph.ToGraph                    as G (reachable)
+import qualified Algebra.Graph.AdjacencyMap               as G
+import qualified Algebra.Graph.ToGraph                    as G (ToGraph (toGraph),
+                                                                reachable)
 import qualified Algebra.Graph.Undirected                 as UG
 import qualified Data.Bifunctor                           as B
 import qualified Data.List                                as L
@@ -47,13 +47,15 @@ import           LocalComputation.Inference.JoinTree.Tree (Id, JoinTree,
 import qualified LocalComputation.Inference.JoinTree.Tree as JT
 import qualified LocalComputation.ValuationAlgebra        as V
 
+import qualified Data.Tree                                as T
+
 --------------------------------------------------------------------------------
 -- Join Trees
 --------------------------------------------------------------------------------
 
-newtype JoinForest v = UnsafeJoinForest { g :: G.Graph (Node v) }
+newtype JoinForest v = UnsafeJoinForest { g :: G.AdjacencyMap (Node v) }
 
-unsafeFromGraph :: Valuation v a => G.Graph (Node (v a)) -> JoinForest (v a)
+unsafeFromGraph :: Valuation v a => G.AdjacencyMap (Node (v a)) -> JoinForest (v a)
 unsafeFromGraph = U.assertP satisfiesInvariants . UnsafeJoinForest
 
 findById :: Id -> JoinForest v -> Maybe (Node v)
@@ -78,7 +80,7 @@ unsafeGetTree f = assert (treeCount f == 1) (JT.unsafeFromGraph f.g)
 -- __Warning__: Unsafe - asserts that for a given node, the domain of the new valuation
 -- does not differ from the domain of the old valuation.
 unsafeUpdateValuations :: (V.ValuationFamily v, Var a) => M.Map Id (v a) -> JoinForest (v a) -> JoinForest (v a)
-unsafeUpdateValuations m t = unsafeFromGraph $ fmap f t.g
+unsafeUpdateValuations m t = unsafeFromGraph $ G.gmap f t.g
     where
         f n = case M.lookup n.id m of
                 Nothing -> n
@@ -89,10 +91,6 @@ unsafeUpdateValuations m t = unsafeFromGraph $ fmap f t.g
 -- join tree.
 subTrees :: Valuation v a => JoinTree (v a) -> [JoinTree (v a)]
 subTrees t = treeList $ unsafeFromGraph $ G.removeVertex t.root t.g
-
--- | Variant of `subTrees` that also includes the root of each tree alongside for quick access.
-subTrees' :: Valuation v a => JoinTree (v a) -> [(Node (v a), JoinTree (v a))]
-subTrees' = U.fmapToFst (.root) . subTrees
 
 --------------------------------------------------------------------------------
 -- Properties
@@ -130,7 +128,7 @@ vertexSet :: JoinForest v -> S.Set (Node v)
 vertexSet t = G.vertexSet t.g
 
 neighbourMap :: JoinForest v -> M.Map Id [Node v]
-neighbourMap t = M.fromList . map (B.first (.id)) . UG.adjacencyList . UG.toUndirected $ t.g
+neighbourMap t = M.fromList . map (B.first (.id)) . UG.adjacencyList . UG.toUndirected $ G.toGraph $ t.g
 
 incomingEdges :: Id -> JoinForest v -> Maybe [Node v]
 incomingEdges = (fmap snd .) . incomingEdges'

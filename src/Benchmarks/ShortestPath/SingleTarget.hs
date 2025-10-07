@@ -69,9 +69,9 @@ benchmarks = do
                                               -- , D.createRandomProblem 3 1 200 1
                                               -- , D.createRandomProblem 3 1 200 5
                                               -- D.createRandomProblem 3 1 200 10
-                                              --   const $ D.newYorkProblem 10
+                                              -- const $ D.newYorkProblem 10
                                               -- , const $ D.newYorkProblem 25
-                                              const $ D.newYorkProblem 50
+                                                const $ D.newYorkProblem 50
                                               -- , const $ D.newYorkProblem 100
                                               -- , const $ D.newYorkProblem 200
                                               -- , const $ D.newYorkProblem 1000
@@ -90,11 +90,11 @@ benchmarks = do
 
         modes = [
             --   Baseline
-            -- , Generic  $ I.Fusion
+            -- Generic  $ I.Fusion
             -- , Generic  $ I.Shenoy MP.Threads
             -- , Generic  $ I.Shenoy MP.Distributed
             -- , DynamicP $ MP.Distributed
-            DynamicP $ MP.Threads
+             DynamicP $ MP.Threads
          ]
 
 
