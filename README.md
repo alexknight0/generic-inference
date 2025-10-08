@@ -99,3 +99,29 @@ The join tree diagrams produced can be **large**. If you are in need of a SVG vi
 Your show instance for a valuation algebra will be displayed in the graph. Make sure to use newlines on long output;
 otherwise the diagram will likely render so wide that nothing will be legible.
 
+
+## Commands
+(I've tried to reliably add these to the `package.yaml` but it has had mixed results, feel free to add them in if you're smarter than me!)
+
+For benchmarking performance I use:
+
+```
+stack bench --ghc-options="-O2" --benchmark-arguments "+RTS -s -RTS --csv raw_benchmarks.csv  --output report.html"
+```
+(append `--profile` for profiling, noting that this significantly slows down the run times!)
+
+For recording the number of operations consider:
+
+```
+stack bench --ghc-options="-O2 -fno-full-laziness -fno-cse -DCOUNT_OPERATIONS=1" --benchmark-arguments "ops"
+```
+(The `-fno-full-laziness` and `-fno-cse` are used to help ensure usage of `unsafePerformIO` is safe (see wiki if confused). `-DCOUNT_OPERATIONS=1` passes a c preprocessor flag that enables counting the number of invocations of certain functions (which may have a small runtime cost when enabled))
+
+
+For testing consider:
+
+```
+stack test --fast
+```
+(the --fast is important to prevent the `assert`s from being compiled out)
+

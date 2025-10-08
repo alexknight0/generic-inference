@@ -9,16 +9,25 @@ import qualified Benchmarks.ShortestPath.SingleTarget as ST
 import           Criterion.Main
 import           Criterion.Types                      (Config, resamples)
 
+import           Data.Char                            (toLower)
+import           System.Environment                   (getArgs)
+
 allBenchmarks :: IO ()
 allBenchmarks = do
-    ST.operationBenchmarks
+    args <- getArgs
+    let lowercaseArgs = map (map toLower) args
 
-    -- benchmarks <- sequence [
-    --                         ST.benchmarks
-    --                       -- , FFT.benchmarks
-    --                         -- , BN.benchmarks
-    --                       ]
-    -- defaultMain (concat benchmarks)
+    if "ops" `elem` lowercaseArgs then
+        -- Counting the number of operations
+        ST.countOperations
+    else do
+        -- Performance testing
+        benchmarks <- sequence [
+                                ST.benchmarks
+                              -- , FFT.benchmarks
+                                -- , BN.benchmarks
+                              ]
+        defaultMain (concat benchmarks)
 
 -- defaultMainWith customConfig
 -- customConfig :: Config

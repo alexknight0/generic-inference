@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 module Benchmarks.ShortestPath.SingleTarget (
       benchmarks
-    , operationBenchmarks
+    , countOperations
     , singleTarget
     , singleTargets
     , singleTarget'
@@ -34,8 +34,10 @@ import           LocalComputation.Utils                               (fromRight
 
 import           Control.DeepSeq                                      (deepseq,
                                                                        rnf)
-import           Control.Exception.Base                               (evaluate)
+import           Control.Exception.Base                               (assert,
+                                                                       evaluate)
 import qualified Control.Monad                                        as M
+import           Control.Monad.Extra                                  (concatMapM)
 import           Control.Monad.IO.Class                               (MonadIO)
 import           Data.Function                                        ((&))
 import qualified Data.Hashable                                        as H
@@ -45,6 +47,7 @@ import qualified LocalComputation.Inference.JoinTree.Diagram          as D
 import qualified LocalComputation.Inference.MessagePassing            as MP
 import qualified LocalComputation.Utils                               as U
 import qualified LocalComputation.ValuationAlgebra                    as V
+import           Numeric.Natural
 import           System.IO                                            (IOMode (AppendMode),
                                                                        hFlush,
                                                                        hPutStrLn,
@@ -73,116 +76,93 @@ isCountingOperations = True
 -- have it use different graphs between benchmarks unless we created some 'state', pregenerated all the
 -- graphs it was going to use (we don't know how many graphs that will be) and then swapped between those
 -- based on this state (where the state is hidden by the IO)
-
-operationBenchmarks :: IO ()
-operationBenchmarks = do
-    if not isCountingOperations
-        then error "Not counting operations."
-        else pure ()
-
-
-    timestamp <- fmap round C.getPOSIXTime :: IO Integer
-
-    problems <- sequence $ zipWith (&) seeds [
-                                                -- const $ D.newYorkProblemOneToOne 1 2
-                                               const $ D.newYorkProblemOneToOne 5 10
-                                              , const $ D.newYorkProblemOneToOne 5 25
-                                              , const $ D.newYorkProblemOneToOne 5 50
-                                              , const $ D.newYorkProblemOneToOne 5 100
-                                              , const $ D.newYorkProblemOneToOne 5 200
-                                              , const $ D.newYorkProblemOneToOne 5 400
-                                              , const $ D.newYorkProblemOneToOne 5 600
-                                              , const $ D.newYorkProblemOneToOne 5 800
-                                              , const $ D.newYorkProblemOneToOne 5 1000
-                                              , const $ D.newYorkProblemOneToOne 5 1200
-                                              , const $ D.newYorkProblemOneToOne 5 1600
-                                              , const $ D.newYorkProblemOneToOne 5 2000
-                                              -- , const $ D.newYorkProblemOneToOne 5 2400
-                                              -- , const $ D.newYorkProblemOneToOne 5 2800
-                                              -- , const $ D.newYorkProblemOneToOne 5 3200
-                                              -- , const $ D.newYorkProblemOneToOne 5 3600
-                                              -- , const $ D.newYorkProblemOneToOne 5 4000
-                                              -- , const $ D.newYorkProblemOneToOne 5 6000
-                                              -- , const $ D.newYorkProblemOneToOne 5 8000
-                                              -- , const $ D.newYorkProblemOneToOne 5 12000
-                                              -- , const $ D.newYorkProblemOneToOne 5 24000
-                                              -- , const $ D.newYorkProblemOneToOne 5 32000
-                                              -- , const $ D.newYorkProblemOneToOne 5 64000
-                                              -- , const $ D.newYorkProblemOneQ 128000
-                                             ]
-    mapM_ (countOpsOnModes timestamp modes) problems
+setProblems :: (MonadIO m) => m [D.BenchmarkProblem Natural]
+setProblems = sequence $ zipWith (&) seeds [
+                    -- const $ D.newYorkProblemOneToOne 1 2
+                  --   const $ D.newYorkProblemOneToOne 5 10
+                  -- , const $ D.newYorkProblemOneToOne 5 25
+                  -- , const $ D.newYorkProblemOneToOne 5 50
+                  -- , const $ D.newYorkProblemOneToOne 5 100
+                  -- , const $ D.newYorkProblemOneToOne 5 200
+                  -- , const $ D.newYorkProblemOneToOne 5 400
+                  -- , const $ D.newYorkProblemOneToOne 5 600
+                  -- , const $ D.newYorkProblemOneToOne 5 800
+                    const $ D.newYorkProblemOneToOne 5 1000
+                  , const $ D.newYorkProblemOneToOne 5 1200
+                  , const $ D.newYorkProblemOneToOne 5 1600
+                  , const $ D.newYorkProblemOneToOne 5 2000
+                  , const $ D.newYorkProblemOneToOne 5 2400
+                  , const $ D.newYorkProblemOneToOne 5 2800
+                  , const $ D.newYorkProblemOneToOne 5 3200
+                  , const $ D.newYorkProblemOneToOne 5 3600
+                  , const $ D.newYorkProblemOneToOne 5 4000
+                  , const $ D.newYorkProblemOneToOne 5 6000
+                  , const $ D.newYorkProblemOneToOne 5 8000
+                  , const $ D.newYorkProblemOneToOne 5 12000
+                  , const $ D.newYorkProblemOneToOne 5 24000
+                  , const $ D.newYorkProblemOneToOne 5 32000
+                  , const $ D.newYorkProblemOneToOne 5 64000
+                 ]
     where
-        modes = [
-              -- Baseline
-            -- , Generic  $ I.BruteForce
-            -- , Generic  $ I.Fusion
-             Generic  $ I.Shenoy MP.Threads
-            , Generic  $ I.Shenoy MP.Distributed
-            -- , DynamicP $ MP.Distributed
-            -- , DynamicP $ MP.Threads
-          ]
-
         seeds :: [Int]
         seeds = [0..]
 
+setModes :: [Implementation]
+setModes = [
+      Baseline
+    -- , Generic  $ I.BruteForce
+    , Generic  $ I.Fusion
+    , Generic  $ I.Shenoy MP.Threads
+    , Generic  $ I.Shenoy MP.Distributed
+    , DynamicP $ MP.Distributed
+    , DynamicP $ MP.Threads
+  ]
+
+createHeader :: Integer -> D.BenchmarkProblem a -> Implementation -> [String]
+createHeader timestamp p mode = [show timestamp
+                               , "Shortest Path"
+                               ,      p.name
+                               , show p.numProblems
+                               , show p.numQueries
+                               , show p.numVertices
+                               , show p.edgeRatio
+                               ,      seed
+                               , implementationName mode
+                            ]
+    where
+        seed = case p.seed of
+                Nothing -> "No seed"
+                Just s  -> show s
+
+
+countOperations :: IO ()
+countOperations = do
+    if not isCountingOperations
+        then error "Not counting operations."
+        else pure ()
+    assert False $ pure ()
+
+    timestamp <- fmap round C.getPOSIXTime :: IO Integer
+
+    ps <- setProblems
+
+    mapM_ (countOpsOnModes timestamp setModes) ps
 
 benchmarks :: IO [Benchmark]
 benchmarks = do
     timestamp <- fmap round C.getPOSIXTime :: IO Integer
 
-    problems <- sequence $ zipWith (&) seeds [
-                                              --   D.createRandomProblem 3 1 100 0.25
-                                              -- , D.createRandomProblem 3 1 100 1
-                                              -- , D.createRandomProblem 3 1 100 5
-                                              -- , D.createRandomProblem 3 1 100 10
-                                              --   D.createRandomProblem 3 1 200 0.25
-                                              -- , D.createRandomProblem 3 1 200 1
-                                              -- , D.createRandomProblem 3 1 200 5
-                                              -- D.createRandomProblem 3 1 200 10
-                                                const $ D.newYorkProblemOneToOne 5 10
-                                              , const $ D.newYorkProblemOneToOne 5 25
-                                              , const $ D.newYorkProblemOneToOne 5 50
-                                              , const $ D.newYorkProblemOneToOne 5 100
-                                              , const $ D.newYorkProblemOneToOne 5 200
-                                              , const $ D.newYorkProblemOneToOne 5 400
-                                              , const $ D.newYorkProblemOneToOne 5 600
-                                              , const $ D.newYorkProblemOneToOne 5 800
-                                              , const $ D.newYorkProblemOneToOne 5 1000
-                                              , const $ D.newYorkProblemOneToOne 5 1200
-                                              , const $ D.newYorkProblemOneToOne 5 1600
-                                              , const $ D.newYorkProblemOneToOne 5 2000
-                                              , const $ D.newYorkProblemOneToOne 5 2400
-                                              , const $ D.newYorkProblemOneToOne 5 2800
-                                              , const $ D.newYorkProblemOneToOne 5 3200
-                                              , const $ D.newYorkProblemOneToOne 5 3600
-                                              , const $ D.newYorkProblemOneToOne 5 4000
-                                              , const $ D.newYorkProblemOneToOne 5 6000
-                                              , const $ D.newYorkProblemOneToOne 5 8000
-                                              , const $ D.newYorkProblemOneToOne 5 12000
-                                              , const $ D.newYorkProblemOneToOne 5 24000
-                                              , const $ D.newYorkProblemOneToOne 5 32000
-                                              , const $ D.newYorkProblemOneToOne 5 64000
-                                              -- , const $ D.newYorkProblemOneQ 128000
-                                             ]
-    evaluate (rnf problems)
+    ps <- setProblems
+    evaluate (rnf ps)
 
-    benches <- mapM (benchModes modes) problems
+    benches <- concatMapM (benchModes timestamp setModes) ps
 
-    pure $ pure $ bgroup (show timestamp ++ "/Shortest Path") $ benches
-    where
-        seeds :: [Int]
-        seeds = [0..]
+    pure $ benches
 
-        modes = [
-              Baseline
-            -- , Generic  $ I.BruteForce
-            , Generic  $ I.Fusion
-            , Generic  $ I.Shenoy MP.Threads
-            , Generic  $ I.Shenoy MP.Distributed
-            , DynamicP $ MP.Distributed
-            , DynamicP $ MP.Threads
-         ]
-
+--------------------------------------------------------------------------------
+-- Operation Counting
+--------------------------------------------------------------------------------
+opCountFilepath :: FilePath
 opCountFilepath = "operation_count.csv"
 
 countOpsOnModes :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashable a)
@@ -207,7 +187,7 @@ countOpsOnMode timestamp mode p = do
     -- Fully evaluate, incrementing combine and project counters
     afterSetup <- multipleSingleTargets mode D.def p
     result <- afterSetup
-    evaluate (result `deepseq` result)
+    _ <- evaluate (result `deepseq` result)
 
     -- Write combination count to file.
     withFile opCountFilepath AppendMode $ \h -> do
@@ -219,63 +199,29 @@ countOpsOnMode timestamp mode p = do
         hFlush h
 
     where
-        header = [show timestamp
-                ,      p.name
-                , show p.numProblems
-                , show p.numQueries
-                , show p.numVertices
-                , show p.edgeRatio
-                ,      seed
-                , show mode
-               ]
+        header = createHeader timestamp p mode
+        body combinations projections = [show combinations, show projections]
 
-        line combinations projections = L.intercalate "," $ header ++ [show combinations, show projections]
+        line combinations projections = L.intercalate "," $ header ++ body combinations projections
 
-        seed = case p.seed of
-                Nothing -> "No seed"
-                Just s  -> show s
-
-
+--------------------------------------------------------------------------------
+-- Performance Testing
+--------------------------------------------------------------------------------
 benchModes :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashable a)
-    => [Implementation]
+    => Integer
+    -> [Implementation]
     -> D.BenchmarkProblem a
-    -> IO Benchmark
-benchModes modes p = fmap (bgroup name) $ mapM (\m -> benchMode m p) modes
+    -> IO [Benchmark]
+benchModes timestamp modes p = mapM benchMode modes
     where
-        name = L.intercalate "/" [
-                                        p.name
-                                 , show p.numProblems
-                                 , show p.numQueries
-                                 , show p.numVertices
-                                 , show p.edgeRatio
-                                 ,      seed
-                                ]
-        seed = case p.seed of
-                Nothing -> "No seed"
-                Just s  -> show s
+        header mode = L.intercalate "/" $ createHeader timestamp p mode
 
-benchMode :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashable a)
-    => Implementation
-    -> D.BenchmarkProblem a
-    -> IO Benchmark
-benchMode mode p = do
+        benchMode mode = do
+            afterSetup <- multipleSingleTargets mode D.def p
+            pure $ bench (header mode) $ nfIO afterSetup
+
     -- TODO: if we were using split why was decomposition slowing it down... Wait that means decomposition was
     -- taking a while no?? Wait no it literally just should not have affected it - it never would have been called...
-    afterSetup <- multipleSingleTargets mode D.def p
-    pure $ bench name $ nfIO afterSetup
-
-    where
-        name = implementationName mode
-
-implementationName :: Implementation -> String
-implementationName (Baseline)                          = "Djikstra's Algorithm"
-implementationName (Generic I.BruteForce)              = "Brute Force"
-implementationName (Generic I.Fusion)                  = "Fusion"
-implementationName (Generic (I.Shenoy MP.Threads))     = "Shenoy (threads)"
-implementationName (Generic (I.Shenoy MP.Distributed)) = "Shenoy (distributed)"
-implementationName (DynamicP (MP.Threads))             = "Dynamic Programming (threads)"
-implementationName (DynamicP (MP.Distributed))         = "Dynamic Programming (distributed)"
-
 
 --------------------------------------------------------------------------------
 -- Utilities
@@ -298,6 +244,15 @@ allImplementations = [ Baseline
 
 allButBaseline :: [Implementation]
 allButBaseline = filter (/= Baseline) allImplementations
+
+implementationName :: Implementation -> String
+implementationName (Baseline)                          = "Djikstra's Algorithm"
+implementationName (Generic I.BruteForce)              = "Brute Force"
+implementationName (Generic I.Fusion)                  = "Fusion"
+implementationName (Generic (I.Shenoy MP.Threads))     = "Shenoy (threads)"
+implementationName (Generic (I.Shenoy MP.Distributed)) = "Shenoy (distributed)"
+implementationName (DynamicP (MP.Threads))             = "Dynamic Programming (threads)"
+implementationName (DynamicP (MP.Distributed))         = "Dynamic Programming (distributed)"
 
 -- | A uniform interface for querying the single target shortest path solution using any implementation.
 -- Returns an IO action that returns another IO action. When the initial IO action is bound it

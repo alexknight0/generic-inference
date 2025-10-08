@@ -309,12 +309,7 @@ newYorkProblem numArcs = do
 newYorkProblemOneToOne :: (MonadIO m) => Natural -> Natural -> m (BenchmarkProblem Natural)
 newYorkProblemOneToOne numQueries numArcs = do
     g <- liftIO $ unsafeParseGraph numArcs newYork
-    createParsedProblemWithOneToOneQueries "New York" g numQueries (fromIntegral numArcs)
-
-oldNewYorkProblem :: (MonadIO m) => Natural -> Natural -> Int -> m (BenchmarkProblem Natural)
-oldNewYorkProblem numQueries numArcs seed = do
-    g <- liftIO $ unsafeParseGraph numArcs newYork
-    createParsedProblemWithOneToOneQueries "New York" g numQueries seed
+    createParsedProblemWithOneToOneQueries "New York - One Target - One Source" g numQueries (fromIntegral numArcs)
 
 -------------------------------------------------------------------------------
 -- Utils
