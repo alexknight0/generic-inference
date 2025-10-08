@@ -44,6 +44,7 @@ import qualified Data.Hashable                                        as H
 import qualified Data.List                                            as L
 import qualified Data.Time.Clock.POSIX                                as C
 import qualified LocalComputation.Inference.JoinTree.Diagram          as D
+import qualified LocalComputation.Inference.JoinTree.Tree             as JT
 import qualified LocalComputation.Inference.MessagePassing            as MP
 import qualified LocalComputation.Utils                               as U
 import qualified LocalComputation.ValuationAlgebra                    as V
@@ -78,16 +79,16 @@ isCountingOperations = True
 -- based on this state (where the state is hidden by the IO)
 setProblems :: (MonadIO m) => m [D.BenchmarkProblem Natural]
 setProblems = sequence $ zipWith (&) seeds [
-                    -- const $ D.newYorkProblemOneToOne 1 2
-                  --   const $ D.newYorkProblemOneToOne 5 10
-                  -- , const $ D.newYorkProblemOneToOne 5 25
-                  -- , const $ D.newYorkProblemOneToOne 5 50
-                  -- , const $ D.newYorkProblemOneToOne 5 100
-                  -- , const $ D.newYorkProblemOneToOne 5 200
-                  -- , const $ D.newYorkProblemOneToOne 5 400
-                  -- , const $ D.newYorkProblemOneToOne 5 600
-                  -- , const $ D.newYorkProblemOneToOne 5 800
-                    const $ D.newYorkProblemOneToOne 5 1000
+                    const $ D.newYorkProblemOneToOne 1 2
+                  , const $ D.newYorkProblemOneToOne 5 10
+                  , const $ D.newYorkProblemOneToOne 5 25
+                  , const $ D.newYorkProblemOneToOne 5 50
+                  , const $ D.newYorkProblemOneToOne 5 100
+                  , const $ D.newYorkProblemOneToOne 5 200
+                  , const $ D.newYorkProblemOneToOne 5 400
+                  , const $ D.newYorkProblemOneToOne 5 600
+                  , const $ D.newYorkProblemOneToOne 5 800
+                  , const $ D.newYorkProblemOneToOne 5 1000
                   , const $ D.newYorkProblemOneToOne 5 1200
                   , const $ D.newYorkProblemOneToOne 5 1600
                   , const $ D.newYorkProblemOneToOne 5 2000
@@ -109,12 +110,12 @@ setProblems = sequence $ zipWith (&) seeds [
 
 setModes :: [Implementation]
 setModes = [
-      Baseline
+    --   Baseline
     -- , Generic  $ I.BruteForce
-    , Generic  $ I.Fusion
-    , Generic  $ I.Shenoy MP.Threads
-    , Generic  $ I.Shenoy MP.Distributed
-    , DynamicP $ MP.Distributed
+    -- , Generic  $ I.Fusion
+    -- , Generic  $ I.Shenoy MP.Threads
+    -- , Generic  $ I.Shenoy MP.Distributed
+      DynamicP $ MP.Distributed
     , DynamicP $ MP.Threads
   ]
 
@@ -180,6 +181,7 @@ countOpsOnMode :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashab
 countOpsOnMode timestamp mode p = do
     U.resetGlobal V.combineCounter
     U.resetGlobal V.projectCounter
+    U.resetGlobal JT.maxTreeWidthTracker
 
     putStrLn ("Working on: " ++ L.intercalate "/" header)
     hFlush stdout
@@ -193,16 +195,16 @@ countOpsOnMode timestamp mode p = do
     withFile opCountFilepath AppendMode $ \h -> do
         combinations <- U.getGlobal V.combineCounter
         projections  <- U.getGlobal V.projectCounter
+        maxTreeWidth <- U.getGlobal JT.maxTreeWidthTracker
 
-        hPutStrLn h (line combinations projections)
+        hPutStrLn h (line [combinations, projections, fromIntegral maxTreeWidth])
 
         hFlush h
 
     where
         header = createHeader timestamp p mode
-        body combinations projections = [show combinations, show projections]
 
-        line combinations projections = L.intercalate "," $ header ++ body combinations projections
+        line body = L.intercalate "," $ header ++ map show body
 
 --------------------------------------------------------------------------------
 -- Performance Testing

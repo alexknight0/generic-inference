@@ -15,6 +15,7 @@ import qualified Data.Set                                              as S
 import qualified LocalComputation.Inference.EliminationSequence        as E
 import qualified LocalComputation.Inference.JoinTree                   as JT
 import qualified LocalComputation.Inference.JoinTree.Diagram           as D
+import qualified LocalComputation.Inference.JoinTree.Tree              as JT
 import qualified LocalComputation.Inference.MessagePassing             as MP
 import qualified LocalComputation.Inference.MessagePassing.Distributed as DMP
 import qualified LocalComputation.Inference.MessagePassing.Threads     as TMP
@@ -68,7 +69,7 @@ fusion' uniqueId upperPsi e
     where
         (eliminated, e') = fromJust $ E.eliminateNext e
         upperGamma = S.filter (\phi -> S.member eliminated (label phi.content)) upperPsi
-        psi = combines1 $ map (.content) $ S.toList upperGamma
+        psi = JT.trackMaxTreeWidth' $ combines1 $ map (.content) $ S.toList upperGamma
         upperPsi' = S.insert (WithId uniqueId $ eliminate psi (S.singleton eliminated))
                              (S.difference upperPsi upperGamma)
 
@@ -84,6 +85,8 @@ fusion' uniqueId upperPsi e
 -- below a union node with a very different domain. This will impose a very harsh projection.
 
 -- TODO: Can we make this work for disconnected join trees?
+
+-- TODO: document fact that root node might not be query node anymore.
 
 -- | Takes a join tree and returns the join tree after a fusion pass over a given join tree.
 --
@@ -131,26 +134,5 @@ nodeActions this neighbours resultPort = do
 
     where
         isRootNode = all (\neighbour -> this.node.id > neighbour.node.id) neighbours
-        -- isRootNode = this.node.t == JT.Query
-
--- | Computes a message to send to the given neighbour.
---
--- Computing this message consists of:
---  1. combining all messages in the sender's postbox that don't come from the neighbour
---  2. combining this result with the sender's valuation
---  3. eliminating all variables not in the receivers domain
-computeMessage :: forall v a . (ValuationFamily v, Var a)
-    => [DMP.Message (v a)]
-    -> DMP.NodeWithPid (v a)
-    -> DMP.NodeWithPid (v a)
-    -> v a
-computeMessage postbox sender recipient = eliminate combined varsToEliminate
-    where
-        varsToEliminate = S.difference sender.node.d recipient.node.d
-
-        combined = combines1 (sender.node.v : map (.msg) postbox)
-
-
-
 
 

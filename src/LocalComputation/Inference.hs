@@ -30,6 +30,7 @@ import qualified Data.Set                                              as S
 import qualified LocalComputation.Inference.DynamicProgramming         as D
 import qualified LocalComputation.Inference.Fusion                     as F
 import qualified LocalComputation.Inference.JoinTree.Diagram           as D
+import qualified LocalComputation.Inference.JoinTree.Tree              as JT
 import qualified LocalComputation.Inference.MessagePassing             as MP
 import qualified LocalComputation.LabelledMatrix                       as M
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular        as Q
@@ -134,4 +135,4 @@ bruteForces :: (ValuationFamily v, Var a)
     -> [v a]
 bruteForces vs qs = map (\q -> project combined q) qs
     where
-        combined = combines1 vs
+        combined = JT.trackMaxTreeWidth' $ combines1 vs

@@ -38,7 +38,6 @@ import           LocalComputation.ValuationAlgebra
 
 import qualified Algebra.Graph.AdjacencyMap                     as G
 import           Control.Exception                              (assert)
-import           Extra                                          (minimumOn)
 import qualified LocalComputation.Utils                         as U
 
 --------------------------------------------------------------------------------
@@ -177,13 +176,6 @@ binaryJoinForest vs queries = unsafeFromGraph $ G.overlay (G.vertices newPhiU) (
 
         (newPhiU, edges) = outerLoop initialPsiU initialPhiU initialEdges initialK
 
-binaryJoinForest' :: forall v a. (Show a, ValuationFamily v, Ord a)
-    => E.EliminationSequence a
-    -> [Node (v a)]
-    -> [(Node (v a), Node (v a))]
-    -> [(Node (v a), Node (v a))]
-binaryJoinForest' = undefined
-
 outerLoop :: forall v a. (Show a, ValuationFamily v, Ord a)
     => E.EliminationSequence a
     -> [Node (v a)]
@@ -201,13 +193,6 @@ outerLoop psiU phiU edges k
                              invariant = not $ any (\x -> S.member y x.d) newPhiU
                          in assert invariant $ outerLoop newPsiU newPhiU newEdges newK
     | otherwise        = (phiU, edges)
-
-
-                        -- = let newEdges = edgesAfterLoop
-                        --       newK = kAfterLoop
-                        --       newPhiU = phiU -- `setDifference` filter yIsInNodeDomain phiU
-                        --       newPsiU = psiU
-                        --   in trace (show $ newPhiU) $ outerLoop newPsiU newPhiU newEdges newK
 
     where
         (y, psiUMinusY) = fromJust $ E.eliminateNext psiU
@@ -261,7 +246,6 @@ collectTree :: (Show a, ValuationFamily v, Ord a)
     => [v a]
     -> Domain a
     -> JoinTree (v a)
--- TODO: UPDATE UPDATE UPDATE to binary join tree i think
 collectTree vs q = unsafeConvertToCollectTree (binaryJoinForest vs [q]) q
                 -- ^^^ call is safe in this case.
 

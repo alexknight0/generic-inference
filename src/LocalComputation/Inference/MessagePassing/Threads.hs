@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module LocalComputation.Inference.MessagePassing.Threads (
@@ -18,16 +19,13 @@ import qualified LocalComputation.Utils                     as M (filterKeys)
 import qualified LocalComputation.ValuationAlgebra          as V
 
 import qualified Control.Parallel.Strategies                as P
+import qualified Data.IORef                                 as IO
 import qualified Data.List                                  as L
 import qualified Data.Tree                                  as T
 import qualified Data.Tuple.Extra                           as B
 import qualified LocalComputation.Utils                     as U
-
--- TODO: For performance;
---  1. Profile to investigate whats taking the most time
---  2. consider sparks
---  3. consider if we are spending all our time garbage collecting (does this show in the profiler?)
---          (see 40:45 of https://www.youtube.com/watch?v=trDqqZldxQA)
+import           Numeric.Natural
+import qualified System.IO.Unsafe                           as IO
 
 --------------------------------------------------------------------------------
 -- Full message propagation (answering all queries)
@@ -45,7 +43,7 @@ messagePassing' :: (P.NFData (v a), V.ValuationFamily v, V.Var a)
     => JT.JoinTree (v a)
     -> JT.JoinTree (v a)
 messagePassing' t
-    | JT.hasQueryNode t = calculate . JT.unsafeFromTree . distribute' Nothing . collect' . JT.toTree $ t
+    | JT.hasQueryNode t = calculate . JT.unsafeFromTree . distribute' Nothing . collect' . JT.toTree . JT.trackMaxTreeWidth $ t
     | otherwise         = t
 
 -- TODO: It does seem like we are copying the tree alot of times; but i don't know whats going on under the hood.
@@ -135,7 +133,7 @@ calculate tree = JT.unsafeUpdateValuations mapping tree
 --------------------------------------------------------------------------------
 collectAndCalculate :: forall v a . (P.NFData (v a), V.ValuationFamily v, V.Var a)
     => JT.JoinTree (v a) -> JT.JoinTree (v a)
-collectAndCalculate = JT.unsafeFromTree . collectAndCalculate' . JT.toTree
+collectAndCalculate = JT.unsafeFromTree . collectAndCalculate' . JT.toTree . JT.trackMaxTreeWidth
 
 collectAndCalculate' :: forall v a . (P.NFData (v a), V.ValuationFamily v, V.Var a)
     => T.Tree (JT.Node (v a)) -> T.Tree (JT.Node (v a))
@@ -154,23 +152,4 @@ collectAndCalculate' (T.Node root subTrees) = T.Node newRoot newSubTrees
         messageForThis :: JT.Node (v a) -> JT.Node (v a) -> v a
         messageForThis this sender = V.project sender.v (S.intersection this.d sender.d)
 
-
-
-
-
-
--- TODO: Remove. Tested, and makes no difference.
-
--- | __Warning__: Assumes 'd' is a subset of 'label v'
-projectByElimination :: (V.Valuation v a) => v a -> V.Domain a -> v a
-projectByElimination v d
-    | S.size diff > 0 = projectByElimination (V.project v smallerDomain) d
-    | otherwise       = v
-    where
-
-        diff = S.difference (V.label v) d
-
-        elementInDiff = S.findMin diff
-
-        smallerDomain = S.delete elementInDiff (V.label v)
 

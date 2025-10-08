@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE DeriveAnyClass      #-}
 {-# LANGUAGE DeriveGeneric       #-}
@@ -41,6 +42,10 @@ module LocalComputation.Inference.JoinTree.Tree (
     , unsafeUpdatePostboxes
     , verticesHavePostboxes
     , neighbourMap
+    , treeWidth
+    , trackMaxTreeWidth
+    , trackMaxTreeWidth'
+    , maxTreeWidthTracker
 
     -- Conversions
     , toTree
@@ -65,6 +70,7 @@ import qualified Algebra.Graph.ToGraph              as G (ToGraph (toGraph),
 import qualified Algebra.Graph.Undirected           as UG
 import           Control.Exception                  (assert)
 import qualified Data.Bifunctor                     as B
+import qualified Data.IORef                         as IO
 import qualified Data.List                          as L
 import qualified Data.Map                           as M
 import           Data.Maybe                         (fromJust, isJust,
@@ -77,6 +83,7 @@ import qualified LocalComputation.Utils             as L (count)
 import qualified LocalComputation.Utils             as U
 import qualified LocalComputation.ValuationAlgebra  as V
 import           Numeric.Natural                    (Natural)
+import qualified System.IO.Unsafe                   as IO
 import           Text.Pretty.Simple                 (pShow)
 
 --------------------------------------------------------------------------------
@@ -302,6 +309,9 @@ variableMap t = foldr (M.unionWith (\x1 x2 -> x1 ++ x2)) M.empty $ map variableM
         variableMapForNode :: Node (v a) -> M.Map a [Node (v a)]
         variableMapForNode n = foldr (\var acc -> M.insert var [n] acc) M.empty (label n.v)
 
+treeWidth :: (ValuationFamily v, Var a) => JoinTree (v a) -> Natural
+treeWidth = fromIntegral . maximum . map (S.size . (.d)) . vertexList
+
 --------------------------------------------------------------------------------
 -- Unsafe variants
 --------------------------------------------------------------------------------
@@ -443,3 +453,36 @@ supportsCollect t = numQueryNodes t == 1        -- (1)
                         && isQueryNodeRoot t    -- (2)
                         && hasTotalNumbering t  -- (3)
 
+
+
+--------------------------------------------------------------------------------
+-- Tree Width Analysis
+--------------------------------------------------------------------------------
+{-# NOINLINE maxTreeWidthTracker #-}
+maxTreeWidthTracker :: IO.IORef Natural
+maxTreeWidthTracker = IO.unsafePerformIO (IO.newIORef 0)
+
+-- TODO: NOT REDUNDANT CONSTRAINT
+trackMaxTreeWidth :: (V.ValuationFamily v, V.Var a) => JoinTree (v a) -> JoinTree (v a)
+#if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
+trackMaxTreeWidth = id
+#else
+{-# NOINLINE trackMaxTreeWidth #-}
+trackMaxTreeWidth t = IO.unsafePerformIO $ do
+    currentMax <- U.getGlobal maxTreeWidthTracker
+    U.setGlobal maxTreeWidthTracker (max (treeWidth t) currentMax)
+    pure $ t
+#endif
+
+#if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
+trackMaxTreeWidth' = id
+#else
+trackMaxTreeWidth' :: (ValuationFamily v, Var a) => v a -> v a
+trackMaxTreeWidth' v = IO.unsafePerformIO $ do
+    currentMax <- U.getGlobal maxTreeWidthTracker
+    U.setGlobal maxTreeWidthTracker (max (treeWidthOfV v) currentMax)
+    pure $ v
+
+    where
+        treeWidthOfV = fromIntegral . length . label
+#endif

@@ -73,21 +73,21 @@ queries :: (NFData (v a), DMP.SerializableValuation v a, Show (v a))
     -> [Domain a]
     -> Process [v a]
 queries mode settings vs queryDomains = do
-    drawTree settings.beforeInference treeBeforeInference
+    drawForest settings.beforeInference forestBeforeInference
 
-    treeAfterInference <- case mode of
-                            MP.Distributed ->        DMP.messagePassing treeBeforeInference nodeActions
-                            MP.Threads     -> pure $ TMP.messagePassing treeBeforeInference
+    forestAfterInference <- case mode of
+                            MP.Distributed ->        DMP.messagePassing forestBeforeInference nodeActions
+                            MP.Threads     -> pure $ TMP.messagePassing forestBeforeInference
 
-    drawTree settings.afterInference treeAfterInference
+    drawForest settings.afterInference forestAfterInference
 
-    pure $ extractQueryResult queryDomains treeAfterInference
+    pure $ extractQueryResult queryDomains forestAfterInference
 
     where
-        treeBeforeInference = baseJoinForest vs queryDomains
+        forestBeforeInference = baseJoinForest vs queryDomains
 
-        drawTree Nothing         _    = pure ()
-        drawTree (Just filename) tree = liftIO $ D.drawForest filename tree
+        drawForest Nothing         _    = pure ()
+        drawForest (Just filename) tree = liftIO $ D.drawForest filename tree
 
 nodeActions :: (DMP.SerializableValuation v a)
     => DMP.NodeActions v a

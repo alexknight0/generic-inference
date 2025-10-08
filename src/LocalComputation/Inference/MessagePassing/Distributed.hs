@@ -81,7 +81,7 @@ messagePassing'' :: (SerializableValuation v a)
     => JF.JoinTree (v a)
     -> NodeActions v a
     -> Process (M.Map JT.Id (v a))
-messagePassing'' tree nodeActions = do
+messagePassing'' treeBeforeTracking nodeActions = do
 
     -- Initialize all nodes
     (nodesWithPid, resultPorts) <- fmap unzip $ mapM (initializeNodeAndMonitor nodeActions) vs
@@ -113,6 +113,9 @@ messagePassing'' tree nodeActions = do
     pure $ toMap newNodeList
 
     where
+        -- Track the max tree width for analysis purposes
+        tree = JT.trackMaxTreeWidth treeBeforeTracking
+
         vs = JT.vertexList tree
 
         assertCorrectNumResponses responses = assert (length responses >= length (filter JT.isQueryNode vs)) $ pure ()
