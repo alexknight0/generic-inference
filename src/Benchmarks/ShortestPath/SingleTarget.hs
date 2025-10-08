@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 module Benchmarks.ShortestPath.SingleTarget (
       benchmarks
     , operationBenchmarks
@@ -52,6 +53,16 @@ import           System.IO                                            (IOMode (A
                                                                        withFile)
 
 --------------------------------------------------------------------------------
+-- Settings
+--------------------------------------------------------------------------------
+isCountingOperations :: Bool
+#if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
+isCountingOperations = False
+#else
+isCountingOperations = True
+#endif
+
+--------------------------------------------------------------------------------
 -- Benchmarks
 --------------------------------------------------------------------------------
 
@@ -65,34 +76,27 @@ import           System.IO                                            (IOMode (A
 
 operationBenchmarks :: IO ()
 operationBenchmarks = do
-    -- ny <- D.unsafeParseGraph 2 D.newYork
-    --
-    -- afterSetup <- singleTarget mode s ny (D.Query [1] 2)
-    -- r <- afterSetup
-    -- evaluate (r `deepseq` r)
-    -- pure ()
-    --
-    -- where
-    --     s = D.def { D.afterInference = Just "diagrams/debug2.svg" }
-    --     mode = Generic $ I.Shenoy MP.Distributed
-    --
+    if not isCountingOperations
+        then error "Not counting operations."
+        else pure ()
+
 
     timestamp <- fmap round C.getPOSIXTime :: IO Integer
 
     problems <- sequence $ zipWith (&) seeds [
-                                                const $ D.newYorkProblemOneToOne 1 2
-                                              -- , const $ D.newYorkProblemOneToOne 5 10
-                                              -- , const $ D.newYorkProblemOneToOne 5 25
-                                              -- , const $ D.newYorkProblemOneToOne 5 50
-                                              -- , const $ D.newYorkProblemOneToOne 5 100
-                                              -- , const $ D.newYorkProblemOneToOne 5 200
-                                              -- , const $ D.newYorkProblemOneToOne 5 400
-                                              -- , const $ D.newYorkProblemOneToOne 5 600
-                                              -- , const $ D.newYorkProblemOneToOne 5 800
-                                              -- , const $ D.newYorkProblemOneToOne 5 1000
-                                              -- , const $ D.newYorkProblemOneToOne 5 1200
-                                              -- , const $ D.newYorkProblemOneToOne 5 1600
-                                              -- , const $ D.newYorkProblemOneToOne 5 2000
+                                                -- const $ D.newYorkProblemOneToOne 1 2
+                                               const $ D.newYorkProblemOneToOne 5 10
+                                              , const $ D.newYorkProblemOneToOne 5 25
+                                              , const $ D.newYorkProblemOneToOne 5 50
+                                              , const $ D.newYorkProblemOneToOne 5 100
+                                              , const $ D.newYorkProblemOneToOne 5 200
+                                              , const $ D.newYorkProblemOneToOne 5 400
+                                              , const $ D.newYorkProblemOneToOne 5 600
+                                              , const $ D.newYorkProblemOneToOne 5 800
+                                              , const $ D.newYorkProblemOneToOne 5 1000
+                                              , const $ D.newYorkProblemOneToOne 5 1200
+                                              , const $ D.newYorkProblemOneToOne 5 1600
+                                              , const $ D.newYorkProblemOneToOne 5 2000
                                               -- , const $ D.newYorkProblemOneToOne 5 2400
                                               -- , const $ D.newYorkProblemOneToOne 5 2800
                                               -- , const $ D.newYorkProblemOneToOne 5 3200
@@ -113,7 +117,7 @@ operationBenchmarks = do
             -- , Generic  $ I.BruteForce
             -- , Generic  $ I.Fusion
              Generic  $ I.Shenoy MP.Threads
-            -- , Generic  $ I.Shenoy MP.Distributed
+            , Generic  $ I.Shenoy MP.Distributed
             -- , DynamicP $ MP.Distributed
             -- , DynamicP $ MP.Threads
           ]

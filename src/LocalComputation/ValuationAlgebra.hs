@@ -38,9 +38,6 @@ module LocalComputation.ValuationAlgebra
     )
 where
 
--- TODO: make default off and enabled by command line flag
-#define COUNT_OPERATIONS 1
-
 import           Control.Exception                        (assert)
 import qualified Data.Hashable                            as H
 import qualified Data.List                                as L
@@ -106,24 +103,28 @@ class ValuationFamily v where
 
     identity  :: Domain a -> v a
 
+    isIdentity :: v a -> Bool
+    notIdentity :: v a -> Bool
+    notIdentity = not . isIdentity
+
     satisfiesInvariants :: Var a => v a -> Bool
     satisfiesInvariants _ = True
 
--- TODO: Remove putstrlns
-
 combine :: (ValuationFamily v, Var a) => v a -> v a -> v a
-#if !(COUNT_OPERATIONS)
+#if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
 combine v1 v2 = assertInvariants $ _combine v1 v2
 #else
 {-# NOINLINE combine #-}
 combine v1 v2 = IO.unsafePerformIO $ do
-    _ <- U.incrementGlobal combineCounter
-    -- putStrLn $ "combining " ++ show (label v1) ++ " with " ++ show (label v2)
+    -- Increment if not a trivial combination.
+    case notIdentity v1 && notIdentity v2 of
+        True -> U.incrementGlobal combineCounter >> pure ()
+        _    -> pure ()
     pure $ assertInvariants $ _combine v1 v2
 #endif
 
 project :: (ValuationFamily v, Var a) => v a -> Domain a -> v a
-#if !(COUNT_OPERATIONS)
+#if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
 project v d
     -- Domain projected to must be subset.
     | assert (d `S.isSubsetOf` label v) False = undefined
@@ -140,8 +141,10 @@ project v d
     | label v == d = v
     -- Delegate call to _project but check invariants on return
     | otherwise = IO.unsafePerformIO $ do
-        _ <- U.incrementGlobal projectCounter
-        -- putStrLn $ "projecting " ++ show (label v) ++ " to: " ++ show d
+        -- Increment if not a trivial projection
+        case notIdentity v of
+            True -> U.incrementGlobal projectCounter >> pure ()
+            _    -> pure ()
         pure $ assertInvariants $ _project v d
 #endif
 
@@ -153,9 +156,6 @@ combines1 = foldr1 combine
 
 showDomain :: Show a => Domain a -> String
 showDomain x = "{" ++ L.intercalate "," (map show (S.toList x)) ++ "}"
-
-isIdentity :: (ValuationFamily v, Var a, Eq (v a)) => v a -> Bool
-isIdentity v = v == identity (label v)
 
 --------------------------------------------------------------------------------
 -- Counting Operations

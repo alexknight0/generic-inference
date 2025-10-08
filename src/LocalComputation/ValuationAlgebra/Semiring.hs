@@ -152,6 +152,9 @@ instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (Valuation 
 
     identity = Identity
 
+    isIdentity Identity{} = True
+    isIdentity _          = False
+
     satisfiesInvariants = isWellFormed
 
 toTable :: (Show a, Show b, Show c, Ord b, Ord c) => Valuation a b c -> P.Table

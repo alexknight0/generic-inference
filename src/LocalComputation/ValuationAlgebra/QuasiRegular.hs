@@ -71,6 +71,9 @@ instance (Show b, Q.SemiringValue b) => ValuationFamily (Valuation b) where
 
     identity d = Identity d
 
+    isIdentity (Identity _) = True
+    isIdentity _            = False
+
     satisfiesInvariants (Identity _) = True
     satisfiesInvariants (Valuation m b) = (M.isSquare m) && ((fst $ M.domain m) == (fst $ M.domain b)) && M.isWellFormed m && M.isWellFormed b
 
