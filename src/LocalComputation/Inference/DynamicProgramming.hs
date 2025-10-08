@@ -35,7 +35,7 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular as Q
 solution :: forall a b . (V.Var a, Q.SemiringValue b, Show b, Eq b)
     => JT.JoinTree (Q.Valuation b a)
     -> V.VarAssignment (Q.Valuation b) a b
-solution t | assert (JT.supportsCollect t) False = undefined
+-- solution t | assert (JT.supportsCollect t) False = undefined
 solution t = go (t.root.id - 1) initialX
     where
         vertices = JT.vertexMap t

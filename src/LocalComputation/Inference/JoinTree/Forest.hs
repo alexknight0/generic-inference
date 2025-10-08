@@ -18,6 +18,7 @@ module LocalComputation.Inference.JoinTree.Forest (
     , neighbourMap
     , vertexList
     , unsafeConvertToCollectTree
+    , unsafeIsolateAndRenumber
     , toForest
     , unsafeToForest'
     , unsafeUpdateValuations
@@ -155,6 +156,15 @@ unsafeConvertToCollectTree f q = U.assertP JT.supportsCollect $ JT.redirectToQue
         treeWithQueryNode = fromJust $ L.find (\t -> isJust $ L.find (\n -> n.d == q)
                                                                      (JT.vertexList t))
                                               (treeList f)
+
+unsafeIsolateAndRenumber :: (ValuationFamily v, Var a)
+    => JoinForest (v a) -> Domain a -> JoinTree (v a)
+unsafeIsolateAndRenumber f q = JT.unsafeFromGraph . JT.renumberTopological $ treeWithQueryNode.g
+    where
+        treeWithQueryNode = fromJust $ L.find (\t -> isJust $ L.find (\n -> n.d == q)
+                                                                     (JT.vertexList t))
+                                              (treeList f)
+
 
 --------------------------------------------------------------------------------
 -- Invariants

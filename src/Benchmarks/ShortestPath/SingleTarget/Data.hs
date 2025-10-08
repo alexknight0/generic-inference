@@ -23,6 +23,7 @@ module Benchmarks.ShortestPath.SingleTarget.Data (
     , newYorkProblem
     , createRandomProblem
     , createParsedProblem
+    , newYorkProblemOneToOne
     , parseFullGraph
     , unsafeParseFullGraph
     , parseGraph
@@ -97,15 +98,18 @@ createParsedProblem name g = BenchmarkProblem name 1 (L.genericLength qs) vertex
 
         p = GraphAndQuery g qs
 
-createParsedProblemWithQueries :: (Ord a, MonadIO m) => String -> G.Graph a Double -> Natural -> Int -> m (BenchmarkProblem a)
-createParsedProblemWithQueries name g numQueries seed = do
-    qs <- U.sample seed $ genConnectedQueries numQueries g
+createParsedProblemWithOneToOneQueries :: (Ord a, MonadIO m) => String -> G.Graph a Double -> Natural -> Int -> m (BenchmarkProblem a)
+createParsedProblemWithOneToOneQueries name g numQueries seed = do
+    qs <- U.sample seed $ Gen.list (Range.singleton $ fromIntegral numQueries)
+                                   (genConnectedQueryOneToOne reverseAdjacencyList)
     let p = GraphAndQuery g qs
     pure $ BenchmarkProblem name 1 numQueries vertices edges edgeRatio (Just seed) [p]
     where
         vertices = fromIntegral $ G.vertexCount g
         edges = fromIntegral $ G.edgeCount g
         edgeRatio = fromIntegral (G.vertexCount g) / fromIntegral (G.edgeCount g)
+
+        reverseAdjacencyList = G.reverseAdjacencyList g
 
 dataDirectory :: FilePath
 dataDirectory = "src/Benchmarks/ShortestPath/SingleTarget/Data/"
@@ -129,6 +133,12 @@ genConnectedQuery reverseAdjacencyList = do
     (target, possibleSources) <- Gen.element reverseAdjacencyList
     sources <- Gen.subsequence possibleSources
     pure $ Query sources target
+
+genConnectedQueryOneToOne :: [(a, [a])] -> Gen (Query a)
+genConnectedQueryOneToOne reverseAdjacencyList = do
+    (target, possibleSources) <- Gen.element reverseAdjacencyList
+    source <- Gen.element possibleSources
+    pure $ Query [source] target
 
 -- | Generates a random list of queries given a graph and a number of queries to generate.
 genConnectedQueries :: (Ord a) => Natural -> G.Graph a b -> Gen ([Query a])
@@ -293,10 +303,17 @@ newYorkProblem numArcs = do
     g <- liftIO $ unsafeParseGraph numArcs newYork
     pure $ createParsedProblem "New York" g
 
+-- | Creates a new york problem with a one target one source query.
+-- Seeds the generation of the random queries using the number of arcs.
+newYorkProblemOneToOne :: (MonadIO m) => Natural -> Natural -> m (BenchmarkProblem Natural)
+newYorkProblemOneToOne numQueries numArcs = do
+    g <- liftIO $ unsafeParseGraph numArcs newYork
+    createParsedProblemWithOneToOneQueries "New York" g numQueries (fromIntegral numArcs)
+
 oldNewYorkProblem :: (MonadIO m) => Natural -> Natural -> Int -> m (BenchmarkProblem Natural)
 oldNewYorkProblem numQueries numArcs seed = do
     g <- liftIO $ unsafeParseGraph numArcs newYork
-    createParsedProblemWithQueries "New York" g numQueries seed
+    createParsedProblemWithOneToOneQueries "New York" g numQueries seed
 
 -------------------------------------------------------------------------------
 -- Utils

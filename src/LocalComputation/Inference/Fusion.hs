@@ -102,7 +102,7 @@ fusionPass mode settings vs queryDomain = do
     pure treeAfterInference
 
     where
-        treeBeforeInference = JT.collectTree vs queryDomain
+        treeBeforeInference = JT.isolateAndRenumber vs queryDomain
 
         drawTree Nothing         _    = pure ()
         drawTree (Just filename) tree = liftIO $ D.drawTree filename tree
@@ -127,7 +127,8 @@ nodeActions this neighbours resultPort = do
     sendChan resultPort $ JT.changeContent this.node result
 
     where
-        isRootNode = this.node.t == JT.Query
+        isRootNode = all (\neighbour -> this.node.id > neighbour.node.id) neighbours
+        -- isRootNode = this.node.t == JT.Query
 
 -- | Computes a message to send to the given neighbour.
 --

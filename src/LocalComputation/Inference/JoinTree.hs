@@ -10,6 +10,7 @@ module LocalComputation.Inference.JoinTree (
       baseJoinForest
     , collectTree
     , binaryJoinForest
+    , isolateAndRenumber
 
     -- Join tree type
     , JoinTree
@@ -263,6 +264,12 @@ collectTree :: (Show a, ValuationFamily v, Ord a)
 -- TODO: UPDATE UPDATE UPDATE to binary join tree i think
 collectTree vs q = unsafeConvertToCollectTree (binaryJoinForest vs [q]) q
                 -- ^^^ call is safe in this case.
+
+isolateAndRenumber :: (ValuationFamily v, Var a)
+    => [v a]
+    -> Domain a
+    -> JoinTree (v a)
+isolateAndRenumber vs q = unsafeIsolateAndRenumber (binaryJoinForest vs [q]) q
 
 --------------------------------------------------------------------------------
 -- Utilities

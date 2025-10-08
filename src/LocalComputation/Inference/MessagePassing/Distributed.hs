@@ -136,6 +136,10 @@ data CollectResults a = CollectResults {
 
 -- TODO: Can place postbox on node.
 
+-- | Performs the collect phase and calculate phase for a given node.
+--
+-- __Warning__: Assumes the target node is not the root node, and that the target node
+-- has at least one neighbour.
 collectAndCalculate :: forall v a . (SerializableValuation v a)
     => NodeWithPid (v a)
     -> [NodeWithPid (v a)]

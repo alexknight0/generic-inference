@@ -38,6 +38,7 @@ import           Control.Monad.IO.Class                               (MonadIO)
 import           Data.Function                                        ((&))
 import qualified Data.Hashable                                        as H
 import qualified Data.List                                            as L
+import qualified Data.Time.Clock.POSIX                                as C
 import qualified LocalComputation.Inference.JoinTree.Diagram          as D
 import qualified LocalComputation.Inference.MessagePassing            as MP
 import qualified LocalComputation.Utils                               as U
@@ -59,6 +60,7 @@ import           System.IO                                            (hPutStrLn
 
 benchmarks :: IO [Benchmark]
 benchmarks = do
+    timestamp <- fmap round C.getPOSIXTime :: IO Integer
 
     problems <- sequence $ zipWith (&) seeds [
                                               --   D.createRandomProblem 3 1 100 0.25
@@ -69,32 +71,48 @@ benchmarks = do
                                               -- , D.createRandomProblem 3 1 200 1
                                               -- , D.createRandomProblem 3 1 200 5
                                               -- D.createRandomProblem 3 1 200 10
-                                              -- const $ D.newYorkProblem 10
-                                              -- , const $ D.newYorkProblem 25
-                                                const $ D.newYorkProblem 50
-                                              -- , const $ D.newYorkProblem 100
-                                              -- , const $ D.newYorkProblem 200
-                                              -- , const $ D.newYorkProblem 1000
-                                              -- , const $ D.newYorkProblem 2000
-                                              -- , const $ D.newYorkProblem 4000
-                                              -- , const $ D.newYorkProblem 8000
+                                              --   const $ D.newYorkProblemOneToOne 5 10
+                                              -- , const $ D.newYorkProblemOneToOne 5 25
+                                              -- , const $ D.newYorkProblemOneToOne 5 50
+                                              -- , const $ D.newYorkProblemOneToOne 5 100
+                                              -- , const $ D.newYorkProblemOneToOne 5 200
+                                              -- , const $ D.newYorkProblemOneToOne 5 400
+                                                const $ D.newYorkProblemOneToOne 5 600
+                                              , const $ D.newYorkProblemOneToOne 5 800
+                                              , const $ D.newYorkProblemOneToOne 5 1000
+                                              , const $ D.newYorkProblemOneToOne 5 1200
+                                              , const $ D.newYorkProblemOneToOne 5 1600
+                                              , const $ D.newYorkProblemOneToOne 5 2000
+                                              , const $ D.newYorkProblemOneToOne 5 2400
+                                              , const $ D.newYorkProblemOneToOne 5 2800
+                                              , const $ D.newYorkProblemOneToOne 5 3200
+                                              , const $ D.newYorkProblemOneToOne 5 3600
+                                              , const $ D.newYorkProblemOneToOne 5 4000
+                                              , const $ D.newYorkProblemOneToOne 5 6000
+                                              , const $ D.newYorkProblemOneToOne 5 8000
+                                              , const $ D.newYorkProblemOneToOne 5 12000
+                                              , const $ D.newYorkProblemOneToOne 5 24000
+                                              , const $ D.newYorkProblemOneToOne 5 32000
+                                              , const $ D.newYorkProblemOneToOne 5 64000
+                                              -- , const $ D.newYorkProblemOneQ 128000
                                              ]
     evaluate (rnf problems)
 
     benches <- mapM (benchModes modes) problems
 
-    pure $ pure $ bgroup "Shortest Path" $ benches
+    pure $ pure $ bgroup (show timestamp ++ "/Shortest Path") $ benches
     where
-        seeds :: [Integer]
+        seeds :: [Int]
         seeds = [0..]
 
         modes = [
-            --   Baseline
-            Generic  $ I.Fusion
-            -- , Generic  $ I.Shenoy MP.Threads
-            -- , Generic  $ I.Shenoy MP.Distributed
-            -- , DynamicP $ MP.Distributed
-             -- ,DynamicP $ MP.Threads
+              Baseline
+            -- , Generic  $ I.BruteForce
+            , Generic  $ I.Fusion
+            , Generic  $ I.Shenoy MP.Threads
+            , Generic  $ I.Shenoy MP.Distributed
+            , DynamicP $ MP.Distributed
+            , DynamicP $ MP.Threads
          ]
 
 
@@ -104,7 +122,8 @@ benchModes :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashable a
     -> IO Benchmark
 benchModes modes p = fmap (bgroup name) $ mapM (\m -> benchMode m p) modes
     where
-        name = L.intercalate "/" [      p.name
+        name = L.intercalate "/" [
+                                        p.name
                                  , show p.numProblems
                                  , show p.numQueries
                                  , show p.numVertices
