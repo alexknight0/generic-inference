@@ -14,6 +14,7 @@ module LocalComputation.Inference.JoinTree.Tree (
       Node (id, v, t, postbox)
     , node
     , changeContent
+    , isQueryNode
     , NodeType (Valuation, Query, Union, Projection)
     , Id
 
@@ -39,6 +40,7 @@ module LocalComputation.Inference.JoinTree.Tree (
     , unsafeUpdateValuations
     , unsafeUpdatePostboxes
     , verticesHavePostboxes
+    , neighbourMap
 
     -- Conversions
     , toTree
@@ -97,6 +99,9 @@ node i v t = Node i v t Nothing
 
 changeContent :: Node a -> a -> Node a
 changeContent n v = n { v = v }
+
+isQueryNode :: Node a -> Bool
+isQueryNode n = n.t == Query
 
 -- | Accessor for the domain of the valuation.  Equivalent to calling `label` on the valuation.
 -- __Warning__: Not necessarily O(1).

@@ -59,6 +59,10 @@ module LocalComputation.Utils
     , removeSubsets
     , one
     , boolMask
+    , getGlobal
+    , incrementGlobal
+    , resetGlobal
+    , onlyJust
     )
 where
 
@@ -84,6 +88,7 @@ import           Control.Monad                 (void, when)
 import           Control.Monad.IO.Class        (MonadIO (liftIO))
 import qualified Data.Array                    as A
 import qualified Data.List                     as L
+import           Data.Maybe                    (fromJust, isJust)
 import           GHC.IO                        (unsafePerformIO)
 import           GHC.IORef                     (IORef, atomicModifyIORef',
                                                 newIORef, readIORef)
@@ -337,6 +342,9 @@ getGlobal x = readIORef x
 incrementGlobal :: Num b => IORef b -> IO b
 incrementGlobal x = atomicModifyIORef' x (\y -> let x' = y + 1 in (x', x'))
 
+resetGlobal :: Num b => IORef b -> IO ()
+resetGlobal x = atomicModifyIORef' x (\y -> let x' = y + 1 in (0, ()))
+
 countPredicateHits :: (a -> Bool) -> a -> a
 countPredicateHits p x
     | not $ p x = x
@@ -390,3 +398,6 @@ boolMask _  [] = []
 boolMask (x:xs) (y:ys)
     | y         = x : boolMask xs ys
     | otherwise = boolMask xs ys
+
+onlyJust :: [Maybe a] -> [a]
+onlyJust = map fromJust . filter isJust

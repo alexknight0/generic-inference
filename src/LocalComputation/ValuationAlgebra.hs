@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                    #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 {-# LANGUAGE ConstraintKinds        #-}
@@ -7,7 +8,6 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE QuantifiedConstraints  #-}
 {-# LANGUAGE TypeFamilies           #-}
-
 
 {- | If an unsafe library function says it *asserts* something is the case,
 that literally means it uses the `Control.Exception` `assert`. Hence, the user
@@ -26,6 +26,8 @@ module LocalComputation.ValuationAlgebra
     , assertInvariants
     , isIdentity
     , Valuation
+    , combineCounter
+    , projectCounter
 
     -- Serialization related typeclasses
     , Binary   -- Must be derived for serialization
@@ -35,6 +37,9 @@ module LocalComputation.ValuationAlgebra
     , Serializable
     )
 where
+
+-- TODO: make default off and enabled by command line flag
+#define COUNT_OPERATIONS 1
 
 import           Control.Exception                        (assert)
 import qualified Data.Hashable                            as H
@@ -47,7 +52,9 @@ import qualified LocalComputation.Utils                   as U
 import           Control.DeepSeq                          (NFData)
 import           Control.Distributed.Process.Serializable (Serializable)
 import           Data.Binary                              (Binary)
+import qualified Data.IORef                               as IO
 import           GHC.Generics                             (Generic)
+import qualified System.IO.Unsafe                         as IO
 import           Type.Reflection                          (Typeable)
 
 type Domain a = S.Set a
@@ -102,10 +109,21 @@ class ValuationFamily v where
     satisfiesInvariants :: Var a => v a -> Bool
     satisfiesInvariants _ = True
 
-combine :: (ValuationFamily v, Var a) => v a -> v a      -> v a
+-- TODO: Remove putstrlns
+
+combine :: (ValuationFamily v, Var a) => v a -> v a -> v a
+#if !(COUNT_OPERATIONS)
 combine v1 v2 = assertInvariants $ _combine v1 v2
+#else
+{-# NOINLINE combine #-}
+combine v1 v2 = IO.unsafePerformIO $ do
+    _ <- U.incrementGlobal combineCounter
+    -- putStrLn $ "combining " ++ show (label v1) ++ " with " ++ show (label v2)
+    pure $ assertInvariants $ _combine v1 v2
+#endif
 
 project :: (ValuationFamily v, Var a) => v a -> Domain a -> v a
+#if !(COUNT_OPERATIONS)
 project v d
     -- Domain projected to must be subset.
     | assert (d `S.isSubsetOf` label v) False = undefined
@@ -113,6 +131,19 @@ project v d
     | label v == d = v
     -- Delegate call to _project but check invariants on return
     | otherwise = assertInvariants $ _project v d
+#else
+{-# NOINLINE project #-}
+project v d
+    -- Domain projected to must be subset.
+    | assert (d `S.isSubsetOf` label v) False = undefined
+    -- If current domain is domain of projection skip projection call for efficency.
+    | label v == d = v
+    -- Delegate call to _project but check invariants on return
+    | otherwise = IO.unsafePerformIO $ do
+        _ <- U.incrementGlobal projectCounter
+        -- putStrLn $ "projecting " ++ show (label v) ++ " to: " ++ show d
+        pure $ assertInvariants $ _project v d
+#endif
 
 assertInvariants :: (ValuationFamily v, Var a) => v a -> v a
 assertInvariants v = U.assertP satisfiesInvariants v
@@ -125,6 +156,18 @@ showDomain x = "{" ++ L.intercalate "," (map show (S.toList x)) ++ "}"
 
 isIdentity :: (ValuationFamily v, Var a, Eq (v a)) => v a -> Bool
 isIdentity v = v == identity (label v)
+
+--------------------------------------------------------------------------------
+-- Counting Operations
+--------------------------------------------------------------------------------
+{-# NOINLINE combineCounter #-}
+combineCounter :: IO.IORef Int
+combineCounter = IO.unsafePerformIO (IO.newIORef 0)
+
+{-# NOINLINE projectCounter #-}
+projectCounter :: IO.IORef Int
+projectCounter = IO.unsafePerformIO (IO.newIORef 0)
+
 
 {- TODO: Add to future work / methodology / results:
 

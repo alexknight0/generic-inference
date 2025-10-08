@@ -24,9 +24,11 @@ import           Control.Distributed.Process.Serializable
 import           Control.Exception                          (assert)
 import           Control.Monad                              (forM_, replicateM)
 import qualified Data.Map                                   as M
+import           Data.Maybe                                 (fromJust, isJust)
 import qualified Data.Set                                   as S
-import qualified LocalComputation.Inference.JoinTree        as JT
-import qualified LocalComputation.Inference.JoinTree.Forest as JT
+import qualified LocalComputation.Inference.JoinTree        as JF
+import qualified LocalComputation.Inference.JoinTree.Forest as JF
+import qualified LocalComputation.Inference.JoinTree.Tree   as JT
 import qualified LocalComputation.Utils                     as U
 import           LocalComputation.ValuationAlgebra          (Binary, Generic,
                                                              Typeable)
@@ -34,9 +36,9 @@ import qualified LocalComputation.ValuationAlgebra          as V
 
 type SerializableValuation v a = (V.ValuationFamily v, V.Var a, Binary (v a), Typeable v, Typeable a)
 
-data NodeWithPid a = NodeWithPid { id :: ProcessId, node :: JT.Node a } deriving (Generic, Binary)
+data NodeWithPid a = NodeWithPid { id :: ProcessId, node :: JF.Node a } deriving (Generic, Binary)
 
-type NodeActions v a = NodeWithPid (v a) -> [NodeWithPid (v a)] -> SendPort (JT.Node (v a)) -> Process ()
+type NodeActions v a = NodeWithPid (v a) -> [NodeWithPid (v a)] -> SendPort (JF.Node (v a)) -> Process ()
 
 {- | Executes a message passing algorithm on a given join tree by spinning up each node in a join tree as
 a seperate process and allowing each process to execute the given `nodeActions`.
@@ -44,17 +46,44 @@ a seperate process and allowing each process to execute the given `nodeActions`.
 Each node is respresented by a `NodeWithPid`. Each node is given the `NodeWithPid` of itself as
 well as its neighbours and can communicate with them by `send` and `expect`. All nodes are expected to send
 a result through a given `SendPort` that represents their state after the message passing is completed.
+
+Only trees of the forest that have query nodes have message passing performed on them.
+Only query nodes will have their valuations updated, although this can be easily changed.
 -}
--- This function can be extended to work on directed graphs if required by seperating the neighbours
--- sent to each node into 'incoming' and 'outgoing' neighbours
 messagePassing :: forall v a. (SerializableValuation v a)
-    => JT.JoinForest (v a)
+    => JF.JoinForest (v a)
     -> NodeActions v a
-    -> Process (JT.JoinForest (v a))
-messagePassing tree nodeActions = do
+    -> Process (JF.JoinForest (v a))
+messagePassing forest nodeActions = do
+
+    -- Perform message passing on all trees that have query nodes.
+    requiredUpdates <- mapM (\t -> messagePassing'' t nodeActions) $ filter JT.hasQueryNode $ JF.treeList forest
+
+    -- Update forest with required changes.
+    pure $ JF.unsafeUpdateValuations (M.unions requiredUpdates) forest
+
+-- | Variant of `messagePassing` that operates on a `JoinTree` parameter.
+messagePassing' :: (SerializableValuation v a)
+    => JF.JoinTree (v a)
+    -> NodeActions v a
+    -> Process (JF.JoinTree (v a))
+messagePassing' tree nodeActions = do
+    -- Perform message passing on tree.
+    requiredUpdates <- messagePassing'' tree nodeActions
+
+    -- Update tree with required changes.
+    pure $ JT.unsafeUpdateValuations requiredUpdates tree
+
+
+-- | Variant of `messagePassing` that takes a `JoinTree` parameter and returns the
+-- required updates to the join tree after message passing.
+messagePassing'' :: (SerializableValuation v a)
+    => JF.JoinTree (v a)
+    -> NodeActions v a
+    -> Process (M.Map JT.Id (v a))
+messagePassing'' tree nodeActions = do
 
     -- Initialize all nodes
-    let vs = JT.vertexList tree
     (nodesWithPid, resultPorts) <- fmap unzip $ mapM (initializeNodeAndMonitor nodeActions) vs
 
     -- Tell each node who it is and who it's neighbours are
@@ -74,28 +103,28 @@ messagePassing tree nodeActions = do
              -- we got a chance to wait on it?
              x               -> error $ "Error - " ++ show x
 
-    -- All should be terminated - receive all messages
-    newNodeList <- mapM receiveChanNowA resultPorts
+    -- All should be terminated.
+    -- We should receive a message from each query node.
+    -- We may or may not also receive messages from other nodes wishing to update their valuation.
+    newNodeList <- fmap U.onlyJust $ mapM receiveChanNow resultPorts
+    assertCorrectNumResponses newNodeList
 
-    -- Construct graph from new nodes
-    pure $ JT.unsafeUpdateValuations (toMap newNodeList) tree
+    -- Return updates required for the new join tree.
+    pure $ toMap newNodeList
 
     where
+        vs = JT.vertexList tree
+
+        assertCorrectNumResponses responses = assert (length responses >= length (filter JT.isQueryNode vs)) $ pure ()
+
         neighbourMap = JT.neighbourMap tree
 
         toMap = M.fromList . map (\n -> (n.id, n.v))
 
--- | Variant of `messagePassing` that operates on a `JoinTree` parameter.
-messagePassing' :: (SerializableValuation v a)
-    => JT.JoinTree (v a)
-    -> NodeActions v a
-    -> Process (JT.JoinTree (v a))
-messagePassing' tree nodeActions = fmap JT.unsafeGetTree $ messagePassing (JT.toForest tree) nodeActions
-
 initializeNodeAndMonitor :: (SerializableValuation v a)
     => NodeActions v a
-    -> JT.Node (v a)
-    -> Process (NodeWithPid (v a), ReceivePort (JT.Node (v a)))
+    -> JF.Node (v a)
+    -> Process (NodeWithPid (v a), ReceivePort (JF.Node (v a)))
 initializeNodeAndMonitor nodeActions node = do
     (sendFinalResult, receiveFinalResult) <- newChan
 
@@ -106,7 +135,7 @@ initializeNodeAndMonitor nodeActions node = do
 
 initializeNode :: (SerializableValuation v a)
     => NodeActions v a
-    -> SendPort (JT.Node (v a))
+    -> SendPort (JF.Node (v a))
     -> Process ProcessId
 initializeNode nodeActions resultPort = spawnLocal $ do
     this :: NodeWithPid (v a) <- expect
@@ -114,13 +143,11 @@ initializeNode nodeActions resultPort = spawnLocal $ do
 
     nodeActions this neighbours resultPort
 
-receiveChanNowA :: (Serializable a)
-    => ReceivePort a -> Process a
-receiveChanNowA p = do
+receiveChanNow :: (Serializable a)
+    => ReceivePort a -> Process (Maybe a)
+receiveChanNow p = do
     result <- receiveChanTimeout 0 p
-    pure $ case result of
-                Just x -> x
-                Nothing -> error "A node terminated without sending a message on the result channel"
+    pure $ result
 
 data Message a = Message {
           sender :: ProcessId
@@ -193,9 +220,6 @@ collect this neighbours action = do
 data DistributeResults a = DistributeResults {
     postbox :: [Message a]
 }
-
--- TODO: There is likely a smarter way to do combines here to reduce duplication, but it seems
--- very difficult
 
 -- | The distribute phase of a message passing process where each node waits to receive a final message
 -- and then distributes messages to all nodes it has not previously sent messages to.

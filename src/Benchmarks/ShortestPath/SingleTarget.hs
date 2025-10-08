@@ -1,5 +1,6 @@
 module Benchmarks.ShortestPath.SingleTarget (
       benchmarks
+    , operationBenchmarks
     , singleTarget
     , singleTargets
     , singleTarget'
@@ -43,8 +44,12 @@ import qualified LocalComputation.Inference.JoinTree.Diagram          as D
 import qualified LocalComputation.Inference.MessagePassing            as MP
 import qualified LocalComputation.Utils                               as U
 import qualified LocalComputation.ValuationAlgebra                    as V
-import           System.IO                                            (hPutStrLn,
-                                                                       stderr)
+import           System.IO                                            (IOMode (AppendMode),
+                                                                       hFlush,
+                                                                       hPutStrLn,
+                                                                       stderr,
+                                                                       stdout,
+                                                                       withFile)
 
 --------------------------------------------------------------------------------
 -- Benchmarks
@@ -57,6 +62,65 @@ import           System.IO                                            (hPutStrLn
 -- have it use different graphs between benchmarks unless we created some 'state', pregenerated all the
 -- graphs it was going to use (we don't know how many graphs that will be) and then swapped between those
 -- based on this state (where the state is hidden by the IO)
+
+operationBenchmarks :: IO ()
+operationBenchmarks = do
+    -- ny <- D.unsafeParseGraph 2 D.newYork
+    --
+    -- afterSetup <- singleTarget mode s ny (D.Query [1] 2)
+    -- r <- afterSetup
+    -- evaluate (r `deepseq` r)
+    -- pure ()
+    --
+    -- where
+    --     s = D.def { D.afterInference = Just "diagrams/debug2.svg" }
+    --     mode = Generic $ I.Shenoy MP.Distributed
+    --
+
+    timestamp <- fmap round C.getPOSIXTime :: IO Integer
+
+    problems <- sequence $ zipWith (&) seeds [
+                                                const $ D.newYorkProblemOneToOne 1 2
+                                              -- , const $ D.newYorkProblemOneToOne 5 10
+                                              -- , const $ D.newYorkProblemOneToOne 5 25
+                                              -- , const $ D.newYorkProblemOneToOne 5 50
+                                              -- , const $ D.newYorkProblemOneToOne 5 100
+                                              -- , const $ D.newYorkProblemOneToOne 5 200
+                                              -- , const $ D.newYorkProblemOneToOne 5 400
+                                              -- , const $ D.newYorkProblemOneToOne 5 600
+                                              -- , const $ D.newYorkProblemOneToOne 5 800
+                                              -- , const $ D.newYorkProblemOneToOne 5 1000
+                                              -- , const $ D.newYorkProblemOneToOne 5 1200
+                                              -- , const $ D.newYorkProblemOneToOne 5 1600
+                                              -- , const $ D.newYorkProblemOneToOne 5 2000
+                                              -- , const $ D.newYorkProblemOneToOne 5 2400
+                                              -- , const $ D.newYorkProblemOneToOne 5 2800
+                                              -- , const $ D.newYorkProblemOneToOne 5 3200
+                                              -- , const $ D.newYorkProblemOneToOne 5 3600
+                                              -- , const $ D.newYorkProblemOneToOne 5 4000
+                                              -- , const $ D.newYorkProblemOneToOne 5 6000
+                                              -- , const $ D.newYorkProblemOneToOne 5 8000
+                                              -- , const $ D.newYorkProblemOneToOne 5 12000
+                                              -- , const $ D.newYorkProblemOneToOne 5 24000
+                                              -- , const $ D.newYorkProblemOneToOne 5 32000
+                                              -- , const $ D.newYorkProblemOneToOne 5 64000
+                                              -- , const $ D.newYorkProblemOneQ 128000
+                                             ]
+    mapM_ (countOpsOnModes timestamp modes) problems
+    where
+        modes = [
+              -- Baseline
+            -- , Generic  $ I.BruteForce
+            -- , Generic  $ I.Fusion
+             Generic  $ I.Shenoy MP.Threads
+            -- , Generic  $ I.Shenoy MP.Distributed
+            -- , DynamicP $ MP.Distributed
+            -- , DynamicP $ MP.Threads
+          ]
+
+        seeds :: [Int]
+        seeds = [0..]
+
 
 benchmarks :: IO [Benchmark]
 benchmarks = do
@@ -71,13 +135,13 @@ benchmarks = do
                                               -- , D.createRandomProblem 3 1 200 1
                                               -- , D.createRandomProblem 3 1 200 5
                                               -- D.createRandomProblem 3 1 200 10
-                                              --   const $ D.newYorkProblemOneToOne 5 10
-                                              -- , const $ D.newYorkProblemOneToOne 5 25
-                                              -- , const $ D.newYorkProblemOneToOne 5 50
-                                              -- , const $ D.newYorkProblemOneToOne 5 100
-                                              -- , const $ D.newYorkProblemOneToOne 5 200
-                                              -- , const $ D.newYorkProblemOneToOne 5 400
-                                                const $ D.newYorkProblemOneToOne 5 600
+                                                const $ D.newYorkProblemOneToOne 5 10
+                                              , const $ D.newYorkProblemOneToOne 5 25
+                                              , const $ D.newYorkProblemOneToOne 5 50
+                                              , const $ D.newYorkProblemOneToOne 5 100
+                                              , const $ D.newYorkProblemOneToOne 5 200
+                                              , const $ D.newYorkProblemOneToOne 5 400
+                                              , const $ D.newYorkProblemOneToOne 5 600
                                               , const $ D.newYorkProblemOneToOne 5 800
                                               , const $ D.newYorkProblemOneToOne 5 1000
                                               , const $ D.newYorkProblemOneToOne 5 1200
@@ -114,6 +178,58 @@ benchmarks = do
             , DynamicP $ MP.Distributed
             , DynamicP $ MP.Threads
          ]
+
+opCountFilepath = "operation_count.csv"
+
+countOpsOnModes :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashable a)
+    => Integer
+    -> [Implementation]
+    -> D.BenchmarkProblem a
+    -> IO ()
+countOpsOnModes timestamp modes p = mapM_ (\m -> countOpsOnMode timestamp m p) modes
+
+countOpsOnMode :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashable a)
+    => Integer
+    -> Implementation
+    -> D.BenchmarkProblem a
+    -> IO ()
+countOpsOnMode timestamp mode p = do
+    U.resetGlobal V.combineCounter
+    U.resetGlobal V.projectCounter
+
+    putStrLn ("Working on: " ++ L.intercalate "/" header)
+    hFlush stdout
+
+    -- Fully evaluate, incrementing combine and project counters
+    afterSetup <- multipleSingleTargets mode D.def p
+    result <- afterSetup
+    evaluate (result `deepseq` result)
+
+    -- Write combination count to file.
+    withFile opCountFilepath AppendMode $ \h -> do
+        combinations <- U.getGlobal V.combineCounter
+        projections  <- U.getGlobal V.projectCounter
+
+        hPutStrLn h (line combinations projections)
+
+        hFlush h
+
+    where
+        header = [show timestamp
+                ,      p.name
+                , show p.numProblems
+                , show p.numQueries
+                , show p.numVertices
+                , show p.edgeRatio
+                ,      seed
+                , show mode
+               ]
+
+        line combinations projections = L.intercalate "," $ header ++ [show combinations, show projections]
+
+        seed = case p.seed of
+                Nothing -> "No seed"
+                Just s  -> show s
 
 
 benchModes :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashable a)

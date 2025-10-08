@@ -124,6 +124,9 @@ nodeActions this neighbours resultPort = do
 
     assert (this.node.d == label result) (pure ())
 
+    -- In shenoy, we decide only to send a result to the result port if its a query node,
+    -- however here we send all results, as the results of all valuations are required
+    -- for functions that use 'fusion pass'.
     sendChan resultPort $ JT.changeContent this.node result
 
     where

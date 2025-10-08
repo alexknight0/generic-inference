@@ -22,9 +22,10 @@ import           LocalComputation.Inference.JoinTree                   (Node (..
                                                                         baseJoinForest,
                                                                         binaryJoinForest)
 import qualified LocalComputation.Inference.JoinTree                   as J
-import qualified LocalComputation.Inference.JoinTree                   as JT
+import qualified LocalComputation.Inference.JoinTree                   as JF
 import qualified LocalComputation.Inference.JoinTree.Diagram           as D
-import qualified LocalComputation.Inference.JoinTree.Forest            as JT
+import qualified LocalComputation.Inference.JoinTree.Forest            as JF
+import qualified LocalComputation.Inference.JoinTree.Tree              as JT
 import qualified LocalComputation.Inference.MessagePassing             as MP
 import qualified LocalComputation.Inference.MessagePassing.Distributed as DMP
 import qualified LocalComputation.Inference.MessagePassing.Threads     as TMP
@@ -44,7 +45,7 @@ import           System.IO                                             (hFlush,
 -- the subproblem of finding 'groups' of nodes in the larger graph.
 
 -- TODO: Rename ResultingTree; stop exporting
-type InferredData v a = JT.JoinForest (v a)
+type InferredData v a = JF.JoinForest (v a)
 
 -- | Extracts a given query from the query results.
 --
@@ -59,7 +60,7 @@ extractQueryResult queryDomains results = map f queryDomains
         -- Needs to be a query node as `calculate` of `MessagePassing.Threads` only calculates
         -- results on query nodes (although this can be changed)
         f :: Domain a -> v a
-        f q = (.v) $ fromJust $ L.find (\n -> n.t == JT.Query && q == n.d) (JT.vertexList results)
+        f q = (.v) $ fromJust $ L.find (\n -> n.t == JF.Query && q == n.d) (JF.vertexList results)
 
 
 -- | Performs shenoy shafer inference.
@@ -83,7 +84,7 @@ queries mode settings vs queryDomains = do
     pure $ extractQueryResult queryDomains treeAfterInference
 
     where
-        treeBeforeInference = binaryJoinForest vs queryDomains
+        treeBeforeInference = baseJoinForest vs queryDomains
 
         drawTree Nothing         _    = pure ()
         drawTree (Just filename) tree = liftIO $ D.drawForest filename tree
@@ -100,10 +101,14 @@ nodeActions this neighbours resultPort = do
                         distributeResults <- DMP.distribute collectResults this neighbours computeMessage
                         pure $ distributeResults.postbox
 
-    -- Send result back to parent process
-    let result = combines1 (this.node.v : map (.msg) postbox)
-    assertLabelUnchanged result
-    sendChan resultPort $ J.changeContent this.node result
+    case JT.isQueryNode this.node of
+        True -> do
+            -- Send result back to parent process
+            let result = combines1 (this.node.v : map (.msg) postbox)
+            assertLabelUnchanged result
+            sendChan resultPort $ J.changeContent this.node result
+
+        False -> pure ()  -- Don't need to bother updating valuations for non-query nodes.
 
     where
         assertLabelUnchanged result = assert (this.node.d == label result) $ pure ()

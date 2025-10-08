@@ -28,6 +28,7 @@ module Benchmarks.ShortestPath.SingleTarget.Data (
     , unsafeParseFullGraph
     , parseGraph
     , unsafeParseGraph
+    , Query (Query)
 ) where
 
 import qualified Benchmarks.Utils                                     as U
