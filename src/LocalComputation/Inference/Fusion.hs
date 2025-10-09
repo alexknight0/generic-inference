@@ -59,7 +59,7 @@ fusion :: (ValuationFamily v, Var a)
     -> v a
 fusion vs x = fusion' nextId vsWithIds (E.createAndExclude (map label vs) x)
     where
-        vsWithIds = S.fromList $ zipWith WithId [0..] vs
+        vsWithIds = S.fromList $ JT.trackUsedValuations' $ zipWith WithId [0..] vs
         nextId = fromIntegral $ length vs
 
 fusion' :: (ValuationFamily v, Var a) => Natural -> S.Set (WithId (v a)) -> E.EliminationSequence a -> v a

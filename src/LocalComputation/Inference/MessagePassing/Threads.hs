@@ -43,7 +43,7 @@ messagePassing' :: (P.NFData (v a), V.ValuationFamily v, V.Var a)
     => JT.JoinTree (v a)
     -> JT.JoinTree (v a)
 messagePassing' t
-    | JT.hasQueryNode t = calculate . JT.unsafeFromTree . distribute' Nothing . collect' . JT.toTree . JT.trackMaxTreeWidth $ t
+    | JT.hasQueryNode t = calculate . JT.unsafeFromTree . distribute' Nothing . collect' . JT.toTree . JT.tracking $ t
     | otherwise         = t
 
 -- TODO: It does seem like we are copying the tree alot of times; but i don't know whats going on under the hood.
@@ -133,7 +133,7 @@ calculate tree = JT.unsafeUpdateValuations mapping tree
 --------------------------------------------------------------------------------
 collectAndCalculate :: forall v a . (P.NFData (v a), V.ValuationFamily v, V.Var a)
     => JT.JoinTree (v a) -> JT.JoinTree (v a)
-collectAndCalculate = JT.unsafeFromTree . collectAndCalculate' . JT.toTree . JT.trackMaxTreeWidth
+collectAndCalculate = JT.unsafeFromTree . collectAndCalculate' . JT.toTree . JT.tracking
 
 collectAndCalculate' :: forall v a . (P.NFData (v a), V.ValuationFamily v, V.Var a)
     => T.Tree (JT.Node (v a)) -> T.Tree (JT.Node (v a))

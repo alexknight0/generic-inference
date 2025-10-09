@@ -43,9 +43,11 @@ module LocalComputation.Inference.JoinTree.Tree (
     , verticesHavePostboxes
     , neighbourMap
     , treeWidth
-    , trackMaxTreeWidth
+    , tracking
     , trackMaxTreeWidth'
     , maxTreeWidthTracker
+    , numUsedValuationsTracker
+    , trackUsedValuations'
 
     -- Conversions
     , toTree
@@ -462,22 +464,19 @@ supportsCollect t = numQueryNodes t == 1        -- (1)
 maxTreeWidthTracker :: IO.IORef Natural
 maxTreeWidthTracker = IO.unsafePerformIO (IO.newIORef 0)
 
--- TODO: NOT REDUNDANT CONSTRAINT
-trackMaxTreeWidth :: (V.ValuationFamily v, V.Var a) => JoinTree (v a) -> JoinTree (v a)
-#if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
-trackMaxTreeWidth = id
-#else
+-- TODO: NOT REDUNDANT CONSTRAINTS
 {-# NOINLINE trackMaxTreeWidth #-}
+trackMaxTreeWidth :: (V.ValuationFamily v, V.Var a) => JoinTree (v a) -> JoinTree (v a)
 trackMaxTreeWidth t = IO.unsafePerformIO $ do
     currentMax <- U.getGlobal maxTreeWidthTracker
     U.setGlobal maxTreeWidthTracker (max (treeWidth t) currentMax)
     pure $ t
-#endif
 
+trackMaxTreeWidth' :: (ValuationFamily v, Var a) => v a -> v a
 #if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
 trackMaxTreeWidth' = id
 #else
-trackMaxTreeWidth' :: (ValuationFamily v, Var a) => v a -> v a
+{-# NOINLINE trackMaxTreeWidth' #-}
 trackMaxTreeWidth' v = IO.unsafePerformIO $ do
     currentMax <- U.getGlobal maxTreeWidthTracker
     U.setGlobal maxTreeWidthTracker (max (treeWidthOfV v) currentMax)
@@ -486,3 +485,39 @@ trackMaxTreeWidth' v = IO.unsafePerformIO $ do
     where
         treeWidthOfV = fromIntegral . length . label
 #endif
+
+{-# NOINLINE numUsedValuationsTracker #-}
+numUsedValuationsTracker :: IO.IORef Int
+numUsedValuationsTracker = IO.unsafePerformIO (IO.newIORef 0)
+
+{-# NOINLINE trackUsedValuations #-}
+trackUsedValuations :: JoinTree (v a) -> JoinTree (v a)
+trackUsedValuations t = IO.unsafePerformIO $ do
+    currentMax <- U.getGlobal numUsedValuationsTracker
+    U.setGlobal numUsedValuationsTracker (max numValuations currentMax)
+    pure $ t
+
+    where
+        numValuations = length . filter (\n -> n.t == Valuation) . vertexList $ t
+
+trackUsedValuations' :: [a] -> [a]
+#if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
+trackUsedValuations' = id
+#else
+{-# NOINLINE trackUsedValuations' #-}
+trackUsedValuations' vs = IO.unsafePerformIO $ do
+    currentMax <- U.getGlobal numUsedValuationsTracker
+    U.setGlobal numUsedValuationsTracker (max (length vs) currentMax)
+    pure $ vs
+#endif
+
+tracking :: (ValuationFamily v, Var a) => JoinTree (v a) -> JoinTree (v a)
+#if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
+tracking = id
+#else
+{-# NOINLINE tracking #-}
+tracking = trackUsedValuations . trackMaxTreeWidth
+#endif
+
+
+

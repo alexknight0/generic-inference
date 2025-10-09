@@ -24,7 +24,6 @@ import           Control.Distributed.Process.Serializable
 import           Control.Exception                          (assert)
 import           Control.Monad                              (forM_, replicateM)
 import qualified Data.Map                                   as M
-import           Data.Maybe                                 (fromJust, isJust)
 import qualified Data.Set                                   as S
 import qualified LocalComputation.Inference.JoinTree        as JF
 import qualified LocalComputation.Inference.JoinTree.Forest as JF
@@ -114,7 +113,7 @@ messagePassing'' treeBeforeTracking nodeActions = do
 
     where
         -- Track the max tree width for analysis purposes
-        tree = JT.trackMaxTreeWidth treeBeforeTracking
+        tree = JT.tracking treeBeforeTracking
 
         vs = JT.vertexList tree
 
