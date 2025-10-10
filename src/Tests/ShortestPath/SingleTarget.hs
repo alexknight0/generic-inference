@@ -58,6 +58,9 @@ group = "Tests.ShorestPath.SingleTarget"
 --------------------------------------------------------------------------------
 -- Tests
 --------------------------------------------------------------------------------
+-- TODO: Test works if there are two valuations concerning the same variables but
+-- with one having larger values for the distance between variables.
+
 tests :: IO Bool
 tests = fmap and $ sequence [
         checkParallel $$(discover)

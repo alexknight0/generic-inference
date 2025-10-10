@@ -63,6 +63,7 @@ module LocalComputation.Utils
     , incrementGlobal
     , resetGlobal
     , setGlobal
+    , resetGlobal'
     , onlyJust
     )
 where
@@ -337,7 +338,7 @@ predicateHitCounter :: IORef Int
 {-# NOINLINE predicateHitCounter #-}
 predicateHitCounter = unsafePerformIO (newIORef 0)
 
-getGlobal :: Num b => IORef b -> IO b
+getGlobal :: IORef b -> IO b
 getGlobal ref = readIORef ref
 
 incrementGlobal :: Num b => IORef b -> IO b
@@ -346,7 +347,10 @@ incrementGlobal ref = atomicModifyIORef' ref (\y -> let x' = y + 1 in (x', x'))
 resetGlobal :: Num b => IORef b -> IO ()
 resetGlobal ref = atomicModifyIORef' ref (\_ -> (0, ()))
 
-setGlobal :: Num b => IORef b -> b -> IO ()
+resetGlobal' :: Num a => IORef [a] -> IO ()
+resetGlobal' ref = atomicModifyIORef' ref (\_ -> ([0], ()))
+
+setGlobal :: IORef b -> b -> IO ()
 setGlobal ref x = atomicModifyIORef' ref (\_ -> (x, ()))
 
 countPredicateHits :: (a -> Bool) -> a -> a

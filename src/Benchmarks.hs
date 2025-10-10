@@ -29,6 +29,7 @@ allBenchmarks = do
                               ]
         defaultMain (concat benchmarks)
 
+
 -- defaultMainWith customConfig
 -- customConfig :: Config
 -- customConfig = defaultConfig {

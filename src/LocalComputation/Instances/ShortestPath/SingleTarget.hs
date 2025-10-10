@@ -37,6 +37,7 @@ import qualified LocalComputation.Graph.Undirected                    as UG
 import qualified LocalComputation.Inference                           as I
 import qualified LocalComputation.Inference.EliminationSequence       as E
 import qualified LocalComputation.Inference.JoinTree.Diagram          as D
+import qualified LocalComputation.Inference.JoinTree.Tree             as JT
 import qualified LocalComputation.Inference.MessagePassing            as MP
 import           LocalComputation.Inference.Triangulation
 import qualified LocalComputation.Inference.Triangulation             as T
@@ -98,7 +99,7 @@ singleTargetSplitGeneric inference settings vs q = do
         k = knowledgeBase vs q.target
         domain = S.fromList (q.target : q.sources)
 
-        solutionMOrError = inference settings k domain
+        solutionMOrError = JT.trackNewRun $ inference settings k domain
 
 -- If distance of a location to itself is not recorded, it will be recorded as the 'zero'
 -- element of the tropical semiring (i.e. infinity). Regarding self loops, see the documentation

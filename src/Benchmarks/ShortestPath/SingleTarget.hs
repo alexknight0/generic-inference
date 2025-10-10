@@ -78,52 +78,24 @@ isCountingOperations = True
 -- graphs it was going to use (we don't know how many graphs that will be) and then swapped between those
 -- based on this state (where the state is hidden by the IO)
 setProblems :: (MonadIO m) => m [D.BenchmarkProblem Natural]
-setProblems = sequence $ zipWith (&) seeds [
-                  --   const $ D.newYorkProblemOneToOne 1 2
-                  -- , const $ D.newYorkProblemOneToOne 5 10
-                  -- , const $ D.newYorkProblemOneToOne 5 25
-                  -- , const $ D.newYorkProblemOneToOne 5 50
-                  -- , const $ D.newYorkProblemOneToOne 5 100
-                  -- , const $ D.newYorkProblemOneToOne 5 200
-                  -- , const $ D.newYorkProblemOneToOne 5 400
-                  -- , const $ D.newYorkProblemOneToOne 5 600
-                  -- , const $ D.newYorkProblemOneToOne 5 800
-                  -- , const $ D.newYorkProblemOneToOne 5 1000
-                  -- , const $ D.newYorkProblemOneToOne 5 1200
-                    const $ D.newYorkProblemOneToOne 5 1400
-                  -- , const $ D.newYorkProblemOneToOne 5 1600
-                  , const $ D.newYorkProblemOneToOne 5 1800
-                  -- , const $ D.newYorkProblemOneToOne 5 2000
-                  , const $ D.newYorkProblemOneToOne 5 2200
-                  -- , const $ D.newYorkProblemOneToOne 5 2400
-                  , const $ D.newYorkProblemOneToOne 5 2600
-                  -- , const $ D.newYorkProblemOneToOne 5 2800
-                  , const $ D.newYorkProblemOneToOne 5 3000
-                  -- , const $ D.newYorkProblemOneToOne 5 3200
-                  -- , const $ D.newYorkProblemOneToOne 5 3400
-                  -- , const $ D.newYorkProblemOneToOne 5 3600
-                  -- , const $ D.newYorkProblemOneToOne 5 4000
-                  -- , const $ D.newYorkProblemOneToOne 5 6000
-                  -- , const $ D.newYorkProblemOneToOne 5 8000
-                  -- , const $ D.newYorkProblemOneToOne 5 12000
-                  -- , const $ D.newYorkProblemOneToOne 5 24000
-                  -- , const $ D.newYorkProblemOneToOne 5 32000
-                  -- , const $ D.newYorkProblemOneToOne 5 64000
-                 ]
+setProblems = sequence $ zipWith (&) seeds $ map (\edges -> const $ D.newYorkProblemOneToOne 5 edges) [1700, 1800.. 4700]
+
     where
         seeds :: [Int]
         seeds = [0..]
+
 
 setModes :: [Implementation]
 setModes = [
     --   Baseline
     -- , Generic  $ I.BruteForce
-    -- , Generic  $ I.Fusion
+      Generic  $ I.Fusion
     -- , Generic  $ I.Shenoy MP.Threads
     -- , Generic  $ I.Shenoy MP.Distributed
-      DynamicP $ MP.Distributed
     , DynamicP $ MP.Threads
+    , DynamicP $ MP.Distributed
   ]
+
 
 createHeader :: Integer -> D.BenchmarkProblem a -> Implementation -> [String]
 createHeader timestamp p mode = [show timestamp
@@ -187,8 +159,8 @@ countOpsOnMode :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashab
 countOpsOnMode timestamp mode p = do
     U.resetGlobal V.combineCounter
     U.resetGlobal V.projectCounter
-    U.resetGlobal JT.maxTreeWidthTracker
-    U.resetGlobal JT.numUsedValuationsTracker
+    U.resetGlobal' JT.maxTreeWidthTracker
+    U.resetGlobal' JT.numUsedValuationsTracker
 
     putStrLn ("Working on: " ++ L.intercalate "/" header)
     hFlush stdout
@@ -202,10 +174,13 @@ countOpsOnMode timestamp mode p = do
     withFile opCountFilepath AppendMode $ \h -> do
         combinations   <- U.getGlobal V.combineCounter
         projections    <- U.getGlobal V.projectCounter
-        maxTreeWidth   <- U.getGlobal JT.maxTreeWidthTracker
+        maxTreeWidths  <- U.getGlobal JT.maxTreeWidthTracker
         usedValuations <- U.getGlobal JT.numUsedValuationsTracker
+        let complexity = sum $ zipWith f usedValuations maxTreeWidths
+            maxMaxTreeWidth = maximum maxTreeWidths
+            maxUsedValuations = maximum usedValuations
 
-        hPutStrLn h (line [combinations, projections, fromIntegral maxTreeWidth, usedValuations])
+        hPutStrLn h (line [combinations, projections, maxMaxTreeWidth, maxUsedValuations, complexity])
 
         hFlush h
 
@@ -213,6 +188,11 @@ countOpsOnMode timestamp mode p = do
         header = createHeader timestamp p mode
 
         line body = L.intercalate "," $ header ++ map show body
+
+        f :: Int -> Int -> Int
+        f m w = m * square (w + 1)
+
+        square x = x * x
 
 --------------------------------------------------------------------------------
 -- Performance Testing

@@ -94,15 +94,14 @@ class ValuationFamily v where
 
     type VarAssignment v a b
 
-    label      :: Var a => v a -> Domain a
-    _combine   :: Var a => v a -> v a      -> v a
-    _project   :: Var a => v a -> Domain a -> v a
+    label     :: Var a => v a -> Domain a
+    _combine  :: Var a => v a -> v a      -> v a
+    _project  :: Var a => v a -> Domain a -> v a
 
-    eliminate  :: Var a => v a -> Domain a -> v a
+    eliminate :: Var a => v a -> Domain a -> v a
     eliminate v d = project v (S.difference (label v) d)
 
     identity  :: Domain a -> v a
-
     isIdentity :: v a -> Bool
     notIdentity :: v a -> Bool
     notIdentity = not . isIdentity

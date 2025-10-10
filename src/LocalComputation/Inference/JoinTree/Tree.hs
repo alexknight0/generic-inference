@@ -48,6 +48,7 @@ module LocalComputation.Inference.JoinTree.Tree (
     , maxTreeWidthTracker
     , numUsedValuationsTracker
     , trackUsedValuations'
+    , trackNewRun
 
     -- Conversions
     , toTree
@@ -460,16 +461,17 @@ supportsCollect t = numQueryNodes t == 1        -- (1)
 --------------------------------------------------------------------------------
 -- Tree Width Analysis
 --------------------------------------------------------------------------------
+-- TODO: The tree width is significantly smaller for using the base elimination sequence - should we change this for fusionpass?
+
 {-# NOINLINE maxTreeWidthTracker #-}
-maxTreeWidthTracker :: IO.IORef Natural
-maxTreeWidthTracker = IO.unsafePerformIO (IO.newIORef 0)
+maxTreeWidthTracker :: IO.IORef [Int]
+maxTreeWidthTracker = IO.unsafePerformIO (IO.newIORef [0])
 
 -- TODO: NOT REDUNDANT CONSTRAINTS
 {-# NOINLINE trackMaxTreeWidth #-}
 trackMaxTreeWidth :: (V.ValuationFamily v, V.Var a) => JoinTree (v a) -> JoinTree (v a)
 trackMaxTreeWidth t = IO.unsafePerformIO $ do
-    currentMax <- U.getGlobal maxTreeWidthTracker
-    U.setGlobal maxTreeWidthTracker (max (treeWidth t) currentMax)
+    updateMaxOfHead maxTreeWidthTracker (fromIntegral $ treeWidth t)
     pure $ t
 
 trackMaxTreeWidth' :: (ValuationFamily v, Var a) => v a -> v a
@@ -478,24 +480,22 @@ trackMaxTreeWidth' = id
 #else
 {-# NOINLINE trackMaxTreeWidth' #-}
 trackMaxTreeWidth' v = IO.unsafePerformIO $ do
-    currentMax <- U.getGlobal maxTreeWidthTracker
-    U.setGlobal maxTreeWidthTracker (max (treeWidthOfV v) currentMax)
+    updateMaxOfHead maxTreeWidthTracker (treeWidthOfV v)
     pure $ v
 
     where
-        treeWidthOfV = fromIntegral . length . label
+        treeWidthOfV = length . label
 #endif
 
 {-# NOINLINE numUsedValuationsTracker #-}
-numUsedValuationsTracker :: IO.IORef Int
-numUsedValuationsTracker = IO.unsafePerformIO (IO.newIORef 0)
+numUsedValuationsTracker :: IO.IORef [Int]
+numUsedValuationsTracker = IO.unsafePerformIO (IO.newIORef [0])
 
 {-# NOINLINE trackUsedValuations #-}
 trackUsedValuations :: JoinTree (v a) -> JoinTree (v a)
 trackUsedValuations t = IO.unsafePerformIO $ do
-    currentMax <- U.getGlobal numUsedValuationsTracker
-    U.setGlobal numUsedValuationsTracker (max numValuations currentMax)
-    pure $ t
+    updateMaxOfHead numUsedValuationsTracker numValuations
+    pure t
 
     where
         numValuations = length . filter (\n -> n.t == Valuation) . vertexList $ t
@@ -506,10 +506,16 @@ trackUsedValuations' = id
 #else
 {-# NOINLINE trackUsedValuations' #-}
 trackUsedValuations' vs = IO.unsafePerformIO $ do
-    currentMax <- U.getGlobal numUsedValuationsTracker
-    U.setGlobal numUsedValuationsTracker (max (length vs) currentMax)
-    pure $ vs
+    updateMaxOfHead numUsedValuationsTracker (length vs)
+    pure vs
 #endif
+
+updateMaxOfHead :: IO.IORef [Int] -> Int -> IO ()
+updateMaxOfHead ref newNum = do
+    entry <- U.getGlobal ref
+    case entry of
+        (currentMax : rest) -> U.setGlobal ref $ max newNum currentMax : rest
+        _                   -> error "Invalid state"
 
 tracking :: (ValuationFamily v, Var a) => JoinTree (v a) -> JoinTree (v a)
 #if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
@@ -518,6 +524,20 @@ tracking = id
 {-# NOINLINE tracking #-}
 tracking = trackUsedValuations . trackMaxTreeWidth
 #endif
+
+trackNewRun :: a -> a
+#if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
+trackNewRun = id
+#else
+{-# NOINLINE trackNewRun #-}
+trackNewRun x = IO.unsafePerformIO $ do
+    numUsedValuations <- U.getGlobal numUsedValuationsTracker
+    maxTreeWidths <- U.getGlobal maxTreeWidthTracker
+    U.setGlobal numUsedValuationsTracker $ 0 : numUsedValuations
+    U.setGlobal maxTreeWidthTracker $ 0 : maxTreeWidths
+    pure x
+#endif
+
 
 
 
