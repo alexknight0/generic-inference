@@ -16,7 +16,7 @@ should not rely on an error being thrown unless asserts are enabled.
 TODO: Move to head of library.
 -}
 module LocalComputation.ValuationAlgebra
-    ( ValuationFamily (label, _combine, _project, identity, eliminate, satisfiesInvariants, VarAssignment)
+    ( ValuationFamily (label, _combine, _project, identity, eliminate, satisfiesInvariants, VarAssignment, combineAssignments, projectAssignment, configurationExtSet, emptyAssignment)
     , combine
     , project
     , combines1
@@ -50,6 +50,7 @@ import           Control.DeepSeq                          (NFData)
 import           Control.Distributed.Process.Serializable (Serializable)
 import           Data.Binary                              (Binary)
 import qualified Data.IORef                               as IO
+import           Data.Proxy                               (Proxy)
 import           GHC.Generics                             (Generic)
 import qualified System.IO.Unsafe                         as IO
 import           Type.Reflection                          (Typeable)
@@ -92,8 +93,6 @@ type Valuation v a = (ValuationFamily v, Var a)
 -- and a valuation.
 class ValuationFamily v where
 
-    type VarAssignment v a b
-
     label     :: Var a => v a -> Domain a
     _combine  :: Var a => v a -> v a      -> v a
     _project  :: Var a => v a -> Domain a -> v a
@@ -108,6 +107,22 @@ class ValuationFamily v where
 
     satisfiesInvariants :: Var a => v a -> Bool
     satisfiesInvariants _ = True
+
+    type VarAssignment v a
+    combineAssignments :: Var a => Proxy (v a) -> VarAssignment v a -> VarAssignment v a -> VarAssignment v a
+    projectAssignment  :: Var a => Proxy (v a) -> VarAssignment v a -> Domain a            -> VarAssignment v a
+
+    -- | Produces the configuration extension set.
+    --
+    -- Given a variable assignment 'x', and a valuation of domain 's', we may want a
+    -- variable assignment that adds additional assignments to 'x' to form a larger
+    -- variable assignment with domain 's'. A configuration extension set is the set
+    -- of valid variable assignments we could add to 'x' to achieve this.
+    --
+    -- See page 368 of Marc Pouly's "Generic Inference" for more details.
+    configurationExtSet :: Var a => v a -> VarAssignment v a -> S.Set (VarAssignment v a)
+    emptyAssignment :: Var a => Proxy (v a) -> VarAssignment v a
+
 
 combine :: (ValuationFamily v, Var a) => v a -> v a -> v a
 #if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)

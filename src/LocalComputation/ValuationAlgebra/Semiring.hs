@@ -33,6 +33,7 @@ import           LocalComputation.ValuationAlgebra.Semiring.Value
 import           GHC.Records                                      (HasField,
                                                                    getField)
 
+import           Data.Proxy                                       (Proxy)
 import           GHC.Stack                                        (HasCallStack)
 import qualified LocalComputation.Potential                       as P
 
@@ -126,8 +127,9 @@ create x y
 unsafeCreate :: (Ord a) => P.Potential a b c -> Domain a -> Valuation c b a
 unsafeCreate p e = U.assertP isWellFormed $ Valuation p e
 
+type ProxiedMap c a b = M.Map a b
+
 instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (Valuation c b) where
-    type VarAssignment (Valuation c b) a b = M.Map a b
 
     label i@Identity{}  = i.d
     label s@Valuation{} = S.union s.d s._e
@@ -156,6 +158,13 @@ instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (Valuation 
     isIdentity _          = False
 
     satisfiesInvariants = isWellFormed
+
+    type VarAssignment (Valuation c b) a = ProxiedMap c a b
+    combineAssignments  = error "Not Implemented"
+    projectAssignment   = error "Not Implemented"
+    configurationExtSet = error "Not Implemented"
+    emptyAssignment     = error "Not Implemented"
+
 
 toTable :: (Show a, Show b, Show c, Ord b, Ord c) => Valuation a b c -> P.Table
 toTable Identity{}    = error "Not Implemented"
@@ -195,7 +204,7 @@ _getRows :: forall c b a. (HasCallStack, Ord a, Ord b) => [(a, [b])] -> [c] -> V
 _getRows vars ps = Valuation (P.unsafeFromList vars ps) S.empty
 
 -- | Returns the value of the given variable arrangement. Unsafe.
-findValue :: (Ord a, Ord b) => VarAssignment (Valuation c b) a b -> Valuation c b a -> c
+findValue :: (Ord a, Ord b) => VarAssignment (Valuation c b) a -> Valuation c b a -> c
 findValue x v@Valuation{} = P.unsafeGetValue v._p x
 findValue _ (Identity _) = error "findProbability: Attempted to read value from an identity valuation."
 

@@ -57,7 +57,7 @@ of as simply unnormalized probability distributions.
      .    .   .        .                      .
 -}
 type Valuation a b = S.Valuation Probability b a
-type VarAssignment a b = V.VarAssignment (S.Valuation Probability b) a b
+type VarAssignment a b = V.VarAssignment (S.Valuation Probability b) a
 
 newtype Probability = P Double deriving (Num, Fractional, Binary, Show, NFData, Ord, Eq, Generic)
 

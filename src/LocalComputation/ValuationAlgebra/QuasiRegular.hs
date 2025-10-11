@@ -13,7 +13,6 @@ module LocalComputation.ValuationAlgebra.QuasiRegular
     , unsafeCreate
     , solution
     , Q.TropicalSemiringValue (T)
-    , configExtSet
     )
 where
 
@@ -43,7 +42,9 @@ unsafeCreate m b = U.assertP satisfiesInvariants $ Valuation m b
 -- TODO: Probably can remove instance of Show? It doens't contribute to the 'label', 'combine', 'project' functionality no?
 instance (Show b, Q.SemiringValue b) => ValuationFamily (Valuation b) where
 
-    type VarAssignment (Valuation b) a b = M.LabelledMatrix a () b
+    type VarAssignment (Valuation b) a = M.LabelledMatrix a () b
+    combineAssignments _ a1 a2 = M.unsafeAppendRows a1 a2
+    projectAssignment _ a d = M.unsafeProjectRows a d
 
     label (Identity d)    = d
     label (Valuation _ b) = fst (M.domain b)
@@ -77,6 +78,25 @@ instance (Show b, Q.SemiringValue b) => ValuationFamily (Valuation b) where
     satisfiesInvariants (Identity _) = True
     satisfiesInvariants (Valuation m b) = (M.isSquare m) && ((fst $ M.domain m) == (fst $ M.domain b)) && M.isWellFormed m && M.isWellFormed b
 
+    configurationExtSet     (Identity _)    _ = error "Not implemented error"
+    configurationExtSet phi@(Valuation m b) x
+        | S.null sMinusT = S.singleton empty   -- shortcut if nothing to extend
+        | otherwise      = S.singleton result
+        where
+            result = matrixMultiply (matrixQuasiInverse (matrixProject m sMinusT sMinusT))
+                                    (matrixAdd (matrixMultiply (matrixProject m sMinusT t)
+                                                               (x)
+                                                )
+                                               (matrixProjectRows b sMinusT))
+
+            t = x.rowLabelSet
+            s = label phi
+            sMinusT = S.difference s t
+
+            empty = fromJust $ M.extension M.empty S.empty (S.singleton ()) U.unusedArg
+
+    emptyAssignment _ = M.reshape U.unusedArg M.empty S.empty (S.singleton ())
+
 
 -- | Returns a product useful for the solution of fixpoint systems. Detailed page 367 of "Generic Inference" (Pouly & Kohlas, 2012)
 solution :: (Show a, Ord a, Show b, Q.SemiringValue b) => Valuation b a -> M.LabelledMatrix a () b
@@ -107,37 +127,6 @@ extension (Valuation m b) t = unsafeCreate (fromJust $ M.extension m t t Q.zero)
 -- node is added to a union node, and then the path is flipped when the tree is rediected
 -- to the query. However, I don't think this is an avoidable cost. Even if we build the join
 -- tree with the query as the root, we at some point will need to get
-
-
-
--- | Produces the configuration extension set.
---
--- Given a variable assignment 'x', and a valuation of domain 's', we may want a
--- variable assignment that adds additional assignments to 'x' to form a larger
--- variable assignment with domain 's'. A configuration extension set is the set
--- of valid variable assignments we could add to 'x' to achieve this.
---
--- See page 368 of Marc Pouly's "Generic Inference" for more details.
-configExtSet :: (Q.SemiringValue c, Show a, Show c, Ord a)
-    => Valuation c a
-    -> VarAssignment (Valuation c) a c
-    -> S.Set (VarAssignment (Valuation c) a c)
-configExtSet     (Identity _)    _ = error "Not implemented error"
-configExtSet phi@(Valuation m b) x
-    | S.null sMinusT = S.singleton empty   -- shortcut if nothing to extend
-    | otherwise      = S.singleton result
-    where
-        result = matrixMultiply (matrixQuasiInverse (matrixProject m sMinusT sMinusT))
-                                (matrixAdd (matrixMultiply (matrixProject m sMinusT t)
-                                                           (x)
-                                            )
-                                           (matrixProjectRows b sMinusT))
-
-        t = x.rowLabelSet
-        s = label phi
-        sMinusT = S.difference s t
-
-        empty = fromJust $ M.extension M.empty S.empty (S.singleton ()) U.unusedArg
 
 ------------------------------------------------------------------------------
 -- Unsafe & quasiregular variants of matrix operations.                     --
