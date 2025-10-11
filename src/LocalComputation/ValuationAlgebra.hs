@@ -77,9 +77,6 @@ type Valuation v a = (ValuationFamily v, Var a)
 -- TODO: document choice of having two types 'a' and 'b'
 -- TODO: Could use 'data' constructor inside class declaration...
 
--- TODO: See our 에이 아이's "4. Alternative: Constraint kinds (advanced)" for an idea on how to
--- do the Var thing - it might be easy!
-
 -- | A valuation belonging to a certain family of valuation algebras
 --
 -- The identity function should return a valuation that behaves like
@@ -113,7 +110,8 @@ class ValuationFamily v where
 
     type VarAssignment v a
     combineAssignments :: Var a => Proxy (v a) -> VarAssignment v a -> VarAssignment v a -> VarAssignment v a
-    projectAssignment  :: Var a => Proxy (v a) -> VarAssignment v a -> Domain a            -> VarAssignment v a
+    projectAssignment  :: Var a => Proxy (v a) -> VarAssignment v a -> Domain a          -> VarAssignment v a
+    emptyAssignment     :: Var a => Proxy (v a) -> VarAssignment v a
 
     -- | Produces the configuration extension set.
     --
@@ -124,7 +122,6 @@ class ValuationFamily v where
     --
     -- See page 368 of Marc Pouly's "Generic Inference" for more details.
     configurationExtSet :: Var a => v a -> VarAssignment v a -> S.Set (VarAssignment v a)
-    emptyAssignment :: Var a => Proxy (v a) -> VarAssignment v a
 
 
 combine :: (ValuationFamily v, Var a) => v a -> v a -> v a
@@ -212,9 +209,9 @@ can be achieved by moving removing the `type Var a` and `type Domain a` declarat
 the `Valuation` typeclass. This will allow the implementer of a `Valuation` instance to
 specify what constraints are required on the variables of their valuation algebra and
 how domains of these variables are represented. Implementation wise, this change will require
-changing `Var` and `Domain` into type families, and the addition of extra functions to the
-`Valuation` typeclass that achieve the operations on domains that are required by the generic
-inference algorithm.
+introducing a `ConstraintKinds` constraint for Var, as well as the addition of `Domain` as
+an associated type alongside functions to that achieve the operations on domains that are
+required by the generic inference algorithm.
 
 \footnote{Indeed, forcing the implementation of a `Domain` type and the additional functions to
           operate on the `Domain` type would impose a larger burden on the implementer of an
