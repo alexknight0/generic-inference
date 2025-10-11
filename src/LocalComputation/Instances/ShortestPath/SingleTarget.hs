@@ -80,7 +80,7 @@ singleTargetSplitDP :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Has
     -> [G.Graph a Double]
     -> Query a
     -> Either I.Error (m [Double])
-singleTargetSplitDP mode = usingDouble (singleTargetSplitGeneric (I.queryDPDrawGraph mode))
+singleTargetSplitDP mode = usingDouble (singleTargetSplitGeneric (I.solutionDrawGraph mode))
 
 singleTargetSplitGeneric :: ( MonadIO m, Show a, H.Hashable a, Ord a)
     => ComputeInference m a

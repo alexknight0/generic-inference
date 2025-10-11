@@ -1,5 +1,6 @@
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric  #-}
+{-# LANGUAGE DeriveAnyClass   #-}
+{-# LANGUAGE DeriveGeneric    #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 {-
 Functions performing inference may impose many constraints on the caller
@@ -16,7 +17,7 @@ module LocalComputation.Inference (
     , queries
     , unsafeQueries
     , queriesDrawGraph
-    , queryDPDrawGraph
+    , solutionDrawGraph
     , Mode (..)
     , Error (..)
 ) where
@@ -33,6 +34,7 @@ import qualified LocalComputation.Inference.JoinTree.Diagram           as D
 import qualified LocalComputation.Inference.JoinTree.Tree              as JT
 import qualified LocalComputation.Inference.MessagePassing             as MP
 import qualified LocalComputation.LabelledMatrix                       as M
+import qualified LocalComputation.ValuationAlgebra                     as V
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular        as Q
 
 -- | Errors that could occur during inference
@@ -77,15 +79,15 @@ queryIsCovered vs qs = not $ any (\q -> not $ S.isSubsetOf q coveredDomain) qs
 
 -- | Perform a [query] using a [D]ynamic [P]rogramming implementation and draw a graph
 -- of the join tree used during inference.
-queryDPDrawGraph :: (MonadIO m, Q.SemiringValue b, Show b, Var a, NFData a, NFData b, Serializable a, Serializable b, Eq b)
+solutionDrawGraph :: (V.Valuation v a, SerializableValuation v a, NFData (v a), Show (v a), NFData (VarAssignment v a), MonadIO m)
     => MP.Mode
     -> D.DrawSettings
-    -> [Q.Valuation b a]
+    -> [v a]
     -> Domain a
-    -> Either Error (m (M.LabelledMatrix a () b))
-queryDPDrawGraph _ _ vs q
+    -> Either Error (m (V.VarAssignment v a))
+solutionDrawGraph _ _ vs q
     | not $ queryIsCovered vs [q] = Left $ UnanswerableQuery
-queryDPDrawGraph mode s vs q      = Right $ run $ fmap D.solution $ F.fusionPass mode s vs q
+solutionDrawGraph mode s vs q      = Right $ run $ fmap D.solution $ F.fusionPass mode s vs q
 
 --------------------------------------------------------------------------------
 -- Singular variants

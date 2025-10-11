@@ -77,6 +77,9 @@ type Valuation v a = (ValuationFamily v, Var a)
 -- TODO: document choice of having two types 'a' and 'b'
 -- TODO: Could use 'data' constructor inside class declaration...
 
+-- TODO: See our 에이 아이's "4. Alternative: Constraint kinds (advanced)" for an idea on how to
+-- do the Var thing - it might be easy!
+
 -- | A valuation belonging to a certain family of valuation algebras
 --
 -- The identity function should return a valuation that behaves like
