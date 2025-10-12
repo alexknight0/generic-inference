@@ -22,6 +22,7 @@ import           Data.Function                                     ((&))
 import qualified LocalComputation.Inference                        as I
 import qualified LocalComputation.Inference.JoinTree.Diagram       as D
 import qualified LocalComputation.Inference.MessagePassing         as MP
+import qualified LocalComputation.Inference.Statistics             as S
 import qualified LocalComputation.Instances.BayesianNetwork        as BN
 import qualified LocalComputation.Instances.BayesianNetwork.Parser as P
 import qualified LocalComputation.LocalProcess                     as P
@@ -76,8 +77,8 @@ createProblem net numQueries maxConditioned maxConditional seed = do
     qs <- U.sample (seed) $ D.genQueries net numQueries maxConditioned maxConditional
     pure $ Problem net qs
 
-multipleGetProbability :: (MonadIO m) => I.Mode -> [Problem] -> m [[BN.Probability]]
-multipleGetProbability mode ps = mapM (\p -> BN.getProbability mode D.def p.qs p.net) ps
+multipleGetProbability :: (MonadIO m) => I.Mode -> [Problem] -> m (S.WithStats [[BN.Probability]])
+multipleGetProbability mode ps = fmap (S.lift) $ mapM (\p -> BN.getProbability mode D.def p.qs p.net) ps
 
 benchmark :: WithName (BN.Network String String) -> WithName (D.Gen [BN.Query String String]) -> IO Benchmark
 benchmark net queryGen = do

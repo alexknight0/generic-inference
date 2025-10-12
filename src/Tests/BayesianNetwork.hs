@@ -7,6 +7,7 @@ where
 
 import           Benchmarks.BayesianNetwork.Baseline
 import           Benchmarks.BayesianNetwork.Data
+import qualified LocalComputation.Inference.Statistics             as S
 import           LocalComputation.Instances.BayesianNetwork
 import qualified LocalComputation.Instances.BayesianNetwork.Parser as P
 import           LocalComputation.LocalProcess
@@ -87,7 +88,7 @@ prop_genericMatchesBaseline = withTests 100 . property $ do
         Left _ -> failure
         Right prebuiltResults'' -> do
             algebraResults' <- algebraResults qs net
-            checkAnswers approxEqual algebraResults' prebuiltResults''
+            checkAnswers approxEqual algebraResults'.c prebuiltResults''
 
     where
         genQueries' :: Gen ([Query AsiaVar Bool])
@@ -153,7 +154,7 @@ checkQueries :: (Show a, Show b, Serializable a, Serializable b, Ord a, Ord b, N
 checkQueries qs ps getNetwork = do
     network <- getNetwork
     results <- run $ getProbability (I.Shenoy MP.Distributed) D.def qs network
-    checkAnswers approxEqual results ps
+    checkAnswers approxEqual results.c ps
     pure network
 
 dataToValuations :: forall a . (Ord a) => [([a], [Probability])] -> Network a Bool

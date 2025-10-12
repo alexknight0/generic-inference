@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 module Benchmarks.ShortestPath.SingleTarget (
-      benchmarks
-    , countOperations
+      benchmarkPerformance
+    , benchmarkComplexity
     , singleTarget
     , singleTargets
     , singleTarget'
@@ -25,6 +25,7 @@ module Benchmarks.ShortestPath.SingleTarget (
 import qualified Benchmarks.ShortestPath.SingleTarget.Data            as D
 
 import qualified Benchmarks.ShortestPath.SingleTarget.Baseline        as H
+import qualified Benchmarks.Utils                                     as U
 import           Criterion.Main
 import qualified LocalComputation.Graph                               as G
 import qualified LocalComputation.Inference                           as I
@@ -37,7 +38,8 @@ import           Control.DeepSeq                                      (deepseq,
 import           Control.Exception.Base                               (evaluate)
 import qualified Control.Monad                                        as M
 import           Control.Monad.Extra                                  (concatMapM)
-import           Control.Monad.IO.Class                               (MonadIO)
+import           Control.Monad.IO.Class                               (MonadIO,
+                                                                       liftIO)
 import           Data.Function                                        ((&))
 import qualified Data.Hashable                                        as H
 import qualified Data.List                                            as L
@@ -113,8 +115,8 @@ createHeader timestamp p mode = [show timestamp
                 Just s  -> show s
 
 
-countOperations :: IO ()
-countOperations = do
+benchmarkComplexity :: IO ()
+benchmarkComplexity = do
     if not isCountingOperations
         then error "Not counting operations."
         else pure ()
@@ -123,10 +125,14 @@ countOperations = do
 
     ps <- setProblems
 
-    mapM_ (countOpsOnModes timestamp setModes) ps
+    mapM_ (benchComplexityOnModes timestamp setModes) ps
 
-benchmarks :: IO [Benchmark]
-benchmarks = do
+    where
+        benchComplexityOnModes timestamp modes p = mapM_ (\m -> benchComplexityOnMode timestamp m p) modes
+
+
+benchmarkPerformance :: IO [Benchmark]
+benchmarkPerformance = do
     timestamp <- fmap round C.getPOSIXTime :: IO Integer
 
     ps <- setProblems
@@ -139,57 +145,22 @@ benchmarks = do
 --------------------------------------------------------------------------------
 -- Operation Counting
 --------------------------------------------------------------------------------
-opCountFilepath :: FilePath
-opCountFilepath = "operation_count.csv"
-
-countOpsOnModes :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashable a)
-    => Integer
-    -> [Implementation]
-    -> D.BenchmarkProblem a
-    -> IO ()
-countOpsOnModes timestamp modes p = mapM_ (\m -> countOpsOnMode timestamp m p) modes
-
-countOpsOnMode :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashable a)
+benchComplexityOnMode :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashable a)
     => Integer
     -> Implementation
     -> D.BenchmarkProblem a
     -> IO ()
-countOpsOnMode timestamp mode p = do
-    U.resetGlobal V.combineCounter
-    U.resetGlobal V.projectCounter
-
-    putStrLn ("Working on: " ++ L.intercalate "/" header)
-    hFlush stdout
-
-    -- Fully evaluate, incrementing combine and project counters
-    afterSetup <- multipleSingleTargets mode D.def p
-    result <- afterSetup
-    evaluate (rnf result)
-
-    -- Write combination count to file.
-    withFile opCountFilepath AppendMode $ \h -> do
-        combinations   <- U.getGlobal V.combineCounter
-        projections    <- U.getGlobal V.projectCounter
-
-        hPutStrLn h $ line [ combinations
-                           , projections
-                           , maximum result.stats.treeWidths
-                           , maximum result.stats.treeValuations
-                           , complexity result.stats
-                          ]
-
-        hFlush h
-
+benchComplexityOnMode timestamp mode p = liftIO $ U.benchmarkComplexity header problem complexity
     where
         header = createHeader timestamp p mode
 
-        line body = L.intercalate "," $ header ++ map show body
+        problem = M.join $ multipleSingleTargets mode D.def p
 
-        complexity stats = case mode of
-                        Generic (I.Fusion)     -> S.fusionComplexity stats
-                        DynamicP (_)           -> S.fusionComplexity stats
-                        Generic (I.Shenoy (_)) -> S.binaryShenoyComplexity stats
-                        _                      -> 0
+        complexity = case mode of
+                        Generic (I.Fusion)     -> S.fusionComplexity
+                        DynamicP (_)           -> S.fusionComplexity
+                        Generic (I.Shenoy (_)) -> S.binaryShenoyComplexity
+                        _                      -> const 0
 
 --------------------------------------------------------------------------------
 -- Performance Testing

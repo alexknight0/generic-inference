@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wno-unused-imports #-}
-
 -- | Utilities for the benchmarks suite.
 --
 -- This module depends on hedgehog internals and hence is
@@ -9,52 +7,31 @@ module Benchmarks.Utils (
     , getSeed
     , Seed
     , Word64
+    , benchmarkComplexity
 ) where
 
 -- These imports match imports used in hedgehog internals
-import           Control.Applicative            (Alternative (..), liftA2)
-import           Control.Monad                  (MonadPlus (..), filterM, guard,
-                                                 join, replicateM)
-import           Control.Monad.IO.Class         (MonadIO (..))
-import           Control.Monad.Zip              (MonadZip (..))
+import           Control.Monad.IO.Class                (MonadIO (..))
 
-import           Data.Bifunctor                 (first)
-import           Data.ByteString                (ByteString)
-import qualified Data.ByteString                as ByteString
-import qualified Data.Char                      as Char
-import           Data.Foldable                  (for_, toList)
-import           Data.Functor.Identity          (Identity (..))
-import           Data.Int                       (Int16, Int32, Int64, Int8)
-import           Data.Kind                      (Type)
-import           Data.List.NonEmpty             (NonEmpty)
-import qualified Data.List.NonEmpty             as NonEmpty
-import           Data.Map                       (Map)
-import qualified Data.Map                       as Map
-import qualified Data.Maybe                     as Maybe
-import qualified Data.Semigroup                 as Semigroup
-import           Data.Sequence                  (Seq)
-import qualified Data.Sequence                  as Seq
-import           Data.Set                       (Set)
-import qualified Data.Set                       as Set
-import           Data.Text                      (Text)
-import qualified Data.Text                      as Text
-import qualified Data.Text.Encoding             as Text
-import           Data.Word                      (Word16, Word32, Word64, Word8)
+import           Data.Word                             (Word64)
 
-import           Hedgehog.Internal.Distributive (MonadTransDistributive (..))
-import           Hedgehog.Internal.Gen          (Gen, evalGen)
-import           Hedgehog.Internal.Prelude      hiding (either, maybe, seq)
-import           Hedgehog.Internal.Seed         (Seed, from, split)
-import qualified Hedgehog.Internal.Seed         as Seed
-import qualified Hedgehog.Internal.Shrink       as Shrink
-import           Hedgehog.Internal.Source       (HasCallStack,
-                                                 withFrozenCallStack)
-import           Hedgehog.Internal.Tree         (NodeT (..), Tree, TreeT (..))
-import qualified Hedgehog.Internal.Tree         as Tree
-import           Hedgehog.Range                 (Range, Size)
-import qualified Hedgehog.Range                 as Range
+import           Hedgehog.Internal.Gen                 (Gen, evalGen)
+import           Hedgehog.Internal.Seed                (Seed, from, split)
+import           Hedgehog.Internal.Source              (HasCallStack,
+                                                        withFrozenCallStack)
+import qualified Hedgehog.Internal.Tree                as Tree
+import           Hedgehog.Range                        (Size)
 
-import qualified System.Random                  as R
+import           Control.DeepSeq                       (rnf)
+import           Control.Exception                     (evaluate)
+import qualified Data.List                             as L
+import qualified LocalComputation.Inference.Statistics as S
+import qualified LocalComputation.Utils                as U
+import qualified LocalComputation.ValuationAlgebra     as V
+import           System.IO                             (IOMode (AppendMode),
+                                                        hFlush, hPutStrLn,
+                                                        stdout, withFile)
+import qualified System.Random                         as R
 
 ------------------------------------------------------------------------
 
@@ -85,3 +62,38 @@ trySample seed gen size n
 
 getSeed :: Word64 -> Seed
 getSeed = from
+
+
+complexityFilepath :: FilePath
+complexityFilepath = "operation_count.csv"
+
+-- | Counts certain operations, allowing metrics for computational complexity to be estimated.
+benchmarkComplexity :: (V.NFData a)
+    => [String] -> IO (S.WithStats a) -> (S.Stats -> Int) -> IO ()
+benchmarkComplexity header problem complexity = do
+    U.resetGlobal V.combineCounter
+    U.resetGlobal V.projectCounter
+
+    putStrLn ("Working on: " ++ L.intercalate "/" header)
+    hFlush stdout
+
+    -- Fully evaluate, incrementing combine and project counters
+    result <- problem
+    evaluate (rnf result)
+
+    -- Write combination count to file.
+    withFile complexityFilepath AppendMode $ \h -> do
+        combinations   <- U.getGlobal V.combineCounter
+        projections    <- U.getGlobal V.projectCounter
+
+        hPutStrLn h $ line [ combinations
+                           , projections
+                           , maximum result.stats.treeWidths
+                           , maximum result.stats.treeValuations
+                           , complexity result.stats
+                          ]
+
+        hFlush h
+
+    where
+        line body = L.intercalate "," $ header ++ map show body
