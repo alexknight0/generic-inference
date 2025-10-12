@@ -33,6 +33,9 @@ import qualified LocalComputation.Inference.Fusion                     as F
 import qualified LocalComputation.Inference.JoinTree.Diagram           as D
 import qualified LocalComputation.Inference.JoinTree.Tree              as JT
 import qualified LocalComputation.Inference.MessagePassing             as MP
+import qualified LocalComputation.Inference.Statistics                 as S hiding
+                                                                            (empty)
+import qualified LocalComputation.Inference.Statistics                 as Stats (empty)
 import qualified LocalComputation.LabelledMatrix                       as M
 import qualified LocalComputation.ValuationAlgebra                     as V
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular        as Q
@@ -57,16 +60,16 @@ data Mode = BruteForce | Fusion | Shenoy { _mode :: MP.Mode } deriving (Show, Eq
 
 -- | Compute inference using the given mode to return valuations with the given domains.
 queries :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a))
-    => Mode -> [v a] -> [Domain a] -> Either Error (m [v a])
+    => Mode -> [v a] -> [Domain a] -> Either Error (m (S.WithStats [v a]))
 queries = queriesDrawGraph D.def
 
 queriesDrawGraph :: (SerializableValuation v a, Show (v a), NFData (v a), MonadIO m)
-    => D.DrawSettings -> Mode -> [v a] -> [Domain a] -> Either Error (m [v a])
+    => D.DrawSettings -> Mode -> [v a] -> [Domain a] -> Either Error (m (S.WithStats [v a]))
 queriesDrawGraph _ _ vs qs
     | not $ queryIsCovered vs qs    = Left  $ UnanswerableQuery
     | any S.null qs                 = Left  $ EmptyQuery
 queriesDrawGraph _ BruteForce vs qs = Right $ pure $ bruteForces vs qs
-queriesDrawGraph _ Fusion     vs qs = Right $ mapM (\q -> pure $ F.fusion vs q) qs
+queriesDrawGraph _ Fusion     vs qs = Right $ pure $ S.lift $ map (\q -> F.fusion vs q) qs
 queriesDrawGraph s (Shenoy m) vs qs = Right $ run $ SS.queries m s vs qs
 
 queryIsCovered :: (Foldable t, ValuationFamily v, Var a)
@@ -84,10 +87,10 @@ solutionDrawGraph :: (V.Valuation v a, SerializableValuation v a, NFData (v a), 
     -> D.DrawSettings
     -> [v a]
     -> Domain a
-    -> Either Error (m (V.VarAssignment v a))
+    -> Either Error (m (S.WithStats (V.VarAssignment v a)))
 solutionDrawGraph _ _ vs q
     | not $ queryIsCovered vs [q] = Left $ UnanswerableQuery
-solutionDrawGraph mode s vs q      = Right $ run $ fmap D.solution $ F.fusionPass mode s vs q
+solutionDrawGraph mode s vs q      = Right $ run $ fmap (fmap D.solution) $ F.fusionPass mode s vs q
 
 --------------------------------------------------------------------------------
 -- Singular variants
@@ -95,12 +98,12 @@ solutionDrawGraph mode s vs q      = Right $ run $ fmap D.solution $ F.fusionPas
 
 -- | Compute inference using the given mode to return a valuation with the given domain.
 query :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a))
-    => Mode -> [v a] -> Domain a -> Either Error (m (v a))
-query mode vs q = fmap (fmap head) $ queries mode vs [q]
+    => Mode -> [v a] -> Domain a -> Either Error (m (S.WithStats (v a)))
+query mode vs q = fmap (fmap (fmap head)) $ queries mode vs [q]
 
 queryDrawGraph :: (SerializableValuation v a, Show (v a), NFData (v a), MonadIO m)
-    => D.DrawSettings -> Mode -> [v a] -> Domain a -> Either Error (m (v a))
-queryDrawGraph s mode vs q = fmap (fmap head) $ queriesDrawGraph s mode vs [q]
+    => D.DrawSettings -> Mode -> [v a] -> Domain a -> Either Error (m (S.WithStats (v a)))
+queryDrawGraph s mode vs q = fmap (fmap (fmap head)) $ queriesDrawGraph s mode vs [q]
 
 --------------------------------------------------------------------------------
 -- Unsafe variants
@@ -109,7 +112,7 @@ queryDrawGraph s mode vs q = fmap (fmap head) $ queriesDrawGraph s mode vs [q]
 -- | Unsafe variant of `queries` - will throw if a query is not subset of the
 -- domain the given valuations cover.
 unsafeQueries :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a))
-    => Mode -> [v a] -> [Domain a] -> m [v a]
+    => Mode -> [v a] -> [Domain a] -> m (S.WithStats [v a])
 unsafeQueries mode vs qs = case queries mode vs qs of
                             Left e  -> error (show e)
                             Right r -> r
@@ -118,8 +121,8 @@ unsafeQueries mode vs qs = case queries mode vs qs of
 -- | Unsafe variant of `query` - will throw if query is not subset of the
 -- domain the given valuations cover.
 unsafeQuery :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a))
- => Mode -> [v a] -> Domain a -> m (v a)
-unsafeQuery mode vs q = fmap head $ unsafeQueries mode vs [q]
+ => Mode -> [v a] -> Domain a -> m (S.WithStats (v a))
+unsafeQuery mode vs q = fmap (fmap head) $ unsafeQueries mode vs [q]
 
 --------------------------------------------------------------------------------
 -- Brute force (simpliest possible inference implementation)
@@ -134,7 +137,8 @@ unsafeQuery mode vs q = fmap head $ unsafeQueries mode vs [q]
 bruteForces :: (ValuationFamily v, Var a)
     => [v a]
     -> [Domain a]
-    -> [v a]
-bruteForces vs qs = map (\q -> project combined q) qs
+    -> S.WithStats [v a]
+bruteForces vs qs = S.withStats stats $ map (\q -> project combined q) qs
     where
-        combined = JT.trackMaxTreeWidth' $ combines1 vs
+        combined = combines1 vs
+        stats = S.fromOther (labelSize combined) (length vs)

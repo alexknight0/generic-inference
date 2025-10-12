@@ -29,6 +29,7 @@ import qualified LocalComputation.Inference.JoinTree.Tree              as JT
 import qualified LocalComputation.Inference.MessagePassing             as MP
 import qualified LocalComputation.Inference.MessagePassing.Distributed as DMP
 import qualified LocalComputation.Inference.MessagePassing.Threads     as TMP
+import qualified LocalComputation.Inference.Statistics                 as S
 import           LocalComputation.ValuationAlgebra
 import           System.IO                                             (hFlush,
                                                                         stdout)
@@ -71,7 +72,7 @@ queries :: (NFData (v a), DMP.SerializableValuation v a, Show (v a))
     -> D.DrawSettings
     -> [v a]
     -> [Domain a]
-    -> Process [v a]
+    -> Process (S.WithStats [v a])
 queries mode settings vs queryDomains = do
     drawForest settings.beforeInference forestBeforeInference
 
@@ -81,10 +82,11 @@ queries mode settings vs queryDomains = do
 
     drawForest settings.afterInference forestAfterInference
 
-    pure $ extractQueryResult queryDomains forestAfterInference
+    pure $ S.withStats stats $ extractQueryResult queryDomains forestAfterInference
 
     where
         forestBeforeInference = baseJoinForest vs queryDomains
+        stats = S.fromForest forestBeforeInference
 
         drawForest Nothing         _    = pure ()
         drawForest (Just filename) tree = liftIO $ D.drawForest filename tree

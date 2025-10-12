@@ -19,13 +19,9 @@ import qualified LocalComputation.Utils                     as M (filterKeys)
 import qualified LocalComputation.ValuationAlgebra          as V
 
 import qualified Control.Parallel.Strategies                as P
-import qualified Data.IORef                                 as IO
 import qualified Data.List                                  as L
 import qualified Data.Tree                                  as T
 import qualified Data.Tuple.Extra                           as B
-import qualified LocalComputation.Utils                     as U
-import           Numeric.Natural
-import qualified System.IO.Unsafe                           as IO
 
 --------------------------------------------------------------------------------
 -- Full message propagation (answering all queries)
@@ -43,7 +39,7 @@ messagePassing' :: (P.NFData (v a), V.ValuationFamily v, V.Var a)
     => JT.JoinTree (v a)
     -> JT.JoinTree (v a)
 messagePassing' t
-    | JT.hasQueryNode t = calculate . JT.unsafeFromTree . distribute' Nothing . collect' . JT.toTree . JT.tracking $ t
+    | JT.hasQueryNode t = calculate . JT.unsafeFromTree . distribute' Nothing . collect' . JT.toTree $ t
     | otherwise         = t
 
 -- TODO: It does seem like we are copying the tree alot of times; but i don't know whats going on under the hood.
@@ -133,7 +129,7 @@ calculate tree = JT.unsafeUpdateValuations mapping tree
 --------------------------------------------------------------------------------
 collectAndCalculate :: forall v a . (P.NFData (v a), V.ValuationFamily v, V.Var a)
     => JT.JoinTree (v a) -> JT.JoinTree (v a)
-collectAndCalculate = JT.unsafeFromTree . collectAndCalculate' . JT.toTree . JT.tracking
+collectAndCalculate = JT.unsafeFromTree . collectAndCalculate' . JT.toTree
 
 collectAndCalculate' :: forall v a . (P.NFData (v a), V.ValuationFamily v, V.Var a)
     => T.Tree (JT.Node (v a)) -> T.Tree (JT.Node (v a))

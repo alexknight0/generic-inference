@@ -15,10 +15,10 @@ import qualified Data.Set                                              as S
 import qualified LocalComputation.Inference.EliminationSequence        as E
 import qualified LocalComputation.Inference.JoinTree                   as JT
 import qualified LocalComputation.Inference.JoinTree.Diagram           as D
-import qualified LocalComputation.Inference.JoinTree.Tree              as JT
 import qualified LocalComputation.Inference.MessagePassing             as MP
 import qualified LocalComputation.Inference.MessagePassing.Distributed as DMP
 import qualified LocalComputation.Inference.MessagePassing.Threads     as TMP
+import qualified LocalComputation.Inference.Statistics                 as S
 import           LocalComputation.ValuationAlgebra                     (Domain,
                                                                         NFData,
                                                                         ValuationFamily (eliminate, label),
@@ -56,22 +56,29 @@ instance Ord (WithId a) where
 fusion :: (ValuationFamily v, Var a)
     => [v a]
     -> Domain a
-    -> v a
-fusion vs x = fusion' nextId vsWithIds (E.createAndExclude (map label vs) x)
+    -> S.WithStats (v a)
+fusion vs x = S.withStats stats result.c
     where
-        vsWithIds = S.fromList $ JT.trackUsedValuations' $ zipWith WithId [0..] vs
+        vsWithIds = S.fromList $ zipWith WithId [0..] vs
         nextId = fromIntegral $ length vs
 
-fusion' :: (ValuationFamily v, Var a) => Natural -> S.Set (WithId (v a)) -> E.EliminationSequence a -> v a
-fusion' uniqueId upperPsi e
-    | E.isEmpty e = combines1 $ map (.content) $ S.toList upperPsi
-    | otherwise = fusion' (uniqueId + 1) upperPsi' e'
+        result = fusion' nextId vsWithIds (E.createAndExclude (map label vs) x) 0
+        stats = S.fromOther result.maxWidth (length vsWithIds)
+
+data WithMaxWidth a = WithMaxWidth { maxWidth :: Int, c :: a }
+
+fusion' :: (ValuationFamily v, Var a) => Natural -> S.Set (WithId (v a)) -> E.EliminationSequence a -> Int -> WithMaxWidth (v a)
+fusion' uniqueId upperPsi e maxWidth
+    | E.isEmpty e = WithMaxWidth maxWidth $ combines1 $ map (.content) $ S.toList upperPsi
+    | otherwise = fusion' (uniqueId + 1) upperPsi' e' maxWidth'
     where
         (eliminated, e') = fromJust $ E.eliminateNext e
         upperGamma = S.filter (\phi -> S.member eliminated (label phi.content)) upperPsi
-        psi = JT.trackMaxTreeWidth' $ combines1 $ map (.content) $ S.toList upperGamma
+        psi = combines1 $ map (.content) $ S.toList upperGamma
         upperPsi' = S.insert (WithId uniqueId $ eliminate psi (S.singleton eliminated))
                              (S.difference upperPsi upperGamma)
+
+        maxWidth' = max maxWidth (V.labelSize psi)
 
 
 --------------------------------------------------------------------------------
@@ -92,7 +99,7 @@ fusion' uniqueId upperPsi e
 --
 -- __Warning__: will fail if a disconnected join tree is given.
 fusionPass :: (NFData (v a), DMP.SerializableValuation v a, Show (v a))
-    => MP.Mode -> D.DrawSettings -> [v a] -> Domain a -> Process (JT.JoinTree (v a))
+    => MP.Mode -> D.DrawSettings -> [v a] -> Domain a -> Process (S.WithStats (JT.JoinTree (v a)))
 fusionPass mode settings vs queryDomain = do
     drawTree settings.beforeInference treeBeforeInference
 
@@ -102,10 +109,11 @@ fusionPass mode settings vs queryDomain = do
 
     drawTree settings.afterInference treeAfterInference
 
-    pure treeAfterInference
+    pure $ S.withStats stats treeAfterInference
 
     where
         treeBeforeInference = JT.isolateAndRenumber vs queryDomain
+        stats = S.fromTree treeBeforeInference
 
         drawTree Nothing         _    = pure ()
         drawTree (Just filename) tree = liftIO $ D.drawTree filename tree

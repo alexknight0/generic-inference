@@ -17,6 +17,7 @@ TODO: Move to head of library.
 -}
 module LocalComputation.ValuationAlgebra
     ( ValuationFamily (label, _combine, _project, identity, eliminate, satisfiesInvariants, VarAssignment, combineAssignments, projectAssignment, configurationExtSet, emptyAssignment)
+    , labelSize
     , combine
     , project
     , combines1
@@ -164,6 +165,9 @@ project v d
 
 assertInvariants :: (ValuationFamily v, Var a) => v a -> v a
 assertInvariants v = U.assertP satisfiesInvariants v
+
+labelSize :: Valuation v a => v a -> Int
+labelSize = length . label
 
 combines1 :: (Foldable f, ValuationFamily v, Var a) => f (v a) -> v a
 combines1 = foldr1 combine

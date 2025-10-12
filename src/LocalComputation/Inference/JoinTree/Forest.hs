@@ -24,6 +24,7 @@ module LocalComputation.Inference.JoinTree.Forest (
     , unsafeUpdateValuations
     , unsafeGetTree
     , treeList
+    , treesWithQueryNodes
     , subTrees
 ) where
 
@@ -47,8 +48,6 @@ import           LocalComputation.Inference.JoinTree.Tree (Id, JoinTree,
                                                            Node (id))
 import qualified LocalComputation.Inference.JoinTree.Tree as JT
 import qualified LocalComputation.ValuationAlgebra        as V
-
-import qualified Data.Tree                                as T
 
 --------------------------------------------------------------------------------
 -- Join Trees
@@ -120,6 +119,8 @@ treeList t = getTrees' (vertexSet t)
                 -- Get the tree
                 newTree = JT.unsafeFromGraph $ G.induce (\n -> n `elem` verticesInNewTree) t.g
 
+treesWithQueryNodes :: (Valuation v a) => JoinForest (v a) -> [JoinTree (v a)]
+treesWithQueryNodes f = filter JT.hasQueryNode $ treeList f
 
 -- | A sorted list of vertices of the forest; equivalent to a topological ordering.
 vertexList :: JoinForest v -> [Node v]

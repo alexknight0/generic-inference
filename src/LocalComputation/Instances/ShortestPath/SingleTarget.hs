@@ -39,6 +39,7 @@ import qualified LocalComputation.Inference.EliminationSequence       as E
 import qualified LocalComputation.Inference.JoinTree.Diagram          as D
 import qualified LocalComputation.Inference.JoinTree.Tree             as JT
 import qualified LocalComputation.Inference.MessagePassing            as MP
+import qualified LocalComputation.Inference.Statistics                as S
 import           LocalComputation.Inference.Triangulation
 import qualified LocalComputation.Inference.Triangulation             as T
 import           LocalComputation.Utils                               (fromRight)
@@ -68,18 +69,18 @@ singleTargetSplit :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hasha
     -> D.DrawSettings
     -> [G.Graph a Double]
     -> Query a
-    -> Either I.Error (m [Double])
+    -> Either I.Error (m (S.WithStats [Double]))
 singleTargetSplit mode settings gs q = usingDouble (singleTargetSplitGeneric inference) settings gs q
     where
         -- We get inference results by doing a query then calling `solution` on the result.
-        inference s k domain = fmap (fmap Q.solution) $ I.queryDrawGraph s mode k domain
+        inference s k domain = fmap (fmap (fmap Q.solution)) $ I.queryDrawGraph s mode k domain
 
 singleTargetSplitDP :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
     => MP.Mode
     -> D.DrawSettings
     -> [G.Graph a Double]
     -> Query a
-    -> Either I.Error (m [Double])
+    -> Either I.Error (m (S.WithStats [Double]))
 singleTargetSplitDP mode = usingDouble (singleTargetSplitGeneric (I.solutionDrawGraph mode))
 
 singleTargetSplitGeneric :: ( MonadIO m, Show a, H.Hashable a, Ord a)
@@ -87,19 +88,19 @@ singleTargetSplitGeneric :: ( MonadIO m, Show a, H.Hashable a, Ord a)
     -> D.DrawSettings
     -> [G.Graph a Q.TropicalSemiringValue]
     -> Query a
-    -> Either I.Error (m [Q.TropicalSemiringValue])
+    -> Either I.Error (m (S.WithStats [Q.TropicalSemiringValue]))
 singleTargetSplitGeneric inference settings vs q = do
     solutionM <- solutionMOrError
 
     pure $ do
         solution <- solutionM
-        pure $ map (\s -> unsafeGetDistance solution (s, q.target)) q.sources
+        pure $ S.withStats solution.stats $ map (\s -> unsafeGetDistance solution.c (s, q.target)) q.sources
 
     where
         k = knowledgeBase vs q.target
         domain = S.fromList (q.target : q.sources)
 
-        solutionMOrError = JT.trackNewRun $ inference settings k domain
+        solutionMOrError = inference settings k domain
 
 -- If distance of a location to itself is not recorded, it will be recorded as the 'zero'
 -- element of the tropical semiring (i.e. infinity). Regarding self loops, see the documentation
@@ -129,7 +130,7 @@ knowledgeBase gs target = map f gs
 type ComputeInference m a = D.DrawSettings
                          -> [Q.Valuation Q.TropicalSemiringValue a]
                          -> V.Domain a
-                         -> Either I.Error (m (M.LabelledMatrix a () Q.TropicalSemiringValue))
+                         -> Either I.Error (m (S.WithStats (M.LabelledMatrix a () Q.TropicalSemiringValue)))
 
 --------------------------------------------------------------------------------
 -- Decomposition
@@ -181,7 +182,7 @@ singleTarget :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a
     -> D.DrawSettings
     -> G.Graph a Double
     -> Query a
-    -> Either I.Error (m [Double])
+    -> Either I.Error (m (S.WithStats [Double]))
 singleTarget mode settings g = singleTargetSplit mode settings (decomposition g)
 
 singleTargetDP :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
@@ -189,7 +190,7 @@ singleTargetDP :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable
     -> D.DrawSettings
     -> G.Graph a Double
     -> Query a
-    -> Either I.Error (m [Double])
+    -> Either I.Error (m (S.WithStats [Double]))
 singleTargetDP mode settings g = singleTargetSplitDP mode settings (decomposition g)
 
 --------------------------------------------------------------------------------
@@ -205,8 +206,8 @@ singleTargetsSplit :: forall a m . (NFData a, MonadIO m, Show a, Binary a, Typea
     -> D.DrawSettings
     -> [G.Graph a Double]
     -> [Query a]
-    -> Either I.Error (m [[Double]])
-singleTargetsSplit mode s gs qs = fmap sequence $ mapM (\q -> singleTargetSplit mode s gs q) qs
+    -> Either I.Error (m (S.WithStats [[Double]]))
+singleTargetsSplit mode s gs qs = fmap (fmap S.lift . sequence) $ mapM (\q -> singleTargetSplit mode s gs q) qs
 
 --------------------------------------------------------------------------------
 -- Utilities
@@ -217,7 +218,7 @@ unsafeGetDistance x (source, _) = fromJust $ M.find (source, ()) x
 
 -- | Converts a function that operates using tropical semiring values to operate using doubles
 usingDouble :: (Functor m)
-    => (D.DrawSettings -> [G.Graph a Q.TropicalSemiringValue] -> Query a -> Either I.Error (m [Q.TropicalSemiringValue]))
-    -> (D.DrawSettings -> [G.Graph a Double]                  -> Query a -> Either I.Error (m [Double]))
-usingDouble f s vs qs = fmap (fmap (map Q.toDouble)) $ f s (map (fmap Q.T) vs) qs
+    => (D.DrawSettings -> [G.Graph a Q.TropicalSemiringValue] -> Query a -> Either I.Error (m (S.WithStats [Q.TropicalSemiringValue])))
+    -> (D.DrawSettings -> [G.Graph a Double]                  -> Query a -> Either I.Error (m (S.WithStats [Double])))
+usingDouble f s vs qs = fmap (fmap (fmap (map Q.toDouble))) $ f s (map (fmap Q.T) vs) qs
 

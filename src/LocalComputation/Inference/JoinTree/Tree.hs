@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE DeriveAnyClass      #-}
 {-# LANGUAGE DeriveGeneric       #-}
@@ -43,12 +42,6 @@ module LocalComputation.Inference.JoinTree.Tree (
     , verticesHavePostboxes
     , neighbourMap
     , treeWidth
-    , tracking
-    , trackMaxTreeWidth'
-    , maxTreeWidthTracker
-    , numUsedValuationsTracker
-    , trackUsedValuations'
-    , trackNewRun
 
     -- Conversions
     , toTree
@@ -462,81 +455,6 @@ supportsCollect t = numQueryNodes t == 1        -- (1)
 -- Tree Width Analysis
 --------------------------------------------------------------------------------
 -- TODO: The tree width is significantly smaller for using the base elimination sequence - should we change this for fusionpass?
-
-{-# NOINLINE maxTreeWidthTracker #-}
-maxTreeWidthTracker :: IO.IORef [Int]
-maxTreeWidthTracker = IO.unsafePerformIO (IO.newIORef [0])
-
--- TODO: NOT REDUNDANT CONSTRAINTS
-{-# NOINLINE trackMaxTreeWidth #-}
-trackMaxTreeWidth :: (V.ValuationFamily v, V.Var a) => JoinTree (v a) -> JoinTree (v a)
-trackMaxTreeWidth t = IO.unsafePerformIO $ do
-    updateMaxOfHead maxTreeWidthTracker (fromIntegral $ treeWidth t)
-    pure $ t
-
-trackMaxTreeWidth' :: (ValuationFamily v, Var a) => v a -> v a
-#if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
-trackMaxTreeWidth' = id
-#else
-{-# NOINLINE trackMaxTreeWidth' #-}
-trackMaxTreeWidth' v = IO.unsafePerformIO $ do
-    updateMaxOfHead maxTreeWidthTracker (treeWidthOfV v)
-    pure $ v
-
-    where
-        treeWidthOfV = length . label
-#endif
-
-{-# NOINLINE numUsedValuationsTracker #-}
-numUsedValuationsTracker :: IO.IORef [Int]
-numUsedValuationsTracker = IO.unsafePerformIO (IO.newIORef [0])
-
-{-# NOINLINE trackUsedValuations #-}
-trackUsedValuations :: JoinTree (v a) -> JoinTree (v a)
-trackUsedValuations t = IO.unsafePerformIO $ do
-    updateMaxOfHead numUsedValuationsTracker numValuations
-    pure t
-
-    where
-        numValuations = length . filter (\n -> n.t == Valuation) . vertexList $ t
-
-trackUsedValuations' :: [a] -> [a]
-#if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
-trackUsedValuations' = id
-#else
-{-# NOINLINE trackUsedValuations' #-}
-trackUsedValuations' vs = IO.unsafePerformIO $ do
-    updateMaxOfHead numUsedValuationsTracker (length vs)
-    pure vs
-#endif
-
-updateMaxOfHead :: IO.IORef [Int] -> Int -> IO ()
-updateMaxOfHead ref newNum = do
-    entry <- U.getGlobal ref
-    case entry of
-        (currentMax : rest) -> U.setGlobal ref $ max newNum currentMax : rest
-        _                   -> error "Invalid state"
-
-tracking :: (ValuationFamily v, Var a) => JoinTree (v a) -> JoinTree (v a)
-#if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
-tracking = id
-#else
-{-# NOINLINE tracking #-}
-tracking = trackUsedValuations . trackMaxTreeWidth
-#endif
-
-trackNewRun :: a -> a
-#if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
-trackNewRun = id
-#else
-{-# NOINLINE trackNewRun #-}
-trackNewRun x = IO.unsafePerformIO $ do
-    numUsedValuations <- U.getGlobal numUsedValuationsTracker
-    maxTreeWidths <- U.getGlobal maxTreeWidthTracker
-    U.setGlobal numUsedValuationsTracker $ 0 : numUsedValuations
-    U.setGlobal maxTreeWidthTracker $ 0 : maxTreeWidths
-    pure x
-#endif
 
 
 

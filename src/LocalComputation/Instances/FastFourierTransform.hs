@@ -13,6 +13,7 @@ module LocalComputation.Instances.FastFourierTransform
     )
 where
 
+import qualified LocalComputation.Inference.Statistics      as S
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra.Semiring
 
@@ -99,7 +100,7 @@ query samples qs = case integerLogBase2 (fromIntegral $ length samples) of
 
         -- let result = fromRight $ fusion (getKnowledgebase samples) queryDomain
         result <- I.unsafeQuery (I.Shenoy MP.Threads) (getKnowledgebase samples) queryDomain
-        pure $ map (findBinaryValue result m) qs
+        pure $ map (findBinaryValue result.c m) qs
 
 -- | An unsafe version of `query` - throws when `query` would return `Nothing`.
 query' :: [FourierComplex] -> [Natural] -> Process [FourierComplex]

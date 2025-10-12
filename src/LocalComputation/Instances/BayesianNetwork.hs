@@ -26,14 +26,13 @@ import           Data.Binary                                 (Binary)
 import qualified Data.Map                                    as M
 import           Data.Set                                    (union)
 import           GHC.Generics                                (Generic)
+import qualified LocalComputation.Inference.Statistics       as S
 
 
-import           Control.Distributed.Process
 import           Control.Distributed.Process.Serializable
 import           Control.Monad.IO.Class                      (MonadIO)
 import qualified LocalComputation.Inference                  as I
 import qualified LocalComputation.Inference.JoinTree.Diagram as D
-import qualified LocalComputation.Inference.MessagePassing   as MP
 
 
 {- | Valuation for the valuation algebra of probability potentials.
@@ -87,7 +86,7 @@ getProbability :: forall a b m. (Show a, Show b, Serializable a, Serializable b,
     -> m [Probability]
 getProbability mode s qs network' = do
     results <- fromRight $ I.queriesDrawGraph s mode network' domains
-    pure $ zipWith probability qs results
+    pure $ zipWith probability qs results.c
 
     where
         domains :: [V.Domain a]

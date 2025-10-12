@@ -19,6 +19,7 @@ import           Benchmarks.ShortestPath.SingleTarget.Data            (Problem (
                                                                        newYorkVerySmall,
                                                                        p1, p2)
 import qualified LocalComputation.Graph                               as G
+import qualified LocalComputation.Inference.Statistics                as S
 import qualified LocalComputation.Instances.ShortestPath.SingleTarget as ST (Query,
                                                                              decomposition)
 
@@ -85,7 +86,7 @@ checkMatchesBaselineRandom = checkMatchesBaseline name unused test 100
 prop_p1_drawGraph :: Property
 prop_p1_drawGraph = unitTest $ do
     results <- ST.singleTarget' (ST.Generic $ I.Shenoy MP.Threads) settings (head p1.graphs) p1.q
-    checkAnswers approx results p1.answers
+    checkAnswers approx results.c p1.answers
 
     where
         settings = D.def { D.beforeInference = Just "diagrams/p1_before.svg"
@@ -95,7 +96,7 @@ prop_p1_drawGraph = unitTest $ do
 prop_p2_drawGraph :: Property
 prop_p2_drawGraph = unitTest $ do
     results <- ST.singleTargetSplit' (ST.Generic $ I.Shenoy MP.Threads) settings p2.graphs p2.q
-    checkAnswers approx results p2.answers
+    checkAnswers approx results.c p2.answers
     where
         settings = D.def { D.beforeInference = Just "diagrams/p2_before.svg"
                          , D.afterInference  = Just "diagrams/p2_after.svg"
@@ -198,10 +199,10 @@ matchesBaselineForRandomQuery gs mode = do
 
     where
         go :: (MonadIO m) => Implementation -> ST.Query a -> m [Double]
-        go m query = ST.singleTargetSplit' m D.def gs query
+        go m query = fmap (.c) $ ST.singleTargetSplit' m D.def gs query
 
         goUnsplit :: (MonadIO m) => Implementation -> ST.Query a -> Int -> m [Double]
-        goUnsplit m query graphNum = ST.singleTarget' m s fullGraph query
+        goUnsplit m query graphNum = fmap (.c) $ ST.singleTarget' m s fullGraph query
             where
                 -- | Toggle this test drawing graphs for debugging purposes.
                 -- The parent function is used by multiple tests - only one test that uses
@@ -228,7 +229,7 @@ pX p = unitTest $ do
     -- TODO: fix
     forM [DynamicP $ MP.Threads] $ \mode -> do
         results <- ST.singleTargetSplit' mode D.def p.graphs p.q
-        checkAnswers approx (results) p.answers
+        checkAnswers approx (results.c) p.answers
 
 -- | Parses the given graph. Fails if a parse error occurs.
 parseFullGraph :: FilePath -> PropertyT IO (G.Graph Natural Double)

@@ -34,8 +34,7 @@ import           LocalComputation.Utils                               (fromRight
 
 import           Control.DeepSeq                                      (deepseq,
                                                                        rnf)
-import           Control.Exception.Base                               (assert,
-                                                                       evaluate)
+import           Control.Exception.Base                               (evaluate)
 import qualified Control.Monad                                        as M
 import           Control.Monad.Extra                                  (concatMapM)
 import           Control.Monad.IO.Class                               (MonadIO)
@@ -43,16 +42,17 @@ import           Data.Function                                        ((&))
 import qualified Data.Hashable                                        as H
 import qualified Data.List                                            as L
 import qualified Data.Time.Clock.POSIX                                as C
+import           Debug.Trace                                          (trace)
 import qualified LocalComputation.Inference.JoinTree.Diagram          as D
 import qualified LocalComputation.Inference.JoinTree.Tree             as JT
 import qualified LocalComputation.Inference.MessagePassing            as MP
+import qualified LocalComputation.Inference.Statistics                as S
 import qualified LocalComputation.Utils                               as U
 import qualified LocalComputation.ValuationAlgebra                    as V
 import           Numeric.Natural
 import           System.IO                                            (IOMode (AppendMode),
                                                                        hFlush,
                                                                        hPutStrLn,
-                                                                       stderr,
                                                                        stdout,
                                                                        withFile)
 
@@ -71,7 +71,6 @@ isCountingOperations = True
 --------------------------------------------------------------------------------
 
 -- TODO: test graph composition diff.
--- TODO: filter by trees with query for message passing
 
 -- The graph generation is not part of the benchmark (we don't want it to take up time!), so we can't
 -- have it use different graphs between benchmarks unless we created some 'state', pregenerated all the
@@ -119,7 +118,6 @@ countOperations = do
     if not isCountingOperations
         then error "Not counting operations."
         else pure ()
-    assert False $ pure ()
 
     timestamp <- fmap round C.getPOSIXTime :: IO Integer
 
@@ -159,8 +157,6 @@ countOpsOnMode :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashab
 countOpsOnMode timestamp mode p = do
     U.resetGlobal V.combineCounter
     U.resetGlobal V.projectCounter
-    U.resetGlobal' JT.maxTreeWidthTracker
-    U.resetGlobal' JT.numUsedValuationsTracker
 
     putStrLn ("Working on: " ++ L.intercalate "/" header)
     hFlush stdout
@@ -168,19 +164,19 @@ countOpsOnMode timestamp mode p = do
     -- Fully evaluate, incrementing combine and project counters
     afterSetup <- multipleSingleTargets mode D.def p
     result <- afterSetup
-    _ <- evaluate (result `deepseq` result)
+    evaluate (rnf result)
 
     -- Write combination count to file.
     withFile opCountFilepath AppendMode $ \h -> do
         combinations   <- U.getGlobal V.combineCounter
         projections    <- U.getGlobal V.projectCounter
-        maxTreeWidths  <- U.getGlobal JT.maxTreeWidthTracker
-        usedValuations <- U.getGlobal JT.numUsedValuationsTracker
-        let complexity = sum $ zipWith f usedValuations maxTreeWidths
-            maxMaxTreeWidth = maximum maxTreeWidths
-            maxUsedValuations = maximum usedValuations
 
-        hPutStrLn h (line [combinations, projections, maxMaxTreeWidth, maxUsedValuations, complexity])
+        hPutStrLn h $ line [ combinations
+                           , projections
+                           , maximum result.stats.treeWidths
+                           , maximum result.stats.treeValuations
+                           , S.fusionComplexity result.stats
+                          ]
 
         hFlush h
 
@@ -188,11 +184,6 @@ countOpsOnMode timestamp mode p = do
         header = createHeader timestamp p mode
 
         line body = L.intercalate "," $ header ++ map show body
-
-        f :: Int -> Int -> Int
-        f m w = m * square (w + 1)
-
-        square x = x * x
 
 --------------------------------------------------------------------------------
 -- Performance Testing
@@ -256,7 +247,7 @@ implementationName (DynamicP (MP.Distributed))         = "Dynamic Programming (d
 -- Technically unsafe - if one of the given queries is not answerable for the problem, will
 -- (i.e. refers to a vertex that does not exist) throws an error.
 singleTargets :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
-    => Implementation -> D.DrawSettings -> G.Graph a Double -> [ST.Query a] -> m (m [[Double]])
+    => Implementation -> D.DrawSettings -> G.Graph a Double -> [ST.Query a] -> m (m (S.WithStats [[Double]]))
 
 singleTargets Baseline _ graph qs = do
     -- We perform arc reversal during setup as we want to compare the baseline and
@@ -269,9 +260,9 @@ singleTargets Baseline _ graph qs = do
         let g = H.fromGraph reversedGraph
 
         -- Compute solutions
-        pure $ map (\q -> H.singleSource g q.target q.sources infinity) qs
+        pure $ S.withNoStats $ map (\q -> H.singleSource g q.target q.sources infinity) qs
 
-singleTargets mode s g qs = pure $ mapM (\q -> fromRight $ algorithm s g q) qs
+singleTargets mode s g qs = pure $ fmap S.lift $ mapM (\q -> fromRight $ algorithm s g q) qs
     where
         algorithm = case mode of
                         (Generic m)  -> ST.singleTarget m
@@ -283,23 +274,23 @@ singleTargets mode s g qs = pure $ mapM (\q -> fromRight $ algorithm s g q) qs
 -- | Multiple problem variant of `singleTargets`. Not to be confused with `singleTargetsSplit` which
 -- handles multiple graphs but considers it as one problem.
 multipleSingleTargets :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
-    => Implementation -> D.DrawSettings -> D.BenchmarkProblem a -> m (m [[[Double]]])
-multipleSingleTargets mode s ps = fmap sequence $ mapM (\p -> singleTargets mode s p.g p.qs) ps.ps
+    => Implementation -> D.DrawSettings -> D.BenchmarkProblem a -> m (m (S.WithStats [[[Double]]]))
+multipleSingleTargets mode s ps = fmap (fmap S.lift . sequence) $ mapM (\p -> singleTargets mode s p.g p.qs) ps.ps
 
 -- | Single query variant of `singleTargets`
 singleTarget :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
-    => Implementation -> D.DrawSettings -> G.Graph a Double -> ST.Query a -> m (m [Double])
-singleTarget mode s g q = fmap (fmap head) $ singleTargets mode s g [q]
+    => Implementation -> D.DrawSettings -> G.Graph a Double -> ST.Query a -> m (m (S.WithStats [Double]))
+singleTarget mode s g q = fmap (fmap (fmap head)) $ singleTargets mode s g [q]
 
 -- | Variant of `singleTargets` that does the computation in "one go"
 -- (doesn't seperate the computation into the 'setup' and 'computation' phases)
 singleTargets' :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
-    => Implementation -> D.DrawSettings -> G.Graph a Double -> [ST.Query a] -> m [[Double]]
+    => Implementation -> D.DrawSettings -> G.Graph a Double -> [ST.Query a] -> m (S.WithStats [[Double]])
 singleTargets' mode s g qs = M.join $ singleTargets mode s g qs
 
 -- | Single query variant of `singleTargets'`
 singleTarget' :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
-    => Implementation -> D.DrawSettings -> G.Graph a Double -> ST.Query a -> m [Double]
+    => Implementation -> D.DrawSettings -> G.Graph a Double -> ST.Query a -> m (S.WithStats [Double])
 singleTarget' mode s g q = M.join $ singleTarget mode s g q
 
 --------------------------------------------------------------------------------
@@ -308,12 +299,12 @@ singleTarget' mode s g q = M.join $ singleTarget mode s g q
 -- | Multiple problem variant of `singleTargets`. Not to be confused with `singleTargetsSplit` which
 -- handles multiple graphs but considers it as one problem.
 multipleSingleTargetsSplit :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
-    => Implementation -> D.DrawSettings -> D.BenchmarkProblem a -> m (m [[[Double]]])
-multipleSingleTargetsSplit mode s ps = fmap sequence $ mapM (\p -> singleTargetsSplit mode s [p.g] p.qs) ps.ps
+    => Implementation -> D.DrawSettings -> D.BenchmarkProblem a -> m (m (S.WithStats [[[Double]]]))
+multipleSingleTargetsSplit mode s ps = fmap (fmap S.lift . sequence) $ mapM (\p -> singleTargetsSplit mode s [p.g] p.qs) ps.ps
 
 -- | Variant of `singleTargets` that takes a graph that has been split across multiple graphs.
 singleTargetsSplit :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
-    => Implementation -> D.DrawSettings -> [G.Graph a Double] -> [ST.Query a] -> m (m [[Double]])
+    => Implementation -> D.DrawSettings -> [G.Graph a Double] -> [ST.Query a] -> m (m (S.WithStats [[Double]]))
 
 singleTargetsSplit Baseline _ gs qs = do
     -- We perform arc reversal during setup as we want to compare the baseline and
@@ -326,9 +317,9 @@ singleTargetsSplit Baseline _ gs qs = do
         let g = H.merges H.empty (map H.fromGraph reversedGraphs)
 
         -- Compute solutions
-        pure $ map (\q -> H.singleSource g q.target q.sources infinity) qs
+        pure $ S.withNoStats $ map (\q -> H.singleSource g q.target q.sources infinity) qs
 
-singleTargetsSplit mode s gs qs = pure $ mapM (\q -> fromRight $ algorithm s gs q) qs
+singleTargetsSplit mode s gs qs = pure $ fmap S.lift $ mapM (\q -> fromRight $ algorithm s gs q) qs
     where
         algorithm = case mode of
                         (Generic m)  -> ST.singleTargetSplit m
@@ -336,18 +327,18 @@ singleTargetsSplit mode s gs qs = pure $ mapM (\q -> fromRight $ algorithm s gs 
 
 -- | Single query variant of `singleTargetsSplit`
 singleTargetSplit :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
-    => Implementation -> D.DrawSettings -> [G.Graph a Double] -> ST.Query a -> m (m [Double])
-singleTargetSplit mode s gs q = fmap (fmap head) $ singleTargetsSplit mode s gs [q]
+    => Implementation -> D.DrawSettings -> [G.Graph a Double] -> ST.Query a -> m (m (S.WithStats [Double]))
+singleTargetSplit mode s gs q = fmap (fmap (fmap head)) $ singleTargetsSplit mode s gs [q]
 
 -- | Variant of `singleTargetsSplit` that does the computation in "one go"
 -- (doesn't seperate the computation into the 'setup' and 'computation' phases)
 singleTargetsSplit' :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
-    => Implementation -> D.DrawSettings -> [G.Graph a Double] -> [ST.Query a] -> m [[Double]]
+    => Implementation -> D.DrawSettings -> [G.Graph a Double] -> [ST.Query a] -> m (S.WithStats [[Double]])
 singleTargetsSplit' mode s gs qs = M.join $ singleTargetsSplit mode s gs qs
 
 -- | Single query variant of `singleTargetsSplit'`
 singleTargetSplit' :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
-    => Implementation -> D.DrawSettings -> [G.Graph a Double] -> ST.Query a -> m [Double]
+    => Implementation -> D.DrawSettings -> [G.Graph a Double] -> ST.Query a -> m (S.WithStats [Double])
 singleTargetSplit' mode s gs q = M.join $ singleTargetSplit mode s gs q
 
 
