@@ -1,8 +1,10 @@
-{-# LANGUAGE CPP                    #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{-# LANGUAGE CPP                    #-}
 {-# LANGUAGE ConstraintKinds        #-}
+{-# LANGUAGE DeriveAnyClass         #-}
 {-# LANGUAGE DeriveDataTypeable     #-}
+{-# LANGUAGE DeriveGeneric          #-}
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
@@ -16,19 +18,21 @@ should not rely on an error being thrown unless asserts are enabled.
 TODO: Move to head of library.
 -}
 module LocalComputation.ValuationAlgebra
-    ( ValuationFamily (label, _combine, _project, identity, eliminate, satisfiesInvariants, VarAssignment, combineAssignments, projectAssignment, configurationExtSet, emptyAssignment)
+    ( ValuationFamily (label, _combine, _project, identity, eliminate, satisfiesInvariants, VarAssignment, combineAssignments, projectAssignment, configurationExtSet, emptyAssignment, frameLength)
     , labelSize
     , combine
     , project
     , combines1
     , Domain
     , Var
+    , maxFrameLength
     , showDomain
     , assertInvariants
     , isIdentity
     , Valuation
     , combineCounter
     , projectCounter
+    , IntOrInfinity (..)
 
     -- Serialization related typeclasses
     , Binary   -- Must be derived for serialization
@@ -78,6 +82,8 @@ type Valuation v a = (ValuationFamily v, Var a)
 -- TODO: document choice of having two types 'a' and 'b'
 -- TODO: Could use 'data' constructor inside class declaration...
 
+data IntOrInfinity = Int Int | Infinity deriving (Eq, Ord, NFData, Generic)
+
 -- | A valuation belonging to a certain family of valuation algebras
 --
 -- The identity function should return a valuation that behaves like
@@ -100,6 +106,8 @@ class ValuationFamily v where
 
     eliminate :: Var a => v a -> Domain a -> v a
     eliminate v d = project v (S.difference (label v) d)
+
+    frameLength :: Var a => a -> v a -> IntOrInfinity
 
     identity  :: Domain a -> v a
     isIdentity :: v a -> Bool
@@ -174,6 +182,9 @@ combines1 = foldr1 combine
 
 showDomain :: Show a => Domain a -> String
 showDomain x = "{" ++ L.intercalate "," (map show (S.toList x)) ++ "}"
+
+maxFrameLength :: Valuation v a => v a -> IntOrInfinity
+maxFrameLength valuation = maximum . map (\var -> frameLength var valuation) . S.toList . label $ valuation
 
 --------------------------------------------------------------------------------
 -- Counting Operations

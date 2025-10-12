@@ -22,6 +22,7 @@ import qualified LocalComputation.LabelledMatrix                      as M
 import qualified LocalComputation.Utils                               as U
 import           LocalComputation.ValuationAlgebra                    hiding
                                                                       (Valuation)
+import qualified LocalComputation.ValuationAlgebra                    as V
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular.Value as Q
 
 
@@ -96,6 +97,8 @@ instance (Show b, Q.SemiringValue b) => ValuationFamily (Valuation b) where
             empty = fromJust $ M.extension M.empty S.empty (S.singleton ()) U.unusedArg
 
     emptyAssignment _ = M.reshape U.unusedArg M.empty S.empty (S.singleton ())
+
+    frameLength _ _ = V.Infinity
 
 
 -- | Returns a product useful for the solution of fixpoint systems. Detailed page 367 of "Generic Inference" (Pouly & Kohlas, 2012)

@@ -10,6 +10,7 @@ import           Control.Distributed.Process                           (Process,
                                                                         sendChan)
 import           Control.Exception                                     (assert)
 import           Control.Monad                                         (replicateM)
+import qualified Data.List.Extra                                       as L
 import           Data.Maybe                                            (fromJust)
 import qualified Data.Set                                              as S
 import qualified LocalComputation.Inference.EliminationSequence        as E
@@ -22,7 +23,6 @@ import qualified LocalComputation.Inference.Statistics                 as S
 import           LocalComputation.ValuationAlgebra                     (Domain,
                                                                         NFData,
                                                                         ValuationFamily (eliminate, label),
-                                                                        Var,
                                                                         combines1)
 import qualified LocalComputation.ValuationAlgebra                     as V
 import           Numeric.Natural                                       (Natural)
@@ -53,24 +53,25 @@ instance Ord (WithId a) where
 --
 -- __Warning__: Assumes that the query is a subset of the covered domain - this should be checked
 -- by the caller.
-fusion :: (ValuationFamily v, Var a)
+fusion :: (V.Valuation v a)
     => [v a]
     -> Domain a
     -> S.WithStats (v a)
-fusion vs x = S.withStats stats result.c
+fusion vs x = S.withStats stats result.result
     where
         vsWithIds = S.fromList $ zipWith WithId [0..] vs
         nextId = fromIntegral $ length vs
 
-        result = fusion' nextId vsWithIds (E.createAndExclude (map label vs) x) 0
-        stats = S.fromOther result.maxWidth (length vsWithIds)
+        result = fusion' nextId vsWithIds (E.createAndExclude (map label vs) x) Nothing
+        stats = S.fromLargestNode result.largestNode (length vsWithIds)
 
-data WithMaxWidth a = WithMaxWidth { maxWidth :: Int, c :: a }
+data FusionResults a = FusionResults { largestNode :: Maybe a, result :: a }
 
-fusion' :: (ValuationFamily v, Var a) => Natural -> S.Set (WithId (v a)) -> E.EliminationSequence a -> Int -> WithMaxWidth (v a)
-fusion' uniqueId upperPsi e maxWidth
-    | E.isEmpty e = WithMaxWidth maxWidth $ combines1 $ map (.content) $ S.toList upperPsi
-    | otherwise = fusion' (uniqueId + 1) upperPsi' e' maxWidth'
+fusion' :: (V.Valuation v a)
+    => Natural -> S.Set (WithId (v a)) -> E.EliminationSequence a -> Maybe (v a) -> FusionResults (v a)
+fusion' uniqueId upperPsi e largestNode
+    | E.isEmpty e = FusionResults largestNode $ combines1 $ map (.content) $ S.toList upperPsi
+    | otherwise = fusion' (uniqueId + 1) upperPsi' e' largestNode'
     where
         (eliminated, e') = fromJust $ E.eliminateNext e
         upperGamma = S.filter (\phi -> S.member eliminated (label phi.content)) upperPsi
@@ -78,7 +79,7 @@ fusion' uniqueId upperPsi e maxWidth
         upperPsi' = S.insert (WithId uniqueId $ eliminate psi (S.singleton eliminated))
                              (S.difference upperPsi upperGamma)
 
-        maxWidth' = max maxWidth (V.labelSize psi)
+        largestNode' = L.maximumOn (fmap V.labelSize) [largestNode, Just psi]
 
 
 --------------------------------------------------------------------------------

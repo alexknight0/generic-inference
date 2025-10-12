@@ -20,6 +20,7 @@ module LocalComputation.Potential (
   , mapFrames
   , mapVariables
   , unsafeGetIndex
+  , frame
 
 ) where
 
@@ -187,6 +188,9 @@ toValues = A.elems . (.values)
 
 null :: Potential a b c -> Bool
 null p = M.null p.frames
+
+frame :: (Ord a) => a -> Potential a b c -> Set.Set b
+frame x p = S.toSet $ (M.!) p.frames x
 
 
 --------------------------------------------------------------------------------

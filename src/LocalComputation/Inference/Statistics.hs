@@ -7,38 +7,46 @@ module LocalComputation.Inference.Statistics (
     , empty
     , fromTree
     , fromForest
-    , fromOther
+    , fromLargestNode
     , fusionComplexity
+    , binaryShenoyComplexity
     , lift
 
     , WithStats (..)
     , withStats
     , withNoStats
 ) where
+import           Data.Maybe                                 (fromMaybe)
 import qualified LocalComputation.Inference.JoinTree        as JF
 import qualified LocalComputation.Inference.JoinTree.Forest as JF
 import qualified LocalComputation.Inference.JoinTree.Tree   as JT
 import qualified LocalComputation.ValuationAlgebra          as V
 
 data Stats = Stats {
-      treeWidths     :: [Int]
-    , treeValuations :: [Int]
-    , treeVertices   :: [Int]
+      treeWidths         :: [Int]
+    , treeValuations     :: [Int]
+    , treeVertices       :: [Int]
+    -- Take the tree node that has the largest label, then
+    -- find the variable that has the largest frame length.
+    -- The resulting frame length is the `treeMaxFrameLength`.
+    , treeMaxFrameLength :: [V.IntOrInfinity]
 } deriving (V.NFData, V.Generic)
 
 
 empty :: Stats
-empty = Stats [] [] []
+empty = Stats [] [] [] []
 
 includeTree :: (V.Valuation v a) => JT.JoinTree (v a) -> Stats -> Stats
-includeTree t s = s { treeWidths     = s.treeWidths     ++ [treeWidth]
-                    , treeValuations = s.treeValuations ++ [treeValuations]
-                    , treeVertices   = s.treeVertices   ++ [treeVertices]
+includeTree t s = s { treeWidths         = s.treeWidths         ++ [treeWidth]
+                    , treeValuations     = s.treeValuations     ++ [treeValuations]
+                    , treeVertices       = s.treeVertices       ++ [treeVertices]
+                    , treeMaxFrameLength = s.treeMaxFrameLength ++ [treeMaxFrameLength]
                    }
     where
-        treeWidth      = fromIntegral . JT.treeWidth $ t
-        treeValuations = length . filter (\n -> n.t == JT.Valuation) . JT.vertexList $ t
-        treeVertices   = length . JT.vertexList $ t
+        treeWidth          = JT.treeWidth $ t
+        treeValuations     = length . filter (\n -> n.t == JT.Valuation) . JT.vertexList $ t
+        treeVertices       = length . JT.vertexList $ t
+        treeMaxFrameLength = JT.treeMaxFrameLength t
 
 fromTree :: (V.ValuationFamily v, Show a, Ord a) => JT.JoinTree (v a) -> Stats
 #if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
@@ -54,17 +62,23 @@ fromForest _ = empty
 fromForest f = foldr includeTree empty $ JF.treesWithQueryNodes f
 #endif
 
-fromOther :: Int -> Int -> Stats
-#if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
-fromOther _ _                      = empty
-#else
-fromOther treeWidth treeValuations = Stats [treeWidth] [treeValuations] []
-#endif
+fromLargestNode :: V.Valuation v a => Maybe (v a) -> Int -> Stats
+-- #if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
+-- fromLargestNode _ _                      = empty
+-- #else
+fromLargestNode largest treeValuations = Stats {
+        treeWidths         = [fromMaybe 0 $ fmap V.labelSize largest]
+      , treeValuations     = [treeValuations]
+      , treeVertices       = []
+      , treeMaxFrameLength = [fromMaybe (V.Int 0) $ fmap V.maxFrameLength largest]
+    }
+-- #endif
 
 append :: Stats -> Stats -> Stats
-append s1 s2 = s1 { treeWidths = s1.treeWidths ++ s2.treeWidths
-                  , treeValuations = s1.treeValuations ++ s2.treeValuations
-                  , treeVertices = s1.treeVertices ++ s2.treeVertices
+append s1 s2 = s1 { treeWidths         = s1.treeWidths         ++ s2.treeWidths
+                  , treeValuations     = s1.treeValuations     ++ s2.treeValuations
+                  , treeVertices       = s1.treeVertices       ++ s2.treeVertices
+                  , treeMaxFrameLength = s1.treeMaxFrameLength ++ s2.treeMaxFrameLength
                 }
 
 --------------------------------------------------------------------------------
@@ -77,8 +91,12 @@ fusionComplexity s = sum $ zipWith f s.treeValuations s.treeWidths
 
         square x = x * x
 
-shenoyComplexity :: Stats -> Int
-shenoyComplexity s = undefined
+-- | Interprets infinity as 0, as we can't properly calculate a value for infinity.
+binaryShenoyComplexity :: Stats -> Int
+binaryShenoyComplexity stats = sum $ zipWith3 f stats.treeVertices stats.treeMaxFrameLength stats.treeWidths
+    where
+        f _ V.Infinity _ = 0
+        f v (V.Int d)  s = v * d ^ s
 
 --------------------------------------------------------------------------------
 -- Data wrapper

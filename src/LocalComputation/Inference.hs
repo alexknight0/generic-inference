@@ -141,4 +141,4 @@ bruteForces :: (ValuationFamily v, Var a)
 bruteForces vs qs = S.withStats stats $ map (\q -> project combined q) qs
     where
         combined = combines1 vs
-        stats = S.fromOther (labelSize combined) (length vs)
+        stats = S.fromLargestNode (Just combined) (length vs)

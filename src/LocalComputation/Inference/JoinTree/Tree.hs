@@ -42,6 +42,7 @@ module LocalComputation.Inference.JoinTree.Tree (
     , verticesHavePostboxes
     , neighbourMap
     , treeWidth
+    , treeMaxFrameLength
 
     -- Conversions
     , toTree
@@ -68,6 +69,7 @@ import           Control.Exception                  (assert)
 import qualified Data.Bifunctor                     as B
 import qualified Data.IORef                         as IO
 import qualified Data.List                          as L
+import qualified Data.List.Extra                    as L
 import qualified Data.Map                           as M
 import           Data.Maybe                         (fromJust, isJust,
                                                      isNothing)
@@ -305,8 +307,15 @@ variableMap t = foldr (M.unionWith (\x1 x2 -> x1 ++ x2)) M.empty $ map variableM
         variableMapForNode :: Node (v a) -> M.Map a [Node (v a)]
         variableMapForNode n = foldr (\var acc -> M.insert var [n] acc) M.empty (label n.v)
 
-treeWidth :: (ValuationFamily v, Var a) => JoinTree (v a) -> Natural
-treeWidth = fromIntegral . maximum . map (S.size . (.d)) . vertexList
+treeNodeWithMaxWidth :: (Valuation v a) => JoinTree (v a) -> Node (v a)
+treeNodeWithMaxWidth = L.maximumOn (S.size . (.d)) . vertexList
+
+treeWidth :: (Valuation v a) => JoinTree (v a) -> Int
+treeWidth = S.size . (.d) . treeNodeWithMaxWidth
+
+treeMaxFrameLength :: (Valuation v a) => JoinTree (v a) -> IntOrInfinity
+treeMaxFrameLength = maxFrameLength . (.v) . treeNodeWithMaxWidth
+
 
 --------------------------------------------------------------------------------
 -- Unsafe variants

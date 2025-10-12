@@ -77,7 +77,7 @@ isCountingOperations = True
 -- graphs it was going to use (we don't know how many graphs that will be) and then swapped between those
 -- based on this state (where the state is hidden by the IO)
 setProblems :: (MonadIO m) => m [D.BenchmarkProblem Natural]
-setProblems = sequence $ zipWith (&) seeds $ map (\edges -> const $ D.newYorkProblemOneToOne 5 edges) [1700, 1800.. 4700]
+setProblems = sequence $ zipWith (&) seeds $ map (\edges -> const $ D.newYorkProblemOneToOne 10 edges) [1700, 1800.. 4700]
 
     where
         seeds :: [Int]
@@ -91,8 +91,8 @@ setModes = [
       Generic  $ I.Fusion
     -- , Generic  $ I.Shenoy MP.Threads
     -- , Generic  $ I.Shenoy MP.Distributed
-    , DynamicP $ MP.Threads
-    , DynamicP $ MP.Distributed
+    -- , DynamicP $ MP.Threads
+    -- , DynamicP $ MP.Distributed
   ]
 
 
@@ -175,7 +175,7 @@ countOpsOnMode timestamp mode p = do
                            , projections
                            , maximum result.stats.treeWidths
                            , maximum result.stats.treeValuations
-                           , S.fusionComplexity result.stats
+                           , complexity result.stats
                           ]
 
         hFlush h
@@ -184,6 +184,12 @@ countOpsOnMode timestamp mode p = do
         header = createHeader timestamp p mode
 
         line body = L.intercalate "," $ header ++ map show body
+
+        complexity stats = case mode of
+                        Generic (I.Fusion)     -> S.fusionComplexity stats
+                        DynamicP (_)           -> S.fusionComplexity stats
+                        Generic (I.Shenoy (_)) -> S.binaryShenoyComplexity stats
+                        _                      -> 0
 
 --------------------------------------------------------------------------------
 -- Performance Testing

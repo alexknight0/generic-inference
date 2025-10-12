@@ -36,10 +36,12 @@ import           GHC.Records                                      (HasField,
 import           Data.Proxy                                       (Proxy)
 import           GHC.Stack                                        (HasCallStack)
 import qualified LocalComputation.Potential                       as P
+import qualified LocalComputation.ValuationAlgebra                as V
 
 -- TODO: Might be able to simplify this definition if a better notion of the identity element is created.
 -- Or this might just slow the performance down.
 -- TODO: Instead of extension could have 0 sized arrangement entry?
+-- TODO: Update documentation
 
 {- | Valuation for a semiring valuation algebra.
 
@@ -164,6 +166,9 @@ instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (Valuation 
     projectAssignment   = error "Not Implemented"
     configurationExtSet = error "Not Implemented"
     emptyAssignment     = error "Not Implemented"
+
+    frameLength var i@Identity{}  = error "Unknown frame length"
+    frameLength var t@Valuation{} = V.Int $ S.size $ P.frame var t._p
 
 
 toTable :: (Show a, Show b, Show c, Ord b, Ord c) => Valuation a b c -> P.Table
