@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 -- | Utilities for the benchmarks suite.
 --
 -- This module depends on hedgehog internals and hence is
@@ -33,8 +34,19 @@ import           System.IO                             (IOMode (AppendMode),
                                                         stdout, withFile)
 import qualified System.Random                         as R
 
-------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- Settings
+--------------------------------------------------------------------------------
+isCountingOperations :: Bool
+#if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
+isCountingOperations = False
+#else
+isCountingOperations = True
+#endif
 
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
 -- | Generate a sample from a generator, with a set seed.
 --
 -- This function is useful for examining a 'Gen' in GHCi or other contexts.
@@ -71,6 +83,11 @@ complexityFilepath = "operation_count.csv"
 benchmarkComplexity :: (V.NFData a)
     => [String] -> IO (S.WithStats a) -> (S.Stats -> Int) -> IO ()
 benchmarkComplexity header problem complexity = do
+
+    if not isCountingOperations
+        then error "Not counting operations."
+        else pure ()
+
     U.resetGlobal V.combineCounter
     U.resetGlobal V.projectCounter
 
@@ -86,11 +103,14 @@ benchmarkComplexity header problem complexity = do
         combinations   <- U.getGlobal V.combineCounter
         projections    <- U.getGlobal V.projectCounter
 
-        hPutStrLn h $ line [ combinations
-                           , projections
-                           , maximum result.stats.treeWidths
-                           , maximum result.stats.treeValuations
-                           , complexity result.stats
+        hPutStrLn h $ line [ show $ combinations
+                           , show $ projections
+                           , show $ maximum result.stats.treeWidths
+                           , show $ maximum result.stats.treeValuations
+                           , show $ complexity result.stats
+                           , show $ result.stats.treeValuations
+                           , show $ result.stats.treeVertices
+                           , show $ result.stats.treeSumFrameLengths
                           ]
 
         hFlush h

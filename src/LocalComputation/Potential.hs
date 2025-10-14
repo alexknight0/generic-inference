@@ -32,7 +32,7 @@ import qualified Data.Set                          as Set
 import           GHC.Stack                         (HasCallStack)
 import qualified LocalComputation.IndexedSet       as S
 import qualified LocalComputation.Utils            as A (listArray0)
-import qualified LocalComputation.Utils            as M (unionA)
+import qualified LocalComputation.Utils            as M (unionA, unsafeLookup)
 import qualified LocalComputation.Utils            as U
 import           LocalComputation.ValuationAlgebra (Binary, Generic, NFData)
 import           Prelude                           hiding (null)
@@ -190,8 +190,7 @@ null :: Potential a b c -> Bool
 null p = M.null p.frames
 
 frame :: (Ord a) => a -> Potential a b c -> Set.Set b
-frame x p = S.toSet $ (M.!) p.frames x
-
+frame x p = S.toSet $ M.unsafeLookup x p.frames
 
 --------------------------------------------------------------------------------
 -- Utilities

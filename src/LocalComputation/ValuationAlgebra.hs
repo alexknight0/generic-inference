@@ -25,7 +25,6 @@ module LocalComputation.ValuationAlgebra
     , combines1
     , Domain
     , Var
-    , maxFrameLength
     , showDomain
     , assertInvariants
     , isIdentity
@@ -82,7 +81,7 @@ type Valuation v a = (ValuationFamily v, Var a)
 -- TODO: document choice of having two types 'a' and 'b'
 -- TODO: Could use 'data' constructor inside class declaration...
 
-data IntOrInfinity = Int Int | Infinity deriving (Eq, Ord, NFData, Generic)
+data IntOrInfinity = Int Int | Infinity deriving (Eq, Ord, NFData, Generic, Show)
 
 -- | A valuation belonging to a certain family of valuation algebras
 --
@@ -183,8 +182,10 @@ combines1 = foldr1 combine
 showDomain :: Show a => Domain a -> String
 showDomain x = "{" ++ L.intercalate "," (map show (S.toList x)) ++ "}"
 
-maxFrameLength :: Valuation v a => v a -> IntOrInfinity
-maxFrameLength valuation = maximum . map (\var -> frameLength var valuation) . S.toList . label $ valuation
+-- TODO: Fix
+
+-- maxFrameLength :: Valuation v a => v a -> [v a] -> IntOrInfinity
+-- maxFrameLength valuation valuations = maximum . map (\var -> frameLength var valuation) . S.toList . label $ valuation
 
 --------------------------------------------------------------------------------
 -- Counting Operations

@@ -53,7 +53,7 @@ import qualified LocalComputation.ValuationAlgebra        as V
 -- Join Trees
 --------------------------------------------------------------------------------
 
-newtype JoinForest v = UnsafeJoinForest { g :: G.AdjacencyMap (Node v) }
+newtype JoinForest v = UnsafeJoinForest { g :: G.AdjacencyMap (Node v) } deriving (V.Generic, V.NFData)
 
 unsafeFromGraph :: Valuation v a => G.AdjacencyMap (Node (v a)) -> JoinForest (v a)
 unsafeFromGraph = U.assertP satisfiesInvariants . UnsafeJoinForest

@@ -65,6 +65,7 @@ module LocalComputation.Utils
     , setGlobal
     , resetGlobal'
     , onlyJust
+    , unsafeLookup
     )
 where
 
@@ -409,3 +410,9 @@ boolMask (x:xs) (y:ys)
 
 onlyJust :: [Maybe a] -> [a]
 onlyJust = map fromJust . filter isJust
+
+-- | Used instead of `M.!` as the callstack does not indicate where the lookup failed.
+unsafeLookup :: (HasCallStack, Ord a) => a -> M.Map a b -> b
+unsafeLookup x m = case M.lookup x m of
+                        Nothing     -> error "Lookup failed"
+                        Just result -> result

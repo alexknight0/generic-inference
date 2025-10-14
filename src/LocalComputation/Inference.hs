@@ -70,7 +70,7 @@ queriesDrawGraph _ _ vs qs
     | any S.null qs                 = Left  $ EmptyQuery
 queriesDrawGraph _ BruteForce vs qs = Right $ pure $ bruteForces vs qs
 queriesDrawGraph _ Fusion     vs qs = Right $ pure $ S.lift $ map (\q -> F.fusion vs q) qs
-queriesDrawGraph s (Shenoy m) vs qs = Right $ run $ SS.queries m s vs qs
+queriesDrawGraph s (Shenoy m) vs qs = Right $ SS.queries m s vs qs
 
 queryIsCovered :: (Foldable t, ValuationFamily v, Var a)
     => [v a]
@@ -141,4 +141,4 @@ bruteForces :: (ValuationFamily v, Var a)
 bruteForces vs qs = S.withStats stats $ map (\q -> project combined q) qs
     where
         combined = combines1 vs
-        stats = S.fromLargestNode (Just combined) (length vs)
+        stats = S.fromLargestNode (Just combined) vs

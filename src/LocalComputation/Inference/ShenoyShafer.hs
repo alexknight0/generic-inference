@@ -16,6 +16,7 @@ import           Data.Set                                              (intersec
 import           Control.DeepSeq                                       (rnf)
 import           Control.Exception                                     (assert)
 import           Control.Exception.Base                                (evaluate)
+import           Control.Monad.IO.Class                                (MonadIO)
 import qualified Data.List                                             as L
 import           Data.Maybe                                            (fromJust)
 import           LocalComputation.Inference.JoinTree                   (Node (..),
@@ -30,6 +31,7 @@ import qualified LocalComputation.Inference.MessagePassing             as MP
 import qualified LocalComputation.Inference.MessagePassing.Distributed as DMP
 import qualified LocalComputation.Inference.MessagePassing.Threads     as TMP
 import qualified LocalComputation.Inference.Statistics                 as S
+import           LocalComputation.LocalProcess                         (run)
 import           LocalComputation.ValuationAlgebra
 import           System.IO                                             (hFlush,
                                                                         stdout)
@@ -51,11 +53,11 @@ type InferredData v a = JF.JoinForest (v a)
 -- | Extracts a given query from the query results.
 --
 -- Assumes query is subset of the domain the given valuations cover.
-extractQueryResult :: forall v a. (ValuationFamily v, Var a)
+extractQueryResults :: forall v a. (ValuationFamily v, Var a)
     => [Domain a]
     -> InferredData v a
     -> [v a]
-extractQueryResult queryDomains results = map f queryDomains
+extractQueryResults queryDomains results = map f queryDomains
     where
         -- Find valuation of a query node with domain equal to query then get the valuation
         -- Needs to be a query node as `calculate` of `MessagePassing.Threads` only calculates
@@ -67,29 +69,30 @@ extractQueryResult queryDomains results = map f queryDomains
 -- | Performs shenoy shafer inference.
 --
 -- Assumes query is subset of the domain the given valuations cover.
-queries :: (NFData (v a), DMP.SerializableValuation v a, Show (v a))
+queries :: (NFData (v a), DMP.SerializableValuation v a, Show (v a), MonadIO m)
     => MP.Mode
     -> D.DrawSettings
     -> [v a]
     -> [Domain a]
-    -> Process (S.WithStats [v a])
+    -> m (S.WithStats [v a])
 queries mode settings vs queryDomains = do
     drawForest settings.beforeInference forestBeforeInference
 
     forestAfterInference <- case mode of
-                            MP.Distributed ->        DMP.messagePassing forestBeforeInference nodeActions
+                            MP.Distributed -> run $ DMP.messagePassing forestBeforeInference nodeActions
                             MP.Threads     -> pure $ TMP.messagePassing forestBeforeInference
 
     drawForest settings.afterInference forestAfterInference
 
-    pure $ S.withStats stats $ extractQueryResult queryDomains forestAfterInference
+    pure $ S.withStats stats $ extractQueryResults queryDomains forestAfterInference
 
     where
-        forestBeforeInference = baseJoinForest vs queryDomains
+        forestBeforeInference = binaryJoinForest vs queryDomains
         stats = S.fromForest forestBeforeInference
 
         drawForest Nothing         _    = pure ()
         drawForest (Just filename) tree = liftIO $ D.drawForest filename tree
+
 
 nodeActions :: (DMP.SerializableValuation v a)
     => DMP.NodeActions v a

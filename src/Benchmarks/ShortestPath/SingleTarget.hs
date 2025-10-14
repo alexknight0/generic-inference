@@ -58,15 +58,6 @@ import           System.IO                                            (IOMode (A
                                                                        stdout,
                                                                        withFile)
 
---------------------------------------------------------------------------------
--- Settings
---------------------------------------------------------------------------------
-isCountingOperations :: Bool
-#if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
-isCountingOperations = False
-#else
-isCountingOperations = True
-#endif
 
 --------------------------------------------------------------------------------
 -- Benchmarks
@@ -115,12 +106,11 @@ createHeader timestamp p mode = [show timestamp
                 Just s  -> show s
 
 
+--------------------------------------------------------------------------------
+-- Complexity Benchmarking
+--------------------------------------------------------------------------------
 benchmarkComplexity :: IO ()
 benchmarkComplexity = do
-    if not isCountingOperations
-        then error "Not counting operations."
-        else pure ()
-
     timestamp <- fmap round C.getPOSIXTime :: IO Integer
 
     ps <- setProblems
@@ -131,20 +121,6 @@ benchmarkComplexity = do
         benchComplexityOnModes timestamp modes p = mapM_ (\m -> benchComplexityOnMode timestamp m p) modes
 
 
-benchmarkPerformance :: IO [Benchmark]
-benchmarkPerformance = do
-    timestamp <- fmap round C.getPOSIXTime :: IO Integer
-
-    ps <- setProblems
-    evaluate (rnf ps)
-
-    benches <- concatMapM (benchModes timestamp setModes) ps
-
-    pure $ benches
-
---------------------------------------------------------------------------------
--- Operation Counting
---------------------------------------------------------------------------------
 benchComplexityOnMode :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashable a)
     => Integer
     -> Implementation
@@ -157,14 +133,33 @@ benchComplexityOnMode timestamp mode p = liftIO $ U.benchmarkComplexity header p
         problem = M.join $ multipleSingleTargets mode D.def p
 
         complexity = case mode of
-                        Generic (I.Fusion)     -> S.fusionComplexity
-                        DynamicP (_)           -> S.fusionComplexity
-                        Generic (I.Shenoy (_)) -> S.binaryShenoyComplexity
-                        _                      -> const 0
+                        Generic (I.Fusion)     -> fusionComplexity
+                        DynamicP (_)           -> fusionComplexity
+                        Generic (I.Shenoy (_)) -> const 0  -- Not yet implemented.
+                        _                      -> const 0  -- Not yet implemented.
+
+
+fusionComplexity :: S.Stats -> Int
+fusionComplexity s = sum $ zipWith f s.treeValuations s.treeWidths
+    where
+        f m w = m * square (w + 1)
+
+        square x = x * x
 
 --------------------------------------------------------------------------------
 -- Performance Testing
 --------------------------------------------------------------------------------
+benchmarkPerformance :: IO [Benchmark]
+benchmarkPerformance = do
+    timestamp <- fmap round C.getPOSIXTime :: IO Integer
+
+    ps <- setProblems
+    evaluate (rnf ps)
+
+    benches <- concatMapM (benchModes timestamp setModes) ps
+
+    pure $ benches
+
 benchModes :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashable a)
     => Integer
     -> [Implementation]

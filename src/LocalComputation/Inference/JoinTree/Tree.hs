@@ -43,6 +43,7 @@ module LocalComputation.Inference.JoinTree.Tree (
     , neighbourMap
     , treeWidth
     , treeMaxFrameLength
+    , treeSumFrameLengths
 
     -- Conversions
     , toTree
@@ -55,6 +56,7 @@ module LocalComputation.Inference.JoinTree.Tree (
 
 import           GHC.Records                        (HasField, getField)
 import           LocalComputation.ValuationAlgebra  hiding (assertInvariants,
+                                                     frameLength,
                                                      satisfiesInvariants)
 
 import qualified Algebra.Graph.Acyclic.AdjacencyMap as G (toAcyclic)
@@ -71,8 +73,8 @@ import qualified Data.IORef                         as IO
 import qualified Data.List                          as L
 import qualified Data.List.Extra                    as L
 import qualified Data.Map                           as M
-import           Data.Maybe                         (fromJust, isJust,
-                                                     isNothing)
+import           Data.Maybe                         (fromJust, fromMaybe,
+                                                     isJust, isNothing)
 import qualified Data.Set                           as S
 import           Data.Text.Lazy                     (unpack)
 import qualified Data.Tree                          as T
@@ -314,8 +316,26 @@ treeWidth :: (Valuation v a) => JoinTree (v a) -> Int
 treeWidth = S.size . (.d) . treeNodeWithMaxWidth
 
 treeMaxFrameLength :: (Valuation v a) => JoinTree (v a) -> IntOrInfinity
-treeMaxFrameLength = maxFrameLength . (.v) . treeNodeWithMaxWidth
+treeMaxFrameLength t = fromMaybe (V.Int 0) . S.lookupMax . S.map (\var -> frameLength var t) . (.d) . treeNodeWithMaxWidth $ t
 
+treeSumFrameLengths :: (Valuation v a) => JoinTree (v a) -> IntOrInfinity
+treeSumFrameLengths t = product' . map (\var -> frameLength var t) . S.toList . (.d) . treeNodeWithMaxWidth $ t
+    where
+        product' :: [IntOrInfinity] -> IntOrInfinity
+        product' = foldr f (V.Int 1)
+            where
+                f (V.Int x) (V.Int y) = V.Int $ x * y
+                f _         _         = V.Infinity
+
+
+frameLength :: (Valuation v a) => a -> JoinTree (v a) -> IntOrInfinity
+frameLength var t = V.frameLength var nodeThatContainsVar.v
+    where
+        -- Guaranteed to exist as variable would not occur in join tree unless it occured in
+        -- a valuation, and that valuation has to be somewhere in the join tree (if it was
+        -- in a different join tree in the same forest, then the running intersection
+        -- property would not hold).
+        nodeThatContainsVar = fromJust . L.find (\n -> n.t == Valuation && S.member var n.d) . vertexList $ t
 
 --------------------------------------------------------------------------------
 -- Unsafe variants

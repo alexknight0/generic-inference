@@ -1,6 +1,7 @@
 module Benchmarks.BayesianNetwork
     (
-        benchmarks
+          benchmarkPerformance
+        , benchmarkComplexity
     )
 where
 
@@ -16,82 +17,146 @@ where
 
 import qualified Benchmarks.BayesianNetwork.Data                   as D
 import qualified Benchmarks.Utils                                  as U
-import           Control.Monad.IO.Class                            (MonadIO)
+import           Control.Monad.IO.Class                            (MonadIO,
+                                                                    liftIO)
 import           Criterion.Main
 import           Data.Function                                     ((&))
+import qualified Data.List                                         as L
+import qualified Data.Time.Clock.POSIX                             as C
 import qualified LocalComputation.Inference                        as I
 import qualified LocalComputation.Inference.JoinTree.Diagram       as D
 import qualified LocalComputation.Inference.MessagePassing         as MP
 import qualified LocalComputation.Inference.Statistics             as S
 import qualified LocalComputation.Instances.BayesianNetwork        as BN
 import qualified LocalComputation.Instances.BayesianNetwork.Parser as P
-import qualified LocalComputation.LocalProcess                     as P
 import qualified LocalComputation.Utils                            as U
+import qualified LocalComputation.ValuationAlgebra                 as V
 
-data WithName a = WithName {
-      name  :: String
-    , value :: a
-}
+getAsiaNet :: IO (D.NamedNet (BN.Network String String))
+getAsiaNet = fmap (D.NamedNet "Asia") $ U.unsafeParseFile' P.network D.asiaFilepath
 
-data Problem    = Problem    { net :: BN.Network String String, qs    ::       [BN.Query String String] }
-data GenProblem = GenProblem { net :: BN.Network String String, qsGen :: D.Gen [BN.Query String String] }
+getAlarmNet :: IO (D.NamedNet (BN.Network String String))
+getAlarmNet = fmap (D.NamedNet "Alarm") $ U.unsafeParseFile' P.network D.alarmFilepath
 
-benchmarks :: IO [Benchmark]
-benchmarks = do
-        smallNet  <- U.unsafeParseFile' P.network D.asiaFilepath
-        mediumNet <- U.unsafeParseFile' P.network D.alarmFilepath
+getChildNet :: IO (D.NamedNet (BN.Network String String))
+getChildNet = fmap (D.NamedNet "Child") $ U.unsafeParseFile' P.network D.childFilepath
 
-        singleQueryProblems <- sequence $ zipWith (&) seeds $ concat [
-                                                       take 5 $ repeat $ createProblem mediumNet 1  1 0
-                                                     , take 5 $ repeat $ createProblem mediumNet 1  1 1
-                                                     , take 5 $ repeat $ createProblem mediumNet 1  2 1
-                                                     , take 5 $ repeat $ createProblem mediumNet 1  2 2
-                                                  ]
+setProblems :: MonadIO m => m [D.Problems]
+setProblems = do
+    childNet <- liftIO $ getChildNet
+    alarmNet <- liftIO $ getAlarmNet
 
-        multipleQueryProblems <- sequence $ zipWith (&) seeds $ concat [
-                                                       take 5 $ repeat $ createProblem mediumNet 5  1 0
-                                                     , take 5 $ repeat $ createProblem mediumNet 5  1 1
-                                                     , take 5 $ repeat $ createProblem mediumNet 5  2 1
-                                                     , take 5 $ repeat $ createProblem mediumNet 5  2 2
-                                                  ]
-
-        pure $ [ bgroup ("Bayesian - single query") $ map (benchMode singleQueryProblems) [
-                                                            I.Fusion
-                                                          , I.Shenoy MP.Threads
-                                                          , I.Shenoy MP.Distributed
-                                                         ]
-               , bgroup ("Bayesian - multiple queries") $ map (benchMode multipleQueryProblems) [
-                                                            I.Fusion
-                                                          , I.Shenoy MP.Threads
-                                                          , I.Shenoy MP.Distributed
-                                                         ]
-            ]
-        where
-            seeds = [0..]
+    sequence $ zipWith (&) seeds $ concat $ map (replicate 200) [
 
 
-            benchMode problems mode = bench (show mode) $ nfIO $ multipleGetProbability mode problems
+        D.genProblem g 1 q 1 1 | q <- [17..17], g <- [alarmNet]
+      ]
 
-createProblem :: (MonadIO m) => BN.Network String String -> Int -> Int -> Int -> Int -> m Problem
-createProblem net numQueries maxConditioned maxConditional seed = do
-    qs <- U.sample (seed) $ D.genQueries net numQueries maxConditioned maxConditional
-    pure $ Problem net qs
+    where
+        seeds :: [Int]
+        seeds = [221..]
 
-multipleGetProbability :: (MonadIO m) => I.Mode -> [Problem] -> m (S.WithStats [[BN.Probability]])
-multipleGetProbability mode ps = fmap (S.lift) $ mapM (\p -> BN.getProbability mode D.def p.qs p.net) ps
 
-benchmark :: WithName (BN.Network String String) -> WithName (D.Gen [BN.Query String String]) -> IO Benchmark
-benchmark net queryGen = do
-    queries <- D.sample queryGen.value
+setModes :: [I.Mode]
+setModes = [
+            -- I.Fusion
+            -- I.Shenoy MP.Threads
+           I.Shenoy MP.Distributed
+        ]
 
-    pure $ bgroup ("Bayesian/" ++ net.name ++ "/" ++ queryGen.name) [
-                  bench "localcomputation-current"   $ nfIO $ P.run $ BN.getProbability I.BruteForce D.def queries net.value
-            ]
+--------------------------------------------------------------------------------
+-- Complexity benchmarking
+--------------------------------------------------------------------------------
+benchmarkComplexity :: IO ()
+benchmarkComplexity = do
+    timestamp <- fmap round C.getPOSIXTime :: IO Integer
 
-foobar = U.getSeed 3
-{-
+    ps <- setProblems
 
->>> do mediumNet <- U.unsafeParseFile' P.network D.alarmFilepath; U.sample 15 $ D.genQueries mediumNet 1 1 1
-[Query {conditioned = fromList [("ERRCAUTER","TRUE")], conditional = fromList [("HR","NORMAL")]}]
+    mapM_ (benchComplexityOnModes timestamp setModes) ps
 
--}
+    where
+        benchComplexityOnModes timestamp modes p = mapM_ (\m -> benchComplexityOnMode timestamp m p) modes
+
+benchComplexityOnMode ::
+    Integer
+    -> I.Mode
+    -> D.Problems
+    -> IO ()
+benchComplexityOnMode timestamp mode ps = liftIO $ U.benchmarkComplexity header problem complexity
+    where
+        header = createHeader timestamp ps mode
+
+        problem = solveProblems ps mode
+
+        complexity = case mode of
+                        I.Fusion     -> fusionComplexity
+                        I.Shenoy (_) -> binaryShenoyComplexity
+                        _            -> const 0
+
+-- | Interprets infinity as 0, as we can't properly calculate a value for infinity.
+fusionComplexity :: S.Stats -> Int
+fusionComplexity stats = sum $ L.zipWith3 f stats.treeValuations stats.treeSumFrameLengths stats.treeTotalDomainLength
+    where
+        f _ V.Infinity _    = 0
+        f m (V.Int p)  dPhi = (m + dPhi) * p
+
+-- | Interprets infinity as 0, as we can't properly calculate a value for infinity.
+binaryShenoyComplexity :: S.Stats -> Int
+binaryShenoyComplexity stats = sum $ zipWith f stats.treeVertices stats.treeSumFrameLengths
+    where
+        f _ V.Infinity = 0
+        f v (V.Int p)  = v * p
+
+
+--------------------------------------------------------------------------------
+-- Performance benchmarking
+--------------------------------------------------------------------------------
+benchmarkPerformance :: IO [Benchmark]
+benchmarkPerformance = do
+    timestamp <- fmap round C.getPOSIXTime :: IO Integer
+
+    ps <- setProblems
+
+    pure $ concatMap (benchModes timestamp) ps
+    where
+        benchModes timestamp problem = map (benchMode timestamp problem) setModes
+
+        benchMode :: Integer -> D.Problems -> I.Mode -> Benchmark
+        benchMode timestamp problems mode = bench header $ nfIO $ solveProblems problems mode
+            where
+                header = L.intercalate "/" $ createHeader timestamp problems mode
+
+
+solveProblems :: D.Problems -> I.Mode -> IO (S.WithStats [[BN.Probability]])
+solveProblems ps mode = fmap S.lift $ mapM (\qs -> BN.getProbability mode D.def qs ps.net.net) ps.problems
+
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
+createHeader :: Integer -> D.Problems -> I.Mode -> [String]
+createHeader timestamp p mode = [show timestamp
+                               , "Bayesian Inference"
+                               , p.name ++ " - " ++ p.net.name
+                               , show numProblems
+                               , show numQueries
+                               , show p.numConditioned
+                               , show p.numConditional
+                               , seed
+                               , modeName mode
+                            ]
+
+    where
+
+        numProblems = length p.problems
+        numQueries = length $ head p.problems
+
+        seed = case p.seed of
+                Nothing -> "No seed"
+                Just s  -> show s
+
+modeName :: I.Mode -> String
+modeName I.BruteForce              = "Brute Force"
+modeName I.Fusion                  = "Fusion"
+modeName (I.Shenoy MP.Threads)     = "Shenoy (threads)"
+modeName (I.Shenoy MP.Distributed) = "Shenoy (distributed)"

@@ -63,7 +63,7 @@ fusion vs x = S.withStats stats result.result
         nextId = fromIntegral $ length vs
 
         result = fusion' nextId vsWithIds (E.createAndExclude (map label vs) x) Nothing
-        stats = S.fromLargestNode result.largestNode (length vsWithIds)
+        stats = S.fromLargestNode result.largestNode (map (.content) $ S.toList vsWithIds)
 
 data FusionResults a = FusionResults { largestNode :: Maybe a, result :: a }
 

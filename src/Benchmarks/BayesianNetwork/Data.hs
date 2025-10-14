@@ -30,13 +30,17 @@ module Benchmarks.BayesianNetwork.Data
     , stringToAsiaVar
     , asiaFilepath
     , alarmFilepath
+    , childFilepath
     , muninFilepath
     , genQuery
     , genQueries
     , genQueriesExact
     , Gen.sample
     , H.Gen
-    , Variables
+    , VariableFrames
+    , genProblem
+    , Problems (..)
+    , NamedNet (..)
     )
 where
 
@@ -44,6 +48,8 @@ import qualified LocalComputation.Instances.BayesianNetwork as BN
 import           LocalComputation.ValuationAlgebra          (Binary, Generic,
                                                              NFData)
 
+import qualified Benchmarks.Utils                           as U
+import qualified Control.Monad.IO.Class                     as M
 import qualified Data.Map                                   as M
 import qualified Hedgehog                                   as H
 import qualified Hedgehog.Gen                               as Gen
@@ -53,15 +59,14 @@ import qualified LocalComputation.ValuationAlgebra          as V
 import qualified LocalComputation.ValuationAlgebra.Semiring as S
 
 --------------------------------------------------------------------------------
--- Test case generation
+-- Query Generation
 --------------------------------------------------------------------------------
-
-type Variables a b = M.Map a (V.Domain b)
+type VariableFrames a b = M.Map a (V.Domain b)
 
 -- | Generates a variable assignment from a set of variables and their possible values.
 -- If the requested `numVars` exceeds the number of variables in `vars` then simply
 -- assigns as many as possible.
-genVarAssignment :: (Ord a) => Int -> Variables a b -> H.Gen (BN.VarAssignment a b)
+genVarAssignment :: (Ord a) => Int -> VariableFrames a b -> H.Gen (BN.VarAssignment a b)
 genVarAssignment numVars _
     | numVars < 0           = U.assertError
 genVarAssignment numVars vars = do
@@ -70,7 +75,7 @@ genVarAssignment numVars vars = do
 
 -- | Generates a random query using the given naturals as upper bounds on the number
 -- of variables that can be found in the conditioned and conditional variables respectively.
-genQuery :: (Ord a) => Int -> Int -> Variables a b -> H.Gen (BN.Query a b)
+genQuery :: (Ord a) => Int -> Int -> VariableFrames a b -> H.Gen (BN.Query a b)
 genQuery maxConditioned maxConditional vars
     | maxConditioned <= 0 = U.assertError
     | maxConditional <  0 = U.assertError
@@ -81,7 +86,7 @@ genQuery maxConditioned maxConditional vars = do
 
     genQueryExact numConditioned numConditional vars
 
-genQueryExact :: (Ord a) => Int -> Int -> Variables a b -> H.Gen (BN.Query a b)
+genQueryExact :: (Ord a) => Int -> Int -> VariableFrames a b -> H.Gen (BN.Query a b)
 genQueryExact numConditioned numConditional vars
     | numConditioned <= 0 = U.assertError
     | numConditional <  0 = U.assertError
@@ -92,25 +97,63 @@ genQueryExact numConditioned numConditional vars = do
 
     pure $ BN.Query conditioned conditional
 
-genQueries :: (Ord a, Eq b) => BN.Network a b -> Int -> Int -> Int -> H.Gen ([BN.Query a b])
+genQueries :: (Ord a) => BN.Network a b -> Int -> Int -> Int -> H.Gen ([BN.Query a b])
 genQueries valuations = genQueries' variables
     where
         variables = foldr M.union M.empty $ map S.toFrames valuations
 
-genQueries' :: (Ord a) => Variables a b -> Int -> Int -> Int -> H.Gen ([BN.Query a b])
+genQueries' :: (Ord a) => VariableFrames a b -> Int -> Int -> Int -> H.Gen ([BN.Query a b])
 genQueries' _    numQueries _ _ | numQueries == 0 = U.assertError
 genQueries' vars numQueries maxConditioned maxConditional = Gen.list (Range.singleton numQueries)
                                                                      (genQuery maxConditioned maxConditional vars)
 
-genQueriesExact :: (Ord a, Eq b) => BN.Network a b -> Int -> Int -> Int -> H.Gen ([BN.Query a b])
+genQueriesExact :: (Ord a) => BN.Network a b -> Int -> Int -> Int -> H.Gen ([BN.Query a b])
 genQueriesExact valuations = genQueriesExact' variables
     where
         variables = foldr M.union M.empty $ map S.toFrames valuations
 
-genQueriesExact' :: (Ord a) => Variables a b -> Int -> Int -> Int -> H.Gen ([BN.Query a b])
+genQueriesExact' :: (Ord a) => VariableFrames a b -> Int -> Int -> Int -> H.Gen ([BN.Query a b])
 genQueriesExact' _    numQueries _ _ | numQueries == 0 = U.assertError
 genQueriesExact' vars numQueries numConditioned numConditional = Gen.list (Range.singleton numQueries)
                                                                           (genQueryExact numConditioned numConditional vars)
+
+--------------------------------------------------------------------------------
+-- Problem generation
+--------------------------------------------------------------------------------
+data Problems = Problems {
+      name           :: String
+    , net            :: NamedNet (BN.Network String String)
+    , numProblems    :: Int
+    , problems       :: [[BN.Query String String]]
+    , numConditioned :: Int
+    , numConditional :: Int
+    , seed           :: Maybe Int
+}
+
+data NamedNet a = NamedNet {
+      name :: String
+    , net  :: a
+}
+
+
+genProblem :: (M.MonadIO m) => NamedNet (BN.Network String String) -> Int -> Int -> Int -> Int -> Int -> m Problems
+genProblem net numProblems numQueries numConditioned numConditional originalSeed = do
+
+    seeds <- U.sample originalSeed $ Gen.list (Range.singleton numProblems)
+                                              (Gen.int (Range.linear 0 1000000000000))
+
+    problems <- mapM (\seed -> U.sample seed $ genQueriesExact net.net numQueries numConditioned numConditional) seeds
+
+
+    pure $ Problems {
+          name           = "Basic"
+        , net            = net
+        , numProblems    = numProblems
+        , problems       = problems
+        , numConditioned = numConditioned
+        , numConditional = numConditional
+        , seed           = Just originalSeed
+    }
 
 
 --------------------------------------------------------------------------------
@@ -125,6 +168,9 @@ asiaFilepath = dataDirectory ++ "asia.net"
 
 alarmFilepath :: String
 alarmFilepath = dataDirectory ++ "alarm.net"
+
+childFilepath :: String
+childFilepath = dataDirectory ++ "child.net"
 
 muninFilepath :: String
 muninFilepath = dataDirectory ++ "munin.net"
@@ -156,7 +202,7 @@ stringToAsiaVar "xray"   = XRayResult
 stringToAsiaVar "dysp"   = Dyspnea
 stringToAsiaVar _        = error "Unexpected string representing an asia var."
 
-asiaVariables :: Variables AsiaVar Bool
+asiaVariables :: VariableFrames AsiaVar Bool
 asiaVariables = M.fromList $ map (\x -> (x, [False, True])) [minAsiaP1 .. maxAsiaP1]
 
 -- These valuations match the commonly used probability potentials, which slightly differ from
