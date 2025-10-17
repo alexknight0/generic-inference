@@ -58,6 +58,7 @@ library
       LocalComputation.Inference.Triangulation
       LocalComputation.Instances.BayesianNetwork
       LocalComputation.Instances.BayesianNetwork.Parser
+      LocalComputation.Instances.Database
       LocalComputation.Instances.FastFourierTransform
       LocalComputation.Instances.ShortestPath.Parser
       LocalComputation.Instances.ShortestPath.SingleTarget

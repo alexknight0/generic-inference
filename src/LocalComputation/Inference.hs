@@ -16,10 +16,12 @@ module LocalComputation.Inference (
     , queryDrawGraph
     , queries
     , unsafeQueries
+    , unsafeQueryDrawGraph
     , queriesDrawGraph
     , solutionDrawGraph
     , Mode (..)
     , Error (..)
+    , S.WithStats (..)
 ) where
 import           Control.Monad.IO.Class                                (MonadIO)
 import           LocalComputation.Inference.MessagePassing.Distributed (SerializableValuation)
@@ -37,6 +39,7 @@ import qualified LocalComputation.Inference.Statistics                 as S hidi
                                                                             (empty)
 import qualified LocalComputation.Inference.Statistics                 as Stats (empty)
 import qualified LocalComputation.LabelledMatrix                       as M
+import qualified LocalComputation.Utils                                as U
 import qualified LocalComputation.ValuationAlgebra                     as V
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular        as Q
 
@@ -123,6 +126,12 @@ unsafeQueries mode vs qs = case queries mode vs qs of
 unsafeQuery :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a))
  => Mode -> [v a] -> Domain a -> m (S.WithStats (v a))
 unsafeQuery mode vs q = fmap (fmap head) $ unsafeQueries mode vs [q]
+
+-- | Unsafe variant of `queryDrawGraph` - will throw if query is not subset of the
+-- domain the given valuations cover.
+unsafeQueryDrawGraph :: (SerializableValuation v a, Show (v a), NFData (v a), MonadIO m)
+    => D.DrawSettings -> Mode -> [v a] -> Domain a -> m (S.WithStats (v a))
+unsafeQueryDrawGraph s mode vs q = U.fromRight $ queryDrawGraph s mode vs q
 
 --------------------------------------------------------------------------------
 -- Brute force (simpliest possible inference implementation)
