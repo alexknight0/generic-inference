@@ -54,7 +54,8 @@ setProblems = do
 
     where
         seeds :: [Int]
-        seeds = [221..]
+        seeds = [231..]
+        -- seeds = [260..]
 
 
 setModes :: [I.Mode]

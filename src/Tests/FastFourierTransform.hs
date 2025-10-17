@@ -19,6 +19,7 @@ import           Control.Distributed.Process                     (liftIO)
 import           Data.Complex                                    (Complex ((:+)),
                                                                   imagPart,
                                                                   realPart)
+import qualified LocalComputation.Inference                      as I
 import           Tests.Utils                                     (checkAnswers,
                                                                   unitTest)
 
@@ -35,7 +36,7 @@ approximateEquals (FourierComplex x) (FourierComplex y) = abs (realPart x - real
 prop_queryMatchesKnownAnswers :: Property
 prop_queryMatchesKnownAnswers = unitTest $ do
 
-    case query fourierP1Samples fourierP1Queries of
+    case query I.Fusion fourierP1Samples fourierP1Queries of
         Nothing       -> failure
         Just resultsM -> do
             results <- run resultsM
@@ -54,7 +55,7 @@ prop_matchesHackagePackage = withTests 100 . property $ do
     -- Hackage package results
     answers <- liftIO $ dft samples'
 
-    case query samples' [0 .. (fromIntegral $ length samples' - 1)] of
+    case query I.Fusion samples' [0 .. (fromIntegral $ length samples' - 1)] of
         Nothing       -> failure
         Just resultsM -> do
             results <- run resultsM
@@ -67,7 +68,7 @@ prop_matchesHackagePackage2 = unitTest $ do
     let samples' = map (\x -> FourierComplex $ x :+ 0) samples
 
     answers <- liftIO $ dft samples'
-    case query samples' [0 .. (fromIntegral $ length samples' - 1)] of
+    case query I.Fusion samples' [0 .. (fromIntegral $ length samples' - 1)] of
         Nothing       -> failure
         Just resultsM -> do
             results <- run resultsM

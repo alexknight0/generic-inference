@@ -119,7 +119,7 @@ class ValuationFamily v where
     type VarAssignment v a
     combineAssignments :: Var a => Proxy (v a) -> VarAssignment v a -> VarAssignment v a -> VarAssignment v a
     projectAssignment  :: Var a => Proxy (v a) -> VarAssignment v a -> Domain a          -> VarAssignment v a
-    emptyAssignment     :: Var a => Proxy (v a) -> VarAssignment v a
+    emptyAssignment    :: Var a => Proxy (v a) -> VarAssignment v a
 
     -- | Produces the configuration extension set.
     --

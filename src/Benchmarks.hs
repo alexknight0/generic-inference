@@ -37,8 +37,8 @@ allBenchmarks = do
         -- Performance testing
         benchmarks <- sequence [
                                 -- ST.benchmarkPerformance
-                              -- , FFT.benchmarks
-                                BN.benchmarkPerformance
+                                FFT.benchmarks
+                                -- BN.benchmarkPerformance
                               ]
         defaultMain (concat benchmarks)
 

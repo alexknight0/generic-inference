@@ -7,7 +7,7 @@
 
 module LocalComputation.Instances.FastFourierTransform
     ( query
-    , query'
+    , unsafeQuery
     , FourierComplex (FourierComplex)
     , toBinaryVariableSet
     )
@@ -31,6 +31,7 @@ import           Data.Binary                                (Binary)
 import qualified Data.Hashable                              as H
 import           GHC.Generics                               (Generic)
 
+import qualified Control.Monad.IO.Class                     as M
 import           Data.Maybe                                 (fromJust)
 import qualified LocalComputation.Inference                 as I
 import qualified LocalComputation.Inference.MessagePassing  as MP
@@ -90,8 +91,8 @@ oneOrZero xs = fromListAssertDisjoint $ map (\x -> (x, S.fromList [0, 1])) (S.to
 Only operates if the number of samples is > 1 and is a power of two (I think theoretically this could be expanded to any power
 of a prime number, but that hasn't been done here). Returns Nothing if and only if the number of samples is > 1 and not a power of two.
 -}
-query :: [FourierComplex] -> [Natural] -> Maybe (Process [FourierComplex])
-query samples qs = case integerLogBase2 (fromIntegral $ length samples) of
+query :: (M.MonadIO m) => I.Mode -> [FourierComplex] -> [Natural] -> Maybe (m [FourierComplex])
+query mode samples qs = case integerLogBase2 (fromIntegral $ length samples) of
     Nothing -> Nothing
     (Just 0) -> Nothing
     (Just m) -> Just $ do
@@ -99,14 +100,14 @@ query samples qs = case integerLogBase2 (fromIntegral $ length samples) of
         let queryDomain = S.fromList $ map Y $ [0 .. m-1]
 
         -- let result = fromRight $ fusion (getKnowledgebase samples) queryDomain
-        result <- I.unsafeQuery (I.Shenoy MP.Threads) (getKnowledgebase samples) queryDomain
+        result <- I.unsafeQuery mode (getKnowledgebase samples) queryDomain
         pure $ map (findBinaryValue result.c m) qs
 
 -- | An unsafe version of `query` - throws when `query` would return `Nothing`.
-query' :: [FourierComplex] -> [Natural] -> Process [FourierComplex]
-query' samples qs = case query samples qs of
-                        Just result -> result
-                        Nothing     -> error "Invalid call to `query`"
+unsafeQuery :: (M.MonadIO m) => I.Mode -> [FourierComplex] -> [Natural] -> m [FourierComplex]
+unsafeQuery mode samples qs = case query mode samples qs of
+                                Just result -> result
+                                Nothing     -> error "Invalid call to `query`"
 
 
 findBinaryValue :: FastFourierValuation -> Natural -> Natural -> FourierComplex

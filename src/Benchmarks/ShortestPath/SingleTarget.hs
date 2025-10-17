@@ -70,7 +70,7 @@ import           System.IO                                            (IOMode (A
 -- graphs it was going to use (we don't know how many graphs that will be) and then swapped between those
 -- based on this state (where the state is hidden by the IO)
 setProblems :: (MonadIO m) => m [D.BenchmarkProblem Natural]
-setProblems = sequence $ zipWith (&) seeds $ map (\edges -> const $ D.newYorkProblemOneToOne 10 edges) [1700, 1800.. 4700]
+setProblems = sequence $ zipWith (&) seeds $ map (\edges -> const $ D.newYorkProblemOneToOne 10 edges) [3200]
 
     where
         seeds :: [Int]
@@ -81,11 +81,11 @@ setModes :: [Implementation]
 setModes = [
     --   Baseline
     -- , Generic  $ I.BruteForce
-      Generic  $ I.Fusion
+      -- Generic  $ I.Fusion
     -- , Generic  $ I.Shenoy MP.Threads
-    -- , Generic  $ I.Shenoy MP.Distributed
+    -- Generic  $ I.Shenoy MP.Distributed
     -- , DynamicP $ MP.Threads
-    -- , DynamicP $ MP.Distributed
+    DynamicP $ MP.Distributed
   ]
 
 
@@ -159,6 +159,7 @@ benchmarkPerformance = do
     benches <- concatMapM (benchModes timestamp setModes) ps
 
     pure $ benches
+
 
 benchModes :: (V.NFData a, Show a, Ord a, V.Binary a, V.Typeable a, H.Hashable a)
     => Integer
