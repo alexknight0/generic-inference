@@ -12,7 +12,7 @@ module LocalComputation.Inference.JoinTree.Tree (
 
     -- Nodes
       Node (id, v, t, postbox)
-    , node
+    , unsafeNode
     , changeContent
     , isQueryNode
     , NodeType (Valuation, Query, Union, Projection)
@@ -102,8 +102,8 @@ type Id = Integer
 
 data NodeType = Valuation | Query | Union | Projection deriving (Show, Generic, Binary, Enum, Bounded, Eq, NFData)
 
-node :: (ValuationFamily v) => Id -> S.Set a -> v a -> NodeType -> Node v a
-node i d v t = assert invariant $ Node i d v t Nothing
+unsafeNode :: (ValuationFamily v) => Id -> S.Set a -> v a -> NodeType -> Node v a
+unsafeNode i d v t = assert invariant $ Node i d v t Nothing
     where
         invariant
             | V.isIdentity v = t /= Valuation  -- Valuations cannot be identity elements.
