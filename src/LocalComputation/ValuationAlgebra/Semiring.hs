@@ -27,13 +27,8 @@ import           LocalComputation.ValuationAlgebra                hiding
 import qualified Data.Map                                         as M
 import qualified Data.Set                                         as S
 import qualified LocalComputation.Pretty                          as P
-import qualified LocalComputation.Utils                           as U
 import           LocalComputation.ValuationAlgebra.Semiring.Value
 
-import           GHC.Records                                      (HasField,
-                                                                   getField)
-
-import           Data.Proxy                                       (Proxy)
 import           GHC.Stack                                        (HasCallStack)
 import qualified LocalComputation.Potential                       as P
 import qualified LocalComputation.ValuationAlgebra                as V
@@ -100,66 +95,49 @@ e :: Domain a
 Note that a restriction of this form is that the type of the value of each
 variable in a variable arrangement is the same.
 -}
-data Valuation c b a = Identity { _d :: Domain a } | Valuation {
+data Valuation c b a = Identity | Valuation {
       _p :: P.Potential a b c
-    , _e :: Domain a
 } deriving (Generic, Binary, NFData)
 
--- | Accessor for domain. Not O(1)!
-instance HasField "d" (Valuation c b a) (Domain a) where
-    getField i@Identity{}  = i._d
-    getField v@Valuation{} = M.keysSet $ P.toFrames v._p
-
--- | Returns 'False' if the data structure does not satisfy it's given description.
-isWellFormed :: forall a b c. (Ord a) => Valuation c b a -> Bool
-isWellFormed Identity{} = True
-isWellFormed t@Valuation{}
-    | not (S.disjoint t.d t._e) = False
-    | otherwise = True
+-- -- | Accessor for domain. Not O(1)!
+-- instance HasField "d" (Valuation c b a) (Domain a) where
+--     getField i@Identity{}  = S.empty
+--     getField v@Valuation{} = M.keysSet $ P.toFrames v._p
 
 -- | Creates a valuation, returning 'Nothing' if the given parameters would lead to the creation
 -- of a valuation that is not well formed.
-create :: (Ord a) => P.Potential a b c -> Domain a -> Maybe (Valuation c b a)
-create x y
-    | isWellFormed result = Just result
-    | otherwise = Nothing
-    where
-        result = Valuation x y
+create :: P.Potential a b c -> Maybe (Valuation c b a)
+create p = Just $ unsafeCreate p
 
-unsafeCreate :: (Ord a) => P.Potential a b c -> Domain a -> Valuation c b a
-unsafeCreate p e = U.assertP isWellFormed $ Valuation p e
+unsafeCreate :: P.Potential a b c -> Valuation c b a
+unsafeCreate p = Valuation p
 
 type ProxiedMap c a b = M.Map a b
 
 instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (Valuation c b) where
 
-    label i@Identity{}  = i.d
-    label s@Valuation{} = S.union s.d s._e
+    label Identity      = S.empty
+    label s@Valuation{} = M.keysSet $ P.toFrames s._p
 
-    _combine i1@Identity{} i2@Identity{} = Identity { _d = S.union i1.d i2.d }
-    _combine i@Identity{}  t@Valuation{} = t { _e = (S.difference (S.union i.d t._e) t.d) }
-    _combine t@Valuation{} i@Identity{}  = t { _e = (S.difference (S.union i.d t._e) t.d) }
+    _combine Identity Identity = Identity
+    _combine Identity t@Valuation{} = t
+    _combine t@Valuation{} Identity = t
     _combine t1@Valuation{} t2@Valuation{}
-        | P.null t1._p = t2 { _e = S.difference (S.union t1._e t2._e) t2.d }
-        | P.null t2._p = t1 { _e = S.difference (S.union t1._e t2._e) t2.d }
-        | otherwise = Valuation newP newExtension
+        | P.null t1._p = t2
+        | P.null t2._p = t1
+        | otherwise = unsafeCreate newP
         where
             newP = P.combine multiply t1._p t2._p
-            newExtension = S.difference (S.unions [t1.d, t2.d, t1._e, t2._e]) (S.unions [t1.d, t2.d])
 
-    _project i@Identity{}  d = i { _d = d }
-    _project t@Valuation{} d = t { _p = P.project add t._p d
-                                 , _e = projectDomain3 t._e
-                                }
-        where
-            projectDomain3 = S.filter (\k -> k `elem` d)
+    _project Identity _      = Identity
+    _project t@Valuation{} d = unsafeCreate $ P.project add t._p d
 
-    identity = Identity
+    identity _ = Identity
 
-    isIdentity Identity{} = True
-    isIdentity _          = False
+    isIdentity Identity = True
+    isIdentity _        = False
 
-    satisfiesInvariants = isWellFormed
+    satisfiesInvariants = const True
 
     type VarAssignment (Valuation c b) a = ProxiedMap c a b
     combineAssignments  = error "Not Implemented"
@@ -167,12 +145,12 @@ instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (Valuation 
     configurationExtSet = error "Not Implemented"
     emptyAssignment     = error "Not Implemented"
 
-    frameLength var i@Identity{}  = error "Unknown frame length"
+    frameLength _   Identity      = error "Unknown frame length"
     frameLength var t@Valuation{} = V.Int $ S.size $ P.frame var t._p
 
 
 toTable :: (Show a, Show b, Show c, Ord b, Ord c) => Valuation a b c -> P.Table
-toTable Identity{}    = error "Not Implemented"
+toTable Identity      = error "Not Implemented"
 toTable v@Valuation{} = P.unsafeTable headings rows
     where
         assignedValues a = map show $ M.elems a
@@ -182,7 +160,7 @@ toTable v@Valuation{} = P.unsafeTable headings rows
                                                                                            $ P.permutationMap v._p
 
 instance (Show a, Show b, Show c, Ord b, Ord c) => Show (Valuation a b c) where
-    show Identity{}    = "Identity"
+    show Identity      = "Identity"
     show v@Valuation{} = P.showTable $ toTable v
 
 {-
@@ -203,23 +181,20 @@ with the values of the second parameter. For example:
     < Korea          Water           8
 -}
 getRows :: forall c b a. (HasCallStack, Ord a, Ord b) => [(a, [b])] -> [c] -> Valuation c b a
-getRows vars ps = U.assertP isWellFormed $ _getRows vars ps
-
-_getRows :: forall c b a. (HasCallStack, Ord a, Ord b) => [(a, [b])] -> [c] -> Valuation c b a
-_getRows vars ps = Valuation (P.unsafeFromList vars ps) S.empty
+getRows vars ps = unsafeCreate $ P.unsafeFromList vars ps
 
 -- | Returns the value of the given variable arrangement. Unsafe.
 findValue :: (Ord a, Ord b) => VarAssignment (Valuation c b) a -> Valuation c b a -> c
 findValue x v@Valuation{} = P.unsafeGetValue v._p x
-findValue _ (Identity _) = error "findProbability: Attempted to read value from an identity valuation."
+findValue _ Identity      = error "findProbability: Attempted to read value from an identity valuation."
 
 mapTableKeys :: (Ord a1, Ord a2, Ord b) => (a1 -> a2) -> Valuation c b a1 -> Valuation c b a2
-mapTableKeys f i@Identity{}  = Identity (S.map f i.d)
-mapTableKeys f v@Valuation{} = unsafeCreate (P.mapVariables f v._p) (S.map f v._e)
+mapTableKeys f v@Valuation{} = unsafeCreate $ P.mapVariables f v._p
+mapTableKeys _ Identity      = Identity
 
 mapVariableValues :: (Ord a, Ord b1, Ord b2) => (b1 -> b2) -> Valuation c b1 a -> Valuation c b2 a
-mapVariableValues _ i@Identity{}  = Identity i.d
-mapVariableValues f v@Valuation{} = unsafeCreate (P.mapFrames f v._p) v._e
+mapVariableValues f v@Valuation{} = unsafeCreate $ P.mapFrames f v._p
+mapVariableValues _ Identity      = Identity
 
 -- normalize :: (Var a, Show b, Ord b, Show c, SemiringValue c, Fractional c)
 --     => Valuation c b a -> Valuation c b a
@@ -232,8 +207,8 @@ mapVariableValues f v@Valuation{} = unsafeCreate (P.mapFrames f v._p) v._e
 --         sumOfAllXs = sum $ M.elems rowMap
 
 toFrames :: Valuation c b a -> M.Map a (Domain b)
-toFrames Identity{}    = error "Called 'toFrames' on identity element"
 toFrames v@Valuation{} = P.toFrames v._p
+toFrames Identity      = error "Called 'toFrames' on identity element"
 
 fromPermutationMap :: (Ord a, Ord b) => M.Map (M.Map a b) c -> Valuation c b a
-fromPermutationMap m = unsafeCreate (P.fromPermutationMap m) S.empty
+fromPermutationMap m = unsafeCreate $ P.fromPermutationMap m
