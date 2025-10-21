@@ -93,13 +93,13 @@ of the input valuations 'vs' in the final join tree are [0 .. (length vs)] respe
 baseJoinForest :: forall v a. (Show a, ValuationFamily v, Ord a)
     => [v a]
     -> [Domain a]
-    -> JoinForest (v a)
+    -> JoinForest v a
 baseJoinForest vs queries = unsafeFromGraph $ G.edges $ baseJoinForest' nextNodeId r d
     where
         d :: E.EliminationSequence a
         d = E.create $ map label vs
 
-        r :: [Node (v a)]
+        r :: [Node v a]
         r =    zipWith (\nid v -> node nid v            Valuation) [0                        ..] vs
             ++ zipWith (\nid q -> node nid (identity q) Query)     [fromIntegral (length vs) ..] queries
 
@@ -122,9 +122,9 @@ create up to 2 nodes on each iteration, we make the recursive call with 'nextNod
 -}
 baseJoinForest' :: forall v a . (ValuationFamily v, Ord a, Show a)
     => Id
-    -> [Node (v a)]
+    -> [Node v a]
     -> E.EliminationSequence a
-    -> [(Node (v a), Node (v a))]
+    -> [(Node v a, Node v a)]
 baseJoinForest' nextNodeId r d
     | E.isEmpty d = []
     | length r <= 1 = []
@@ -133,25 +133,25 @@ baseJoinForest' nextNodeId r d
     where
         (x, d') = fromJust $ E.eliminateNext d
 
-        xIsInNodeDomain :: Node (v a) -> Bool
+        xIsInNodeDomain :: Node v a -> Bool
         xIsInNodeDomain n = x `elem` (n.d)
 
-        phiX :: [Node (v a)]
+        phiX :: [Node v a]
         phiX = filter xIsInNodeDomain r
 
         domainOfPhiX :: Domain a
         domainOfPhiX = foldr (S.union) (S.empty) $ map (.d) phiX
 
-        nUnion :: Node (v a)
+        nUnion :: Node v a
         nUnion = node nextNodeId (identity domainOfPhiX) Union
 
-        r' :: [Node (v a)]
+        r' :: [Node v a]
         r' = setDifference r phiX
 
-        e :: [(Node (v a), Node (v a))]
+        e :: [(Node v a, Node v a)]
         e = [(n, nUnion) | n <- phiX]
 
-        nP :: Node (v a)
+        nP :: Node v a
         nP = node (nextNodeId + 1) (identity nPDomain) Projection
             where
                 nPDomain = (fromList $ setDifference (toList domainOfPhiX) [x])
@@ -159,13 +159,13 @@ baseJoinForest' nextNodeId r d
 binaryJoinForest :: forall v a. (Show a, ValuationFamily v, Ord a)
     => [v a]
     -> [Domain a]
-    -> JoinForest (v a)
+    -> JoinForest v a
 binaryJoinForest vs queries = unsafeFromGraph $ G.overlay (G.vertices newPhiU) (G.edges edges)
 
     where
         initialPsiU = E.create $ map label vs
 
-        initialPhiU :: [Node (v a)]
+        initialPhiU :: [Node v a]
         initialPhiU =    zipWith (\nid v -> node nid v            Valuation) [0                        ..] vs
                       ++ zipWith (\nid q -> node nid (identity q) Query)     [fromIntegral (length vs) ..] queries
 
@@ -178,10 +178,10 @@ binaryJoinForest vs queries = unsafeFromGraph $ G.overlay (G.vertices newPhiU) (
 
 outerLoop :: forall v a. (Show a, ValuationFamily v, Ord a)
     => E.EliminationSequence a
-    -> [Node (v a)]
-    -> [(Node (v a), Node (v a))]
+    -> [Node v a]
+    -> [(Node v a, Node v a)]
     -> Id
-    -> ([Node (v a)], [(Node (v a), Node (v a))])
+    -> ([Node v a], [(Node v a, Node v a)])
 outerLoop psiU phiU edges k
     | length phiU <= 1 = (phiU, edges)
     | E.size psiU > 0  = let sKAfterLoop = node kAfterLoop (identity $ S.difference r.d (S.singleton y)) Projection
@@ -197,7 +197,7 @@ outerLoop psiU phiU edges k
     where
         (y, psiUMinusY) = fromJust $ E.eliminateNext psiU
 
-        yIsInNodeDomain :: Node (v a) -> Bool
+        yIsInNodeDomain :: Node v a -> Bool
         yIsInNodeDomain n = y `elem` (n.d)
 
         phiY = filter yIsInNodeDomain phiU
@@ -214,10 +214,10 @@ outerLoop psiU phiU edges k
 --
 -- Observe that each loop the length of phiY decreases by exactly one!
 innerLoop :: forall v a. (Valuation v a)
-    => [Node (v a)]
-    -> [(Node (v a), Node (v a))]
+    => [Node v a]
+    -> [(Node v a, Node v a)]
     -> Id
-    -> (Node (v a), [(Node (v a), Node (v a))], Id)
+    -> (Node v a, [(Node v a, Node v a)], Id)
 innerLoop phiY edges k
     | length phiY <= 1 = (head phiY, edges, k)
     | assert invariant False = undefined
@@ -230,7 +230,7 @@ innerLoop phiY edges k
 
                             $ map U.toTuple $ U.combinations 2 phiY
 
-        sK :: Node (v a)
+        sK :: Node v a
         sK = node k (identity $ S.union r1.d r2.d) Union
 
         newEdges = (r1, sK) : (r2, sK) : edges
@@ -245,14 +245,14 @@ innerLoop phiY edges k
 collectTree :: (Show a, ValuationFamily v, Ord a)
     => [v a]
     -> Domain a
-    -> JoinTree (v a)
+    -> JoinTree v a
 collectTree vs q = unsafeConvertToCollectTree (binaryJoinForest vs [q]) q
                 -- ^^^ call is safe in this case.
 
 isolateAndRenumber :: (ValuationFamily v, Var a)
     => [v a]
     -> Domain a
-    -> JoinTree (v a)
+    -> JoinTree v a
 isolateAndRenumber vs q = unsafeIsolateAndRenumber (binaryJoinForest vs [q]) q
 
 --------------------------------------------------------------------------------

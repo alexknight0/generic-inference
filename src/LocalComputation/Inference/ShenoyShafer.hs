@@ -13,14 +13,11 @@ import           Control.Distributed.Process                           hiding
 import           Data.Set                                              (intersection)
 
 
-import           Control.DeepSeq                                       (rnf)
 import           Control.Exception                                     (assert)
-import           Control.Exception.Base                                (evaluate)
 import           Control.Monad.IO.Class                                (MonadIO)
 import qualified Data.List                                             as L
 import           Data.Maybe                                            (fromJust)
 import           LocalComputation.Inference.JoinTree                   (Node (..),
-                                                                        baseJoinForest,
                                                                         binaryJoinForest)
 import qualified LocalComputation.Inference.JoinTree                   as J
 import qualified LocalComputation.Inference.JoinTree                   as JF
@@ -33,8 +30,6 @@ import qualified LocalComputation.Inference.MessagePassing.Threads     as TMP
 import qualified LocalComputation.Inference.Statistics                 as S
 import           LocalComputation.LocalProcess                         (run)
 import           LocalComputation.ValuationAlgebra
-import           System.IO                                             (hFlush,
-                                                                        stdout)
 
 -- TODO: [Hypothesis]... Due to the high serialization cost, using the Cloud Haskell library to represent
 -- the message passing process by treating each node as a seperate computer is not efficent.
@@ -48,7 +43,7 @@ import           System.IO                                             (hFlush,
 -- the subproblem of finding 'groups' of nodes in the larger graph.
 
 -- TODO: Rename ResultingTree; stop exporting
-type InferredData v a = JF.JoinForest (v a)
+type InferredData v a = JF.JoinForest v a
 
 -- | Extracts a given query from the query results.
 --
@@ -126,8 +121,8 @@ nodeActions this neighbours resultPort = do
 --  3. projecting the result to the intersection of the sender and neighbour's domain
 computeMessage :: (ValuationFamily v, Var a)
     => [DMP.Message (v a)]
-    -> DMP.NodeWithPid (v a)
-    -> DMP.NodeWithPid (v a)
+    -> DMP.NodeWithPid v a
+    -> DMP.NodeWithPid v a
     -> v a
 computeMessage postbox sender recipient = computeMessage' (filter (\msg -> msg.sender /= recipient.id) postbox)
                                                           sender
@@ -138,8 +133,8 @@ computeMessage postbox sender recipient = computeMessage' (filter (\msg -> msg.s
 -- from the recipient.
 computeMessage' :: (ValuationFamily v, Var a)
     => [DMP.Message (v a)]
-    -> DMP.NodeWithPid (v a)
-    -> DMP.NodeWithPid (v a)
+    -> DMP.NodeWithPid v a
+    -> DMP.NodeWithPid v a
     -> v a
 computeMessage' postbox sender recipient = project (combines1 (sender.node.v : map (.msg) postbox))
                                                    (intersection sender.node.d recipient.node.d)

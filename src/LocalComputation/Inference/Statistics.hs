@@ -38,7 +38,7 @@ data Stats = Stats {
 empty :: Stats
 empty = Stats [] [] [] [] []
 
-includeTree :: (V.Valuation v a) => JT.JoinTree (v a) -> Stats -> Stats
+includeTree :: (V.Valuation v a) => JT.JoinTree v a -> Stats -> Stats
 includeTree t s = s { treeWidths            = s.treeWidths            ++ [treeWidth]
                     , treeValuations        = s.treeValuations        ++ [treeValuationCount]
                     , treeVertices          = s.treeVertices          ++ [treeVertices]
@@ -54,14 +54,14 @@ includeTree t s = s { treeWidths            = s.treeWidths            ++ [treeWi
         treeVertices       = length . JT.vertexList $ t
         treeSumFrameLengths = JT.treeSumFrameLengths t
 
-fromTree :: (V.ValuationFamily v, Show a, Ord a) => JT.JoinTree (v a) -> Stats
+fromTree :: (V.ValuationFamily v, Show a, Ord a) => JT.JoinTree v a -> Stats
 #if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
 fromTree _ = empty
 #else
 fromTree t = includeTree t empty
 #endif
 
-fromForest :: (V.Valuation v a) => JF.JoinForest (v a) -> Stats
+fromForest :: (V.Valuation v a) => JF.JoinForest v a -> Stats
 #if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
 fromForest _ = empty
 #else

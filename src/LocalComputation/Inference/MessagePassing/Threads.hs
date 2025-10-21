@@ -30,14 +30,14 @@ import qualified Data.Tuple.Extra                           as B
 --
 -- Only query nodes will have their valuations updated.
 messagePassing :: (P.NFData (v a), V.ValuationFamily v, V.Var a)
-    => JT.JoinForest (v a)
-    -> JT.JoinForest (v a)
+    => JT.JoinForest v a
+    -> JT.JoinForest v a
 -- TODO: parallelise
 messagePassing t = JT.unsafeToForest' $ map messagePassing' $ JT.treeList t
 
 messagePassing' :: (P.NFData (v a), V.ValuationFamily v, V.Var a)
-    => JT.JoinTree (v a)
-    -> JT.JoinTree (v a)
+    => JT.JoinTree v a
+    -> JT.JoinTree v a
 messagePassing' t
     | JT.hasQueryNode t = calculate . JT.unsafeFromTree . distribute' Nothing . collect' . JT.toTree $ t
     | otherwise         = t
@@ -47,10 +47,10 @@ messagePassing' t
 -- more like 'attatching the current node to the updated tree'.
 
 -- | Performs collect on the given tree.
-collect :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => JT.JoinTree (v a) -> JT.JoinTree (v a)
+collect :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => JT.JoinTree v a -> JT.JoinTree v a
 collect = JT.unsafeFromTree . collect' . JT.toTree
 
-collect' :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => T.Tree (JT.Node (v a)) -> T.Tree (JT.Node (v a))
+collect' :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => T.Tree (JT.Node v a) -> T.Tree (JT.Node v a)
 collect' (T.Node root subTrees) = T.Node newRoot newSubTrees
     where
         -- Computes collect on all subtrees, filling their postboxes
@@ -67,11 +67,11 @@ collect' (T.Node root subTrees) = T.Node newRoot newSubTrees
 -- | Takes a tree that has had collect performed on it, and returns the tree after distribute has been performed.
 --
 -- __Warning__: Assumes collect has been performed on the tree.
-distribute :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => JT.JoinTree (v a) -> JT.JoinTree (v a)
+distribute :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => JT.JoinTree v a -> JT.JoinTree v a
 distribute tree | assert (JT.verticesHavePostboxes tree) False = undefined
 distribute tree = JT.unsafeFromTree $ distribute' Nothing (JT.toTree tree)
 
-distribute' :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => Maybe (JT.Id, v a) -> T.Tree (JT.Node (v a)) -> T.Tree (JT.Node (v a))
+distribute' :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => Maybe (JT.Id, v a) -> T.Tree (JT.Node v a) -> T.Tree (JT.Node v a)
 distribute' incoming (T.Node root subTrees) = T.Node newRoot newSubTrees
 
     where
@@ -100,7 +100,7 @@ parSome xs parStates = P.withStrategy (P.parListN (length shouldPar) P.rdeepseq)
     where
         (shouldPar, shouldNotPar) = B.both (map fst) $ L.partition snd $ zip xs parStates
 
-messageForNode :: (V.ValuationFamily v, V.Var a) => JT.Node (v a) -> JT.Node (v a) -> v a
+messageForNode :: (V.ValuationFamily v, V.Var a) => JT.Node v a -> JT.Node v a -> v a
 messageForNode receiver sender = V.project (V.combines1 (sender.v : senderPostbox))
                                            (S.intersection receiver.d sender.d)
     where
@@ -111,7 +111,7 @@ messageForNode receiver sender = V.project (V.combines1 (sender.v : senderPostbo
 --
 -- __Warning__: Does not compute the resulting valuations for non-query nodes. Assumes collect and distribute
 -- have been performed on the given tree.
-calculate :: forall v a . (P.NFData (v a), V.ValuationFamily v, V.Var a) => JT.JoinTree (v a) -> JT.JoinTree (v a)
+calculate :: forall v a . (P.NFData (v a), V.ValuationFamily v, V.Var a) => JT.JoinTree v a -> JT.JoinTree v a
 calculate tree = JT.unsafeUpdateValuations mapping tree
     where
         queryNodes = filter (\n -> n.t == JT.Query) $ JT.vertexList tree
@@ -119,7 +119,7 @@ calculate tree = JT.unsafeUpdateValuations mapping tree
         -- newValuations = fmap updatedValuation queryNodes
         mapping = M.fromList $ zipWith (\n v -> (n.id, v)) queryNodes newValuations
 
-        updatedValuation :: JT.Node (v a) -> v a
+        updatedValuation :: JT.Node v a -> v a
         updatedValuation n = V.combines1 (n.v : postbox)
             where
                 postbox = M.elems . fromJust $ n.postbox
@@ -128,11 +128,11 @@ calculate tree = JT.unsafeUpdateValuations mapping tree
 -- Partial message propagation (answering one query)
 --------------------------------------------------------------------------------
 collectAndCalculate :: forall v a . (P.NFData (v a), V.ValuationFamily v, V.Var a)
-    => JT.JoinTree (v a) -> JT.JoinTree (v a)
+    => JT.JoinTree v a -> JT.JoinTree v a
 collectAndCalculate = JT.unsafeFromTree . collectAndCalculate' . JT.toTree
 
 collectAndCalculate' :: forall v a . (P.NFData (v a), V.ValuationFamily v, V.Var a)
-    => T.Tree (JT.Node (v a)) -> T.Tree (JT.Node (v a))
+    => T.Tree (JT.Node v a) -> T.Tree (JT.Node v a)
 collectAndCalculate' (T.Node root subTrees) = T.Node newRoot newSubTrees
     where
         -- Computes collect on all subtrees, filling their postboxes
@@ -145,7 +145,7 @@ collectAndCalculate' (T.Node root subTrees) = T.Node newRoot newSubTrees
         -- Creates new root by updating valuation on current root
         newRoot = root { JT.v = V.combines1 (root.v : map snd subTreeMessages) }
 
-        messageForThis :: JT.Node (v a) -> JT.Node (v a) -> v a
+        messageForThis :: JT.Node v a -> JT.Node v a -> v a
         messageForThis this sender = V.project sender.v (S.intersection this.d sender.d)
 
 

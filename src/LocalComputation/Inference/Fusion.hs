@@ -100,7 +100,7 @@ fusion' uniqueId upperPsi e largestNode
 --
 -- __Warning__: will fail if a disconnected join tree is given.
 fusionPass :: (NFData (v a), DMP.SerializableValuation v a, Show (v a))
-    => MP.Mode -> D.DrawSettings -> [v a] -> Domain a -> Process (S.WithStats (JT.JoinTree (v a)))
+    => MP.Mode -> D.DrawSettings -> [v a] -> Domain a -> Process (S.WithStats (JT.JoinTree v a))
 fusionPass mode settings vs queryDomain = do
     drawTree settings.beforeInference treeBeforeInference
 

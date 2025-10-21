@@ -61,8 +61,6 @@ instance (Table a b ~ Table String String) => V.ValuationFamily (Table a) where
     label t = S.fromList $ t.headings
 
     -- TODO: Think we need to redo the identity thing; vaccuous extension is sooo distracting.
-    _combine Identity{} t = t
-    _combine _ _          = undefined
     _combine t1 t2        = innerJoinTables t1 t2
 
     _project Identity{} newDomain = Identity newDomain

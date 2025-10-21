@@ -33,11 +33,11 @@ import           LocalComputation.ValuationAlgebra          (Binary, Generic,
                                                              Typeable)
 import qualified LocalComputation.ValuationAlgebra          as V
 
-type SerializableValuation v a = (V.ValuationFamily v, V.Var a, Binary (v a), Typeable v, Typeable a)
+type SerializableValuation v a = (V.ValuationFamily v, V.Var a, Binary (v a), Typeable v, Typeable a, Binary a)
 
-data NodeWithPid a = NodeWithPid { id :: ProcessId, node :: JF.Node a } deriving (Generic, Binary)
+data NodeWithPid v a = NodeWithPid { id :: ProcessId, node :: JF.Node v a } deriving (Generic, Binary)
 
-type NodeActions v a = NodeWithPid (v a) -> [NodeWithPid (v a)] -> SendPort (JF.Node (v a)) -> Process ()
+type NodeActions v a = NodeWithPid v a -> [NodeWithPid v a] -> SendPort (JF.Node v a) -> Process ()
 
 {- | Executes a message passing algorithm on a given join tree by spinning up each node in a join tree as
 a seperate process and allowing each process to execute the given `nodeActions`.
@@ -50,9 +50,9 @@ Only trees of the forest that have query nodes have message passing performed on
 Only query nodes will have their valuations updated, although this can be easily changed.
 -}
 messagePassing :: forall v a. (SerializableValuation v a)
-    => JF.JoinForest (v a)
+    => JF.JoinForest v a
     -> NodeActions v a
-    -> Process (JF.JoinForest (v a))
+    -> Process (JF.JoinForest v a)
 messagePassing forest nodeActions = do
 
     -- Perform message passing on all trees that have query nodes.
@@ -63,9 +63,9 @@ messagePassing forest nodeActions = do
 
 -- | Variant of `messagePassing` that operates on a `JoinTree` parameter.
 messagePassing' :: (SerializableValuation v a)
-    => JF.JoinTree (v a)
+    => JF.JoinTree v a
     -> NodeActions v a
-    -> Process (JF.JoinTree (v a))
+    -> Process (JF.JoinTree v a)
 messagePassing' tree nodeActions = do
     -- Perform message passing on tree.
     requiredUpdates <- messagePassing'' tree nodeActions
@@ -77,7 +77,7 @@ messagePassing' tree nodeActions = do
 -- | Variant of `messagePassing` that takes a `JoinTree` parameter and returns the
 -- required updates to the join tree after message passing.
 messagePassing'' :: (SerializableValuation v a)
-    => JF.JoinTree (v a)
+    => JF.JoinTree v a
     -> NodeActions v a
     -> Process (M.Map JT.Id (v a))
 messagePassing'' tree nodeActions = do
@@ -122,8 +122,8 @@ messagePassing'' tree nodeActions = do
 
 initializeNodeAndMonitor :: (SerializableValuation v a)
     => NodeActions v a
-    -> JF.Node (v a)
-    -> Process (NodeWithPid (v a), ReceivePort (JF.Node (v a)))
+    -> JF.Node v a
+    -> Process (NodeWithPid v a, ReceivePort (JF.Node v a))
 initializeNodeAndMonitor nodeActions node = do
     (sendFinalResult, receiveFinalResult) <- newChan
 
@@ -134,11 +134,11 @@ initializeNodeAndMonitor nodeActions node = do
 
 initializeNode :: (SerializableValuation v a)
     => NodeActions v a
-    -> SendPort (JF.Node (v a))
+    -> SendPort (JF.Node v a)
     -> Process ProcessId
 initializeNode nodeActions resultPort = spawnLocal $ do
-    this :: NodeWithPid (v a) <- expect
-    neighbours :: [NodeWithPid (v a)] <- expect
+    this :: NodeWithPid v a <- expect
+    neighbours :: [NodeWithPid v a] <- expect
 
     nodeActions this neighbours resultPort
 
@@ -153,11 +153,11 @@ data Message a = Message {
         , msg    :: a
 } deriving (Generic, Binary)
 
-type ComputeMessage a = [Message a] -> NodeWithPid a -> NodeWithPid a -> a
+type ComputeMessage v a = [Message (v a)] -> NodeWithPid v a -> NodeWithPid v a -> v a
 
-data CollectResults a = CollectResults {
-      target  :: NodeWithPid a
-    , postbox :: [Message a]
+data CollectResults v a = CollectResults {
+      target  :: NodeWithPid v a
+    , postbox :: [Message (v a)]
 }
 
 -- TODO: Can place postbox on node.
@@ -167,8 +167,8 @@ data CollectResults a = CollectResults {
 -- __Warning__: Assumes the target node is not the root node, and that the target node
 -- has at least one neighbour.
 collectAndCalculate :: forall v a . (SerializableValuation v a)
-    => NodeWithPid (v a)
-    -> [NodeWithPid (v a)]
+    => NodeWithPid v a
+    -> [NodeWithPid v a]
     -> Process (v a)
 collectAndCalculate _    []         = error "Collect and calculate assumes node has at least one neighbour."
 collectAndCalculate this neighbours = do
@@ -196,10 +196,10 @@ collectAndCalculate this neighbours = do
 --
 -- __Warning__: Assumes the target node has at least one neighbour.
 collect :: (SerializableValuation v a)
-    => NodeWithPid (v a)
-    -> [NodeWithPid (v a)]
-    -> ComputeMessage (v a)
-    -> Process (CollectResults (v a))
+    => NodeWithPid v a
+    -> [NodeWithPid v a]
+    -> ComputeMessage v a
+    -> Process (CollectResults v a)
 collect _    []         _      = error "Collect assumes node has at least one neighbour."
 collect this neighbours action = do
     -- Wait for messages from all neighbours bar one
@@ -225,10 +225,10 @@ data DistributeResults a = DistributeResults {
 --
 -- __Warning__: Assumes the target node has at least one neighbour.
 distribute :: (SerializableValuation v a)
-    => CollectResults (v a)
-    -> NodeWithPid (v a)
-    -> [NodeWithPid (v a)]
-    -> ComputeMessage (v a)
+    => CollectResults v a
+    -> NodeWithPid v a
+    -> [NodeWithPid v a]
+    -> ComputeMessage v a
     -> Process (DistributeResults (v a))
 distribute _              _    []         _      = error "Distribute assumes node has at least one neighbour."
 distribute collectResults this neighbours action = do
@@ -246,5 +246,5 @@ distribute collectResults this neighbours action = do
 
     pure $ DistributeResults postbox
 
-sendMsg :: Serializable a => NodeWithPid a -> NodeWithPid a -> a -> Process ()
+sendMsg :: (SerializableValuation v a) => NodeWithPid v a -> NodeWithPid v a -> v a -> Process ()
 sendMsg sender target = send target.id . Message sender.id

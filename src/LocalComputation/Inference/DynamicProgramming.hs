@@ -27,7 +27,7 @@ import qualified LocalComputation.ValuationAlgebra        as V
 -- Note: in the pseudocode for algorithm 8.3, the 'r' subscript of psi indicates that
 -- the 'fusion algorithm' was executed with 'r' as the root node.
 solution :: forall v a . (V.Valuation v a)
-    => JT.JoinTree (v a)
+    => JT.JoinTree v a
     -> V.VarAssignment v a
 solution t = go (t.root.id - 1) initialX
     where
