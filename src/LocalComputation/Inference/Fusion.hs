@@ -16,6 +16,7 @@ import qualified Data.Set                                              as S
 import qualified LocalComputation.Inference.EliminationSequence        as E
 import qualified LocalComputation.Inference.JoinTree                   as JT
 import qualified LocalComputation.Inference.JoinTree.Diagram           as D
+import qualified LocalComputation.Inference.JoinTree.Tree              as JTT
 import qualified LocalComputation.Inference.MessagePassing             as MP
 import qualified LocalComputation.Inference.MessagePassing.Distributed as DMP
 import qualified LocalComputation.Inference.MessagePassing.Threads     as TMP
@@ -133,8 +134,6 @@ nodeActions this neighbours resultPort = do
 
         -- If not root node, execute collect algorithm.
         False -> DMP.collectAndCalculate this neighbours
-
-    assert (this.node.d == label result) (pure ())
 
     -- In shenoy, we decide only to send a result to the result port if its a query node,
     -- however here we send all results, as the results of all valuations are required

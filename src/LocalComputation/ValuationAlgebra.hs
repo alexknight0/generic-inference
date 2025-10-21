@@ -18,7 +18,7 @@ should not rely on an error being thrown unless asserts are enabled.
 TODO: Move to head of library.
 -}
 module LocalComputation.ValuationAlgebra
-    ( ValuationFamily (label, _combine, _project, identity, eliminate, satisfiesInvariants, VarAssignment, combineAssignments, projectAssignment, configurationExtSet, emptyAssignment, frameLength)
+    ( ValuationFamily (label, _combine, _project, identity, eliminate, satisfiesInvariants, VarAssignment, combineAssignments, projectAssignment, configurationExtSet, emptyAssignment, frameLength, notIdentity)
     , labelSize
     , combine
     , project
@@ -113,6 +113,7 @@ class ValuationFamily v where
     notIdentity :: v a -> Bool
     notIdentity = not . isIdentity
 
+    -- TODO: Remove.
     satisfiesInvariants :: Var a => v a -> Bool
     satisfiesInvariants _ = True
 
@@ -148,19 +149,15 @@ combine v1 v2 = IO.unsafePerformIO $ do
 project :: (ValuationFamily v, Var a) => v a -> Domain a -> v a
 #if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
 project v d
-    -- Domain projected to must be subset.
-    | assert (d `S.isSubsetOf` label v) False = undefined
-    -- If current domain is domain of projection skip projection call for efficency.
-    | label v == d = v
+    -- If current domain is subset of domain of projection skip projection call for efficency.
+    | S.isSubsetOf (label v) d = v
     -- Delegate call to _project but check invariants on return
     | otherwise = assertInvariants $ _project v d
 #else
 {-# NOINLINE project #-}
 project v d
-    -- Domain projected to must be subset.
-    | assert (d `S.isSubsetOf` label v) False = undefined
-    -- If current domain is domain of projection skip projection call for efficency.
-    | label v == d = v
+    -- If current domain is subset of domain of projection skip projection call for efficency.
+    | S.isSubsetOf (label v) d = v
     -- Delegate call to _project but check invariants on return
     | otherwise = IO.unsafePerformIO $ do
         -- Increment if not a trivial projection

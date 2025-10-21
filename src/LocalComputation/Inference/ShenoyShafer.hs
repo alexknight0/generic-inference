@@ -105,13 +105,9 @@ nodeActions this neighbours resultPort = do
         True -> do
             -- Send result back to parent process
             let result = combines1 (this.node.v : map (.msg) postbox)
-            assertLabelUnchanged result
             sendChan resultPort $ J.changeContent this.node result
 
         False -> pure ()  -- Don't need to bother updating valuations for non-query nodes.
-
-    where
-        assertLabelUnchanged result = assert (this.node.d == label result) $ pure ()
 
 -- | Computes a message to send to the given neighbour.
 --

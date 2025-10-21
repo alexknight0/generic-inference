@@ -116,7 +116,7 @@ treeNode chosenFont node = DiagramWithBorder (full # named node.id) contents.bor
         body     = contents.diagram # bgA (nodeColour node.t)
         contents = withBorder $ vsep seperationSpace [titleText "DOMAIN",    domain, seperator,
                                                       titleText "VALUATION", valuation]
-        domain         = textWithNewlines chosenFont black (V.showDomain $ V.label node.v)  # scale 3
+        domain         = textWithNewlines chosenFont black (V.showDomain $ node.d)  # scale 3
         valuation      = textWithNewlines chosenFont black (show node.v)                    # scale 1
         titleText s    = textWithNewlines chosenFont black s                                # scale 1 # opacity 0.7
 

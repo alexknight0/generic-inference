@@ -11,7 +11,7 @@
 module LocalComputation.Inference.JoinTree.Tree (
 
     -- Nodes
-      Node (id, v, t, postbox)
+      Node (id, d, v, t, postbox)
     , unsafeNode
     , changeContent
     , isQueryNode
@@ -92,7 +92,7 @@ import           Text.Pretty.Simple                 (pShow)
 
 data Node v a = Node {
       id      :: Id
-    , domain  :: S.Set a
+    , d       :: S.Set a
     , v       :: v a
     , t       :: NodeType
     , postbox :: Maybe (M.Map Id (v a))
@@ -102,23 +102,28 @@ type Id = Integer
 
 data NodeType = Valuation | Query | Union | Projection deriving (Show, Generic, Binary, Enum, Bounded, Eq, NFData)
 
-unsafeNode :: (ValuationFamily v) => Id -> S.Set a -> v a -> NodeType -> Node v a
-unsafeNode i d v t = assert invariant $ Node i d v t Nothing
+unsafeNode :: (Valuation v a) => Id -> S.Set a -> v a -> NodeType -> Node v a
+unsafeNode i d v t = unsafeNode' i d v t Nothing
+
+unsafeNode' :: (Valuation v a)
+    => Id -> S.Set a -> v a -> NodeType -> Maybe (M.Map Id (v a)) -> Node v a
+unsafeNode' i d v t p = assert invariant $ Node i d v t p
     where
         invariant
-            | V.isIdentity v = t /= Valuation  -- Valuations cannot be identity elements.
-            | otherwise      = True
+            | not $ S.isSubsetOf (label v) d   = False
+            | t == Valuation && V.isIdentity v = False -- Valuations cannot be identity elements.
+            | otherwise                        = True
 
-changeContent :: Node v a -> v a -> Node v a
-changeContent n v = n { v = v }
+changeContent :: (Valuation v a) => Node v a -> v a -> Node v a
+changeContent n v = unsafeNode' n.id n.d v n.t n.postbox
 
 isQueryNode :: Node v a -> Bool
 isQueryNode n = n.t == Query
 
--- | Accessor for the domain of the valuation.  Equivalent to calling `label` on the valuation.
--- __Warning__: Not necessarily O(1).
-instance (ValuationFamily v, Ord a, Show a) => HasField "d" (Node v a) (Domain a) where
-    getField m = label m.v
+-- -- | Accessor for the domain of the valuation.  Equivalent to calling `label` on the valuation.
+-- -- __Warning__: Not necessarily O(1).
+-- instance (ValuationFamily v, Ord a, Show a) => HasField "d" (Node v a) (Domain a) where
+--     getField m = label m.v
 
 -- | Equality of nodes defers to id.
 instance Eq (Node v a) where
@@ -211,7 +216,7 @@ redirectToQueryNode :: (ValuationFamily v, Ord a, Show a)
 redirectToQueryNode d g = redirectTree (queryNode.id) g
     where
         -- TODO: Update
-        queryNode = head $ filter (\n -> n.d == d && n.t == Query) (vertexList g)
+        queryNode = head $ filter (\n -> n.t == Query && n.d == d) (vertexList g)
 
 -- | Updates valuations for nodes of the given ids.
 --
@@ -222,7 +227,7 @@ unsafeUpdateValuations m t = unsafeFromGraph $ G.gmap f t.g
     where
         f n = case M.lookup n.id m of
                 Nothing -> n
-                Just v  -> assert (n.d == label v) $ n { v = v }
+                Just v  -> changeContent n v
 
 
 -- | Updates postboxes for nodes of the given ids.
@@ -312,7 +317,7 @@ variableMap :: forall v a . (V.ValuationFamily v, V.Var a) => JoinTree v a -> M.
 variableMap t = foldr (M.unionWith (\x1 x2 -> x1 ++ x2)) M.empty $ map variableMapForNode (vertexList t)
     where
         variableMapForNode :: Node v a -> M.Map a [Node v a]
-        variableMapForNode n = foldr (\var acc -> M.insert var [n] acc) M.empty (label n.v)
+        variableMapForNode n = foldr (\var acc -> M.insert var [n] acc) M.empty n.d
 
 treeNodeWithMaxWidth :: (Valuation v a) => JoinTree v a -> Node v a
 treeNodeWithMaxWidth = L.maximumOn (S.size . (.d)) . vertexList

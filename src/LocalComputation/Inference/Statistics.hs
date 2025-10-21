@@ -49,7 +49,7 @@ includeTree t s = s { treeWidths            = s.treeWidths            ++ [treeWi
         treeWidth             = JT.treeWidth $ t
         treeValuations        = filter (\n -> n.t == JT.Valuation) . JT.vertexList $ t
         treeValuationCount    = length treeValuations
-        treeTotalDomainLength = S.size $ S.unions $ map (V.label . (.v)) treeValuations
+        treeTotalDomainLength = S.size $ S.unions $ map (.d) treeValuations
 
         treeVertices       = length . JT.vertexList $ t
         treeSumFrameLengths = JT.treeSumFrameLengths t

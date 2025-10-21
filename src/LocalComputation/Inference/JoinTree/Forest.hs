@@ -84,7 +84,7 @@ unsafeUpdateValuations m t = unsafeFromGraph $ G.gmap f t.g
     where
         f n = case M.lookup n.id m of
                 Nothing -> n
-                Just v  -> assert (n.d == label v) $ n { JT.v = v }
+                Just v  -> JT.changeContent n v
 
 -- | Returns the sub join trees that can be formed by traversing one edge from the root,
 -- erasing the edge that was followed, and declaring the node visited the root of a valid
