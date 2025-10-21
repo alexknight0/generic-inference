@@ -99,9 +99,10 @@ baseJoinForest vs queries = unsafeFromGraph $ G.edges $ baseJoinForest' nextNode
         d :: E.EliminationSequence a
         d = E.create $ map label vs
 
+        -- TODO: Fix indentation
         r :: [Node v a]
-        r =    zipWith (\nid v -> node nid v            Valuation) [0                        ..] vs
-            ++ zipWith (\nid q -> node nid (identity q) Query)     [fromIntegral (length vs) ..] queries
+        r =    zipWith (\nid v -> node nid (label v) v            Valuation) [0                        ..] vs
+            ++ zipWith (\nid q -> node nid q (identity q) Query)     [fromIntegral (length vs) ..] queries
 
         nextNodeId :: Id
         nextNodeId = fromIntegral $ length r
@@ -143,7 +144,7 @@ baseJoinForest' nextNodeId r d
         domainOfPhiX = foldr (S.union) (S.empty) $ map (.d) phiX
 
         nUnion :: Node v a
-        nUnion = node nextNodeId (identity domainOfPhiX) Union
+        nUnion = node nextNodeId domainOfPhiX (identity domainOfPhiX) Union
 
         r' :: [Node v a]
         r' = setDifference r phiX
@@ -152,7 +153,7 @@ baseJoinForest' nextNodeId r d
         e = [(n, nUnion) | n <- phiX]
 
         nP :: Node v a
-        nP = node (nextNodeId + 1) (identity nPDomain) Projection
+        nP = node (nextNodeId + 1) nPDomain (identity nPDomain) Projection
             where
                 nPDomain = (fromList $ setDifference (toList domainOfPhiX) [x])
 
@@ -166,8 +167,8 @@ binaryJoinForest vs queries = unsafeFromGraph $ G.overlay (G.vertices newPhiU) (
         initialPsiU = E.create $ map label vs
 
         initialPhiU :: [Node v a]
-        initialPhiU =    zipWith (\nid v -> node nid v            Valuation) [0                        ..] vs
-                      ++ zipWith (\nid q -> node nid (identity q) Query)     [fromIntegral (length vs) ..] queries
+        initialPhiU =    zipWith (\nid v -> node nid (label v) v            Valuation) [0                        ..] vs
+                      ++ zipWith (\nid q -> node nid q (identity q) Query)     [fromIntegral (length vs) ..] queries
 
         initialK :: Id
         initialK = fromIntegral $ length initialPhiU
@@ -184,7 +185,7 @@ outerLoop :: forall v a. (Show a, ValuationFamily v, Ord a)
     -> ([Node v a], [(Node v a, Node v a)])
 outerLoop psiU phiU edges k
     | length phiU <= 1 = (phiU, edges)
-    | E.size psiU > 0  = let sKAfterLoop = node kAfterLoop (identity $ S.difference r.d (S.singleton y)) Projection
+    | E.size psiU > 0  = let sKAfterLoop = node kAfterLoop (S.difference r.d (S.singleton y)) (identity $ S.difference r.d (S.singleton y)) Projection
                              newK = kAfterLoop + 1
                              newEdges = (r, sKAfterLoop) : edgesAfterLoop
                              newPhiU = (sKAfterLoop : phiU) `setDifference` filter yIsInNodeDomain phiU
@@ -231,7 +232,7 @@ innerLoop phiY edges k
                             $ map U.toTuple $ U.combinations 2 phiY
 
         sK :: Node v a
-        sK = node k (identity $ S.union r1.d r2.d) Union
+        sK = node k (S.union r1.d r2.d) (identity $ S.union r1.d r2.d) Union
 
         newEdges = (r1, sK) : (r2, sK) : edges
         newPhiY = sK : phiY `setDifference` [r1, r2]

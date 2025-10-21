@@ -92,9 +92,9 @@ import           Text.Pretty.Simple                 (pShow)
 
 data Node v a = Node {
       id      :: Id
+    , domain  :: S.Set a
     , v       :: v a
     , t       :: NodeType
-    -- , domain  :: S.Set a
     , postbox :: Maybe (M.Map Id (v a))
 } deriving (Generic, Typeable, Binary, NFData)
 
@@ -102,8 +102,12 @@ type Id = Integer
 
 data NodeType = Valuation | Query | Union | Projection deriving (Show, Generic, Binary, Enum, Bounded, Eq, NFData)
 
-node :: Id -> v a -> NodeType -> Node v a
-node i v t = Node i v t Nothing
+node :: (ValuationFamily v) => Id -> S.Set a -> v a -> NodeType -> Node v a
+node i d v t = assert invariant $ Node i d v t Nothing
+    where
+        invariant
+            | V.isIdentity v = t /= Valuation  -- Valuations cannot be identity elements.
+            | otherwise      = True
 
 changeContent :: Node v a -> v a -> Node v a
 changeContent n v = n { v = v }

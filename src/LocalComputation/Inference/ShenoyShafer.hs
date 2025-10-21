@@ -64,7 +64,7 @@ extractQueryResults queryDomains results = map f queryDomains
 -- | Performs shenoy shafer inference.
 --
 -- Assumes query is subset of the domain the given valuations cover.
-queries :: (NFData (v a), DMP.SerializableValuation v a, Show (v a), MonadIO m)
+queries :: (NFData (v a), DMP.SerializableValuation v a, Show (v a), MonadIO m, NFData a)
     => MP.Mode
     -> D.DrawSettings
     -> [v a]

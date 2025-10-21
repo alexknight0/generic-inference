@@ -29,13 +29,13 @@ import qualified Data.Tuple.Extra                           as B
 -- | Performs message passing over the given forest.
 --
 -- Only query nodes will have their valuations updated.
-messagePassing :: (P.NFData (v a), V.ValuationFamily v, V.Var a)
+messagePassing :: (P.NFData (v a), V.ValuationFamily v, V.Var a, P.NFData a)
     => JT.JoinForest v a
     -> JT.JoinForest v a
 -- TODO: parallelise
 messagePassing t = JT.unsafeToForest' $ map messagePassing' $ JT.treeList t
 
-messagePassing' :: (P.NFData (v a), V.ValuationFamily v, V.Var a)
+messagePassing' :: (P.NFData (v a), V.ValuationFamily v, V.Var a, P.NFData a)
     => JT.JoinTree v a
     -> JT.JoinTree v a
 messagePassing' t
@@ -67,11 +67,11 @@ collect' (T.Node root subTrees) = T.Node newRoot newSubTrees
 -- | Takes a tree that has had collect performed on it, and returns the tree after distribute has been performed.
 --
 -- __Warning__: Assumes collect has been performed on the tree.
-distribute :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => JT.JoinTree v a -> JT.JoinTree v a
+distribute :: (P.NFData (v a), P.NFData a, V.ValuationFamily v, V.Var a) => JT.JoinTree v a -> JT.JoinTree v a
 distribute tree | assert (JT.verticesHavePostboxes tree) False = undefined
 distribute tree = JT.unsafeFromTree $ distribute' Nothing (JT.toTree tree)
 
-distribute' :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => Maybe (JT.Id, v a) -> T.Tree (JT.Node v a) -> T.Tree (JT.Node v a)
+distribute' :: (P.NFData (v a), P.NFData a, V.ValuationFamily v, V.Var a) => Maybe (JT.Id, v a) -> T.Tree (JT.Node v a) -> T.Tree (JT.Node v a)
 distribute' incoming (T.Node root subTrees) = T.Node newRoot newSubTrees
 
     where
