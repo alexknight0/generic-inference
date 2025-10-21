@@ -120,17 +120,17 @@ instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (Valuation 
     label s@Valuation{} = M.keysSet $ P.toFrames s._p
 
     _combine Identity Identity = Identity
-    _combine Identity t@Valuation{} = t
-    _combine t@Valuation{} Identity = t
-    _combine t1@Valuation{} t2@Valuation{}
+    _combine Identity t = t
+    _combine t Identity = t
+    _combine t1 t2
         | P.null t1._p = t2
         | P.null t2._p = t1
         | otherwise = unsafeCreate newP
         where
             newP = P.combine multiply t1._p t2._p
 
-    _project Identity _      = Identity
-    _project t@Valuation{} d = unsafeCreate $ P.project add t._p d
+    _project Identity _ = Identity
+    _project t d        = unsafeCreate $ P.project add t._p d
 
     identity _ = Identity
 
@@ -145,13 +145,13 @@ instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (Valuation 
     configurationExtSet = error "Not Implemented"
     emptyAssignment     = error "Not Implemented"
 
-    frameLength _   Identity      = error "Unknown frame length"
-    frameLength var t@Valuation{} = V.Int $ S.size $ P.frame var t._p
+    frameLength _   Identity = error "Unknown frame length"
+    frameLength var t        = V.Int $ S.size $ P.frame var t._p
 
 
 toTable :: (Show a, Show b, Show c, Ord b, Ord c) => Valuation a b c -> P.Table
-toTable Identity      = error "Not Implemented"
-toTable v@Valuation{} = P.unsafeTable headings rows
+toTable Identity = error "Not Implemented"
+toTable v        = P.unsafeTable headings rows
     where
         assignedValues a = map show $ M.elems a
 
@@ -160,8 +160,8 @@ toTable v@Valuation{} = P.unsafeTable headings rows
                                                                                            $ P.permutationMap v._p
 
 instance (Show a, Show b, Show c, Ord b, Ord c) => Show (Valuation a b c) where
-    show Identity      = "Identity"
-    show v@Valuation{} = P.showTable $ toTable v
+    show Identity = "Identity"
+    show v        = P.showTable $ toTable v
 
 {-
 The first parameter is an association list mapping a variable to a list of values that the variable can take.
@@ -185,16 +185,16 @@ getRows vars ps = unsafeCreate $ P.unsafeFromList vars ps
 
 -- | Returns the value of the given variable arrangement. Unsafe.
 findValue :: (Ord a, Ord b) => VarAssignment (Valuation c b) a -> Valuation c b a -> c
-findValue x v@Valuation{} = P.unsafeGetValue v._p x
-findValue _ Identity      = error "findProbability: Attempted to read value from an identity valuation."
+findValue _ Identity = error "findProbability: Attempted to read value from an identity valuation."
+findValue x v        = P.unsafeGetValue v._p x
 
 mapTableKeys :: (Ord a1, Ord a2, Ord b) => (a1 -> a2) -> Valuation c b a1 -> Valuation c b a2
-mapTableKeys f v@Valuation{} = unsafeCreate $ P.mapVariables f v._p
-mapTableKeys _ Identity      = Identity
+mapTableKeys _ Identity = Identity
+mapTableKeys f v        = unsafeCreate $ P.mapVariables f v._p
 
 mapVariableValues :: (Ord a, Ord b1, Ord b2) => (b1 -> b2) -> Valuation c b1 a -> Valuation c b2 a
-mapVariableValues f v@Valuation{} = unsafeCreate $ P.mapFrames f v._p
-mapVariableValues _ Identity      = Identity
+mapVariableValues _ Identity = Identity
+mapVariableValues f v        = unsafeCreate $ P.mapFrames f v._p
 
 -- normalize :: (Var a, Show b, Ord b, Show c, SemiringValue c, Fractional c)
 --     => Valuation c b a -> Valuation c b a
@@ -207,8 +207,8 @@ mapVariableValues _ Identity      = Identity
 --         sumOfAllXs = sum $ M.elems rowMap
 
 toFrames :: Valuation c b a -> M.Map a (Domain b)
-toFrames v@Valuation{} = P.toFrames v._p
-toFrames Identity      = error "Called 'toFrames' on identity element"
+toFrames Identity = error "Called 'toFrames' on identity element"
+toFrames v        = P.toFrames v._p
 
 fromPermutationMap :: (Ord a, Ord b) => M.Map (M.Map a b) c -> Valuation c b a
 fromPermutationMap m = unsafeCreate $ P.fromPermutationMap m

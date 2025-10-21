@@ -40,7 +40,6 @@ create m b
 unsafeCreate :: (Var a, Q.SemiringValue b, Show b) => M.LabelledMatrix a a b -> M.LabelledMatrix a () b -> Valuation b a
 unsafeCreate m b = U.assertP satisfiesInvariants $ Valuation m b
 
--- TODO: Probably can remove instance of Show? It doens't contribute to the 'label', 'combine', 'project' functionality no?
 instance (Show b, Q.SemiringValue b) => ValuationFamily (Valuation b) where
 
     type VarAssignment (Valuation b) a = M.LabelledMatrix a () b
