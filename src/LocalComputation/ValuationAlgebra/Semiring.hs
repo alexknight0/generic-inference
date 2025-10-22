@@ -132,7 +132,7 @@ instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (Valuation 
     _project Identity _ = Identity
     _project t d        = unsafeCreate $ P.project add t._p d
 
-    identity _ = Identity
+    identity = Identity
 
     isIdentity Identity = True
     isIdentity _        = False

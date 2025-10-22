@@ -71,7 +71,7 @@ instance (Table a b ~ Table String String) => V.ValuationFamily (Table a) where
                 where
                     f row = [value | (heading, value) <- zip t.headings row, heading `elem` newDomain]
 
-    identity t = Table [] [[]]
+    identity = Table [] [[]]
 
 
 innerJoinTables :: (Eq a, Eq b) => Table a b -> Table a b -> Table a b

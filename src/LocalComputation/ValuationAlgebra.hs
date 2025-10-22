@@ -108,8 +108,8 @@ class ValuationFamily v where
 
     frameLength :: Var a => a -> v a -> IntOrInfinity
 
-    identity  :: Domain a -> v a
-    isIdentity :: v a -> Bool
+    identity    :: v a
+    isIdentity  :: v a -> Bool
     notIdentity :: v a -> Bool
     notIdentity = not . isIdentity
 

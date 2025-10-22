@@ -70,7 +70,7 @@ instance (Show b, Q.SemiringValue b) => ValuationFamily (Valuation b) where
             s = fst $ M.domain m
             sMinusT = S.difference s t
 
-    identity _ = Identity
+    identity = Identity
 
     isIdentity Identity = True
     isIdentity _        = False
