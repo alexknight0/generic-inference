@@ -17,6 +17,8 @@ module LocalComputation.LabelledMatrix
     , isSquare
     , toSquare
     , extension
+    , extendRows
+    , unsafeExtendRows
     , project
     , unsafeProject
     , unsafeProjectRows
@@ -273,6 +275,9 @@ project m rowLabelSet colLabelSet
 
 projectRows :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> Maybe (LabelledMatrix a b c)
 projectRows m rowLabelSet = project m rowLabelSet m.colLabelSet
+
+extendRows :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> c -> Maybe (LabelledMatrix a b c)
+extendRows m rowLabelSet = extension m rowLabelSet m.colLabelSet
 
 -- | Returns an element from the matrix. Returns Nothing if the element is not in the domain of the matrix.
 find :: (Ord a, Ord b) => (a, b) -> LabelledMatrix a b c -> Maybe c
@@ -545,6 +550,9 @@ unsafeProject = ((fromJust .) .) . project
 
 unsafeProjectRows :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> LabelledMatrix a b c
 unsafeProjectRows = (fromJust .) . projectRows
+
+unsafeExtendRows :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> c -> LabelledMatrix a b c
+unsafeExtendRows = ((fromJust .) .) . extendRows
 
 unsafeQuasiInverse :: (Ord a, Q.SemiringValue c, Show a, Show c)
     => LabelledMatrix a a c

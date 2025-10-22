@@ -26,10 +26,10 @@ import qualified LocalComputation.ValuationAlgebra                    as V
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular.Value as Q
 
 
-data Valuation b a = Valuation (M.LabelledMatrix a a b) (M.LabelledMatrix a () b) | Identity (Domain a) deriving (Binary, NFData, Ord, Eq, Generic)
+data Valuation b a = Valuation (M.LabelledMatrix a a b) (M.LabelledMatrix a () b) | Identity deriving (Binary, NFData, Ord, Eq, Generic)
 
 instance (Show b, Show a) => Show (Valuation b a) where
-    show (Identity _)    = "Identity"
+    show Identity        = "Identity"
     show (Valuation m b) = show m ++ "\n" ++ show b
 
 create :: (Var a, Show b, Q.SemiringValue b) => M.LabelledMatrix a a b -> M.LabelledMatrix a () b -> Maybe (Valuation b a)
@@ -44,18 +44,18 @@ instance (Show b, Q.SemiringValue b) => ValuationFamily (Valuation b) where
 
     type VarAssignment (Valuation b) a = M.LabelledMatrix a () b
     combineAssignments _ a1 a2 = M.unsafeAppendRows a1 a2
-    projectAssignment _ a d = M.unsafeProjectRows a d
+    projectAssignment _ a d    = M.unsafeProjectRows a d
 
-    label (Identity d)    = d
+    label Identity        = S.empty
     label (Valuation _ b) = fst (M.domain b)
 
-    _combine (Identity d) x = extension x (S.union (label x) d)
-    _combine x (Identity d) = extension x (S.union (label x) d)
+    _combine Identity x = x
+    _combine x Identity = x
     _combine v1 v2 = add (extension v1 sUnionT) (extension v2 sUnionT)
         where
             sUnionT = S.union (label v1) (label v2)
 
-    _project (Identity _) newD = Identity newD
+    _project Identity _ = Identity
     _project (Valuation m b) t = unsafeCreate newM newB
         where
             newM = matrixAdd (matrixProject m t t)
@@ -70,15 +70,15 @@ instance (Show b, Q.SemiringValue b) => ValuationFamily (Valuation b) where
             s = fst $ M.domain m
             sMinusT = S.difference s t
 
-    identity d = Identity d
+    identity _ = Identity
 
-    isIdentity (Identity _) = True
-    isIdentity _            = False
+    isIdentity Identity = True
+    isIdentity _        = False
 
-    satisfiesInvariants (Identity _) = True
+    satisfiesInvariants Identity = True
     satisfiesInvariants (Valuation m b) = (M.isSquare m) && ((fst $ M.domain m) == (fst $ M.domain b)) && M.isWellFormed m && M.isWellFormed b
 
-    configurationExtSet     (Identity _)    _ = error "Not implemented error"
+    configurationExtSet     Identity        _ = error "Not implemented error"
     configurationExtSet phi@(Valuation m b) x
         | S.null sMinusT = S.singleton empty   -- shortcut if nothing to extend
         | otherwise      = S.singleton result
@@ -103,7 +103,7 @@ instance (Show b, Q.SemiringValue b) => ValuationFamily (Valuation b) where
 -- | Returns a product useful for the solution of fixpoint systems. Detailed page 367 of "Generic Inference" (Pouly & Kohlas, 2012)
 solution :: (Show a, Ord a, Show b, Q.SemiringValue b) => Valuation b a -> M.LabelledMatrix a () b
 solution (Valuation m b) = matrixMultiply (matrixQuasiInverse m) b
-solution (Identity _)    = error "'solution' called on identity valuation."
+solution Identity        = error "'solution' called on identity valuation."
 
 -- | Adds two valuations. Unsafe.
 add :: (Var a, Show b, Q.SemiringValue b) => Valuation b a -> Valuation b a -> Valuation b a
@@ -112,7 +112,7 @@ add _                 _                 = error "Not implemented error."
 
 -- | Extends a valuation. Unsafe.
 extension :: (Var a, Show b, Q.SemiringValue b) => Valuation b a -> S.Set a -> Valuation b a
-extension (Identity _) d    = Identity d
+extension Identity _        = Identity
 extension (Valuation m b) t = unsafeCreate (fromJust $ M.extension m t t Q.zero) (fromJust $ M.extension b t (S.singleton ()) Q.zero)
 
 ------------------------------------------------------------------------------
@@ -137,11 +137,25 @@ extension (Valuation m b) t = unsafeCreate (fromJust $ M.extension m t t Q.zero)
 matrixQuasiInverse :: (Show a, Ord a, Show c, Q.SemiringValue c) => M.LabelledMatrix a a c -> M.LabelledMatrix a a c
 matrixQuasiInverse = M.unsafeQuasiInverse
 
-matrixProject :: (Ord a, Ord b) => M.LabelledMatrix a b c -> S.Set a -> S.Set b -> M.LabelledMatrix a b c
-matrixProject = M.unsafeProject
+-- If the label of a valuation matched the label of the node it is attached to in the join
+-- tree then a `matrixProject` would only be called when the new domains the matrix is being
+-- projected to are subsets of its existing domains. However, since that is not the case,
+-- this operation is more of a reshape, where we project down to the new domains, and extend
+-- the matrix if required to make sure it matches the new domains given.
+matrixProject :: (Ord a, Ord b, Q.SemiringValue c)
+    => M.LabelledMatrix a b c -> S.Set a -> S.Set b -> M.LabelledMatrix a b c
+matrixProject m newD1 newD2 = extend $ M.unsafeProject m (S.intersection d1 newD1) (S.intersection d2 newD2)
+    where
+        (d1, d2) = M.domain m
 
-matrixProjectRows :: (Ord a, Ord b) => M.LabelledMatrix a b c -> S.Set a -> M.LabelledMatrix a b c
-matrixProjectRows = M.unsafeProjectRows
+        extend matrix = fromJust $ M.extension matrix newD1 newD2 Q.zero
+
+matrixProjectRows :: (Ord a, Ord b, Q.SemiringValue c) => M.LabelledMatrix a b c -> S.Set a -> M.LabelledMatrix a b c
+matrixProjectRows m newD = extend $ M.unsafeProjectRows m (S.intersection d newD)
+    where
+        (d, _) = M.domain m
+
+        extend matrix = M.unsafeExtendRows matrix newD Q.zero
 
 matrixAdd :: (Ord a, Ord b, Q.SemiringValue c) => M.LabelledMatrix a b c -> M.LabelledMatrix a b c -> M.LabelledMatrix a b c
 matrixAdd = M.unsafeAdd Q.add
