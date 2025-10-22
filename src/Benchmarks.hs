@@ -34,13 +34,14 @@ allBenchmarks = do
         ]
 
     else do
-        -- Performance testing
-        benchmarks <- sequence [
-                                -- ST.benchmarkPerformance
-                                FFT.benchmarks
-                                -- BN.benchmarkPerformance
-                              ]
-        defaultMain (concat benchmarks)
+        -- -- Performance testing
+        -- benchmarks <- sequence [
+        --                         -- ST.benchmarkPerformance
+        --                         FFT.benchmarks
+        --                         -- BN.benchmarkPerformance
+        --                       ]
+        -- defaultMain (concat benchmarks)
+        ST.justDraw
 
 
 

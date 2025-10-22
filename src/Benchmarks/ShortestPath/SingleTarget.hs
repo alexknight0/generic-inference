@@ -2,6 +2,7 @@
 module Benchmarks.ShortestPath.SingleTarget (
       benchmarkPerformance
     , benchmarkComplexity
+    , justDraw
     , singleTarget
     , singleTargets
     , singleTarget'
@@ -65,12 +66,27 @@ import           System.IO                                            (IOMode (A
 
 -- TODO: test graph composition diff.
 
+justDraw :: (MonadIO m) => m ()
+justDraw = do
+    p <- fmap (head . (.ps) . head) $ setProblems
+
+    _ <- fromRight $ ST.singleTarget (I.Shenoy MP.Threads) draw p.g (head p.qs)
+
+    pure ()
+
+    where
+        draw = D.def { D.beforeInference = Just "diagrams/tmp/testing.svg" }
+
+
+
+
+
 -- The graph generation is not part of the benchmark (we don't want it to take up time!), so we can't
 -- have it use different graphs between benchmarks unless we created some 'state', pregenerated all the
 -- graphs it was going to use (we don't know how many graphs that will be) and then swapped between those
 -- based on this state (where the state is hidden by the IO)
 setProblems :: (MonadIO m) => m [D.BenchmarkProblem Natural]
-setProblems = sequence $ zipWith (&) seeds $ map (\edges -> const $ D.newYorkProblemOneToOne 10 edges) [3200]
+setProblems = sequence $ zipWith (&) seeds $ map (\edges -> const $ D.newYorkProblemOneToOne 10 edges) [10]
 
     where
         seeds :: [Int]

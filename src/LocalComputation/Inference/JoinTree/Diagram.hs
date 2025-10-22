@@ -39,7 +39,8 @@ def = DrawSettings {
 
 data DiagramWithBorder a = DiagramWithBorder {
     diagram     :: Diagram a,
-    borderWidth :: Double
+    borderWidth :: Double,
+    paddingSize :: Double
 }
 
 -- TODO: Add more options to draw (such as size)
@@ -103,22 +104,36 @@ tree' chosenFont node g = vsep vgap [root.diagram, parents] # applyAll arrows
         hgap = 0.25 * width root.diagram
 
 -- | Produces a diagram representing a node in a tree.
-treeNode :: (V.ValuationFamily v, Show (v a), Ord a, Show a)
-    => SF.PreparedFont Double -> JT.Node v a -> DiagramWithBorder B
-treeNode chosenFont node = DiagramWithBorder (full # named node.id) contents.borderWidth
+treeNode :: (Show (v a), Show a)
+    =>SF.PreparedFont Double -> JT.Node v a -> DiagramWithBorder B
+treeNode chosenFont node = DiagramWithBorder (full # named node.id)
+                                             contentsWithBorder.borderWidth
+                                             contentsWithBorder.paddingSize
     where
-        full = vsep 0 [header, body]
+        full = vsep 0 [ headerWithBorder.diagram   # bgA (black `C.withOpacity` 1)
+                      , contentsWithBorder.diagram # bgA (nodeColour node.t)
+                      ]
 
-        header           = headerText <> headerBackground
-        headerBackground = rect (width body) (height headerText + 2 * seperationSpace) # fc black
-        headerText       = textWithNewlines chosenFont white ("NODE " ++ show node.id)       # scale 3
+        innerWidth = max (width headerText) (width contents)
 
-        body     = contents.diagram # bgA (nodeColour node.t)
-        contents = withBorder $ vsep seperationSpace [titleText "DOMAIN",    domain, seperator,
-                                                      titleText "VALUATION", valuation]
-        domain         = textWithNewlines chosenFont black (V.showDomain $ node.d)  # scale 3
-        valuation      = textWithNewlines chosenFont black (show node.v)                    # scale 1
-        titleText s    = textWithNewlines chosenFont black s                                # scale 1 # opacity 0.7
+        headerWithBorder = withBorder' contentsWithBorder.paddingSize $
+                              headerText -- expand width to innerwidth with rect
+                                 <> rect innerWidth (height headerText) # lw none
+        -- headerBackground = rect (max (width body) (width headerText))
+        --                         (height headerText + 2 * seperationSpace) # fc black
+        headerText       = textWithNewlines chosenFont white ("NODE " ++ show node.id) # scale 3
+
+        contentsWithBorder = withBorder $ contents # centerXY -- expand width to innerWidth with rect
+                                            <> rect innerWidth (height contents) # lw none # centerXY
+        contents = vsep seperationSpace [ titleText "DOMAIN"
+                                        , domain
+                                        , seperator
+                                        , titleText "VALUATION"
+                                        , valuation
+                                       ]
+        domain         = textWithNewlines chosenFont black (V.showDomain $ node.d) # scale 3
+        valuation      = textWithNewlines chosenFont black (show node.v)           # scale 1
+        titleText s    = textWithNewlines chosenFont black s                       # scale 1 # opacity 0.7
 
         seperator = line (maximum [width domain, width valuation]) # opacity 0.5
 
@@ -157,11 +172,21 @@ legend chosenFont = full <> border
 
 -- | Adds a border to the given element. Used with `treeNode`.
 withBorder :: Diagram B -> DiagramWithBorder B
-withBorder x = DiagramWithBorder ((textWithPadding <> rectangle) # withEnvelope rectangle)
-                              borderWidth
+withBorder x = withBorder' paddingSize x
     where
         paddingSize = min (width x) (height x) * 0.1
-        textWithPadding = centerXY $ strutY (paddingSize / 2) === (strutX paddingSize ||| x # centerXY ||| strutX paddingSize) === strutY paddingSize
+
+-- | Adds a border to the given element, using a given padding size. Used with `treeNode`.
+withBorder' :: Double -> Diagram B -> DiagramWithBorder B
+withBorder' paddingSize x = DiagramWithBorder ((textWithPadding <> rectangle) # withEnvelope rectangle)
+                                  borderWidth
+                                  paddingSize
+    where
+        textWithPadding = centerXY $ strutY (paddingSize / 2)
+                                     ===
+                                     (strutX paddingSize ||| centerXY x ||| strutX paddingSize)
+                                     ===
+                                     strutY paddingSize
 
         rectangle = rect (width textWithPadding) (height textWithPadding) # borderStyles
         borderWidth = 0.2 * paddingSize
