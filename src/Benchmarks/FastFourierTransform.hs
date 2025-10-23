@@ -53,7 +53,7 @@ benchmarks = do
 
     timestamp <- fmap round C.getPOSIXTime :: IO Integer
 
-    pure $ [benchProblem timestamp mode size | size <- ([15..19] ++ [21..24]), mode <- [Baseline]]
+    pure $ [benchProblem timestamp mode size | size <- [23], mode <- [Baseline]]
     where
         benchProblem timestamp mode size = bench (L.intercalate "/" $ createHeader timestamp mode size) $ nfIO $ solveProblem mode size
 

@@ -13,7 +13,6 @@ import           Control.Distributed.Process                           hiding
 import           Data.Set                                              (intersection)
 
 
-import           Control.Exception                                     (assert)
 import           Control.Monad.IO.Class                                (MonadIO)
 import qualified Data.List                                             as L
 import           Data.Maybe                                            (fromJust)
@@ -48,7 +47,7 @@ type InferredData v a = JF.JoinForest v a
 -- | Extracts a given query from the query results.
 --
 -- Assumes query is subset of the domain the given valuations cover.
-extractQueryResults :: forall v a. (ValuationFamily v, Var a)
+extractQueryResults :: forall v a. (Var a)
     => [Domain a]
     -> InferredData v a
     -> [v a]
@@ -74,8 +73,8 @@ queries mode settings vs queryDomains = do
     drawForest settings.beforeInference forestBeforeInference
 
     forestAfterInference <- case mode of
-                            MP.Distributed -> run $ DMP.messagePassing forestBeforeInference nodeActions
-                            MP.Threads     -> pure $ TMP.messagePassing forestBeforeInference
+                            MP.Distributed -> run $ DMP.messagePassing forestBeforeInference (nodeActions updateTree)
+                            MP.Threads     -> pure $ TMP.messagePassing updateTree forestBeforeInference
 
     drawForest settings.afterInference forestAfterInference
 
@@ -88,10 +87,21 @@ queries mode settings vs queryDomains = do
         drawForest Nothing         _    = pure ()
         drawForest (Just filename) tree = liftIO $ D.drawForest filename tree
 
+        -- | If we are drawing the tree after inference, we should update the tree
+        -- with the inference results so we can draw it properly.
+        updateTree = case settings.afterInference of
+                                Nothing -> False
+                                Just _  -> True
 
+
+
+-- | `updateTree` is a boolean representing whether non-query nodes should have their value
+-- updated in the tree. Useful if the tree is going be utilised after inference such as for
+-- drawing in a graph.
 nodeActions :: (DMP.SerializableValuation v a)
-    => DMP.NodeActions v a
-nodeActions this neighbours resultPort = do
+    => Bool
+    -> DMP.NodeActions v a
+nodeActions updateTree this neighbours resultPort = do
 
     postbox <- case neighbours of
                     [] -> pure []
@@ -101,13 +111,14 @@ nodeActions this neighbours resultPort = do
                         distributeResults <- DMP.distribute collectResults this neighbours computeMessage
                         pure $ distributeResults.postbox
 
-    case JT.isQueryNode this.node of
+    case updateTree || JT.isQueryNode this.node of
         True -> do
-            -- Send result back to parent process
+            -- Always send result back to parent process if query node
             let result = combines1 (this.node.v : map (.msg) postbox)
             sendChan resultPort $ J.changeContent this.node result
 
-        False -> pure ()  -- Don't need to bother updating valuations for non-query nodes.
+        False -> pure ()  -- Don't need to bother updating valuations for non-query nodes
+                          -- unless requested by `updateTree`.
 
 -- | Computes a message to send to the given neighbour.
 --

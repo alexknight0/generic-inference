@@ -132,8 +132,8 @@ treeNode chosenFont node = DiagramWithBorder (full # named node.id)
                                         , valuation
                                        ]
         domain         = textWithNewlines chosenFont black (V.showDomain $ node.d) # scale 3
-        valuation      = textWithNewlines chosenFont black (show node.v)           # scale 1
-        titleText s    = textWithNewlines chosenFont black s                       # scale 1 # opacity 0.7
+        valuation      = textWithNewlines chosenFont black (show node.v)           # scale 2
+        titleText s    = textWithNewlines chosenFont black s                       # scale 2 # opacity 0.7
 
         seperator = line (maximum [width domain, width valuation]) # opacity 0.5
 

@@ -62,6 +62,7 @@ dependencies:
 - parallel
 - vector-th-unbox
 - PSQueue
+- vector
 
 ghc-options:
 - -Wall

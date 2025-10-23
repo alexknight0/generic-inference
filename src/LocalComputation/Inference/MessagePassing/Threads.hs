@@ -30,16 +30,18 @@ import qualified Data.Tuple.Extra                           as B
 --
 -- Only query nodes will have their valuations updated.
 messagePassing :: (P.NFData (v a), V.ValuationFamily v, V.Var a, P.NFData a)
-    => JT.JoinForest v a
+    => Bool
+    -> JT.JoinForest v a
     -> JT.JoinForest v a
 -- TODO: parallelise
-messagePassing t = JT.unsafeToForest' $ map messagePassing' $ JT.treeList t
+messagePassing updateTree t = JT.unsafeToForest' $ map (messagePassing' updateTree) $ JT.treeList t
 
 messagePassing' :: (P.NFData (v a), V.ValuationFamily v, V.Var a, P.NFData a)
-    => JT.JoinTree v a
+    => Bool
     -> JT.JoinTree v a
-messagePassing' t
-    | JT.hasQueryNode t = calculate . JT.unsafeFromTree . distribute' Nothing . collect' . JT.toTree $ t
+    -> JT.JoinTree v a
+messagePassing' updateTree t
+    | JT.hasQueryNode t = calculate updateTree . JT.unsafeFromTree . distribute' Nothing . collect' . JT.toTree $ t
     | otherwise         = t
 
 -- TODO: It does seem like we are copying the tree alot of times; but i don't know whats going on under the hood.
@@ -111,13 +113,17 @@ messageForNode receiver sender = V.project (V.combines1 (sender.v : senderPostbo
 --
 -- __Warning__: Does not compute the resulting valuations for non-query nodes. Assumes collect and distribute
 -- have been performed on the given tree.
-calculate :: forall v a . (P.NFData (v a), V.ValuationFamily v, V.Var a) => JT.JoinTree v a -> JT.JoinTree v a
-calculate tree = JT.unsafeUpdateValuations mapping tree
+calculate :: forall v a . (P.NFData (v a), V.ValuationFamily v, V.Var a) => Bool -> JT.JoinTree v a -> JT.JoinTree v a
+calculate updateTree tree = JT.unsafeUpdateValuations mapping tree
     where
-        queryNodes = filter (\n -> n.t == JT.Query) $ JT.vertexList tree
-        newValuations = P.parMap P.rdeepseq updatedValuation queryNodes
-        -- newValuations = fmap updatedValuation queryNodes
-        mapping = M.fromList $ zipWith (\n v -> (n.id, v)) queryNodes newValuations
+        -- Update all nodes if requested, otherwise just update query nodes as they
+        -- are the only ones needed to provide the inference answer.
+        nodesToUpdate
+            | updateTree = JT.vertexList tree
+            | otherwise = filter (\n -> n.t == JT.Query) $ JT.vertexList tree
+
+        newValuations = P.parMap P.rdeepseq updatedValuation nodesToUpdate
+        mapping = M.fromList $ zipWith (\n v -> (n.id, v)) nodesToUpdate newValuations
 
         updatedValuation :: JT.Node v a -> v a
         updatedValuation n = V.combines1 (n.v : postbox)

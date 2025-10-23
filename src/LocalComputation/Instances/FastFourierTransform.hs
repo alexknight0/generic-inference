@@ -61,8 +61,8 @@ getE' :: Natural -> Natural -> Natural -> Natural -> Natural -> Complex Double
 getE' m j l nj kl = exp $ negate $ (/) (2 * pi * i * nj' * kl') (2 ^ (m - j - l))
     where
         i = (0 :+ 1)
-        nj' = (fromIntegral (nj) :+ 0)
-        kl' = (fromIntegral (kl) :+ 0)
+        nj' = (fromIntegral nj :+ 0)
+        kl' = (fromIntegral kl :+ 0)
 
 -- Variables X_j and Y_l are binary numbers, so only take values 0 or 1.
 getE :: Natural -> Natural -> Natural -> FastFourierValuation
@@ -81,15 +81,16 @@ getKnowledgebase samples = f : [getE m j l | j <- [0 .. m-1], l <- [0 .. m-1-j]]
         f :: FastFourierValuation
         f = fromPermutationMap rows
             where
-                rows = fromListAssertDisjoint $ zipWith (\x s -> ((toBinaryVariableSet m x X), s)) [0..] samples
+                rows = fromListAssertDisjoint $ zipWith (\x s -> (toBinaryVariableSet m x X, s)) [0..] samples
 
 oneOrZero :: (Ord a) => S.Set a -> M.Map a (S.Set Natural)
 oneOrZero xs = fromListAssertDisjoint $ map (\x -> (x, S.fromList [0, 1])) (S.toList xs)
 
 {- | Calculates the fourier transform from the given samples and returns the corresponding values for the given y values.
 
-Only operates if the number of samples is > 1 and is a power of two (I think theoretically this could be expanded to any power
-of a prime number, but that hasn't been done here). Returns Nothing if and only if the number of samples is > 1 and not a power of two.
+Only operates if the number of samples is > 1 and is a power of two (I think theoretically this
+could be expanded to any number, but that hasn't been done here). Returns Nothing if and only if
+the number of samples is > 1 and not a power of two.
 -}
 query :: (M.MonadIO m) => I.Mode -> [FourierComplex] -> [Natural] -> Maybe (m [FourierComplex])
 query mode samples qs = case integerLogBase2 (fromIntegral $ length samples) of
