@@ -5,6 +5,8 @@
 {-# LANGUAGE TypeOperators       #-}
 {-# OPTIONS_GHC -Wno-partial-fields #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{-# OPTIONS_GHC -Wno-missing-methods #-}
+{-# LANGUAGE InstanceSigs        #-}
 module LocalComputation.Instances.Database (
 
 ) where
@@ -22,8 +24,7 @@ import qualified LocalComputation.ValuationAlgebra           as V
 --------------------------------------------------------------------------------
 -- Datatype definition
 --------------------------------------------------------------------------------
-data Table a b = Identity | Table { headings :: [b], rows :: [[a]] }
-                                                        deriving (V.Generic, V.Binary, V.NFData)
+data Table a b = Table { headings :: [b], rows :: [[a]] } deriving (V.Generic, V.Binary, V.NFData)
 
 type Database a b = [Table a b]
 
@@ -61,17 +62,24 @@ query = S.fromList $ ["ID", "Age"]
 
 instance (Table a b ~ Table String String) => V.ValuationFamily (Table a) where
 
+
+    label :: V.Var c => Table String c -> S.Set c
     label t = S.fromList $ t.headings
 
+    _combine :: V.Var c => Table String c -> Table String c -> Table String c
     _combine t1 t2 = naturalJoinTables t1 t2
 
+    _project :: V.Var c => Table String c -> S.Set c -> Table String c
     _project t newDomain = t { headings = filter (`elem` newDomain) t.headings
                              , rows = map filterOnlyNewDomain t.rows
                              }
         where
             filterOnlyNewDomain row = [value | (heading, value) <- zip t.headings row, heading `elem` newDomain]
 
+    identity :: Table String c
     identity = Table [] [[]]
+
+    isIdentity :: Table String c -> Bool
     isIdentity (Table [] [[]]) = True
     isIdentity _               = False
 
