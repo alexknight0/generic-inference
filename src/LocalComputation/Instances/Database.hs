@@ -4,6 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators       #-}
 {-# OPTIONS_GHC -Wno-partial-fields #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 module LocalComputation.Instances.Database (
 
 ) where
@@ -21,7 +22,7 @@ import qualified LocalComputation.ValuationAlgebra           as V
 --------------------------------------------------------------------------------
 -- Datatype definition
 --------------------------------------------------------------------------------
-data Table a b = Identity { domain :: S.Set b } | Table { headings :: [b], rows :: [[a]] }
+data Table a b = Identity | Table { headings :: [b], rows :: [[a]] }
                                                         deriving (V.Generic, V.Binary, V.NFData)
 
 type Database a b = [Table a b]
@@ -64,7 +65,6 @@ instance (Table a b ~ Table String String) => V.ValuationFamily (Table a) where
 
     _combine t1 t2 = naturalJoinTables t1 t2
 
-    _project Identity{} newDomain = Identity newDomain
     _project t newDomain = t { headings = filter (`elem` newDomain) t.headings
                              , rows = map filterOnlyNewDomain t.rows
                              }
@@ -95,10 +95,7 @@ drawGraph = void $ I.unsafeQueryDrawGraph draw (I.Shenoy MP.Threads) [table1, ta
 {-
 
 >>> answer
-ID  Age
 
-1   25
-3   28
 -}
 
 --------------------------------------------------------------------------------
@@ -278,11 +275,6 @@ companyDB =
 --------------------------------------------------------------------------------
 -- Example Query (hard)
 --------------------------------------------------------------------------------
--- "Find the names of employees working on a project with a budget over 150000,
--- whose department manager is in the same country as the employee,
--- and who have completed all trainings required for their role.
--- Return Name, DeptName, ProjectName, CountryName, and MaxSalary."
-
 largeQuery :: S.Set String
 largeQuery = S.fromList
   [ "Name"
@@ -297,14 +289,6 @@ largeQueryAnswer = fmap (.c) $ I.unsafeQuery I.Fusion companyDB largeQuery
 {-
 
 >>> largeQueryAnswer
-MaxSalary  Name   ProjectName         RegionName
-
-90000      Alice  AI Platform         Oceania
-120000     Carla  AI Platform         Oceania
-70000      Ben    Recruitment Portal  North America
-90000      David  CRM Revamp          East Asia
-90000      Alice  CRM Revamp          Oceania
-90000      Eli    Audit System        North America
 
 -}
 
