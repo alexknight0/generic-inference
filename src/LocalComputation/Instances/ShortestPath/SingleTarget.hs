@@ -37,10 +37,8 @@ import qualified LocalComputation.Graph.Undirected                    as UG
 import qualified LocalComputation.Inference                           as I
 import qualified LocalComputation.Inference.EliminationSequence       as E
 import qualified LocalComputation.Inference.JoinTree.Diagram          as D
-import qualified LocalComputation.Inference.JoinTree.Tree             as JT
 import qualified LocalComputation.Inference.MessagePassing            as MP
 import qualified LocalComputation.Inference.Statistics                as S
-import           LocalComputation.Inference.Triangulation
 import qualified LocalComputation.Inference.Triangulation             as T
 import           LocalComputation.Utils                               (fromRight)
 import qualified LocalComputation.Utils                               as U
@@ -81,7 +79,7 @@ singleTargetSplitDP :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Has
     -> [G.Graph a Double]
     -> Query a
     -> Either I.Error (m (S.WithStats [Double]))
-singleTargetSplitDP mode = usingDouble (singleTargetSplitGeneric (I.solutionWithStats mode))
+singleTargetSplitDP mode = usingDouble $ singleTargetSplitGeneric $ (\s -> I.solutionWithStats s mode)
 
 singleTargetSplitGeneric :: ( MonadIO m, Show a, H.Hashable a, Ord a)
     => ComputeInference m a

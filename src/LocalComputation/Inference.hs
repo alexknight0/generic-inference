@@ -20,6 +20,7 @@ module LocalComputation.Inference (
     , unsafeQueryDrawGraph
     , queriesWithStats
     , queryWithStats
+    , solution
     , solutionWithStats
     , Mode (..)
     , Error (..)
@@ -55,7 +56,7 @@ import qualified LocalComputation.ValuationAlgebra                     as V
 -- of zero valuations. As a result, the empty query needs to have a set, hardcoded answer.
 --
 -- Developers note: if we impose that we must have at least one valuation, we still have
--- another problem to handle before empty queries willl work. The binary join tree construction
+-- another problem to handle before empty queries will work. The binary join tree construction
 -- method will place the query node in a disconnected join tree as it does not relate to any
 -- other node. The valuation attached to this query node will then never be updated from 'identity'
 -- as it never interacts with a non-identity node. A different node that has an empty domain but
@@ -64,7 +65,14 @@ data Error = UnanswerableQuery | EmptyQuery deriving (NFData, Generic, Show)
 
 data Mode = BruteForce | Fusion | Shenoy { _mode :: MP.Mode } deriving (Show, Eq)
 
-type ConstrainedValuation v a = (D.SerializableValuation v a, NFData (v a), NFData a, Show (v a))
+type ConstrainedValuation v a = (
+                                -- Required for display of join trees
+                                  Show (v a)
+                                -- Required for use of 'distributed' mode
+                                , D.SerializableValuation v a
+                                -- Required for parallelized ('distributed' and 'threads' modes)
+                                , NFData (v a), NFData a
+                                )
 
 -- | Compute inference using the given mode to return valuations with the given domains.
 queries :: (ConstrainedValuation v a, MonadIO m)
@@ -93,15 +101,22 @@ queryIsCovered vs qs = not $ any (\q -> not $ S.isSubsetOf q coveredDomain) qs
     where
         coveredDomain = foldr S.union S.empty (map label vs)
 
-solutionWithStats :: (ConstrainedValuation v a, NFData (VarAssignment v a), MonadIO m)
+solution :: (ConstrainedValuation v a, NFData (VarAssignment v a), MonadIO m)
     => MP.Mode
-    -> D.DrawSettings
     -> [v a]
     -> Domain a
-    -> Either Error (m (S.WithStats (V.VarAssignment v a)))
+    -> Either Error (m (VarAssignment v a))
+solution = fmap (fmap (.c)) .:. solutionWithStats D.def
+
+solutionWithStats :: (ConstrainedValuation v a, NFData (VarAssignment v a), MonadIO m)
+    => D.DrawSettings
+    -> MP.Mode
+    -> [v a]
+    -> Domain a
+    -> Either Error (m (S.WithStats (VarAssignment v a)))
 solutionWithStats _ _ vs q
     | not $ queryIsCovered vs [q] = Left $ UnanswerableQuery
-solutionWithStats mode s vs q     = Right $ run $ fmap (fmap D.solution) $ F.fusionPass mode s vs q
+solutionWithStats mode s vs q     = Right $ run $ fmap (fmap D.solution) $ F.fusionPass s mode vs q
 
 --------------------------------------------------------------------------------
 -- Singular variants

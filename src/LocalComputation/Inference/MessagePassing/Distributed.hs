@@ -33,7 +33,7 @@ import           LocalComputation.ValuationAlgebra          (Binary, Generic,
                                                              Typeable)
 import qualified LocalComputation.ValuationAlgebra          as V
 
-type SerializableValuation v a = (V.ValuationFamily v, V.Var a, Binary (v a), Typeable v, Typeable a, Binary a)
+type SerializableValuation v a = (V.Valuation v a, Binary (v a), Typeable v, Typeable a, Binary a)
 
 data NodeWithPid v a = NodeWithPid { id :: ProcessId, node :: JF.Node v a } deriving (Generic, Binary)
 
