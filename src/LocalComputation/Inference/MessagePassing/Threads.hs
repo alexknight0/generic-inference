@@ -44,10 +44,6 @@ messagePassing' updateTree t
     | JT.hasQueryNode t = calculate updateTree . JT.unsafeFromTree . distribute' Nothing . collect' . JT.toTree $ t
     | otherwise         = t
 
--- TODO: It does seem like we are copying the tree alot of times; but i don't know whats going on under the hood.
--- Additionally it seems like we update all postboxes over and over when we really want something thats
--- more like 'attatching the current node to the updated tree'.
-
 -- | Performs collect on the given tree.
 collect :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => JT.JoinTree v a -> JT.JoinTree v a
 collect = JT.unsafeFromTree . collect' . JT.toTree

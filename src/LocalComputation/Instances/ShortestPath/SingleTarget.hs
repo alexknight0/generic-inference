@@ -73,7 +73,7 @@ singleTargetSplit :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hasha
 singleTargetSplit mode settings gs q = usingDouble (singleTargetSplitGeneric inference) settings gs q
     where
         -- We get inference results by doing a query then calling `solution` on the result.
-        inference s k domain = fmap (fmap (fmap Q.solution)) $ I.queryDrawGraph s mode k domain
+        inference s k domain = fmap (fmap (fmap Q.solution)) $ I.queryWithStats s mode k domain
 
 singleTargetSplitDP :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Hashable a, Ord a)
     => MP.Mode
@@ -81,7 +81,7 @@ singleTargetSplitDP :: (NFData a, MonadIO m, Show a, Binary a, Typeable a, H.Has
     -> [G.Graph a Double]
     -> Query a
     -> Either I.Error (m (S.WithStats [Double]))
-singleTargetSplitDP mode = usingDouble (singleTargetSplitGeneric (I.solutionDrawGraph mode))
+singleTargetSplitDP mode = usingDouble (singleTargetSplitGeneric (I.solutionWithStats mode))
 
 singleTargetSplitGeneric :: ( MonadIO m, Show a, H.Hashable a, Ord a)
     => ComputeInference m a

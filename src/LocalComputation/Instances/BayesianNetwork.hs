@@ -85,7 +85,7 @@ getProbability :: forall a b m. (Show a, Show b, Serializable a, Serializable b,
     -> Network a b
     -> m (S.WithStats [Probability])
 getProbability mode s qs network' = do
-    results <- fromRight $ I.queriesDrawGraph s mode network' domains
+    results <- fromRight $ I.queriesWithStats s mode network' domains
     pure $ S.withStats results.stats $ zipWith probability qs results.c
 
     where

@@ -18,20 +18,22 @@ should not rely on an error being thrown unless asserts are enabled.
 TODO: Move to head of library.
 -}
 module LocalComputation.ValuationAlgebra
-    ( ValuationFamily (label, _combine, _project, identity, eliminate, satisfiesInvariants, VarAssignment, combineAssignments, projectAssignment, configurationExtSet, emptyAssignment, frameLength, notIdentity)
-    , labelSize
-    , combine
-    , project
-    , combines1
+    (
+    -- Types and typeclasses
+      ValuationFamily (..)
     , Domain
     , Var
-    , showDomain
-    , assertInvariants
-    , isIdentity
     , Valuation
-    , combineCounter
-    , projectCounter
     , IntOrInfinity (..)
+
+    -- Core funcionality
+    , project
+    , combine
+
+    -- Convenience functions
+    , combines1
+    , labelSize
+    , showDomain
 
     -- Serialization related typeclasses
     , Binary   -- Must be derived for serialization
@@ -39,6 +41,10 @@ module LocalComputation.ValuationAlgebra
     , Generic  -- Must be derived to derive Binary
     , NFData   -- Must be derived for to allow returning as a result of 'Process'.
     , Serializable
+
+    -- Statistics gathering
+    , combineCounter
+    , projectCounter
     )
 where
 
@@ -99,24 +105,20 @@ data IntOrInfinity = Int Int | Infinity deriving (Eq, Ord, NFData, Generic, Show
 -- and a valuation.
 class ValuationFamily v where
 
-    label     :: Var a => v a -> Domain a
-    _combine  :: Var a => v a -> v a      -> v a
-    _project  :: Var a => v a -> Domain a -> v a
+    -- Core operations
+    label    :: Var a => v a -> Domain a
+    _combine :: Var a => v a -> v a      -> v a
+    _project :: Var a => v a -> Domain a -> v a
+    identity   :: v a
+    isIdentity :: v a -> Bool
 
+    -- [Optional] Default is overridable for performance.
     eliminate :: Var a => v a -> Domain a -> v a
     eliminate v d = project v (S.difference (label v) d)
-
-    frameLength :: Var a => a -> v a -> IntOrInfinity
-
-    identity    :: v a
-    isIdentity  :: v a -> Bool
     notIdentity :: v a -> Bool
     notIdentity = not . isIdentity
 
-    -- TODO: Remove.
-    satisfiesInvariants :: Var a => v a -> Bool
-    satisfiesInvariants _ = True
-
+    -- [Optional] Solution Construction
     type VarAssignment v a
     combineAssignments :: Var a => Proxy (v a) -> VarAssignment v a -> VarAssignment v a -> VarAssignment v a
     projectAssignment  :: Var a => Proxy (v a) -> VarAssignment v a -> Domain a          -> VarAssignment v a
@@ -132,10 +134,13 @@ class ValuationFamily v where
     -- See page 368 of Marc Pouly's "Generic Inference" for more details.
     configurationExtSet :: Var a => v a -> VarAssignment v a -> S.Set (VarAssignment v a)
 
+    -- [Optional] Statistics Gathering
+    frameLength :: Var a => a -> v a -> IntOrInfinity
+
 
 combine :: (ValuationFamily v, Var a) => v a -> v a -> v a
 #if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
-combine v1 v2 = assertInvariants $ _combine v1 v2
+combine v1 v2 = _combine v1 v2
 #else
 {-# NOINLINE combine #-}
 combine v1 v2 = IO.unsafePerformIO $ do
@@ -143,7 +148,7 @@ combine v1 v2 = IO.unsafePerformIO $ do
     case notIdentity v1 && notIdentity v2 of
         True -> U.incrementGlobal combineCounter >> pure ()
         _    -> pure ()
-    pure $ assertInvariants $ _combine v1 v2
+    pure $ _combine v1 v2
 #endif
 
 project :: (ValuationFamily v, Var a) => v a -> Domain a -> v a
@@ -152,7 +157,7 @@ project v d
     -- If current domain is subset of domain of projection skip projection call for efficency.
     | S.isSubsetOf (label v) d = v
     -- Delegate call to _project but check invariants on return
-    | otherwise = assertInvariants $ _project v d
+    | otherwise = _project v d
 #else
 {-# NOINLINE project #-}
 project v d
@@ -164,11 +169,8 @@ project v d
         case notIdentity v of
             True -> U.incrementGlobal projectCounter >> pure ()
             _    -> pure ()
-        pure $ assertInvariants $ _project v d
+        pure $ _project v d
 #endif
-
-assertInvariants :: (ValuationFamily v, Var a) => v a -> v a
-assertInvariants v = U.assertP satisfiesInvariants v
 
 labelSize :: Valuation v a => v a -> Int
 labelSize = length . label
@@ -178,11 +180,6 @@ combines1 = foldr1 combine
 
 showDomain :: Show a => Domain a -> String
 showDomain x = "{" ++ L.intercalate "," (map show (S.toList x)) ++ "}"
-
--- TODO: Fix
-
--- maxFrameLength :: Valuation v a => v a -> [v a] -> IntOrInfinity
--- maxFrameLength valuation valuations = maximum . map (\var -> frameLength var valuation) . S.toList . label $ valuation
 
 --------------------------------------------------------------------------------
 -- Counting Operations

@@ -53,6 +53,7 @@ import           Data.Maybe                                           (fromJust,
 import qualified Data.Set                                             as S
 import           LocalComputation.Utils                               (assert',
                                                                        fromRight)
+import           LocalComputation.Utils.Composition
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular.Value as Q
 
 -- Typeclasses
@@ -73,10 +74,10 @@ import           Debug.Trace                                          (trace)
 import qualified LocalComputation.Pretty                              as P
 import qualified LocalComputation.Utils                               as U
 
--- TODO: could experiment with using Unbox or Storable for speedups.
--- TODO: could experiment with using delayed arrays.
--- TODO: could experiment with using mutable arrays.
--- TODO: consider changing to parallel matrix ops
+-- TODO: could experiment with using Unbox or Storable for speedups. -- DONE
+-- TODO: could experiment with using delayed arrays. -- DONE
+-- TODO: could experiment with using mutable arrays. -- NOT DONE
+-- TODO: consider changing to parallel matrix ops -- DONE
 
 data InvalidFormat = NotTotalMapping
 
@@ -543,16 +544,16 @@ checkIsAscPairList ((x, y) : zs) = all (\(x', y') -> x < x' && y < y') zs
 -- Unsafe variants
 --------------------------------------------------------------------------------
 unsafeAppendRows :: (Ord a, Eq b) => LabelledMatrix a b c -> LabelledMatrix a b c -> LabelledMatrix a b c
-unsafeAppendRows = (fromJust .) . appendRows
+unsafeAppendRows = fromJust .: appendRows
 
 unsafeProject :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> S.Set b -> LabelledMatrix a b c
-unsafeProject = ((fromJust .) .) . project
+unsafeProject = fromJust .:. project
 
 unsafeProjectRows :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> LabelledMatrix a b c
-unsafeProjectRows = (fromJust .) . projectRows
+unsafeProjectRows = fromJust .: projectRows
 
 unsafeExtendRows :: (Ord a, Ord b) => LabelledMatrix a b c -> S.Set a -> c -> LabelledMatrix a b c
-unsafeExtendRows = ((fromJust .) .) . extendRows
+unsafeExtendRows = fromJust .:. extendRows
 
 unsafeQuasiInverse :: (Ord a, Q.SemiringValue c, Show a, Show c)
     => LabelledMatrix a a c
@@ -565,7 +566,7 @@ unsafeAdd :: (Ord a, Ord b)
     -> LabelledMatrix a b c
     -> LabelledMatrix a b c
     -> LabelledMatrix a b c
-unsafeAdd = ((fromJust .) .) . add
+unsafeAdd = fromJust .:. add
 
 unsafeMultiply :: forall a b c d . (Eq a, Eq b, Eq c)
     => d
@@ -574,4 +575,4 @@ unsafeMultiply :: forall a b c d . (Eq a, Eq b, Eq c)
     -> LabelledMatrix a b d
     -> LabelledMatrix b c d
     -> LabelledMatrix a c d
-unsafeMultiply = ((((fromJust .) .) .) .) . multiply
+unsafeMultiply = fromJust .::. multiply

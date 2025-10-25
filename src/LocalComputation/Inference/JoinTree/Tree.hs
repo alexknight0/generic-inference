@@ -69,7 +69,6 @@ import qualified Algebra.Graph.ToGraph              as G (ToGraph (toGraph),
 import qualified Algebra.Graph.Undirected           as UG
 import           Control.Exception                  (assert)
 import qualified Data.Bifunctor                     as B
-import qualified Data.IORef                         as IO
 import qualified Data.List                          as L
 import qualified Data.List.Extra                    as L
 import qualified Data.Map                           as M
@@ -83,7 +82,6 @@ import qualified LocalComputation.Utils             as L (count)
 import qualified LocalComputation.Utils             as U
 import qualified LocalComputation.ValuationAlgebra  as V
 import           Numeric.Natural                    (Natural)
-import qualified System.IO.Unsafe                   as IO
 import           Text.Pretty.Simple                 (pShow)
 
 --------------------------------------------------------------------------------

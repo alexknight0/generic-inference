@@ -102,7 +102,7 @@ append :: Stats -> Stats -> Stats
 append s1 s2 = s1 { treeWidths            = s1.treeWidths            ++ s2.treeWidths
                   , treeValuations        = s1.treeValuations        ++ s2.treeValuations
                   , treeVertices          = s1.treeVertices          ++ s2.treeVertices
-                  , treeSumFrameLengths    = s1.treeSumFrameLengths    ++ s2.treeSumFrameLengths
+                  , treeSumFrameLengths   = s1.treeSumFrameLengths   ++ s2.treeSumFrameLengths
                   , treeTotalDomainLength = s1.treeTotalDomainLength ++ s2.treeTotalDomainLength
                 }
 

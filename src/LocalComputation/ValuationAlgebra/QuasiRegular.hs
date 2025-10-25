@@ -9,7 +9,6 @@ module LocalComputation.ValuationAlgebra.QuasiRegular
     ( Q.SemiringValue (quasiInverse)
     , Q.add, Q.multiply, Q.zero, Q.one
     , Valuation
-    , create
     , unsafeCreate
     , solution
     , Q.TropicalSemiringValue (T)
@@ -26,18 +25,14 @@ import qualified LocalComputation.ValuationAlgebra                    as V
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular.Value as Q
 
 
-data Valuation b a = Valuation (M.LabelledMatrix a a b) (M.LabelledMatrix a () b) | Identity deriving (Binary, NFData, Ord, Eq, Generic)
+data Valuation b a = Valuation (M.LabelledMatrix a a b) (M.LabelledMatrix a () b) | Identity
+    deriving (Binary, NFData, Generic)
 
 instance (Show b, Show a) => Show (Valuation b a) where
     show Identity        = "Identity"
     show (Valuation m b) = show m ++ "\n" ++ show b
 
-create :: (Var a, Show b, Q.SemiringValue b) => M.LabelledMatrix a a b -> M.LabelledMatrix a () b -> Maybe (Valuation b a)
-create m b
-    | satisfiesInvariants (Valuation m b) = Just (Valuation m b)
-    | otherwise = Nothing
-
-unsafeCreate :: (Var a, Q.SemiringValue b, Show b) => M.LabelledMatrix a a b -> M.LabelledMatrix a () b -> Valuation b a
+unsafeCreate :: (Var a) => M.LabelledMatrix a a b -> M.LabelledMatrix a () b -> Valuation b a
 unsafeCreate m b = U.assertP satisfiesInvariants $ Valuation m b
 
 instance (Show b, Q.SemiringValue b) => ValuationFamily (Valuation b) where
@@ -75,9 +70,6 @@ instance (Show b, Q.SemiringValue b) => ValuationFamily (Valuation b) where
     isIdentity Identity = True
     isIdentity _        = False
 
-    satisfiesInvariants Identity = True
-    satisfiesInvariants (Valuation m b) = (M.isSquare m) && ((fst $ M.domain m) == (fst $ M.domain b)) && M.isWellFormed m && M.isWellFormed b
-
     configurationExtSet     Identity        _ = error "Not implemented error"
     configurationExtSet phi@(Valuation m b) x
         | S.null sMinusT = S.singleton empty   -- shortcut if nothing to extend
@@ -106,29 +98,26 @@ solution (Valuation m b) = matrixMultiply (matrixQuasiInverse m) b
 solution Identity        = error "'solution' called on identity valuation."
 
 -- | Adds two valuations. Unsafe.
-add :: (Var a, Show b, Q.SemiringValue b) => Valuation b a -> Valuation b a -> Valuation b a
+add :: (Var a, Q.SemiringValue b) => Valuation b a -> Valuation b a -> Valuation b a
 add (Valuation m1 b1) (Valuation m2 b2) = unsafeCreate (matrixAdd m1 m2) (matrixAdd b1 b2)
 add _                 _                 = error "Not implemented error."
 
 -- | Extends a valuation. Unsafe.
-extension :: (Var a, Show b, Q.SemiringValue b) => Valuation b a -> S.Set a -> Valuation b a
+extension :: (Var a, Q.SemiringValue b) => Valuation b a -> S.Set a -> Valuation b a
 extension Identity _        = Identity
 extension (Valuation m b) t = unsafeCreate (fromJust $ M.extension m t t Q.zero) (fromJust $ M.extension b t (S.singleton ()) Q.zero)
 
-------------------------------------------------------------------------------
--- Valuation Extension Sets
-------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- Invariants
+--------------------------------------------------------------------------------
+satisfiesInvariants :: Eq a => Valuation c a -> Bool
+satisfiesInvariants Identity = True
+satisfiesInvariants (Valuation m b) = (M.isSquare m)
+                                            && ((fst $ M.domain m) == (fst $ M.domain b))
+                                            && M.isWellFormed m
+                                            && M.isWellFormed b
 
--- TODO: NEXT go through this and `solution` inside `DynamicProgramming` and
--- add comments to help understanding. Then investigate how to get around the
--- 'identity' problem...
 
-
--- TODO: It seems unavoidable that we will have one large projection from the domain of
--- the parent node of the query in the join tree to the query. This is because the query
--- node is added to a union node, and then the path is flipped when the tree is rediected
--- to the query. However, I don't think this is an avoidable cost. Even if we build the join
--- tree with the query as the root, we at some point will need to get
 
 ------------------------------------------------------------------------------
 -- Unsafe & quasiregular variants of matrix operations.                     --

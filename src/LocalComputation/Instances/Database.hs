@@ -90,7 +90,7 @@ instance (Table a b ~ Table String String) => V.ValuationFamily (Table a) where
 --------------------------------------------------------------------------------
 
 answer :: (MonadIO m) => m (Table String String)
-answer = fmap (.c) $ I.unsafeQuery I.Fusion [table1, table2] query
+answer = I.unsafeQuery I.Fusion [table1, table2] query
 
 drawGraph :: (MonadIO m) => m ()
 drawGraph = void $ I.unsafeQueryDrawGraph draw (I.Shenoy MP.Threads) [table1, table2] query
@@ -103,6 +103,16 @@ drawGraph = void $ I.unsafeQueryDrawGraph draw (I.Shenoy MP.Threads) [table1, ta
 {-
 
 >>> answer
+Age  ID
+
+25   1
+28   3
+
+-}
+
+{-
+
+>>> drawGraph
 
 -}
 
@@ -293,10 +303,20 @@ largeQuery = S.fromList
 
 
 largeQueryAnswer :: (MonadIO m) => m (Table String String)
-largeQueryAnswer = fmap (.c) $ I.unsafeQuery I.Fusion companyDB largeQuery
+largeQueryAnswer = I.unsafeQuery I.Fusion companyDB largeQuery
 {-
 
 >>> largeQueryAnswer
+MaxSalary  Name   ProjectName         RegionName
+
+90000      Alice  AI Platform         Oceania
+foobar :: ()
+foobar = undefined
+120000     Carla  AI Platform         Oceania
+70000      Ben    Recruitment Portal  North America
+90000      David  CRM Revamp          East Asia
+90000      Alice  CRM Revamp          Oceania
+90000      Eli    Audit System        North America
 
 -}
 

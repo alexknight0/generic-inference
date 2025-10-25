@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds  #-}
 {-# LANGUAGE DeriveAnyClass   #-}
 {-# LANGUAGE DeriveGeneric    #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -17,14 +18,15 @@ module LocalComputation.Inference (
     , queries
     , unsafeQueries
     , unsafeQueryDrawGraph
-    , queriesDrawGraph
-    , solutionDrawGraph
+    , queriesWithStats
+    , queryWithStats
+    , solutionWithStats
     , Mode (..)
     , Error (..)
     , S.WithStats (..)
 ) where
 import           Control.Monad.IO.Class                                (MonadIO)
-import           LocalComputation.Inference.MessagePassing.Distributed (SerializableValuation)
+import qualified LocalComputation.Inference.MessagePassing.Distributed as D (SerializableValuation)
 import qualified LocalComputation.Inference.ShenoyShafer               as SS (queries)
 import           LocalComputation.LocalProcess                         (run)
 import           LocalComputation.ValuationAlgebra
@@ -33,15 +35,11 @@ import qualified Data.Set                                              as S
 import qualified LocalComputation.Inference.DynamicProgramming         as D
 import qualified LocalComputation.Inference.Fusion                     as F
 import qualified LocalComputation.Inference.JoinTree.Diagram           as D
-import qualified LocalComputation.Inference.JoinTree.Tree              as JT
 import qualified LocalComputation.Inference.MessagePassing             as MP
 import qualified LocalComputation.Inference.Statistics                 as S hiding
                                                                             (empty)
-import qualified LocalComputation.Inference.Statistics                 as Stats (empty)
-import qualified LocalComputation.LabelledMatrix                       as M
-import qualified LocalComputation.Utils                                as U
+import           LocalComputation.Utils.Composition
 import qualified LocalComputation.ValuationAlgebra                     as V
-import qualified LocalComputation.ValuationAlgebra.QuasiRegular        as Q
 
 -- TODO: Future work; rather than all going through this one interface and hence
 -- having a bunch of constraints not relevant to given modes; it would likely be better
@@ -66,21 +64,28 @@ data Error = UnanswerableQuery | EmptyQuery deriving (NFData, Generic, Show)
 
 data Mode = BruteForce | Fusion | Shenoy { _mode :: MP.Mode } deriving (Show, Eq)
 
+type ConstrainedValuation v a = (D.SerializableValuation v a, NFData (v a), NFData a, Show (v a))
+
 -- | Compute inference using the given mode to return valuations with the given domains.
-queries :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a), NFData a)
-    => Mode -> [v a] -> [Domain a] -> Either Error (m (S.WithStats [v a]))
+queries :: (ConstrainedValuation v a, MonadIO m)
+    => Mode -> [v a] -> [Domain a] -> Either Error (m [v a])
 queries = queriesDrawGraph D.def
 
-queriesDrawGraph :: (SerializableValuation v a, Show (v a), NFData (v a), MonadIO m, NFData a)
+queriesDrawGraph :: (ConstrainedValuation v a, MonadIO m)
+    => D.DrawSettings -> Mode -> [v a] -> [Domain a] -> Either Error (m [v a])
+queriesDrawGraph = fmap (fmap (.c)) .:: queriesWithStats
+
+-- | TODO: Note when using it to have stat collection enabled...
+queriesWithStats :: (ConstrainedValuation v a, MonadIO m)
     => D.DrawSettings -> Mode -> [v a] -> [Domain a] -> Either Error (m (S.WithStats [v a]))
-queriesDrawGraph _ _ vs qs
+queriesWithStats _ _ vs qs
     | not $ queryIsCovered vs qs    = Left  $ UnanswerableQuery
     | any S.null qs                 = Left  $ EmptyQuery
-queriesDrawGraph _ BruteForce vs qs = Right $ pure $ bruteForces vs qs
-queriesDrawGraph _ Fusion     vs qs = Right $ pure $ S.lift $ map (\q -> F.fusion vs q) qs
-queriesDrawGraph s (Shenoy m) vs qs = Right $ SS.queries m s vs qs
+queriesWithStats _ BruteForce vs qs = Right $ pure $ bruteForces vs qs
+queriesWithStats _ Fusion     vs qs = Right $ pure $ S.lift $ map (\q -> F.fusion vs q) qs
+queriesWithStats s (Shenoy m) vs qs = Right $ SS.queries m s vs qs
 
-queryIsCovered :: (Foldable t, ValuationFamily v, Var a)
+queryIsCovered :: (Foldable t, Valuation v a)
     => [v a]
     -> t (S.Set a)
     -> Bool
@@ -88,55 +93,57 @@ queryIsCovered vs qs = not $ any (\q -> not $ S.isSubsetOf q coveredDomain) qs
     where
         coveredDomain = foldr S.union S.empty (map label vs)
 
--- | Perform a [query] using a [D]ynamic [P]rogramming implementation and draw a graph
--- of the join tree used during inference.
-solutionDrawGraph :: (V.Valuation v a, SerializableValuation v a, NFData (v a), Show (v a), NFData (VarAssignment v a), MonadIO m)
+solutionWithStats :: (ConstrainedValuation v a, NFData (VarAssignment v a), MonadIO m)
     => MP.Mode
     -> D.DrawSettings
     -> [v a]
     -> Domain a
     -> Either Error (m (S.WithStats (V.VarAssignment v a)))
-solutionDrawGraph _ _ vs q
+solutionWithStats _ _ vs q
     | not $ queryIsCovered vs [q] = Left $ UnanswerableQuery
-solutionDrawGraph mode s vs q      = Right $ run $ fmap (fmap D.solution) $ F.fusionPass mode s vs q
+solutionWithStats mode s vs q     = Right $ run $ fmap (fmap D.solution) $ F.fusionPass mode s vs q
 
 --------------------------------------------------------------------------------
 -- Singular variants
 --------------------------------------------------------------------------------
 
 -- | Compute inference using the given mode to return a valuation with the given domain.
-query :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a), NFData a)
-    => Mode -> [v a] -> Domain a -> Either Error (m (S.WithStats (v a)))
-query mode vs q = fmap (fmap (fmap head)) $ queries mode vs [q]
+query :: (ConstrainedValuation v a, MonadIO m)
+    => Mode -> [v a] -> Domain a -> Either Error (m (v a))
+query = queryDrawGraph D.def
 
-queryDrawGraph :: (SerializableValuation v a, Show (v a), NFData (v a), MonadIO m, NFData a)
+queryDrawGraph :: (ConstrainedValuation v a, MonadIO m)
+    => D.DrawSettings -> Mode -> [v a] -> Domain a -> Either Error (m (v a))
+queryDrawGraph = fmap (fmap (.c)) .:: queryWithStats
+
+queryWithStats :: (ConstrainedValuation v a, MonadIO m)
     => D.DrawSettings -> Mode -> [v a] -> Domain a -> Either Error (m (S.WithStats (v a)))
-queryDrawGraph s mode vs q = fmap (fmap (fmap head)) $ queriesDrawGraph s mode vs [q]
+queryWithStats s mode vs q = fmap (fmap (fmap head)) $ queriesWithStats s mode vs [q]
 
 --------------------------------------------------------------------------------
 -- Unsafe variants
 --------------------------------------------------------------------------------
+fromErrorable :: Either Error a -> a
+fromErrorable (Left e)  = error (show e)
+fromErrorable (Right x) = x
 
 -- | Unsafe variant of `queries` - will throw if a query is not subset of the
 -- domain the given valuations cover.
-unsafeQueries :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a), NFData a)
-    => Mode -> [v a] -> [Domain a] -> m (S.WithStats [v a])
-unsafeQueries mode vs qs = case queries mode vs qs of
-                            Left e  -> error (show e)
-                            Right r -> r
-
+unsafeQueries :: (ConstrainedValuation v a, MonadIO m)
+    => Mode -> [v a] -> [Domain a] -> m [v a]
+unsafeQueries = fromErrorable .:. queries
 
 -- | Unsafe variant of `query` - will throw if query is not subset of the
 -- domain the given valuations cover.
-unsafeQuery :: (SerializableValuation v a, NFData (v a), MonadIO m, Show (v a), NFData a)
- => Mode -> [v a] -> Domain a -> m (S.WithStats (v a))
-unsafeQuery mode vs q = fmap (fmap head) $ unsafeQueries mode vs [q]
+unsafeQuery :: (ConstrainedValuation v a, MonadIO m)
+ => Mode -> [v a] -> Domain a -> m (v a)
+unsafeQuery = fromErrorable .:. query
 
 -- | Unsafe variant of `queryDrawGraph` - will throw if query is not subset of the
 -- domain the given valuations cover.
-unsafeQueryDrawGraph :: (SerializableValuation v a, Show (v a), NFData (v a), MonadIO m, NFData a)
-    => D.DrawSettings -> Mode -> [v a] -> Domain a -> m (S.WithStats (v a))
-unsafeQueryDrawGraph s mode vs q = U.fromRight $ queryDrawGraph s mode vs q
+unsafeQueryDrawGraph :: (ConstrainedValuation v a, MonadIO m)
+    => D.DrawSettings -> Mode -> [v a] -> Domain a -> m (v a)
+unsafeQueryDrawGraph = fromErrorable .:: queryDrawGraph
 
 --------------------------------------------------------------------------------
 -- Brute force (simpliest possible inference implementation)

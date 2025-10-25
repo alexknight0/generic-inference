@@ -30,7 +30,7 @@ import           Tests.Utils                                       (checkAnswers
 import           Control.DeepSeq                                   (NFData)
 import qualified Data.Char                                         as C
 import           LocalComputation.Inference                        (Mode (..),
-                                                                    queriesDrawGraph)
+                                                                    queriesWithStats)
 
 import qualified Benchmarks.BayesianNetwork.Data                   as B
 import qualified Data.Map                                          as M
@@ -122,7 +122,7 @@ prop_alarm = unitTest $ do
 
 prop_drawThesisExample :: Property
 prop_drawThesisExample = unitTest $ do
-    fromRight $ queriesDrawGraph settings (Shenoy MP.Threads) (dataToValuations thesisExampleValuations) (toInferenceQuery [thesisExampleQuery])
+    fromRight $ queriesWithStats settings (Shenoy MP.Threads) (dataToValuations thesisExampleValuations) (toInferenceQuery [thesisExampleQuery])
 
     where settings = D.def { D.beforeInference = Just "diagrams/thesis_before.svg"
                            , D.afterInference = Nothing

@@ -9,7 +9,6 @@
 module LocalComputation.ValuationAlgebra.Semiring
     ( SemiringValue (..)
     , Valuation
-    , create
     , unsafeCreate
     , fromPermutationMap
     , getRows
@@ -99,16 +98,6 @@ data Valuation c b a = Identity | Valuation {
       _p :: P.Potential a b c
 } deriving (Generic, Binary, NFData)
 
--- -- | Accessor for domain. Not O(1)!
--- instance HasField "d" (Valuation c b a) (Domain a) where
---     getField i@Identity{}  = S.empty
---     getField v@Valuation{} = M.keysSet $ P.toFrames v._p
-
--- | Creates a valuation, returning 'Nothing' if the given parameters would lead to the creation
--- of a valuation that is not well formed.
-create :: P.Potential a b c -> Maybe (Valuation c b a)
-create p = Just $ unsafeCreate p
-
 unsafeCreate :: P.Potential a b c -> Valuation c b a
 unsafeCreate p = Valuation p
 
@@ -137,16 +126,15 @@ instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (Valuation 
     isIdentity Identity = True
     isIdentity _        = False
 
-    satisfiesInvariants = const True
-
     type VarAssignment (Valuation c b) a = ProxiedMap c a b
+
+    frameLength _   Identity = error "Unknown frame length"
+    frameLength var t        = V.Int $ S.size $ P.frame var t._p
+
     combineAssignments  = error "Not Implemented"
     projectAssignment   = error "Not Implemented"
     configurationExtSet = error "Not Implemented"
     emptyAssignment     = error "Not Implemented"
-
-    frameLength _   Identity = error "Unknown frame length"
-    frameLength var t        = V.Int $ S.size $ P.frame var t._p
 
 
 toTable :: (Show a, Show b, Show c, Ord b, Ord c) => Valuation a b c -> P.Table
@@ -195,16 +183,6 @@ mapTableKeys f v        = unsafeCreate $ P.mapVariables f v._p
 mapVariableValues :: (Ord a, Ord b1, Ord b2) => (b1 -> b2) -> Valuation c b1 a -> Valuation c b2 a
 mapVariableValues _ Identity = Identity
 mapVariableValues f v        = unsafeCreate $ P.mapFrames f v._p
-
--- normalize :: (Var a, Show b, Ord b, Show c, SemiringValue c, Fractional c)
---     => Valuation c b a -> Valuation c b a
--- normalize v = assertInvariants $ _normalize v
---
--- _normalize :: (Fractional c) => Valuation c b a -> Valuation c b a
--- _normalize (Identity x) = Identity x
--- _normalize (Valuation rowMap d vD e) = Valuation (M.map (/ sumOfAllXs) rowMap) d vD e
---     where
---         sumOfAllXs = sum $ M.elems rowMap
 
 toFrames :: Valuation c b a -> M.Map a (Domain b)
 toFrames Identity = error "Called 'toFrames' on identity element"

@@ -102,7 +102,7 @@ query mode samples qs = case integerLogBase2 (fromIntegral $ length samples) of
 
         -- let result = fromRight $ fusion (getKnowledgebase samples) queryDomain
         result <- I.unsafeQuery mode (getKnowledgebase samples) queryDomain
-        pure $ map (findBinaryValue result.c m) qs
+        pure $ map (findBinaryValue result m) qs
 
 -- | An unsafe version of `query` - throws when `query` would return `Nothing`.
 unsafeQuery :: (M.MonadIO m) => I.Mode -> [FourierComplex] -> [Natural] -> m [FourierComplex]

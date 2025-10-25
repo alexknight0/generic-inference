@@ -47,6 +47,7 @@ import           Control.Exception                        (assert)
 import           LocalComputation.Inference.JoinTree.Tree (Id, JoinTree,
                                                            Node (id))
 import qualified LocalComputation.Inference.JoinTree.Tree as JT
+import           LocalComputation.Utils.Composition
 import qualified LocalComputation.ValuationAlgebra        as V
 
 --------------------------------------------------------------------------------
@@ -181,19 +182,19 @@ satisfiesInvariants f = all JT.satisfiesInvariants (treeList f)
 --------------------------------------------------------------------------------
 
 unsafeFindById :: Id ->  JoinForest v a -> Node v a
-unsafeFindById = (fromJust . ) . findById
+unsafeFindById = fromJust .: findById
 
 unsafeIncomingEdges :: Id ->  JoinForest v a -> [Node v a]
-unsafeIncomingEdges = (fromJust .) . incomingEdges
+unsafeIncomingEdges = fromJust .: incomingEdges
 
 unsafeIncomingEdges' :: Id ->  JoinForest v a -> (Node v a, [Node v a])
-unsafeIncomingEdges' = (fromJust .) . incomingEdges'
+unsafeIncomingEdges' = fromJust .: incomingEdges'
 
 unsafeOutgoingEdges :: Id ->  JoinForest v a -> [Node v a]
-unsafeOutgoingEdges = (fromJust .) . outgoingEdges
+unsafeOutgoingEdges = fromJust .: outgoingEdges
 
 unsafeOutgoingEdges' :: Id ->  JoinForest v a -> (Node v a, [Node v a])
-unsafeOutgoingEdges' = (fromJust .) . outgoingEdges'
+unsafeOutgoingEdges' = fromJust .: outgoingEdges'
 
 
 
