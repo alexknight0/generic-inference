@@ -156,7 +156,7 @@ benchComplexityOnMode timestamp mode p = liftIO $ U.benchmarkComplexity header p
 
 
 fusionComplexity :: S.Stats -> Int
-fusionComplexity s = sum $ zipWith f s.treeValuations s.treeWidths
+fusionComplexity s = sum $ zipWith f s.valuations s.treeWidths
     where
         f m w = m * square (w + 1)
 

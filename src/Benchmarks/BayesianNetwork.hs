@@ -97,14 +97,14 @@ benchComplexityOnMode timestamp mode ps = liftIO $ U.benchmarkComplexity header 
 
 -- | Interprets infinity as 0, as we can't properly calculate a value for infinity.
 fusionComplexity :: S.Stats -> Int
-fusionComplexity stats = sum $ L.zipWith3 f stats.treeValuations stats.treeSumFrameLengths stats.treeTotalDomainLength
+fusionComplexity stats = sum $ L.zipWith3 f stats.valuations stats.sumFrameLengths stats.overarchingDomainSize
     where
         f _ V.Infinity _    = 0
         f m (V.Int p)  dPhi = (m + dPhi) * p
 
 -- | Interprets infinity as 0, as we can't properly calculate a value for infinity.
 binaryShenoyComplexity :: S.Stats -> Int
-binaryShenoyComplexity stats = sum $ zipWith f stats.treeVertices stats.treeSumFrameLengths
+binaryShenoyComplexity stats = sum $ zipWith f stats.treeVertices stats.sumFrameLengths
     where
         f _ V.Infinity = 0
         f v (V.Int p)  = v * p

@@ -2,6 +2,11 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric  #-}
 
+-- Warnings caused by CPP not compiling certain code
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+
 module LocalComputation.Inference.Statistics (
       Stats (..)
     , empty
@@ -23,15 +28,28 @@ import qualified LocalComputation.Inference.JoinTree.Forest as JF
 import qualified LocalComputation.Inference.JoinTree.Tree   as JT
 import qualified LocalComputation.ValuationAlgebra          as V
 
+-- | Data structure containg some statistics about an inference process.
+-- The lists are aligned by index (i.e. for use with zipWith).
+--
+-- __Warning__: This interface is not too developed and is liable to
+-- change greatly in future versions.
 data Stats = Stats {
+      -- | The size of the domain of the node with the
+      -- largest domain (we say 'largest node label').
       treeWidths            :: [Int]
-    , treeValuations        :: [Int]
+
+      -- | Number of valuations
+    , valuations            :: [Int]
+
+      -- | Number of vertices
     , treeVertices          :: [Int]
-    -- Take the tree node that has the largest label, then
-    -- find the variable that has the largest frame length.
-    -- The resulting frame length is the `treeMaxFrameLength`.
-    , treeSumFrameLengths   :: [V.IntOrInfinity]
-    , treeTotalDomainLength :: [Int]
+
+      -- | The sum of the frame lengths of each variable of the
+      -- node with the largest label.
+    , sumFrameLengths       :: [V.IntOrInfinity]
+
+      -- The size of the domain obtained by unioning all valuations
+    , overarchingDomainSize :: [Int]
 } deriving (V.NFData, V.Generic)
 
 
@@ -40,10 +58,10 @@ empty = Stats [] [] [] [] []
 
 includeTree :: (V.Valuation v a) => JT.JoinTree v a -> Stats -> Stats
 includeTree t s = s { treeWidths            = s.treeWidths            ++ [treeWidth]
-                    , treeValuations        = s.treeValuations        ++ [treeValuationCount]
+                    , valuations            = s.valuations            ++ [treeValuationCount]
                     , treeVertices          = s.treeVertices          ++ [treeVertices]
-                    , treeSumFrameLengths    = s.treeSumFrameLengths    ++ [treeSumFrameLengths]
-                    , treeTotalDomainLength = s.treeTotalDomainLength ++ [treeTotalDomainLength]
+                    , sumFrameLengths       = s.sumFrameLengths       ++ [treeSumFrameLengths]
+                    , overarchingDomainSize = s.overarchingDomainSize ++ [treeTotalDomainLength]
                    }
     where
         treeWidth             = JT.treeWidth $ t
@@ -69,15 +87,15 @@ fromForest f = foldr includeTree empty $ JF.treesWithQueryNodes f
 #endif
 
 fromLargestNode :: V.Valuation v a => Maybe (v a) -> [v a]-> Stats
--- #if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
--- fromLargestNode _ _                      = empty
--- #else
+#if !defined(COUNT_OPERATIONS) || !(COUNT_OPERATIONS)
+fromLargestNode _ _                      = empty
+#else
 fromLargestNode largest valuations = Stats {
-        treeWidths         = [fromMaybe 0 $ fmap V.labelSize largest]
-      , treeValuations     = [length valuations]
-      , treeVertices       = [0]
-      , treeSumFrameLengths = [maxFrameLength]
-      , treeTotalDomainLength = [S.size $ S.unions $ map V.label valuations]
+        treeWidths            = [fromMaybe 0 $ fmap V.labelSize largest]
+      , valuations            = [length valuations]
+      , treeVertices          = [0]
+      , sumFrameLengths       = [maxFrameLength]
+      , overarchingDomainSize = [S.size $ S.unions $ map V.label valuations]
     }
 
     where
@@ -96,14 +114,14 @@ fromLargestNode largest valuations = Stats {
             where
                 f (V.Int x) (V.Int y) = V.Int $ x * y
                 f _         _         = V.Infinity
--- #endif
+#endif
 
 append :: Stats -> Stats -> Stats
 append s1 s2 = s1 { treeWidths            = s1.treeWidths            ++ s2.treeWidths
-                  , treeValuations        = s1.treeValuations        ++ s2.treeValuations
+                  , valuations            = s1.valuations            ++ s2.valuations
                   , treeVertices          = s1.treeVertices          ++ s2.treeVertices
-                  , treeSumFrameLengths   = s1.treeSumFrameLengths   ++ s2.treeSumFrameLengths
-                  , treeTotalDomainLength = s1.treeTotalDomainLength ++ s2.treeTotalDomainLength
+                  , sumFrameLengths       = s1.sumFrameLengths       ++ s2.sumFrameLengths
+                  , overarchingDomainSize = s1.overarchingDomainSize ++ s2.overarchingDomainSize
                 }
 
 --------------------------------------------------------------------------------
