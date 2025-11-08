@@ -22,21 +22,14 @@ import qualified LocalComputation.Instances.BayesianNetwork.Parser as P
 import qualified LocalComputation.Utils                            as U
 import qualified LocalComputation.ValuationAlgebra                 as V
 
-getAsiaNet :: IO (D.NamedNet (BN.Network String String))
-getAsiaNet = fmap (D.NamedNet "Asia") $ U.unsafeParseFile' P.network D.asiaFilepath
-
 getAlarmNet :: IO (D.NamedNet (BN.Network String String))
 getAlarmNet = fmap (D.NamedNet "Alarm") $ U.unsafeParseFile' P.network D.alarmFilepath
 
-getChildNet :: IO (D.NamedNet (BN.Network String String))
-getChildNet = fmap (D.NamedNet "Child") $ U.unsafeParseFile' P.network D.childFilepath
-
-setProblems :: MonadIO m => Int -> m [D.Problems]
-setProblems paramSize = do
-    childNet <- liftIO $ getChildNet
+setProblems :: MonadIO m => m [D.Problems]
+setProblems = do
     alarmNet <- liftIO $ getAlarmNet
 
-    sequence $ zipWith (&) [paramSize] $ concat $ map (replicate 200) [
+    sequence $ zipWith (&) seeds $ concat $ map (replicate 200) [
         D.genProblem g 1 q 1 1 | q <- [17..17], g <- [alarmNet]
       ]
 
@@ -60,7 +53,7 @@ benchmarkComplexity :: IO ()
 benchmarkComplexity = do
     timestamp <- fmap round C.getPOSIXTime :: IO Integer
 
-    ps <- setProblems undefined
+    ps <- setProblems
 
     mapM_ (benchComplexityOnModes timestamp setModes) ps
 
@@ -101,11 +94,11 @@ binaryShenoyComplexity stats = sum $ zipWith f stats.treeVertices stats.sumFrame
 --------------------------------------------------------------------------------
 -- Performance benchmarking
 --------------------------------------------------------------------------------
-benchmarkPerformance :: Int -> IO [Benchmark]
-benchmarkPerformance paramSize = do
+benchmarkPerformance :: IO [Benchmark]
+benchmarkPerformance = do
     timestamp <- fmap round C.getPOSIXTime :: IO Integer
 
-    ps <- setProblems paramSize
+    ps <- setProblems
 
     pure $ concatMap (benchModes timestamp) ps
     where

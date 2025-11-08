@@ -35,13 +35,11 @@ allBenchmarks = do
         ]
 
     else do
-        size <- fmap (read . fromJust) $ lookupEnv "ALEX_SIZE"
-
         -- Performance testing
         benchmarks <- sequence [
-                                -- ST.benchmarkPerformance size
-                                -- FFT.benchmarks size
-                                BN.benchmarkPerformance size
+                                -- ST.benchmarkPerformance
+                                -- FFT.benchmarks
+                                BN.benchmarkPerformance
                               ]
         defaultMain (concat benchmarks)
         -- ST.justDraw

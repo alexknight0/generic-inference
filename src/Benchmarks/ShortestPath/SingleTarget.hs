@@ -53,7 +53,7 @@ import           Numeric.Natural
 
 justDraw :: (MonadIO m) => m ()
 justDraw = do
-    p <- fmap (head . (.ps) . head) $ setProblems undefined
+    p <- fmap (head . (.ps) . head) $ setProblems
 
     _ <- fromRight $ ST.singleTarget (I.Shenoy MP.Threads) draw p.g (head p.qs)
 
@@ -70,10 +70,12 @@ justDraw = do
 -- have it use different graphs between benchmarks unless we created some 'state', pregenerated all the
 -- graphs it was going to use (we don't know how many graphs that will be) and then swapped between those
 -- based on this state (where the state is hidden by the IO)
-setProblems :: (MonadIO m) => Int -> m [D.BenchmarkProblem Natural]
-setProblems sizeParam = sequence $ zipWith (&) seeds $ map (\edges -> const $ D.newYorkProblemOneToOne 10 edges) [fromIntegral sizeParam]
+setProblems :: (MonadIO m) => m [D.BenchmarkProblem Natural]
+setProblems = sequence $ zipWith (&) seeds $ map (\edges -> const $ D.newYorkProblemOneToOne 10 edges) edgesToTest
 
     where
+        -- Num edges to pull from the new york problem which will be tested.
+        edgesToTest = [3000]
         seeds :: [Int]
         seeds = [0..]
 
@@ -114,7 +116,7 @@ benchmarkComplexity :: IO ()
 benchmarkComplexity = do
     timestamp <- fmap round C.getPOSIXTime :: IO Integer
 
-    ps <- setProblems undefined
+    ps <- setProblems
 
     mapM_ (benchComplexityOnModes timestamp setModes) ps
 
@@ -150,11 +152,11 @@ fusionComplexity s = sum $ zipWith f s.valuations s.treeWidths
 --------------------------------------------------------------------------------
 -- Performance Testing
 --------------------------------------------------------------------------------
-benchmarkPerformance :: Int -> IO [Benchmark]
-benchmarkPerformance sizeParam = do
+benchmarkPerformance :: IO [Benchmark]
+benchmarkPerformance = do
     timestamp <- fmap round C.getPOSIXTime :: IO Integer
 
-    ps <- setProblems sizeParam
+    ps <- setProblems
     evaluate (rnf ps)
 
     benches <- concatMapM (benchModes timestamp setModes) ps

@@ -38,12 +38,12 @@ solveProblem mode size = case mode of
         -- No known FFT algorithms have different performance for difference input values.
         fftInput = take fftInputSize $ repeat 0
 
-benchmarks :: Int -> IO [Benchmark]
-benchmarks paramSize = do
+benchmarks :: IO [Benchmark]
+benchmarks = do
 
     timestamp <- fmap round C.getPOSIXTime :: IO Integer
 
-    pure $ [benchProblem timestamp mode size | size <- [paramSize], mode <- [Generic $ I.Fusion]]
+    pure $ [benchProblem timestamp mode size | size <- [5], mode <- [Generic $ I.Fusion]]
     where
         benchProblem timestamp mode size = bench (L.intercalate "/" $ createHeader timestamp mode size) $ nfIO $ solveProblem mode size
 
