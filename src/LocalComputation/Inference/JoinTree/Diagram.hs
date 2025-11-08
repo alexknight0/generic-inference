@@ -59,7 +59,7 @@ draw name d = do
 
     -- Create the diagram
     let diagram = d chosenFont
-        withLegend = cat (r2 (2, 3)) [legend chosenFont # scaleProportional 0.5 diagram, diagram]
+        withLegend = cat (r2 (2, 3)) [legend chosenFont # scaleProportional 0.3 diagram, diagram]
 
     -- Render the diagram
     renderSVG name (dims2D 1400 1400) (withLegend # framePadding 0.05)

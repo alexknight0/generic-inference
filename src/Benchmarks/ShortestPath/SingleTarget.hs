@@ -16,13 +16,6 @@ module Benchmarks.ShortestPath.SingleTarget (
     , allButBaseline
 ) where
 
--- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
--- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
--- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
--- And after:
--- 2. Test with different numbers of calls
--- 3. Investigate garbage collection pressure
-
 import qualified Benchmarks.ShortestPath.SingleTarget.Data            as D
 
 import qualified Benchmarks.ShortestPath.SingleTarget.Baseline        as H
@@ -45,19 +38,11 @@ import           Data.Function                                        ((&))
 import qualified Data.Hashable                                        as H
 import qualified Data.List                                            as L
 import qualified Data.Time.Clock.POSIX                                as C
-import           Debug.Trace                                          (trace)
 import qualified LocalComputation.Inference.JoinTree.Diagram          as D
-import qualified LocalComputation.Inference.JoinTree.Tree             as JT
 import qualified LocalComputation.Inference.MessagePassing            as MP
 import qualified LocalComputation.Inference.Statistics                as S
-import qualified LocalComputation.Utils                               as U
 import qualified LocalComputation.ValuationAlgebra                    as V
 import           Numeric.Natural
-import           System.IO                                            (IOMode (AppendMode),
-                                                                       hFlush,
-                                                                       hPutStrLn,
-                                                                       stdout,
-                                                                       withFile)
 
 
 --------------------------------------------------------------------------------
@@ -68,7 +53,7 @@ import           System.IO                                            (IOMode (A
 
 justDraw :: (MonadIO m) => m ()
 justDraw = do
-    p <- fmap (head . (.ps) . head) $ setProblems
+    p <- fmap (head . (.ps) . head) $ setProblems undefined
 
     _ <- fromRight $ ST.singleTarget (I.Shenoy MP.Threads) draw p.g (head p.qs)
 
@@ -85,8 +70,8 @@ justDraw = do
 -- have it use different graphs between benchmarks unless we created some 'state', pregenerated all the
 -- graphs it was going to use (we don't know how many graphs that will be) and then swapped between those
 -- based on this state (where the state is hidden by the IO)
-setProblems :: (MonadIO m) => m [D.BenchmarkProblem Natural]
-setProblems = sequence $ zipWith (&) seeds $ map (\edges -> const $ D.newYorkProblemOneToOne 10 edges) [4300]
+setProblems :: (MonadIO m) => Int -> m [D.BenchmarkProblem Natural]
+setProblems sizeParam = sequence $ zipWith (&) seeds $ map (\edges -> const $ D.newYorkProblemOneToOne 10 edges) [fromIntegral sizeParam]
 
     where
         seeds :: [Int]
@@ -95,12 +80,12 @@ setProblems = sequence $ zipWith (&) seeds $ map (\edges -> const $ D.newYorkPro
 
 setModes :: [Implementation]
 setModes = [
-      Baseline
+      -- Baseline
     -- , Generic  $ I.BruteForce
       -- Generic  $ I.Fusion
     -- , Generic  $ I.Shenoy MP.Threads
     -- Generic  $ I.Shenoy MP.Distributed
-    -- , DynamicP $ MP.Threads
+    DynamicP $ MP.Threads
     -- DynamicP $ MP.Distributed
   ]
 
@@ -129,7 +114,7 @@ benchmarkComplexity :: IO ()
 benchmarkComplexity = do
     timestamp <- fmap round C.getPOSIXTime :: IO Integer
 
-    ps <- setProblems
+    ps <- setProblems undefined
 
     mapM_ (benchComplexityOnModes timestamp setModes) ps
 
@@ -165,11 +150,11 @@ fusionComplexity s = sum $ zipWith f s.valuations s.treeWidths
 --------------------------------------------------------------------------------
 -- Performance Testing
 --------------------------------------------------------------------------------
-benchmarkPerformance :: IO [Benchmark]
-benchmarkPerformance = do
+benchmarkPerformance :: Int -> IO [Benchmark]
+benchmarkPerformance sizeParam = do
     timestamp <- fmap round C.getPOSIXTime :: IO Integer
 
-    ps <- setProblems
+    ps <- setProblems sizeParam
     evaluate (rnf ps)
 
     benches <- concatMapM (benchModes timestamp setModes) ps

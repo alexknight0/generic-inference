@@ -71,38 +71,16 @@ type Var a = (Show a, Ord a)
 
 type Valuation v a = (ValuationFamily v, Var a)
 
--- TODO: Add to future work
--- page 132 generic inference - shenoy has worse speed but better memory use,
--- should consider other methods...
+data IntOrInfinity = Int Int | Infinity deriving (Eq, Ord, NFData, Generic, Show)
 
--- TODO: Do we want to undo the _fusion _combine change?
--- Answer: No, because of the assumption we check on 'project'
--- TODO: If the above is the case, then we should have the same
--- for eliminate as it also has an assumption case; and we don't
--- want that overridden if eliminate is overridden.
+
 -- TODO: Is there any way we can get automatic property checking here?
 -- Answer: Probably yes, but it would require an implementation of a Gen
 -- for the given type, which can be hard its self.
-
--- TODO: document choice of having two types 'a' and 'b'
--- TODO: Could use 'data' constructor inside class declaration...
-
-data IntOrInfinity = Int Int | Infinity deriving (Eq, Ord, NFData, Generic, Show)
-
 -- | A valuation belonging to a certain family of valuation algebras
---
+
 -- The identity function should return a valuation that behaves like
--- an identity element under combination. Additionally, differing from
--- Marc Pouly's use of an identity element in "Generic Inference" (page 91),
--- we give the identity element a domain on creation and expect this domain
--- to be upheld like any other domain under valuation algebra operations.
--- This is done to simplify the implementation of join tree construction
--- and message passing - with this implementation, the domain of a node in
--- a join tree is always the same as the label of the valuation (identity
--- or otherwise) that has been assigned to that node. This can be changed,
--- but asserts should then be updated to no longer enforce that projections
--- must occur to subsets of domains when occuring between an identity element
--- and a valuation.
+-- an identity element under combination.
 class ValuationFamily v where
 
     -- Core operations

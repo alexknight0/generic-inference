@@ -8,19 +8,19 @@ import           Control.Distributed.Process                           (Process,
                                                                         expect,
                                                                         liftIO,
                                                                         sendChan)
-import           Control.Exception                                     (assert)
 import           Control.Monad                                         (replicateM)
+import           Control.Monad.IO.Class                                (MonadIO)
 import qualified Data.List.Extra                                       as L
 import           Data.Maybe                                            (fromJust)
 import qualified Data.Set                                              as S
 import qualified LocalComputation.Inference.EliminationSequence        as E
 import qualified LocalComputation.Inference.JoinTree                   as JT
 import qualified LocalComputation.Inference.JoinTree.Diagram           as D
-import qualified LocalComputation.Inference.JoinTree.Tree              as JTT
 import qualified LocalComputation.Inference.MessagePassing             as MP
 import qualified LocalComputation.Inference.MessagePassing.Distributed as DMP
 import qualified LocalComputation.Inference.MessagePassing.Threads     as TMP
 import qualified LocalComputation.Inference.Statistics                 as S
+import           LocalComputation.LocalProcess                         (run)
 import           LocalComputation.ValuationAlgebra                     (Domain,
                                                                         NFData,
                                                                         ValuationFamily (eliminate, label),
@@ -100,13 +100,13 @@ fusion' uniqueId upperPsi e largestNode
 -- | Takes a join tree and returns the join tree after a fusion pass over a given join tree.
 --
 -- __Warning__: will fail if a disconnected join tree is given.
-fusionPass :: (NFData (v a), DMP.SerializableValuation v a, Show (v a))
-    => MP.Mode -> D.DrawSettings -> [v a] -> Domain a -> Process (S.WithStats (JT.JoinTree v a))
-fusionPass mode settings vs queryDomain = do
+fusionPass :: (NFData (v a), NFData a, DMP.SerializableValuation v a, Show (v a), MonadIO m)
+    => D.DrawSettings -> MP.Mode -> [v a] -> Domain a -> m (S.WithStats (JT.JoinTree v a))
+fusionPass settings mode vs queryDomain = do
     drawTree settings.beforeInference treeBeforeInference
 
     treeAfterInference <- case mode of
-                            MP.Distributed ->        DMP.messagePassing' treeBeforeInference nodeActions
+                            MP.Distributed -> run $ DMP.messagePassing' treeBeforeInference nodeActions
                             MP.Threads     -> pure $ TMP.collectAndCalculate treeBeforeInference
 
     drawTree settings.afterInference treeAfterInference

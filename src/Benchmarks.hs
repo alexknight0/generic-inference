@@ -13,10 +13,11 @@ import           Control.DeepSeq                       (rnf)
 import           Control.Exception                     (evaluate)
 import           Data.Char                             (toLower)
 import qualified Data.List                             as L
+import           Data.Maybe                            (fromJust)
 import qualified LocalComputation.Inference.Statistics as S
 import qualified LocalComputation.Utils                as U
 import qualified LocalComputation.ValuationAlgebra     as V
-import           System.Environment                    (getArgs)
+import           System.Environment                    (getArgs, lookupEnv)
 import           System.IO                             (IOMode (AppendMode),
                                                         hFlush, hPutStrLn,
                                                         stdout, withFile)
@@ -29,16 +30,18 @@ allBenchmarks = do
     if "ops" `elem` lowercaseArgs then
         -- Counting the number of operations
         sequence_ [
-            -- ST.benchmarkComplexity
-            BN.benchmarkComplexity
+            ST.benchmarkComplexity
+            -- BN.benchmarkComplexity
         ]
 
     else do
+        size <- fmap (read . fromJust) $ lookupEnv "ALEX_SIZE"
+
         -- Performance testing
         benchmarks <- sequence [
-                                -- ST.benchmarkPerformance
-                                FFT.benchmarks
-                                -- BN.benchmarkPerformance
+                                -- ST.benchmarkPerformance size
+                                -- FFT.benchmarks size
+                                BN.benchmarkPerformance size
                               ]
         defaultMain (concat benchmarks)
         -- ST.justDraw

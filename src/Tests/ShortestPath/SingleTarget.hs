@@ -59,9 +59,6 @@ group = "Tests.ShorestPath.SingleTarget"
 --------------------------------------------------------------------------------
 -- Tests
 --------------------------------------------------------------------------------
--- TODO: Test works if there are two valuations concerning the same variables but
--- with one having larger values for the distance between variables.
-
 tests :: IO Bool
 tests = fmap and $ sequence [
         checkParallel $$(discover)
@@ -219,15 +216,12 @@ matchesBaselineForRandomQuery gs mode = do
 
         reverseAdjacencyList = G.reverseAdjacencyList fullGraph
 
--- TODO: do we test empty queries?
-
 --------------------------------------------------------------------------------
 -- Utilities for manual checks
 --------------------------------------------------------------------------------
 pX :: Problem -> Property
 pX p = unitTest $ do
-    -- TODO: fix
-    forM [DynamicP $ MP.Threads] $ \mode -> do
+    forM allImplementations $ \mode -> do
         results <- ST.singleTargetSplit' mode D.def p.graphs p.q
         checkAnswers approx (results.c) p.answers
 

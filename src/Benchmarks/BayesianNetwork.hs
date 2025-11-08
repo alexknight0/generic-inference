@@ -5,16 +5,6 @@ module Benchmarks.BayesianNetwork
     )
 where
 
--- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
--- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
--- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
--- 1. Make fusion construct a better join tree for itself.
--- 2. Make quasiregular split the graph nicely for itself.
--- And after:
--- 1. Test singleTarget with a multiple query architecture, splitting
---    the 'domain' into pairs of (target, source) instead of a single
---    large query.
-
 import qualified Benchmarks.BayesianNetwork.Data                   as D
 import qualified Benchmarks.Utils                                  as U
 import           Control.Monad.IO.Class                            (MonadIO,
@@ -41,14 +31,12 @@ getAlarmNet = fmap (D.NamedNet "Alarm") $ U.unsafeParseFile' P.network D.alarmFi
 getChildNet :: IO (D.NamedNet (BN.Network String String))
 getChildNet = fmap (D.NamedNet "Child") $ U.unsafeParseFile' P.network D.childFilepath
 
-setProblems :: MonadIO m => m [D.Problems]
-setProblems = do
+setProblems :: MonadIO m => Int -> m [D.Problems]
+setProblems paramSize = do
     childNet <- liftIO $ getChildNet
     alarmNet <- liftIO $ getAlarmNet
 
-    sequence $ zipWith (&) seeds $ concat $ map (replicate 200) [
-
-
+    sequence $ zipWith (&) [paramSize] $ concat $ map (replicate 200) [
         D.genProblem g 1 q 1 1 | q <- [17..17], g <- [alarmNet]
       ]
 
@@ -72,7 +60,7 @@ benchmarkComplexity :: IO ()
 benchmarkComplexity = do
     timestamp <- fmap round C.getPOSIXTime :: IO Integer
 
-    ps <- setProblems
+    ps <- setProblems undefined
 
     mapM_ (benchComplexityOnModes timestamp setModes) ps
 
@@ -113,11 +101,11 @@ binaryShenoyComplexity stats = sum $ zipWith f stats.treeVertices stats.sumFrame
 --------------------------------------------------------------------------------
 -- Performance benchmarking
 --------------------------------------------------------------------------------
-benchmarkPerformance :: IO [Benchmark]
-benchmarkPerformance = do
+benchmarkPerformance :: Int -> IO [Benchmark]
+benchmarkPerformance paramSize = do
     timestamp <- fmap round C.getPOSIXTime :: IO Integer
 
-    ps <- setProblems
+    ps <- setProblems paramSize
 
     pure $ concatMap (benchModes timestamp) ps
     where

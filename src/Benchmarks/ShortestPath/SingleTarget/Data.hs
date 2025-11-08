@@ -99,7 +99,8 @@ createParsedProblem name g = BenchmarkProblem name 1 (L.genericLength qs) vertex
 
         p = GraphAndQuery g qs
 
-createParsedProblemWithOneToOneQueries :: (Ord a, MonadIO m) => String -> G.Graph a Double -> Natural -> Int -> m (BenchmarkProblem a)
+createParsedProblemWithOneToOneQueries :: (Ord a, MonadIO m)
+    => String -> G.Graph a Double -> Natural -> Int -> m (BenchmarkProblem a)
 createParsedProblemWithOneToOneQueries name g numQueries seed = do
     qs <- U.sample seed $ Gen.list (Range.singleton $ fromIntegral numQueries)
                                    (genConnectedQueryOneToOne reverseAdjacencyList)

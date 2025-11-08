@@ -9,7 +9,6 @@ module LocalComputation.Instances.ShortestPath.SingleTarget (
     , singleTargetSplitDP
     , singleTargetsSplit
     , Query (..)
-    -- TODO: no need to export probably.
     , decomposition
 ) where
 
@@ -47,13 +46,7 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular.Value as Q (Trop
                                                                             toDouble)
 import           Type.Reflection                                      (Typeable)
 
--- TODO: A notable property here seems to be that we don't need to find the shortest path from 'all' nodes;
--- by restricting the domain we can find the shortest path from a few targets - something you can't do with
--- djikstra?
-
 -- TODO: Where does the hashable constraint come from?
-
--- TODO: Can this handle negative weights / negative weight cycles?
 
 -- | Query for a multiple-source single-target problem.
 data Query a = Query { sources :: [a], target :: a } deriving (Show, V.Generic, NFData)

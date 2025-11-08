@@ -4,16 +4,6 @@ module Benchmarks.FastFourierTransform
     )
 where
 
--- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
--- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
--- TODO: !!!!!!!!!!!!!!!! BEFORE BENCHMARKING !!!!!!!!!!!!!!!!!!!!!
--- 1. Make fusion construct a better join tree for itself.
--- 2. Make quasiregular split the graph nicely for itself.
--- And after:
--- 1. Test singleTarget with a multiple query architecture, splitting
---    the 'domain' into pairs of (target, source) instead of a single
---    large query.
-
 import           Benchmarks.FastFourierTransform.Baseline        (dft)
 import           Control.Monad.IO.Class                          (liftIO)
 import qualified Control.Monad.IO.Class                          as M
@@ -48,12 +38,12 @@ solveProblem mode size = case mode of
         -- No known FFT algorithms have different performance for difference input values.
         fftInput = take fftInputSize $ repeat 0
 
-benchmarks :: IO [Benchmark]
-benchmarks = do
+benchmarks :: Int -> IO [Benchmark]
+benchmarks paramSize = do
 
     timestamp <- fmap round C.getPOSIXTime :: IO Integer
 
-    pure $ [benchProblem timestamp mode size | size <- [23], mode <- [Baseline]]
+    pure $ [benchProblem timestamp mode size | size <- [paramSize], mode <- [Generic $ I.Fusion]]
     where
         benchProblem timestamp mode size = bench (L.intercalate "/" $ createHeader timestamp mode size) $ nfIO $ solveProblem mode size
 

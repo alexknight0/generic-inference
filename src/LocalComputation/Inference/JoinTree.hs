@@ -99,10 +99,9 @@ baseJoinForest vs queries = unsafeFromGraph $ G.edges $ baseJoinForest' nextNode
         d :: E.EliminationSequence a
         d = E.create $ map label vs
 
-        -- TODO: Fix indentation
         r :: [Node v a]
-        r =    zipWith (\nid v -> unsafeNode nid (label v) v            Valuation) [0                        ..] vs
-            ++ zipWith (\nid q -> unsafeNode nid q identity Query)     [fromIntegral (length vs) ..] queries
+        r =    zipWith (\nid v -> unsafeNode nid (label v) v Valuation) [0                        ..] vs
+            ++ zipWith (\nid q -> unsafeNode nid q identity  Query)     [fromIntegral (length vs) ..] queries
 
         nextNodeId :: Id
         nextNodeId = fromIntegral $ length r

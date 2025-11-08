@@ -29,7 +29,6 @@ module LocalComputation.Inference (
 import           Control.Monad.IO.Class                                (MonadIO)
 import qualified LocalComputation.Inference.MessagePassing.Distributed as D (SerializableValuation)
 import qualified LocalComputation.Inference.ShenoyShafer               as SS (queries)
-import           LocalComputation.LocalProcess                         (run)
 import           LocalComputation.ValuationAlgebra
 
 import qualified Data.Set                                              as S
@@ -40,7 +39,6 @@ import qualified LocalComputation.Inference.MessagePassing             as MP
 import qualified LocalComputation.Inference.Statistics                 as S hiding
                                                                             (empty)
 import           LocalComputation.Utils.Composition
-import qualified LocalComputation.ValuationAlgebra                     as V
 
 -- TODO: Future work; rather than all going through this one interface and hence
 -- having a bunch of constraints not relevant to given modes; it would likely be better
@@ -101,14 +99,14 @@ queryIsCovered vs qs = not $ any (\q -> not $ S.isSubsetOf q coveredDomain) qs
     where
         coveredDomain = foldr S.union S.empty (map label vs)
 
-solution :: (ConstrainedValuation v a, NFData (VarAssignment v a), MonadIO m)
+solution :: (ConstrainedValuation v a, MonadIO m)
     => MP.Mode
     -> [v a]
     -> Domain a
     -> Either Error (m (VarAssignment v a))
 solution = fmap (fmap (.c)) .:. solutionWithStats D.def
 
-solutionWithStats :: (ConstrainedValuation v a, NFData (VarAssignment v a), MonadIO m)
+solutionWithStats :: (ConstrainedValuation v a, MonadIO m)
     => D.DrawSettings
     -> MP.Mode
     -> [v a]
@@ -116,7 +114,7 @@ solutionWithStats :: (ConstrainedValuation v a, NFData (VarAssignment v a), Mona
     -> Either Error (m (S.WithStats (VarAssignment v a)))
 solutionWithStats _ _ vs q
     | not $ queryIsCovered vs [q] = Left $ UnanswerableQuery
-solutionWithStats mode s vs q     = Right $ run $ fmap (fmap D.solution) $ F.fusionPass s mode vs q
+solutionWithStats s mode vs q = Right . fmap (fmap D.solution) $ F.fusionPass s mode vs q
 
 --------------------------------------------------------------------------------
 -- Singular variants
