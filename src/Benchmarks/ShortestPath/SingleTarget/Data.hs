@@ -95,7 +95,7 @@ createParsedProblem name g = BenchmarkProblem name 1 (L.genericLength qs) vertex
 
         qs = map (\target -> Query vertices target) vertices
 
-        vertices = G.nodeList g
+        vertices = G.vertexList g
 
         p = GraphAndQuery g qs
 

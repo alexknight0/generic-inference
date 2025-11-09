@@ -55,9 +55,7 @@ module LocalComputation.Inference.JoinTree.Tree (
 ) where
 
 import           GHC.Records                        (HasField, getField)
-import           LocalComputation.ValuationAlgebra  hiding (assertInvariants,
-                                                     frameLength,
-                                                     satisfiesInvariants)
+import           LocalComputation.ValuationAlgebra  hiding (frameLength)
 
 import qualified Algebra.Graph.Acyclic.AdjacencyMap as G (toAcyclic)
 import qualified Algebra.Graph.AdjacencyMap         as G
@@ -311,16 +309,16 @@ verticesHavePostboxes t = isJust $ t.root.postbox
 
 -- | Creates a mapping from a variable to the nodes in the tree that contain that variable
 -- in their domain.
-variableMap :: forall v a . (V.ValuationFamily v, V.Var a) => JoinTree v a -> M.Map a [Node v a]
+variableMap :: forall v a . (V.Var a) => JoinTree v a -> M.Map a [Node v a]
 variableMap t = foldr (M.unionWith (\x1 x2 -> x1 ++ x2)) M.empty $ map variableMapForNode (vertexList t)
     where
         variableMapForNode :: Node v a -> M.Map a [Node v a]
         variableMapForNode n = foldr (\var acc -> M.insert var [n] acc) M.empty n.d
 
-treeNodeWithMaxWidth :: (Valuation v a) => JoinTree v a -> Node v a
+treeNodeWithMaxWidth :: JoinTree v a -> Node v a
 treeNodeWithMaxWidth = L.maximumOn (S.size . (.d)) . vertexList
 
-treeWidth :: (Valuation v a) => JoinTree v a -> Int
+treeWidth :: JoinTree v a -> Int
 treeWidth = S.size . (.d) . treeNodeWithMaxWidth
 
 treeMaxFrameLength :: (Valuation v a) => JoinTree v a -> IntOrInfinity

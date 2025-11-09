@@ -16,14 +16,12 @@ import qualified Hedgehog                                  as H (assert)
 import qualified Hedgehog.Gen                              as Gen
 import qualified Hedgehog.Range                            as Range
 
-import qualified Algebra.Graph.Undirected                  as UG
 import qualified Benchmarks.ShortestPath.SingleTarget.Data as ST
 import           Control.DeepSeq                           (force)
 import           Control.Distributed.Process
 import qualified Control.Exception                         as E
 import           Control.Monad                             (void)
 import qualified Data.Set                                  as S
-import qualified LocalComputation.Graph                    as UG (toAlgebraGraph')
 import qualified LocalComputation.Graph.Undirected         as G
 import qualified LocalComputation.Inference                as I
 import qualified LocalComputation.Inference.MessagePassing as MP

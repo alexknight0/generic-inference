@@ -65,7 +65,6 @@ library
       LocalComputation.Pretty
       LocalComputation.Utils
       LocalComputation.Utils.Composition
-      LocalComputation.Utils.Set
       LocalComputation.ValuationAlgebra
       LocalComputation.ValuationAlgebra.QuasiRegular
       LocalComputation.ValuationAlgebra.QuasiRegular.Value

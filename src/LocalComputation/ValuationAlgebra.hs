@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wno-unused-imports #-}
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 {-# LANGUAGE CPP                    #-}
 {-# LANGUAGE ConstraintKinds        #-}
 {-# LANGUAGE DeriveAnyClass         #-}
@@ -10,6 +8,11 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE QuantifiedConstraints  #-}
 {-# LANGUAGE TypeFamilies           #-}
+
+-- These warnings are invalid as some of the unused imports and top binds are compiled out
+-- based on cpp preprocesor flags
+{-# OPTIONS_GHC -Wno-unused-imports #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 {- | If an unsafe library function says it *asserts* something is the case,
 that literally means it uses the `Control.Exception` `assert`. Hence, the user
@@ -169,60 +172,3 @@ combineCounter = IO.unsafePerformIO (IO.newIORef 0)
 {-# NOINLINE projectCounter #-}
 projectCounter :: IO.IORef Int
 projectCounter = IO.unsafePerformIO (IO.newIORef 0)
-
-
-{- TODO: Add to future work / methodology / results:
-
-The Valuation typeclass has been written supposing the only property that an implementer
-requires of the variables for a given valuation algebra is that they can be ordered.
-
-\footnote{Technically we also require a \codeterm{Show} instance (i.e. the ability to turn an
-          arbitrary variable into a \codeterm{String}). However this is only for the purpose
-          of visual output, and does not in any way impact the computation of inference. Hence,
-          it is not a constraint on the types of variables we can define valuation algebras over
-          (for example, we could trivially define a \codeterm{Show} instance that converts
-          every element to the empty \codeterm{String} and this would suffice)
-}
-
-The requirement for an ordering is more strict than necessary, simply coming from the fact
-that the data structure chosen to represent the 'Domain' is a \codeterm{Set} that has been
-implemented using balanced binary trees and hence requires some way to order the variables
-\cite{https://hackage-content.haskell.org/package/containers-0.8/docs/Data-Set.html}.
-However, this property still proves useful in many valuation algebra instances as a way to
-improve performance.
-
-Ideally, there would be no constraints on the variables at the top level, and each valuation
-algebra instance would be allowed to define it's own constraints for the variables. This
-can be achieved by moving removing the `type Var a` and `type Domain a` declarations into
-the `Valuation` typeclass. This will allow the implementer of a `Valuation` instance to
-specify what constraints are required on the variables of their valuation algebra and
-how domains of these variables are represented. Implementation wise, this change will require
-introducing a `ConstraintKinds` constraint for Var, as well as the addition of `Domain` as
-an associated type alongside functions to that achieve the operations on domains that are
-required by the generic inference algorithm.
-
-\footnote{Indeed, forcing the implementation of a `Domain` type and the additional functions to
-          operate on the `Domain` type would impose a larger burden on the implementer of an
-          instance of the `Valuation` typeclass. However, allowing the type of `Domain` to
-          default to a known set implementation and then defaulting the required methods such that
-          they operate on this set implementation may provide a way to avoid this burden
-}
-
-This refactor would allow further freedom for implementers of a `Valuation` instance to
-impose any constraints on the variables of their instance that they desire, potentially allowing
-otherwise impossible instances of a valuation algebra or performance improvements. For example,
-constraining the variables of a given instance to variables that implement the `Hashable` typeclass
-could allow the use of hashtables which could provide better performance than alternatives
-in certain circumstances.
-
-// The requirement for an ordering is more strict than necessary; we could get by
-// with only equality, as strictly the only thing we require is the inescapable ability
-// to tell two different variables apart.
-//
-// ^^^^^^^^^^^^
-//  TODO: While this passage is true, it seems irrelevant to argue that we believe
-//  that equality is a necessary constraint in all useful instances of a valuation algebra
-//  as it actually isn't necessary for discussion - all we say here is that we hope for
-//  an implementation that makes no assumptions and outline a promising method of getting there.
-
--}

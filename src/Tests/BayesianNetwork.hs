@@ -22,8 +22,6 @@ import           Control.DeepSeq                                   (force)
 import           Control.Distributed.Process
 import           Control.Distributed.Process.Serializable          (Serializable)
 import qualified Control.Exception                                 as E
-import           Control.Monad                                     (forM)
-import qualified Data.Set                                          as S
 import           Tests.Utils                                       (checkAnswers,
                                                                     unitTest)
 
@@ -33,7 +31,6 @@ import           LocalComputation.Inference                        (Mode (..),
                                                                     queriesWithStats)
 
 import qualified Benchmarks.BayesianNetwork.Data                   as B
-import qualified Data.Map                                          as M
 import qualified LocalComputation.Inference                        as I
 import qualified LocalComputation.Inference.JoinTree.Diagram       as D
 import qualified LocalComputation.Inference.MessagePassing         as MP
@@ -98,24 +95,6 @@ prop_genericMatchesBaseline = withTests 100 . property $ do
         algebraResults qs net = run $ getProbability (I.Shenoy MP.Distributed) D.def qs net
         prebuiltResults qs = liftIO $ E.try $ E.evaluate $ force $ runQueries (createNetwork asiaValuationsP1) qs
 
--- prop_drawAsiaGraph :: Property
--- prop_drawAsiaGraph = unitTest $ do
---     net <- fmap convertToAsia $ parseNetwork asiaFilepath
---     fromRight $ queriesDrawGraph settings (Shenoy MP.Threads) net (toInferenceQuery asiaQueriesP1)
---
---     where settings = D.def { D.beforeInference = Just "diagrams/asia_before.svg"
---                            , D.afterInference = Just "diagrams/asia_after.svg"
---                           }
-
--- prop_drawAlarm :: Property
--- prop_drawAlarm = unitTest $ do
---     net <- parseNetwork alarmFilepath
---     fromRight $ queriesDrawGraph settings (Shenoy MP.Threads) net (toInferenceQuery alarmQueries)
---
---     where settings = D.def { D.beforeInference = Just "diagrams/alarm_before.svg"
---                            , D.afterInference  = Just "diagrams/alarm_after.svg"
---                           }
-
 prop_alarm :: Property
 prop_alarm = unitTest $ do
     checkQueries alarmQueries alarmAnswers (parseNetwork alarmFilepath)
@@ -127,10 +106,6 @@ prop_drawThesisExample = unitTest $ do
     where settings = D.def { D.beforeInference = Just "diagrams/thesis_before.svg"
                            , D.afterInference = Nothing
                           }
-
--- prop_parsesMunin :: Property
--- prop_parsesMunin = unitTest $ do
---     checkQueries muninQueries muninAnswers (parseNetwork muninFilepath)
 
 --------------------------------------------------------------------------------
 -- Settings

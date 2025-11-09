@@ -6,7 +6,6 @@ module LocalComputation.Inference.MessagePassing.Threads (
     , messagePassing'
     , collectAndCalculate
 ) where
-import           Control.Exception                          (assert)
 import qualified Data.Map                                   as M
 import           Data.Maybe                                 (fromJust)
 import qualified Data.Set                                   as S
@@ -45,9 +44,6 @@ messagePassing' updateTree t
     | otherwise         = t
 
 -- | Performs collect on the given tree.
-collect :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => JT.JoinTree v a -> JT.JoinTree v a
-collect = JT.unsafeFromTree . collect' . JT.toTree
-
 collect' :: (P.NFData (v a), V.ValuationFamily v, V.Var a) => T.Tree (JT.Node v a) -> T.Tree (JT.Node v a)
 collect' (T.Node root subTrees) = T.Node newRoot newSubTrees
     where
@@ -65,10 +61,6 @@ collect' (T.Node root subTrees) = T.Node newRoot newSubTrees
 -- | Takes a tree that has had collect performed on it, and returns the tree after distribute has been performed.
 --
 -- __Warning__: Assumes collect has been performed on the tree.
-distribute :: (P.NFData (v a), P.NFData a, V.ValuationFamily v, V.Var a) => JT.JoinTree v a -> JT.JoinTree v a
-distribute tree | assert (JT.verticesHavePostboxes tree) False = undefined
-distribute tree = JT.unsafeFromTree $ distribute' Nothing (JT.toTree tree)
-
 distribute' :: (P.NFData (v a), P.NFData a, V.ValuationFamily v, V.Var a) => Maybe (JT.Id, v a) -> T.Tree (JT.Node v a) -> T.Tree (JT.Node v a)
 distribute' incoming (T.Node root subTrees) = T.Node newRoot newSubTrees
 

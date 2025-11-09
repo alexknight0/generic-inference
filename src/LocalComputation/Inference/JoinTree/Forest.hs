@@ -19,7 +19,7 @@ module LocalComputation.Inference.JoinTree.Forest (
     , vertexList
     , unsafeConvertToCollectTree
     , unsafeIsolateAndRenumber
-    , toForest
+    , unsafeToForest
     , unsafeToForest'
     , unsafeUpdateValuations
     , unsafeGetTree
@@ -28,9 +28,7 @@ module LocalComputation.Inference.JoinTree.Forest (
     , subTrees
 ) where
 
-import           LocalComputation.ValuationAlgebra        hiding
-                                                          (assertInvariants,
-                                                           satisfiesInvariants)
+import           LocalComputation.ValuationAlgebra
 
 import qualified Algebra.Graph.AdjacencyMap               as G
 import qualified Algebra.Graph.ToGraph                    as G (ToGraph (toGraph),
@@ -62,9 +60,8 @@ unsafeFromGraph = U.assertP satisfiesInvariants . UnsafeJoinForest
 findById :: Id ->  JoinForest v a -> Maybe (Node v a)
 findById i t = L.find (\n -> n.id == i) $ G.vertexList t.g
 
--- TODO: rename unsafe
-toForest :: Valuation v a => JoinTree v a -> JoinForest v a
-toForest t = unsafeFromGraph t.g
+unsafeToForest :: Valuation v a => JoinTree v a -> JoinForest v a
+unsafeToForest t = unsafeFromGraph t.g
 
 unsafeToForest' :: Valuation v a => [JoinTree v a] -> JoinForest v a
 unsafeToForest' ts = unsafeFromGraph $ G.overlays $ map (.g) ts
@@ -172,8 +169,6 @@ unsafeIsolateAndRenumber f q = JT.unsafeFromGraph . JT.renumberTopological $ tre
 -- Invariants
 --------------------------------------------------------------------------------
 -- TODO: add fact that no variables in any of the join trees are shared.
--- TODO: Should we even ever have a join forest? Isn't there always a way to form
--- a tree from a join forest?
 satisfiesInvariants :: Valuation v a => JoinForest v a -> Bool
 satisfiesInvariants f = all JT.satisfiesInvariants (treeList f)
 

@@ -35,7 +35,7 @@ data InvalidGraphFile =
 fromValid :: IO (Either P.ParseError (Either InvalidGraphFile a)) -> IO a
 fromValid = fmap (fromRight . fromRight)
 
--- TODO: Handle spaces more elegantly like done in the bayesian network parser.
+-- TODO: Handle spaces more elegantly, like has been done in the bayesian network parser.
 fullGraph :: P.GenParser Char st (Either InvalidGraphFile (G.Graph Natural Integer))
 fullGraph = do
     P.skipMany $ P.choice [P.try comment, P.try blankLine]
@@ -44,7 +44,7 @@ fullGraph = do
     void $ P.manyTill P.space (P.try P.eof)
 
     let g = G.fromList (map (uncurry3 G.Edge) arcs)
-        gNumNodes = fromIntegral $ length $ G.nodes g
+        gNumNodes = fromIntegral $ length $ G.vertexSet g
         gNumArcs = genericLength arcs
 
     case () of

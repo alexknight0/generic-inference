@@ -12,9 +12,9 @@ module LocalComputation.Graph
     , unsafeFromMap
     , toMap
     , Edge (Edge, arcHead, arcTail, weight)
-    , nodes
+    , vertexSet
     , flipArcDirections
-    , nodeList
+    , vertexList
     , vertexCount
     , edgeCount
     , addSelfLoops
@@ -126,16 +126,14 @@ fromList xs = mapWithProperVertices
 edgeCount :: Graph a b -> Int
 edgeCount = sum . map length . M.elems . (.m)
 
--- TODO: Rename to vertexSet
-nodes :: Graph a b -> S.Set a
-nodes = M.keysSet . (.m)
+vertexSet :: Graph a b -> S.Set a
+vertexSet = M.keysSet . (.m)
 
--- TODO: Rename to vertexList
-nodeList :: Graph a b -> [a]
-nodeList g = S.toList $ nodes g
+vertexList :: Graph a b -> [a]
+vertexList g = S.toList $ vertexSet g
 
 vertexCount :: Graph a b -> Int
-vertexCount = length . nodeList
+vertexCount = length . vertexList
 
 flipArcDirections :: (Ord a) => Graph a b -> Graph a b
 flipArcDirections g = fromList [Edge x.arcTail x.arcHead x.weight | x <- toEdgeList g]
@@ -144,10 +142,10 @@ flipArcDirections g = fromList [Edge x.arcTail x.arcHead x.weight | x <- toEdgeL
 addSelfLoops :: (Ord a) => b -> Graph a b -> Graph a b
 addSelfLoops b g = merge g selfLoops
     where
-        selfLoops = unsafeFromMap $ M.fromList [(node, [(node, b)]) | node <- nodeList g]
+        selfLoops = unsafeFromMap $ M.fromList [(node, [(node, b)]) | node <- vertexList g]
 
 hasZeroCostSelfLoops :: (Ord a, Eq b, Num b) => Graph a b -> Bool
-hasZeroCostSelfLoops g = all p (nodeList g)
+hasZeroCostSelfLoops g = all p (vertexList g)
     where
         p arcHead
             | Just arcTails <- M.lookup arcHead g.m, (arcHead, 0) `elem` arcTails = True
@@ -235,7 +233,7 @@ isConnected g = all (\x -> length (AM.reachable undirected x) == length vertices
         vertices = G.vertexList $ toAlgebraGraph g
 
 induce :: (Ord a) => (a -> Bool) -> Graph a b -> Graph a b
-induce p g = deleteVertices (S.filter (not . p) (nodes g)) g
+induce p g = deleteVertices (S.filter (not . p) (vertexSet g)) g
 
 minimiseEdgeCosts :: (Ord a, Ord b) => Graph a b -> Graph a b
 minimiseEdgeCosts (Graph m) = unsafeFromMap $ M.map (\adj -> U.nubWithBy fst minimise adj) m
