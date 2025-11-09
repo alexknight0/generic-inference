@@ -54,8 +54,8 @@ singleTarget graphs sources target unreachable = singleSource graph target sourc
 fromGraph :: G.Graph a b -> H.Graph a b
 fromGraph g = H.Graph $ M.map (map (\(destination, cost) -> H.EdgeTo destination cost)) (G.toMap g)
 
-toGraph :: H.Graph a b -> G.Graph a b
-toGraph (H.Graph m) = G.fromMap $ M.map (map (\(H.EdgeTo destination cost) -> (destination, cost))) m
+toGraph :: (Ord a) => H.Graph a b -> G.Graph a b
+toGraph (H.Graph m) = G.unsafeFromMap $ M.map (map (\(H.EdgeTo destination cost) -> (destination, cost))) m
 
 empty :: H.Graph a b
 empty = H.Graph M.empty

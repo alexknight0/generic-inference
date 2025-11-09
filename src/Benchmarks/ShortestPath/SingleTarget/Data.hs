@@ -85,7 +85,7 @@ createRandomProblem numProblems numQueries numVertices edgeRatio seed = do
 
         negativeBecomesZero = max 0
 
-createParsedProblem :: (Ord a) => String -> G.Graph a Double -> BenchmarkProblem a
+createParsedProblem :: String -> G.Graph a Double -> BenchmarkProblem a
 createParsedProblem name g = BenchmarkProblem name 1 (L.genericLength qs) vertexCount edgeCount edgeRatio Nothing [p]
     where
 
@@ -130,13 +130,13 @@ genQuery vertices
     pure $ Query (S.toList sources) target
 
 -- | Generates a random connected query given a reverse adjacency list.
-genConnectedQuery :: [(a, [a])] -> Gen (Query a)
+genConnectedQuery :: [(a, S.Set a)] -> Gen (Query a)
 genConnectedQuery reverseAdjacencyList = do
     (target, possibleSources) <- Gen.element reverseAdjacencyList
-    sources <- Gen.subsequence possibleSources
+    sources <- Gen.subsequence (S.toList possibleSources)
     pure $ Query sources target
 
-genConnectedQueryOneToOne :: [(a, [a])] -> Gen (Query a)
+genConnectedQueryOneToOne :: [(a, S.Set a)] -> Gen (Query a)
 genConnectedQueryOneToOne reverseAdjacencyList = do
     (target, possibleSources) <- Gen.element reverseAdjacencyList
     source <- Gen.element possibleSources
@@ -185,7 +185,7 @@ genGraphs nodes arcs = do
 
     pure $ map G.fromList
          $ L.chunksOf (max 1 $ div (fromIntegral nodes) 5)
-         $ G.toList original
+         $ G.toEdgeList original
 
 genQueryOnGraph :: (Ord a) => G.Graph a Double -> Natural -> Gen (GraphAndQuery a)
 genQueryOnGraph g numQueries = do

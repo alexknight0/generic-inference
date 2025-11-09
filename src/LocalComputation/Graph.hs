@@ -4,12 +4,12 @@
 
 module LocalComputation.Graph
     ( Graph
-    , toList
+    , toEdgeList
     , isUndirected
-    , mapGraph
+    , mapCosts
     , fromList
     , fromList'
-    , fromMap
+    , unsafeFromMap
     , toMap
     , Edge (Edge, arcHead, arcTail, weight)
     , nodes
@@ -26,12 +26,12 @@ module LocalComputation.Graph
     , adjacencyList
     , minimiseEdgeCosts
     , reverseAdjacencyList
+    , reverseAdjacencyMap
     , empty
     , isEmpty
-    , deleteVertex
     , isConnected
     , outgoingSubgraph
-    , neighbours
+    , neighbourMap
     , induce
     , toAlgebraGraph
     , toAlgebraGraph'
@@ -55,10 +55,21 @@ import           Control.Exception          (assert)
 import           GHC.Generics               (Generic)
 import qualified LocalComputation.Utils     as U
 
-newtype Graph a b = Graph (M.Map a [(a, b)]) deriving (Generic, NFData, Eq)
+newtype Graph a b = Graph { m :: M.Map a [(a, b)] } deriving (Generic, NFData, Eq)
+
+-- A map is a valid graph if:
+--   1. All vertices appearing as a edge tail appear in the keys set of the map.
+unsafeFromMap :: (Ord a) => M.Map a [(a, b)] -> Graph a b
+unsafeFromMap = U.assertP satisfiesInvariants . Graph
+
+
+satisfiesInvariants :: (Ord a) => Graph a b -> Bool
+satisfiesInvariants g = all (`S.member` M.keysSet g.m) edgeTails  -- All vertices appearing as a edge tail
+    where
+        edgeTails = L.nub $ concat $ map (map fst) (M.elems g.m)
 
 instance (Show a, Show b) => Show (Graph a b) where
-    show (Graph g) = LT.unpack $ pShowNoColor g
+    show g = LT.unpack $ pShowNoColor g.m
 
 data Edge a b = Edge {
       arcHead :: a
@@ -66,8 +77,24 @@ data Edge a b = Edge {
     , weight  :: b
  } deriving Show
 
-instance Functor (Graph a) where
-    fmap f (Graph g) = Graph $ M.map (map (fmap f)) g
+instance (Ord a) => Functor (Graph a) where
+    fmap f g = unsafeFromMap $ M.map (map (fmap f)) g.m
+
+toMap :: Graph a b -> M.Map a [(a, b)]
+toMap = (.m)
+
+fromList' :: (Ord a) => [(a, [(a, b)])] -> Graph a b
+fromList' xs = unsafeFromMap mapWithProperVertices
+    where
+        -- Ensures each vertex appearing in an edge tail appears in the key set of the map.
+        mapWithProperVertices = foldr (M.alter f) baseMap edgeTails
+
+        f :: Maybe [(a, b)] -> Maybe [(a, b)]
+        f Nothing = Just []
+        f x       = x
+
+        baseMap = M.fromList xs
+        edgeTails = L.nub $ concat $ map (map fst . snd) xs
 
 isUndirected :: (Ord a, Eq b) => Graph a b -> Bool
 isUndirected (Graph g) = all isJust [f (arcHead, arcTail, cost) | (arcHead, arcTails) <- M.toList g, (arcTail, cost) <- arcTails]
@@ -77,62 +104,57 @@ isUndirected (Graph g) = all isJust [f (arcHead, arcTail, cost) | (arcHead, arcT
             guard $ (arcHead, cost) `elem` arcTailsOfArcTail
             Just ()
 
-mapGraph :: (b -> c) -> Graph a b -> Graph a c
-mapGraph f (Graph g) = Graph $ M.map (map (\(x, y) -> (x, f y))) g
+mapCosts :: (Ord a) => (b -> c) -> Graph a b -> Graph a c
+mapCosts f (Graph g) = unsafeFromMap $ M.map (map (\(x, y) -> (x, f y))) g
 
-toList :: Graph a b -> [Edge a b]
-toList (Graph g) = [Edge arcHead arcTail weight | (arcHead, arcTails) <- M.toList g, (arcTail, weight) <- arcTails]
+-- | Returns the edge list of a graph. Notably may not contain every vertex in a graph;
+-- a vertex may have no edges.
+toEdgeList :: Graph a b -> [Edge a b]
+toEdgeList (Graph g) = [Edge arcHead arcTail weight | (arcHead, arcTails) <- M.toList g, (arcTail, weight) <- arcTails]
 
 fromList :: forall a b . (Ord a) => [Edge a b] -> Graph a b
-fromList = Graph . foldr f M.empty
+fromList xs = mapWithProperVertices
     where
+        -- Ensures each vertex appearing in an edge tail appears in the key set of the map.
+        mapWithProperVertices = fromList' . M.toList $ baseMap
+
+        baseMap = foldr f M.empty xs
+
         f :: Edge a b -> M.Map a [(a, b)] -> M.Map a [(a, b)]
         f e acc = M.insertWith (++) e.arcHead [(e.arcTail, e.weight)] acc
 
-fromList' :: (Ord a) => [(a, [(a, b)])] -> Graph a b
-fromList' = Graph . M.fromList
-
--- TODO: Inefficent, but not used for anything important
 edgeCount :: Graph a b -> Int
-edgeCount = length . toList
+edgeCount = sum . map length . M.elems . (.m)
 
-fromMap :: M.Map a [(a, b)] -> Graph a b
-fromMap m = Graph m
+-- TODO: Rename to vertexSet
+nodes :: Graph a b -> S.Set a
+nodes = M.keysSet . (.m)
 
-toMap :: Graph a b -> M.Map a [(a, b)]
-toMap (Graph g) = g
-
--- TODO: Rename to vertexSet and vertexList
-
--- TODO: The performance of this operation could be improved by adding an invariant that the underlying map contains
--- every node in it's keySet, regardless of whether the key has an arc leaving from it.
-nodes :: (Ord a) => Graph a b -> S.Set a
-nodes (Graph g) = S.union (M.keysSet g) (S.fromList $ concat $ map (map fst) (M.elems g))
-
-nodeList :: (Ord a) => Graph a b -> [a]
+-- TODO: Rename to vertexList
+nodeList :: Graph a b -> [a]
 nodeList g = S.toList $ nodes g
 
-vertexCount :: (Ord a) => Graph a b -> Int
+vertexCount :: Graph a b -> Int
 vertexCount = length . nodeList
 
 flipArcDirections :: (Ord a) => Graph a b -> Graph a b
-flipArcDirections g = fromList [Edge x.arcTail x.arcHead x.weight | x <- toList g]
+flipArcDirections g = fromList [Edge x.arcTail x.arcHead x.weight | x <- toEdgeList g]
 
 {- | Adds self loops of the given weight to each node of a graph. -}
 addSelfLoops :: (Ord a) => b -> Graph a b -> Graph a b
 addSelfLoops b g = merge g selfLoops
     where
-        selfLoops = Graph $ M.fromList [(node, [(node, b)]) | node <- nodeList g]
+        selfLoops = unsafeFromMap $ M.fromList [(node, [(node, b)]) | node <- nodeList g]
 
 hasZeroCostSelfLoops :: (Ord a, Eq b, Num b) => Graph a b -> Bool
-hasZeroCostSelfLoops (Graph g) = all p (nodeList $ Graph g)
+hasZeroCostSelfLoops g = all p (nodeList g)
     where
         p arcHead
-            | Just arcTails <- M.lookup arcHead g, (arcHead, 0) `elem` arcTails = True
+            | Just arcTails <- M.lookup arcHead g.m, (arcHead, 0) `elem` arcTails = True
             | otherwise = False
 
 -- | Returns a list of all the edges in a that don't have an opposite edge of the same cost.
--- This function is not as performant as it could be.
+-- Function performance could easily be improved.
 nonSymmetricEdges :: forall a b . (Eq a, Eq b) => Graph a b -> [Edge a b]
 nonSymmetricEdges g = filter f edges
     where
@@ -141,14 +163,14 @@ nonSymmetricEdges g = filter f edges
             | (Just _) <- L.find (\e2 -> isOppositeEdge e1 e2 && e1.weight == e2.weight) edges = False
             | otherwise = True
 
-        edges = toList g
+        edges = toEdgeList g
 
 isOppositeEdge :: (Eq a) => Edge a b -> Edge a b -> Bool
 isOppositeEdge e1 e2 = e1.arcTail == e2.arcHead && e1.arcHead == e2.arcTail
 
 -- | Merges the two given graphs.
 merge :: (Ord a) => Graph a b -> Graph a b -> Graph a b
-merge (Graph g1) (Graph g2) = Graph $ M.unionWith (++) g1 g2
+merge (Graph g1) (Graph g2) = unsafeFromMap $ M.unionWith (++) g1 g2
 
 merges :: (Foldable f, Ord a) => Graph a b -> f (Graph a b) -> Graph a b
 merges initial gs = foldr merge initial gs
@@ -157,22 +179,31 @@ merges1 :: (Foldable f, Ord a) => f (Graph a b) -> Graph a b
 merges1 gs = foldr1 merge gs
 
 toAlgebraGraph :: Graph a b -> G.Graph a
-toAlgebraGraph g = G.overlays [G.edge e.arcHead e.arcTail | e <- toList g]
+toAlgebraGraph g = G.overlays [G.edge e.arcHead e.arcTail | e <- toEdgeList g]
 
 toAlgebraGraph' :: Graph a b -> UG.Graph a
 toAlgebraGraph' = UG.toUndirected . toAlgebraGraph
 
--- TODO: Very inefficent
-neighbours :: (Ord a) => Graph a b -> [(a, [a])]
-neighbours = UG.adjacencyList . UG.toUndirected . toAlgebraGraph
+-- | Returns a neighbours lookup (a vertex is a neighbour of another vertex if
+-- an edge between them exists in either direction). Currently fairly inefficient.
+neighbourMap :: forall a b . (Ord a) => Graph a b -> M.Map a (S.Set a)
+neighbourMap g = foldr f M.empty $ toEdgeList g
+    where
+        f :: (Edge a b) -> M.Map a (S.Set a) -> M.Map a (S.Set a)
+        f x = M.insertWith (S.union) x.arcTail (S.singleton x.arcHead)
+            . M.insertWith (S.union) x.arcHead (S.singleton x.arcTail)
 
--- TODO: Stupidly complicated because the keys dont necessarily represent the full number of vertices...
--- The whole data structure should be reworked.
-adjacencyList :: (Ord a) => Graph a b -> [(a, [a])]
-adjacencyList g = G.adjacencyList $ toAlgebraGraph g
+adjacencyList :: (Ord a) => Graph a b -> [(a, S.Set a)]
+adjacencyList = M.toList . adjacencyMap
 
-reverseAdjacencyList :: (Ord a) => Graph a b -> [(a, [a])]
+adjacencyMap :: (Ord a) => Graph a b -> M.Map a (S.Set a)
+adjacencyMap = M.map (S.fromList . map fst) . (.m)
+
+reverseAdjacencyList :: (Ord a) => Graph a b -> [(a, S.Set a)]
 reverseAdjacencyList = adjacencyList . flipArcDirections
+
+reverseAdjacencyMap :: (Ord a) => Graph a b -> M.Map a (S.Set a)
+reverseAdjacencyMap = adjacencyMap . flipArcDirections
 
 -- | Returns a subgraph of the given graph that includes only
 -- vertices from the given set and those vertices' outgoing edges.
@@ -180,19 +211,17 @@ outgoingSubgraph :: (Ord a) => Graph a b -> S.Set a -> Graph a b
 outgoingSubgraph (Graph g) new = fromList' $ filter (\(vertex, _) -> S.member vertex new)
                                            $ M.toList g
 
-empty :: Graph a b
-empty = Graph M.empty
+empty :: (Ord a) => Graph a b
+empty = unsafeFromMap M.empty
 
 isEmpty :: Graph a b -> Bool
 isEmpty (Graph g) = length g == 0
 
-deleteVertex :: (Ord a) => a -> Graph a b -> Graph a b
-deleteVertex x g = fromList $ filter (\e -> e.arcHead /= x
-                                         && e.arcTail /= x) $ toList g
-
 deleteVertices :: (Ord a) => S.Set a -> Graph a b -> Graph a b
-deleteVertices xs g = fromList $ filter (\e -> e.arcHead `S.notMember` xs
-                                            && e.arcTail `S.notMember` xs) $ toList g
+deleteVertices deleted = unsafeFromMap . filterOutOfValues . filterOutOfKeys . (.m)
+    where
+        filterOutOfKeys = M.filterWithKey (\k _ -> S.notMember k deleted)
+        filterOutOfValues = M.map (filter ((`S.notMember` deleted) . fst))
 
 makeUndirected :: (Ord a) => G.Graph a -> G.Graph a
 makeUndirected g = AM.toGraph $ AM.overlay g' (AM.transpose g')
@@ -206,9 +235,9 @@ isConnected g = all (\x -> length (AM.reachable undirected x) == length vertices
         vertices = G.vertexList $ toAlgebraGraph g
 
 induce :: (Ord a) => (a -> Bool) -> Graph a b -> Graph a b
-induce p g =  deleteVertices (S.filter (not . p) (nodes g)) g
+induce p g = deleteVertices (S.filter (not . p) (nodes g)) g
 
 minimiseEdgeCosts :: (Ord a, Ord b) => Graph a b -> Graph a b
-minimiseEdgeCosts (Graph m) = fromMap $ M.map (\adj -> U.nubWithBy fst minimise adj) m
+minimiseEdgeCosts (Graph m) = unsafeFromMap $ M.map (\adj -> U.nubWithBy fst minimise adj) m
     where
         minimise (x1, c1) (x2, c2) = assert (x1 == x2) $ (x1, min c1 c2)

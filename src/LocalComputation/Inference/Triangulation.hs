@@ -15,10 +15,10 @@ import           Prelude                           hiding (cycle)
 -- Settings
 --------------------------------------------------------------------------------
 -- Asserts on this are not implemented efficently and hence really expensive for large graphs.
+-- This is occasionally toggled on for testing; if a more efficient algorithm for checking
+-- triangulation is written it can be left on!
 enableAsserts :: Bool
 enableAsserts = False
-
--- TODO: Test works if has self loops...
 
 --------------------------------------------------------------------------------
 -- Maximal Cliques
@@ -41,7 +41,7 @@ maximalCliques' :: (Ord a) => G.Graph a -> [S.Set a]
 maximalCliques' g | assert' (isTriangulated g) False = undefined
 maximalCliques' g
     | G.isEmpty g = []
-    | otherwise    = simplicialClique : maximalCliques' (G.removeVertex simplicial g)
+    | otherwise   = simplicialClique : maximalCliques' (G.removeVertex simplicial g)
 
     where
         simplicial = findSimplicial g
@@ -84,7 +84,7 @@ eliminateNode g = (G.addEdges newEdges (G.removeVertex toEliminate g), newEdges)
         newEdges = map U.toTuple $ U.combinations 2 $ S.toList $ G.unsafeNeighbours toEliminate g
 
 --------------------------------------------------------------------------------
--- Triangulation detection
+-- Triangulation detection (currently inefficient - used for assertions)
 --------------------------------------------------------------------------------
 isTriangulated :: (Ord a) => G.Graph a -> Bool
 isTriangulated = isTriangulated' . G.toAlgebraGraph

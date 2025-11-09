@@ -22,28 +22,27 @@ import qualified LocalComputation.Instances.BayesianNetwork.Parser as P
 import qualified LocalComputation.Utils                            as U
 import qualified LocalComputation.ValuationAlgebra                 as V
 
-getAlarmNet :: IO (D.NamedNet (BN.Network String String))
-getAlarmNet = fmap (D.NamedNet "Alarm") $ U.unsafeParseFile' P.network D.alarmFilepath
+getAsiaNet :: IO (D.NamedNet (BN.Network String String))
+getAsiaNet = fmap (D.NamedNet "Asia") $ U.unsafeParseFile' P.network D.alarmFilepath
 
 setProblems :: MonadIO m => m [D.Problems]
 setProblems = do
-    alarmNet <- liftIO $ getAlarmNet
+    asiaNet <- liftIO $ getAsiaNet
 
-    sequence $ zipWith (&) seeds $ concat $ map (replicate 200) [
-        D.genProblem g 1 q 1 1 | q <- [17..17], g <- [alarmNet]
+    sequence $ zipWith (&) seeds $ concat $ map (replicate 1) [
+        D.genProblem g 1 q 1 1 | q <- [1], g <- [asiaNet]
       ]
 
     where
         seeds :: [Int]
-        seeds = [231..]
-        -- seeds = [260..]
+        seeds = [0..]
 
 
 setModes :: [I.Mode]
 setModes = [
-            -- I.Fusion
-            -- I.Shenoy MP.Threads
-           I.Shenoy MP.Distributed
+            I.Fusion
+           , I.Shenoy MP.Threads
+           , I.Shenoy MP.Distributed
         ]
 
 --------------------------------------------------------------------------------

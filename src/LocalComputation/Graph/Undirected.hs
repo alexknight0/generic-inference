@@ -87,7 +87,7 @@ fromEdgeList edges = unsafeFromMap $ M.mapWithKey (\x adj -> S.delete x adj) -- 
                        ++ map (B.second S.singleton) (map swap edges)
 
 fromGraph :: (Ord a) => G.Graph a b -> Graph a
-fromGraph g = fromEdgeList $ map (\e -> (e.arcHead, e.arcTail)) $ G.toList g
+fromGraph g = fromEdgeList $ map (\e -> (e.arcHead, e.arcTail)) $ G.toEdgeList g
 
 toAlgebraGraph :: Graph a -> UG.Graph a
 toAlgebraGraph = UG.stars . adjacencyList

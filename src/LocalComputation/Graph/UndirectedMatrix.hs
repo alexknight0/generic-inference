@@ -93,7 +93,7 @@ fromEdgeList edges = unsafeFromMatrix $ L.mapWithKey deleteSelfLoops  -- Remove 
             | otherwise  = old
 
 fromGraph :: (Ord a) => G.Graph a b -> Graph a
-fromGraph g = fromEdgeList $ map (\e -> (e.arcHead, e.arcTail)) $ G.toList g
+fromGraph g = fromEdgeList $ map (\e -> (e.arcHead, e.arcTail)) $ G.toEdgeList g
 
 toAlgebraGraph :: Graph a -> UG.Graph a
 toAlgebraGraph = undefined -- UG.stars . adjacencyList

@@ -11,6 +11,7 @@ module Benchmarks.ShortestPath.SingleTarget (
     , singleTargetsSplit
     , singleTargetSplit'
     , singleTargetsSplit'
+    , multipleSingleTargetsSplit
     , Implementation (..)
     , allImplementations
     , allButBaseline
@@ -75,20 +76,20 @@ setProblems = sequence $ zipWith (&) seeds $ map (\edges -> const $ D.newYorkPro
 
     where
         -- Num edges to pull from the new york problem which will be tested.
-        edgesToTest = [3000]
+        edgesToTest = [100]
         seeds :: [Int]
         seeds = [0..]
 
 
 setModes :: [Implementation]
 setModes = [
-      -- Baseline
-    -- , Generic  $ I.BruteForce
-      -- Generic  $ I.Fusion
-    -- , Generic  $ I.Shenoy MP.Threads
-    -- Generic  $ I.Shenoy MP.Distributed
-    DynamicP $ MP.Threads
-    -- DynamicP $ MP.Distributed
+      Baseline
+    , Generic  $ I.BruteForce
+    , Generic  $ I.Fusion
+    , Generic  $ I.Shenoy MP.Threads
+    , Generic  $ I.Shenoy MP.Distributed
+    , DynamicP $ MP.Threads
+    , DynamicP $ MP.Distributed
   ]
 
 

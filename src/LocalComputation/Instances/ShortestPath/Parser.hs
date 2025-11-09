@@ -123,7 +123,7 @@ lexer = P.makeTokenParser P.haskellDef
 mapParseResult :: (a -> b)
                -> Either P.ParseError (Either InvalidGraphFile (G.Graph Natural a))
                -> Either P.ParseError (Either InvalidGraphFile (G.Graph Natural b))
-mapParseResult f = fmap (fmap (G.mapGraph f))
+mapParseResult f = fmap (fmap (G.mapCosts f))
 
 
 --------------------------------------------------------------------------------

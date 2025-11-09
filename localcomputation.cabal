@@ -37,7 +37,6 @@ library
       Benchmarks.ShortestPath.SingleTarget.Data
       Benchmarks.Utils
       LocalComputation.Graph
-      LocalComputation.Graph.Directed
       LocalComputation.Graph.Undirected
       LocalComputation.Graph.UndirectedMatrix
       LocalComputation.IndexedSet

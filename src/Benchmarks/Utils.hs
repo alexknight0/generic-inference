@@ -77,7 +77,7 @@ getSeed = from
 
 
 complexityFilepath :: FilePath
-complexityFilepath = "operation_count.csv"
+complexityFilepath = "operation_count_after_thesis.csv"
 
 -- | Counts certain operations, allowing metrics for computational complexity to be estimated.
 benchmarkComplexity :: (V.NFData a)

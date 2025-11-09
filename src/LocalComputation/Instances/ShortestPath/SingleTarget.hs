@@ -31,6 +31,7 @@ import qualified Data.Bifunctor                                       as B
 import           Data.Binary                                          (Binary)
 import qualified Data.Hashable                                        as H
 import qualified Data.List                                            as L
+import qualified Data.Map                                             as Map
 import qualified LocalComputation.Graph                               as G
 import qualified LocalComputation.Graph.Undirected                    as UG
 import qualified LocalComputation.Inference                           as I
@@ -115,7 +116,7 @@ knowledgeBase gs target = map f gs
         -- Rearranges the graph into an associative list of ((arcHead, arcTail), cost)
         -- May contain duplicate entries if there may exist multiple arcs between a set of nodes.
         assocList :: G.Graph a b -> [((a, a), b)]
-        assocList g = map (\e -> ((e.arcHead, e.arcTail), e.weight)) (G.toList g)
+        assocList g = map (\e -> ((e.arcHead, e.arcTail), e.weight)) (G.toEdgeList g)
 
 -- | A function that given some draw settings, a knowledgebase and a query, computes and returns the inference results.
 type ComputeInference m a = D.DrawSettings
@@ -159,7 +160,7 @@ data Vertex a = Vertex { v :: a, neighbourhood :: S.Set a }
 neighbourhoods :: (Ord a) => G.Graph a b -> [Vertex a]
 neighbourhoods g = map (\(n, adjacents) -> Vertex n (S.insert n adjacents)) neighbours
     where
-        neighbours = map (B.second S.fromList) $ G.neighbours g
+        neighbours = Map.toList $ G.neighbourMap g
 
 --------------------------------------------------------------------------------
 -- Unsplit variants
@@ -208,7 +209,7 @@ unsafeGetDistance :: (Ord a) => M.LabelledMatrix a () Q.TropicalSemiringValue ->
 unsafeGetDistance x (source, _) = fromJust $ M.find (source, ()) x
 
 -- | Converts a function that operates using tropical semiring values to operate using doubles
-usingDouble :: (Functor m)
+usingDouble :: (Ord a, Functor m)
     => (D.DrawSettings -> [G.Graph a Q.TropicalSemiringValue] -> Query a -> Either I.Error (m (S.WithStats [Q.TropicalSemiringValue])))
     -> (D.DrawSettings -> [G.Graph a Double]                  -> Query a -> Either I.Error (m (S.WithStats [Double])))
 usingDouble f s vs qs = fmap (fmap (fmap (map Q.toDouble))) $ f s (map (fmap Q.T) vs) qs
