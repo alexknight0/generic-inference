@@ -26,6 +26,8 @@ module LocalComputation.Graph.Undirected (
     , induce
     , removeVertex
     , addEdges
+    , addVertex
+    , addEdge
 ) where
 import qualified Algebra.Graph.Undirected as UG
 import           Control.DeepSeq          (NFData)
@@ -40,8 +42,6 @@ import qualified LocalComputation.Utils   as U
 import           Prelude                  hiding (all)
 import qualified Prelude                  as P
 import           Text.Pretty.Simple       (pShowNoColor)
-
--- TODO: We could try an adjacency matrix representation and see if that changes the complexity.
 
 -- | A undirected, weightless graph with no self loops or double edges.
 newtype Graph a = Graph { m :: M.Map a (S.Set a) } deriving (Generic, NFData, Eq)

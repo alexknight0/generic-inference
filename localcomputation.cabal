@@ -38,10 +38,8 @@ library
       Benchmarks.Utils
       LocalComputation.Graph
       LocalComputation.Graph.Undirected
-      LocalComputation.Graph.UndirectedMatrix
       LocalComputation.IndexedSet
       LocalComputation.Inference
-      LocalComputation.Inference.Collect
       LocalComputation.Inference.DynamicProgramming
       LocalComputation.Inference.EliminationSequence
       LocalComputation.Inference.Fusion

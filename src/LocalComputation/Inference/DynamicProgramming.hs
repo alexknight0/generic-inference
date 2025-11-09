@@ -3,7 +3,7 @@
 
 {- | Contains functions for computing inference using solution extension sets.
 
-Currently incomplete: only contains functions that can operate on quasi-regular valuation algebras.
+Currently only allows the computation of a single solution.
 -}
 module LocalComputation.Inference.DynamicProgramming (
     solution

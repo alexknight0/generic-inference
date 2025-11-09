@@ -10,6 +10,7 @@ module LocalComputation.Instances.ShortestPath.SingleTarget (
     , singleTargetsSplit
     , Query (..)
     , decomposition
+    , oldDecomposition
 ) where
 
 import           Data.Maybe                                           (fromJust)
@@ -27,7 +28,6 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular       as Q (Semi
 -- Typeclasses
 import           Control.DeepSeq                                      (NFData)
 import           Control.Monad.IO.Class                               (MonadIO)
-import qualified Data.Bifunctor                                       as B
 import           Data.Binary                                          (Binary)
 import qualified Data.Hashable                                        as H
 import qualified Data.List                                            as L
@@ -131,14 +131,8 @@ type ComputeInference m a = D.DrawSettings
 -- i.e. if we have cliques {A, B, C} and cliques {B, C, D} then edges between 'b' and 'c' will be present
 -- in multiple graphs, even though we could communicate that information by only including the
 -- edges in one graph. Would solving this problem may result in speedups?
-decomposition :: forall a b . (Show a, Ord a, Eq b) => G.Graph a b -> [G.Graph a b]
-decomposition g = oldDecomposition g -- map (\c -> G.induce (`S.member` c) g) cliques
-    where
-        cliques = U.removeSubsets $ T.maximalCliques (UG.fromGraph g)
-
--- TODO: Add to future work: a more sophisticated decomposition algorithm
-oldDecomposition :: forall a b . (Ord a) => G.Graph a b -> [G.Graph a b]
-oldDecomposition g = filter (not . G.isEmpty) $
+decomposition :: forall a b . (Ord a) => G.Graph a b -> [G.Graph a b]
+decomposition g = filter (not . G.isEmpty) $
                     decomposition' (E.create $ map (.neighbourhood) nHoods) nHoods
     where
         decomposition' :: E.EliminationSequence a -> [Vertex a] -> [G.Graph a b]
@@ -152,6 +146,17 @@ oldDecomposition g = filter (not . G.isEmpty) $
                 graph = G.outgoingSubgraph g (S.fromList $ map (.v) containingVertex)
 
         nHoods = neighbourhoods g
+
+-- | A more complicated decomposition method that seems to provide faster inference,
+-- however comes at the cost of requiring more time to compute. The time required
+-- to compute the decomposition seems to exceed the time saved during inference,
+-- so a different, simpler, decomposition is used.
+--
+-- Based off page 367 of Pouly's "Generic Inference".
+oldDecomposition :: forall a b . (Ord a) => G.Graph a b -> [G.Graph a b]
+oldDecomposition g = map (\c -> G.induce (`S.member` c) g) cliques
+    where
+        cliques = U.removeSubsets $ T.maximalCliques (UG.fromGraph g)
 
 data Vertex a = Vertex { v :: a, neighbourhood :: S.Set a }
 
