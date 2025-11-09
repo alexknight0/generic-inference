@@ -3,7 +3,7 @@
 --
 -- All functions assert cost self loops on the input graphs. This is
 -- important as it is easy to forget that the results of using the
--- LocalComputation algorithm assume that the shortest path of a node
+-- GenericInference algorithm assume that the shortest path of a node
 -- to itself has a cost of 0, while this implementation doesn't.
 module Benchmarks.ShortestPath.SingleTarget.Baseline (
       shortestPaths
@@ -23,7 +23,7 @@ import           Control.Exception              (assert)
 import qualified Data.Map                       as M
 import qualified Graph.DijkstraSimple           as H
 import qualified Graph.DijkstraSimple.Weighters as H
-import qualified LocalComputation.Graph         as G
+import qualified GenericInference.Graph         as G
 
 shortestPaths :: (Ord a, Ord b, Num b) => H.Graph a b -> a -> M.Map a b
 shortestPaths g _ | assert (hasZeroCostSelfLoops g) False = undefined

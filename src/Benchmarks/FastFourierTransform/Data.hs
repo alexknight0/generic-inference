@@ -11,7 +11,7 @@ where
 import           Data.Complex                                    (Complex ((:+)))
 import           Numeric.Natural
 
-import qualified LocalComputation.Instances.FastFourierTransform as F
+import qualified GenericInference.Problems.FastFourierTransform as F
 
 fourierP1Queries :: [Natural]
 fourierP1Queries = zipWith const [0..] fourierP1Samples

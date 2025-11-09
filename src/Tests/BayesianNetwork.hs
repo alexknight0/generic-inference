@@ -7,12 +7,12 @@ where
 
 import           Benchmarks.BayesianNetwork.Baseline
 import           Benchmarks.BayesianNetwork.Data
-import qualified LocalComputation.Inference.Statistics             as S
-import           LocalComputation.Instances.BayesianNetwork
-import qualified LocalComputation.Instances.BayesianNetwork.Parser as P
-import           LocalComputation.LocalProcess
-import           LocalComputation.Utils
-import           LocalComputation.ValuationAlgebra.Semiring
+import qualified GenericInference.Inference.Statistics             as S
+import           GenericInference.Problems.BayesianNetwork
+import qualified GenericInference.Problems.BayesianNetwork.Parser as P
+import           GenericInference.LocalProcess
+import           GenericInference.Utils
+import           GenericInference.ValuationAlgebra.Semiring
 
 import           Hedgehog
 import qualified Hedgehog.Gen                                      as Gen
@@ -27,14 +27,14 @@ import           Tests.Utils                                       (checkAnswers
 
 import           Control.DeepSeq                                   (NFData)
 import qualified Data.Char                                         as C
-import           LocalComputation.Inference                        (Mode (..),
+import           GenericInference.Inference                        (Mode (..),
                                                                     queriesWithStats)
 
 import qualified Benchmarks.BayesianNetwork.Data                   as B
 import qualified Benchmarks.Utils                                  as U
-import qualified LocalComputation.Inference                        as I
-import qualified LocalComputation.Inference.JoinTree.Diagram       as D
-import qualified LocalComputation.Inference.MessagePassing         as MP
+import qualified GenericInference.Inference                        as I
+import qualified GenericInference.Inference.JoinTree.Diagram       as D
+import qualified GenericInference.Inference.MessagePassing         as MP
 
 tests :: IO Bool
 tests = checkParallel $$(discover)

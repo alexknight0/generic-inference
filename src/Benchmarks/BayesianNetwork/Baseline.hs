@@ -3,7 +3,7 @@ module Benchmarks.BayesianNetwork.Baseline
 where
 
 import qualified Data.Map                                   as M
-import qualified LocalComputation.Instances.BayesianNetwork as B
+import qualified GenericInference.Problems.BayesianNetwork as B
 import           Numeric.Probability.Distribution           ((?=<<), (??))
 import           Numeric.Probability.Example.Bayesian       (PState, SPred,
                                                              STrans, State,
@@ -11,7 +11,7 @@ import           Numeric.Probability.Example.Bayesian       (PState, SPred,
                                                              network)
 import qualified Numeric.Probability.Example.Bayesian       as P (Probability)
 
-import           LocalComputation.Utils                     (divAssert,
+import           GenericInference.Utils                     (divAssert,
                                                              findSingleMatchOrError,
                                                              zipAssert)
 

@@ -33,9 +33,9 @@ module Benchmarks.ShortestPath.SingleTarget.Data (
 
 import           Benchmarks.Utils                                     (parseFile)
 import qualified Benchmarks.Utils                                     as U
-import qualified LocalComputation.Graph                               as G
-import qualified LocalComputation.Instances.ShortestPath.Parser       as P
-import           LocalComputation.Utils                               (fromRight)
+import qualified GenericInference.Graph                               as G
+import qualified GenericInference.Problems.ShortestPath.Parser       as P
+import           GenericInference.Utils                               (fromRight)
 import           Numeric.Natural                                      (Natural)
 import qualified Text.Parsec                                          as P (ParseError)
 
@@ -44,8 +44,8 @@ import qualified Data.Set                                             as S
 import           Hedgehog
 import qualified Hedgehog.Gen                                         as Gen
 import qualified Hedgehog.Range                                       as Range
-import           LocalComputation.Instances.ShortestPath.SingleTarget (Query (..))
-import qualified LocalComputation.ValuationAlgebra                    as V
+import           GenericInference.Problems.ShortestPath.SingleTarget (Query (..))
+import qualified GenericInference.ValuationAlgebra                    as V
 
 import           Control.Monad.IO.Class                               (MonadIO (liftIO))
 
@@ -206,7 +206,7 @@ genGraphsAndQueries numProblems numQueries nodes edges = Gen.list (Range.singlet
 --------------------------------------------------------------------------------
 
 -- | A collection of graphs inference should fail on due to missing a 0 cost self loop.
--- See `LocalComputation.Instances.ShortestPath.SingleTarget.hs` for more information.
+-- See `GenericInference.Problems.ShortestPath.SingleTarget.hs` for more information.
 p0Graphs :: (Num a) => [G.Graph Integer a]
 p0Graphs = [
               G.fromList' [

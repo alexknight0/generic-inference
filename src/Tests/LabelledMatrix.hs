@@ -11,7 +11,7 @@ import qualified Hedgehog.Range                  as Range
 
 
 import qualified Data.Matrix                     as M
-import qualified LocalComputation.LabelledMatrix as L
+import qualified GenericInference.LabelledMatrix as L
 
 tests :: IO Bool
 tests = checkParallel $$(discover)

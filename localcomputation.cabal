@@ -36,40 +36,40 @@ library
       Benchmarks.ShortestPath.SingleTarget.Baseline
       Benchmarks.ShortestPath.SingleTarget.Data
       Benchmarks.Utils
-      LocalComputation.Graph
-      LocalComputation.Graph.Undirected
-      LocalComputation.IndexedSet
-      LocalComputation.Inference
-      LocalComputation.Inference.DynamicProgramming
-      LocalComputation.Inference.EliminationSequence
-      LocalComputation.Inference.Fusion
-      LocalComputation.Inference.JoinTree
-      LocalComputation.Inference.JoinTree.Diagram
-      LocalComputation.Inference.JoinTree.Forest
-      LocalComputation.Inference.JoinTree.Tree
-      LocalComputation.Inference.MessagePassing
-      LocalComputation.Inference.MessagePassing.Distributed
-      LocalComputation.Inference.MessagePassing.Threads
-      LocalComputation.Inference.ShenoyShafer
-      LocalComputation.Inference.Statistics
-      LocalComputation.Inference.Triangulation
-      LocalComputation.Instances.BayesianNetwork
-      LocalComputation.Instances.BayesianNetwork.Parser
-      LocalComputation.Instances.Database
-      LocalComputation.Instances.FastFourierTransform
-      LocalComputation.Instances.ShortestPath.Parser
-      LocalComputation.Instances.ShortestPath.SingleTarget
-      LocalComputation.LabelledMatrix
-      LocalComputation.LocalProcess
-      LocalComputation.Potential
-      LocalComputation.Pretty
-      LocalComputation.Utils
-      LocalComputation.Utils.Composition
-      LocalComputation.ValuationAlgebra
-      LocalComputation.ValuationAlgebra.QuasiRegular
-      LocalComputation.ValuationAlgebra.QuasiRegular.Value
-      LocalComputation.ValuationAlgebra.Semiring
-      LocalComputation.ValuationAlgebra.Semiring.Value
+      GenericInference.Graph
+      GenericInference.Graph.Undirected
+      GenericInference.IndexedSet
+      GenericInference.Inference
+      GenericInference.Inference.DynamicProgramming
+      GenericInference.Inference.EliminationSequence
+      GenericInference.Inference.Fusion
+      GenericInference.Inference.JoinTree
+      GenericInference.Inference.JoinTree.Diagram
+      GenericInference.Inference.JoinTree.Forest
+      GenericInference.Inference.JoinTree.Tree
+      GenericInference.Inference.MessagePassing
+      GenericInference.Inference.MessagePassing.Distributed
+      GenericInference.Inference.MessagePassing.Threads
+      GenericInference.Inference.ShenoyShafer
+      GenericInference.Inference.Statistics
+      GenericInference.Inference.Triangulation
+      GenericInference.LabelledMatrix
+      GenericInference.LocalProcess
+      GenericInference.Potential
+      GenericInference.Pretty
+      GenericInference.Problems.BayesianNetwork
+      GenericInference.Problems.BayesianNetwork.Parser
+      GenericInference.Problems.Database
+      GenericInference.Problems.FastFourierTransform
+      GenericInference.Problems.ShortestPath.Parser
+      GenericInference.Problems.ShortestPath.SingleTarget
+      GenericInference.Utils
+      GenericInference.Utils.Composition
+      GenericInference.ValuationAlgebra
+      GenericInference.ValuationAlgebra.QuasiRegular
+      GenericInference.ValuationAlgebra.QuasiRegular.Value
+      GenericInference.ValuationAlgebra.Semiring
+      GenericInference.ValuationAlgebra.Semiring.Value
       Tests
       Tests.BayesianNetwork
       Tests.FastFourierTransform

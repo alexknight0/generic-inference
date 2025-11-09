@@ -11,9 +11,9 @@ import           Criterion.Main
 import           Data.Complex                                    (Complex)
 import qualified Data.List                                       as L
 import qualified Data.Time.Clock.POSIX                           as C
-import qualified LocalComputation.Inference                      as I
-import qualified LocalComputation.Inference.MessagePassing       as MP
-import           LocalComputation.Instances.FastFourierTransform (FourierComplex,
+import qualified GenericInference.Inference                      as I
+import qualified GenericInference.Inference.MessagePassing       as MP
+import           GenericInference.Problems.FastFourierTransform (FourierComplex,
                                                                   unsafeQuery)
 
 createHeader :: Integer -> Implementation -> Int -> [String]

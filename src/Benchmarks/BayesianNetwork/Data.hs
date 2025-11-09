@@ -43,8 +43,8 @@ module Benchmarks.BayesianNetwork.Data
     )
 where
 
-import qualified LocalComputation.Instances.BayesianNetwork as BN
-import           LocalComputation.ValuationAlgebra          (Binary, Generic,
+import qualified GenericInference.Problems.BayesianNetwork as BN
+import           GenericInference.ValuationAlgebra          (Binary, Generic,
                                                              NFData)
 
 import qualified Benchmarks.Utils                           as U
@@ -53,9 +53,9 @@ import qualified Data.Map                                   as M
 import qualified Hedgehog                                   as H
 import qualified Hedgehog.Gen                               as Gen
 import qualified Hedgehog.Range                             as Range
-import qualified LocalComputation.Utils                     as U
-import qualified LocalComputation.ValuationAlgebra          as V
-import qualified LocalComputation.ValuationAlgebra.Semiring as S
+import qualified GenericInference.Utils                     as U
+import qualified GenericInference.ValuationAlgebra          as V
+import qualified GenericInference.ValuationAlgebra.Semiring as S
 
 --------------------------------------------------------------------------------
 -- Query Generation

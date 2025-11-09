@@ -9,7 +9,7 @@ import           Data.Bits
 import           Data.Complex
 import qualified Data.Vector                                     as V
 import qualified Data.Vector.Mutable                             as MV
-import           LocalComputation.Instances.FastFourierTransform
+import           GenericInference.Problems.FastFourierTransform
 
 import           Data.Array.CArray                               (createCArray)
 import           Data.Array.CArray.Base                          (CArray)

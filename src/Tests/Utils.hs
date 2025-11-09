@@ -22,12 +22,12 @@ import           Control.Distributed.Process
 import qualified Control.Exception                         as E
 import           Control.Monad                             (void)
 import qualified Data.Set                                  as S
-import qualified LocalComputation.Graph.Undirected         as G
-import qualified LocalComputation.Inference                as I
-import qualified LocalComputation.Inference.MessagePassing as MP
-import qualified LocalComputation.Inference.Triangulation  as T
-import           LocalComputation.Utils                    (zipWithAssert)
-import qualified LocalComputation.Utils                    as U
+import qualified GenericInference.Graph.Undirected         as G
+import qualified GenericInference.Inference                as I
+import qualified GenericInference.Inference.MessagePassing as MP
+import qualified GenericInference.Inference.Triangulation  as T
+import           GenericInference.Utils                    (zipWithAssert)
+import qualified GenericInference.Utils                    as U
 
 -------------------------------------------------------------------------------
 -- Tests                                                                     --

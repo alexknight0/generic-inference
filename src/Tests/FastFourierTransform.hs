@@ -6,9 +6,9 @@ where
 
 import           Benchmarks.FastFourierTransform.Baseline
 import           Benchmarks.FastFourierTransform.Data
-import           LocalComputation.Instances.FastFourierTransform
-import           LocalComputation.LocalProcess
-import           LocalComputation.Utils
+import           GenericInference.Problems.FastFourierTransform
+import           GenericInference.LocalProcess
+import           GenericInference.Utils
 
 import           Hedgehog
 import qualified Hedgehog.Gen                                    as Gen
@@ -19,7 +19,7 @@ import           Control.Distributed.Process                     (liftIO)
 import           Data.Complex                                    (Complex ((:+)),
                                                                   imagPart,
                                                                   realPart)
-import qualified LocalComputation.Inference                      as I
+import qualified GenericInference.Inference                      as I
 import           Tests.Utils                                     (checkAnswers,
                                                                   unitTest)
 

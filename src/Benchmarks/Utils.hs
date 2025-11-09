@@ -29,9 +29,9 @@ import           Hedgehog.Range                        (Size)
 import           Control.DeepSeq                       (rnf)
 import           Control.Exception                     (evaluate)
 import qualified Data.List                             as L
-import qualified LocalComputation.Inference.Statistics as S
-import qualified LocalComputation.Utils                as U
-import qualified LocalComputation.ValuationAlgebra     as V
+import qualified GenericInference.Inference.Statistics as S
+import qualified GenericInference.Utils                as U
+import qualified GenericInference.ValuationAlgebra     as V
 import           System.IO                             (IOMode (AppendMode),
                                                         hFlush, hPutStrLn,
                                                         stdout, withFile)

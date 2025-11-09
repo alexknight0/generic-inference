@@ -17,39 +17,36 @@ module Benchmarks.ShortestPath.SingleTarget (
     , allButBaseline
 ) where
 
-import qualified Benchmarks.ShortestPath.SingleTarget.Data            as D
+import qualified Benchmarks.ShortestPath.SingleTarget.Data           as D
 
-import qualified Benchmarks.ShortestPath.SingleTarget.Baseline        as H
-import qualified Benchmarks.Utils                                     as U
+import qualified Benchmarks.ShortestPath.SingleTarget.Baseline       as H
+import qualified Benchmarks.Utils                                    as U
+import           Control.DeepSeq                                     (deepseq,
+                                                                      rnf)
+import           Control.Exception.Base                              (evaluate)
+import qualified Control.Monad                                       as M
+import           Control.Monad.Extra                                 (concatMapM)
+import           Control.Monad.IO.Class                              (MonadIO,
+                                                                      liftIO)
 import           Criterion.Main
-import qualified LocalComputation.Graph                               as G
-import qualified LocalComputation.Inference                           as I
-import qualified LocalComputation.Instances.ShortestPath.SingleTarget as ST
-import           LocalComputation.Utils                               (fromRight,
-                                                                       infinity)
-
-import           Control.DeepSeq                                      (deepseq,
-                                                                       rnf)
-import           Control.Exception.Base                               (evaluate)
-import qualified Control.Monad                                        as M
-import           Control.Monad.Extra                                  (concatMapM)
-import           Control.Monad.IO.Class                               (MonadIO,
-                                                                       liftIO)
-import           Data.Function                                        ((&))
-import qualified Data.Hashable                                        as H
-import qualified Data.List                                            as L
-import qualified Data.Time.Clock.POSIX                                as C
-import qualified LocalComputation.Inference.JoinTree.Diagram          as D
-import qualified LocalComputation.Inference.MessagePassing            as MP
-import qualified LocalComputation.Inference.Statistics                as S
-import qualified LocalComputation.ValuationAlgebra                    as V
+import           Data.Function                                       ((&))
+import qualified Data.Hashable                                       as H
+import qualified Data.List                                           as L
+import qualified Data.Time.Clock.POSIX                               as C
+import qualified GenericInference.Graph                              as G
+import qualified GenericInference.Inference                          as I
+import qualified GenericInference.Inference.JoinTree.Diagram         as D
+import qualified GenericInference.Inference.MessagePassing           as MP
+import qualified GenericInference.Inference.Statistics               as S
+import qualified GenericInference.Problems.ShortestPath.SingleTarget as ST
+import           GenericInference.Utils                              (fromRight,
+                                                                      infinity)
+import qualified GenericInference.ValuationAlgebra                   as V
 import           Numeric.Natural
-
 
 --------------------------------------------------------------------------------
 -- Benchmarks
 --------------------------------------------------------------------------------
-
 justDraw :: (MonadIO m) => m ()
 justDraw = do
     p <- fmap (head . (.ps) . head) $ setProblems
@@ -60,10 +57,6 @@ justDraw = do
 
     where
         draw = D.def { D.beforeInference = Just "diagrams/tmp/testing.svg" }
-
-
-
-
 
 -- The graph generation is not part of the benchmark (we don't want it to take up time!), so we can't
 -- have it use different graphs between benchmarks unless we created some 'state', pregenerated all the
@@ -312,5 +305,4 @@ singleTargetsSplit' mode s gs qs = M.join $ singleTargetsSplit mode s gs qs
 singleTargetSplit' :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, MonadIO m)
     => Implementation -> D.DrawSettings -> [G.Graph a Double] -> ST.Query a -> m (S.WithStats [Double])
 singleTargetSplit' mode s gs q = M.join $ singleTargetSplit mode s gs q
-
 

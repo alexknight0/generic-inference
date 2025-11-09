@@ -18,9 +18,9 @@ import           Benchmarks.ShortestPath.SingleTarget.Data            (Problem (
                                                                        newYorkSmall,
                                                                        newYorkVerySmall,
                                                                        p1, p2)
-import qualified LocalComputation.Graph                               as G
-import qualified LocalComputation.Inference.Statistics                as S
-import qualified LocalComputation.Instances.ShortestPath.SingleTarget as ST (Query,
+import qualified GenericInference.Graph                               as G
+import qualified GenericInference.Inference.Statistics                as S
+import qualified GenericInference.Problems.ShortestPath.SingleTarget as ST (Query,
                                                                              decomposition)
 
 import           Hedgehog                                             hiding
@@ -33,15 +33,15 @@ import qualified Hedgehog.Range                                       as Range
 import qualified Benchmarks.ShortestPath.SingleTarget.Data            as D
 import           Control.Distributed.Process                          (liftIO)
 import           Control.Monad                                        (forM)
-import qualified LocalComputation.Inference.JoinTree.Diagram          as D
+import qualified GenericInference.Inference.JoinTree.Diagram          as D
 
 -- Typeclasses
 import           Control.DeepSeq                                      (NFData)
 import           Control.Monad.IO.Class                               (MonadIO)
 import           Data.Binary                                          (Binary)
 import qualified Data.Hashable                                        as H
-import qualified LocalComputation.Inference                           as I
-import qualified LocalComputation.Inference.MessagePassing            as MP
+import qualified GenericInference.Inference                           as I
+import qualified GenericInference.Inference.MessagePassing            as MP
 import           Numeric.Natural                                      (Natural)
 import           Tests.Utils                                          (checkAnswers,
                                                                        unitTest)

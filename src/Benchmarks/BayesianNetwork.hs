@@ -13,13 +13,13 @@ import           Criterion.Main
 import           Data.Function                                     ((&))
 import qualified Data.List                                         as L
 import qualified Data.Time.Clock.POSIX                             as C
-import qualified LocalComputation.Inference                        as I
-import qualified LocalComputation.Inference.JoinTree.Diagram       as D
-import qualified LocalComputation.Inference.MessagePassing         as MP
-import qualified LocalComputation.Inference.Statistics             as S
-import qualified LocalComputation.Instances.BayesianNetwork        as BN
-import qualified LocalComputation.Instances.BayesianNetwork.Parser as P
-import qualified LocalComputation.ValuationAlgebra                 as V
+import qualified GenericInference.Inference                        as I
+import qualified GenericInference.Inference.JoinTree.Diagram       as D
+import qualified GenericInference.Inference.MessagePassing         as MP
+import qualified GenericInference.Inference.Statistics             as S
+import qualified GenericInference.Problems.BayesianNetwork        as BN
+import qualified GenericInference.Problems.BayesianNetwork.Parser as P
+import qualified GenericInference.ValuationAlgebra                 as V
 
 getAsiaNet :: IO (D.NamedNet (BN.Network String String))
 getAsiaNet = fmap (D.NamedNet "Asia") $ U.unsafeParseFile' P.network D.alarmFilepath
