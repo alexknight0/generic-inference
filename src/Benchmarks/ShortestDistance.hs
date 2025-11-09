@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP #-}
-module Benchmarks.ShortestPath.SingleTarget (
+module Benchmarks.ShortestDistance (
       benchmarkPerformance
     , benchmarkComplexity
     , justDraw
@@ -17,9 +17,9 @@ module Benchmarks.ShortestPath.SingleTarget (
     , allButBaseline
 ) where
 
-import qualified Benchmarks.ShortestPath.SingleTarget.Data           as D
+import qualified Benchmarks.ShortestDistance.Data           as D
 
-import qualified Benchmarks.ShortestPath.SingleTarget.Baseline       as H
+import qualified Benchmarks.ShortestDistance.Baseline       as H
 import qualified Benchmarks.Utils                                    as U
 import           Control.DeepSeq                                     (deepseq,
                                                                       rnf)
@@ -38,7 +38,7 @@ import qualified GenericInference.Inference                          as I
 import qualified GenericInference.Inference.JoinTree.Diagram         as D
 import qualified GenericInference.Inference.MessagePassing           as MP
 import qualified GenericInference.Inference.Statistics               as S
-import qualified GenericInference.Problems.ShortestPath.SingleTarget as ST
+import qualified GenericInference.Problems.ShortestDistance as ST
 import           GenericInference.Utils                              (fromRight,
                                                                       infinity)
 import qualified GenericInference.ValuationAlgebra                   as V

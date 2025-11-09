@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module GenericInference.Problems.ShortestPath.SingleTarget (
+module GenericInference.Problems.ShortestDistance (
       singleTarget
     , singleTargetDP
     , singleTargetSplit

@@ -32,9 +32,9 @@ library
       Benchmarks.FastFourierTransform
       Benchmarks.FastFourierTransform.Baseline
       Benchmarks.FastFourierTransform.Data
-      Benchmarks.ShortestPath.SingleTarget
-      Benchmarks.ShortestPath.SingleTarget.Baseline
-      Benchmarks.ShortestPath.SingleTarget.Data
+      Benchmarks.ShortestDistance
+      Benchmarks.ShortestDistance.Baseline
+      Benchmarks.ShortestDistance.Data
       Benchmarks.Utils
       GenericInference.Graph
       GenericInference.Graph.Undirected
@@ -61,8 +61,8 @@ library
       GenericInference.Problems.BayesianNetwork.Parser
       GenericInference.Problems.Database
       GenericInference.Problems.FastFourierTransform
-      GenericInference.Problems.ShortestPath.Parser
-      GenericInference.Problems.ShortestPath.SingleTarget
+      GenericInference.Problems.ShortestDistance
+      GenericInference.Problems.ShortestDistance.Parser
       GenericInference.Utils
       GenericInference.Utils.Composition
       GenericInference.ValuationAlgebra
@@ -74,7 +74,7 @@ library
       Tests.BayesianNetwork
       Tests.FastFourierTransform
       Tests.LabelledMatrix
-      Tests.ShortestPath.SingleTarget
+      Tests.ShortestDistance
       Tests.Utils
   other-modules:
       Paths_localcomputation

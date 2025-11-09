@@ -5,7 +5,7 @@
 -- important as it is easy to forget that the results of using the
 -- GenericInference algorithm assume that the shortest path of a node
 -- to itself has a cost of 0, while this implementation doesn't.
-module Benchmarks.ShortestPath.SingleTarget.Baseline (
+module Benchmarks.ShortestDistance.Baseline (
       shortestPaths
     , singleSource
     , singleTarget

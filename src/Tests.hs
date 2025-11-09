@@ -11,7 +11,7 @@ where
 import qualified Tests.BayesianNetwork           as B
 import qualified Tests.FastFourierTransform      as F
 import qualified Tests.LabelledMatrix            as M
-import qualified Tests.ShortestPath.SingleTarget as S
+import qualified Tests.ShortestDistance as S
 import qualified Tests.Utils                     as U
 
 {- | Hedgehog console output uses display regions rather than regular stdout logging, so may overwrite your stdout messages.

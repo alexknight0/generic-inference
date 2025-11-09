@@ -16,7 +16,7 @@ import qualified Hedgehog                                  as H (assert)
 import qualified Hedgehog.Gen                              as Gen
 import qualified Hedgehog.Range                            as Range
 
-import qualified Benchmarks.ShortestPath.SingleTarget.Data as ST
+import qualified Benchmarks.ShortestDistance.Data as ST
 import           Control.DeepSeq                           (force)
 import           Control.Distributed.Process
 import qualified Control.Exception                         as E

@@ -2,7 +2,7 @@
 
 For information on the .gr file format see: https://www.diag.uniroma1.it/challenge9/format.shtml#graph
 -}
-module GenericInference.Problems.ShortestPath.Parser
+module GenericInference.Problems.ShortestDistance.Parser
     ( fullGraph
     , graph
     , InvalidGraphFile

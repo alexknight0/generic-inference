@@ -4,7 +4,7 @@ module Benchmarks (
 
 import qualified Benchmarks.BayesianNetwork           as BN
 import qualified Benchmarks.FastFourierTransform      as FFT
-import qualified Benchmarks.ShortestPath.SingleTarget as ST
+import qualified Benchmarks.ShortestDistance as ST
 
 import           Criterion.Main
 

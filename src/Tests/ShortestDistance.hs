@@ -5,12 +5,12 @@
 -- | Tests the valuation algebra solving shortest path problems.
 -- Also doubles up to test that all methods of inference produce
 -- the same results - all tests verify this property.
-module Tests.ShortestPath.SingleTarget
+module Tests.ShortestDistance
     ( tests )
 where
 
-import           Benchmarks.ShortestPath.SingleTarget                 as ST
-import           Benchmarks.ShortestPath.SingleTarget.Data            (Problem (answers, graphs, q),
+import           Benchmarks.ShortestDistance                 as ST
+import           Benchmarks.ShortestDistance.Data            (Problem (answers, graphs, q),
                                                                        genConnectedQuery,
                                                                        genGraph,
                                                                        genGraphs,
@@ -20,7 +20,7 @@ import           Benchmarks.ShortestPath.SingleTarget.Data            (Problem (
                                                                        p1, p2)
 import qualified GenericInference.Graph                               as G
 import qualified GenericInference.Inference.Statistics                as S
-import qualified GenericInference.Problems.ShortestPath.SingleTarget as ST (Query,
+import qualified GenericInference.Problems.ShortestDistance as ST (Query,
                                                                              decomposition)
 
 import           Hedgehog                                             hiding
@@ -30,7 +30,7 @@ import qualified Hedgehog.Gen                                         as Gen
 import qualified Hedgehog.Internal.Property                           as Hedgehog (PropertyName (..))
 import qualified Hedgehog.Range                                       as Range
 
-import qualified Benchmarks.ShortestPath.SingleTarget.Data            as D
+import qualified Benchmarks.ShortestDistance.Data            as D
 import           Control.Distributed.Process                          (liftIO)
 import           Control.Monad                                        (forM)
 import qualified GenericInference.Inference.JoinTree.Diagram          as D

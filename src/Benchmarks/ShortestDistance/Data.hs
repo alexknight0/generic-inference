@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric  #-}
 
 {- | Tests for benchmarking suite. Also exposes some example problems that can be used in a test suite -}
-module Benchmarks.ShortestPath.SingleTarget.Data (
+module Benchmarks.ShortestDistance.Data (
       Problem (..)
     , GraphAndQuery (..)
     , BenchmarkProblem (..)
@@ -34,7 +34,7 @@ module Benchmarks.ShortestPath.SingleTarget.Data (
 import           Benchmarks.Utils                                     (parseFile)
 import qualified Benchmarks.Utils                                     as U
 import qualified GenericInference.Graph                               as G
-import qualified GenericInference.Problems.ShortestPath.Parser       as P
+import qualified GenericInference.Problems.ShortestDistance.Parser       as P
 import           GenericInference.Utils                               (fromRight)
 import           Numeric.Natural                                      (Natural)
 import qualified Text.Parsec                                          as P (ParseError)
@@ -44,7 +44,7 @@ import qualified Data.Set                                             as S
 import           Hedgehog
 import qualified Hedgehog.Gen                                         as Gen
 import qualified Hedgehog.Range                                       as Range
-import           GenericInference.Problems.ShortestPath.SingleTarget (Query (..))
+import           GenericInference.Problems.ShortestDistance (Query (..))
 import qualified GenericInference.ValuationAlgebra                    as V
 
 import           Control.Monad.IO.Class                               (MonadIO (liftIO))
@@ -114,7 +114,7 @@ createParsedProblemWithOneToOneQueries name g numQueries seed = do
         reverseAdjacencyList = G.reverseAdjacencyList g
 
 dataDirectory :: FilePath
-dataDirectory = "src/Benchmarks/ShortestPath/SingleTarget/Data/"
+dataDirectory = "src/Benchmarks/ShortestDistance/Data/"
 
 --------------------------------------------------------------------------------
 -- Random test generation
@@ -206,7 +206,7 @@ genGraphsAndQueries numProblems numQueries nodes edges = Gen.list (Range.singlet
 --------------------------------------------------------------------------------
 
 -- | A collection of graphs inference should fail on due to missing a 0 cost self loop.
--- See `GenericInference.Problems.ShortestPath.SingleTarget.hs` for more information.
+-- See `GenericInference.Problems.ShortestDistance.hs` for more information.
 p0Graphs :: (Num a) => [G.Graph Integer a]
 p0Graphs = [
               G.fromList' [
