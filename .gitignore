@@ -1,7 +1,5 @@
 .stack-work/
-*~
 *.prof
 report.html
-src/Benchmark/Data/ShortestPath/*
-old-benchmarks/*
 *.svg
+scripts/
