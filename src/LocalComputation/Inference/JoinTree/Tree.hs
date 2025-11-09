@@ -211,7 +211,6 @@ redirectToQueryNode :: (ValuationFamily v, Ord a, Show a)
     => Domain a -> JoinTree v a -> JoinTree v a
 redirectToQueryNode d g = redirectTree (queryNode.id) g
     where
-        -- TODO: Update
         queryNode = head $ filter (\n -> n.t == Query && n.d == d) (vertexList g)
 
 -- | Updates valuations for nodes of the given ids.
@@ -483,14 +482,4 @@ supportsCollect :: JoinTree v a -> Bool
 supportsCollect t = numQueryNodes t == 1        -- (1)
                         && isQueryNodeRoot t    -- (2)
                         && hasTotalNumbering t  -- (3)
-
-
-
---------------------------------------------------------------------------------
--- Tree Width Analysis
---------------------------------------------------------------------------------
--- TODO: The tree width is significantly smaller for using the base elimination sequence - should we change this for fusionpass?
-
-
-
 

@@ -12,7 +12,7 @@ import           Numeric.Probability.Example.Bayesian       (PState, SPred,
 import qualified Numeric.Probability.Example.Bayesian       as P (Probability)
 
 import           LocalComputation.Utils                     (divAssert,
-                                                             findAssertSingleMatch,
+                                                             findSingleMatchOrError,
                                                              zipAssert)
 
 type Network a = PState a
@@ -66,7 +66,7 @@ position inside the probabilities list.
 potential :: (Eq a) => a -> [a] -> [P.Probability] -> Potential a
 potential conditionedV conditionalVs ps s = event p conditionedV s
     where
-        (p, _) = findAssertSingleMatch snd events
+        (p, _) = findSingleMatchOrError snd events
 
         events :: [(P.Probability, Bool)]
         events = zipAssert ps (map (hasVariableSetOccured s) $ vPermutations conditionalVs)

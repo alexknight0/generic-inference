@@ -31,6 +31,7 @@ import           LocalComputation.Inference                        (Mode (..),
                                                                     queriesWithStats)
 
 import qualified Benchmarks.BayesianNetwork.Data                   as B
+import qualified Benchmarks.Utils                                  as U
 import qualified LocalComputation.Inference                        as I
 import qualified LocalComputation.Inference.JoinTree.Diagram       as D
 import qualified LocalComputation.Inference.MessagePassing         as MP
@@ -140,7 +141,7 @@ dataToValuations vs = map (uncurry getRows) withVariableDomains
 
 parseNetwork :: FilePath -> PropertyT IO (Network String String)
 parseNetwork filename = do
-    parsed <- liftIO $ parseFile P.network filename
+    parsed <- liftIO $ U.parseFile P.network filename
     case parsed of
         Left e        -> do annotateShow e; failure
         Right network -> pure network

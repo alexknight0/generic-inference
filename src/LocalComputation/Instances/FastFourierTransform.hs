@@ -13,7 +13,6 @@ module LocalComputation.Instances.FastFourierTransform
     )
 where
 
-import qualified LocalComputation.Inference.Statistics      as S
 import           LocalComputation.Utils
 import           LocalComputation.ValuationAlgebra.Semiring
 
@@ -23,7 +22,6 @@ import qualified Data.Map                                   as M
 import qualified Data.Set                                   as S
 import           Numeric.Natural
 
-import           Control.Distributed.Process                (Process)
 
 -- Typeclasses
 import           Control.DeepSeq                            (NFData)
@@ -34,16 +32,12 @@ import           GHC.Generics                               (Generic)
 import qualified Control.Monad.IO.Class                     as M
 import           Data.Maybe                                 (fromJust)
 import qualified LocalComputation.Inference                 as I
-import qualified LocalComputation.Inference.MessagePassing  as MP
 
 newtype FourierComplex = FourierComplex (C.Complex Double) deriving newtype (Num, Fractional, Binary, Show, NFData, Eq, Generic)
 
-
--- TODO: update doc.
 {- | Variables used in the FastFourierValuation
 
 (X i) and (Y j) are variables indicating the i_th and j_th bits in the binary number representation of x and y respectively.
-(F i) is a variable representing the i_th sample of a function representing the sampled signal.
 -}
 data FastFourierVariable = X Natural | Y Natural deriving (Eq, Ord, Binary, Generic, Show, H.Hashable, NFData)
 
@@ -53,7 +47,7 @@ instance SemiringValue FourierComplex where
     add = (+)
     multiply = (*)
 
-    -- TODO: Not used. Should probably look into how they would be defined for consistency.
+    -- Not used.
     zero = error "Not implemented"
     one = error "Not implemented"
 
@@ -82,9 +76,6 @@ getKnowledgebase samples = f : [getE m j l | j <- [0 .. m-1], l <- [0 .. m-1-j]]
         f = fromPermutationMap rows
             where
                 rows = fromListAssertDisjoint $ zipWith (\x s -> (toBinaryVariableSet m x X, s)) [0..] samples
-
-oneOrZero :: (Ord a) => S.Set a -> M.Map a (S.Set Natural)
-oneOrZero xs = fromListAssertDisjoint $ map (\x -> (x, S.fromList [0, 1])) (S.toList xs)
 
 {- | Calculates the fourier transform from the given samples and returns the corresponding values for the given y values.
 

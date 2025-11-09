@@ -39,14 +39,6 @@ instance Eq (WithId a) where
 instance Ord (WithId a) where
     x <= y = x.id <= y.id
 
--- TODO: We can use elimination sequence here, but the fusion algorithm specifies that we
--- don't eliminate any variables in the query - so how is our 'elimination seq' impacted by
--- this; but how does this affect *calculation* of the elimation seq?
--- i.e. Do we remove them before or after calculating the elimination seq?
--- A: Use that one step lookahead from that local computation paper.
---    Wait; p371 of generic inference say something about the treewidth indicating an upper
---    bound on the time complexity of variable elimination?
-
 -- | Performs fusion on the given set of valuations to calculate the combination of
 -- all valuations projected to the given domain.
 --
@@ -86,17 +78,6 @@ fusion' uniqueId upperPsi e largestNode
 --------------------------------------------------------------------------------
 -- Fusion applied to a join tree (used for dynamic programming)
 --------------------------------------------------------------------------------
--- TODO: I think for fusion we want a new join tree construction algorithm that will help us ensure
--- only one variable is eliminated at a time. We accept the fact that fusion with a query equal
--- to the full set of variables is equal to brute force.
---
--- I think the reason we want a new algorithm is because imagine the query node is at the bottom
--- below a union node with a very different domain. This will impose a very harsh projection.
-
--- TODO: Can we make this work for disconnected join trees?
-
--- TODO: document fact that root node might not be query node anymore.
-
 -- | Takes a join tree and returns the join tree after a fusion pass over a given join tree.
 --
 -- __Warning__: will fail if a disconnected join tree is given.

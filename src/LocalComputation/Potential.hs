@@ -37,6 +37,9 @@ import qualified LocalComputation.Utils            as U
 import           LocalComputation.ValuationAlgebra (Binary, Generic, NFData)
 import           Prelude                           hiding (null)
 
+-- TODO: The 'frames' field of 'Potential' should probably be updated to use a list over
+-- an 'IndexedSet' as in most cases the 'IndexedSet' will likely be so small that a normal
+-- list lookup would be more efficient.
 
 {- | Stores values in the following order:
 
@@ -67,10 +70,10 @@ unsafeCreate frames values = U.assertP satisfiesInvariants $ Potential frames va
 unsafeCreate' :: M.Map a (Set.Set b) -> A.Array Int c -> Potential a b c
 unsafeCreate' frames values = unsafeCreate (M.map S.fromSet frames) values
 
-unsafeFromList :: forall c b a. (HasCallStack, Ord a, Ord b) => [(a, [b])] -> [c] -> Potential a b c
+unsafeFromList :: forall c b a. (Ord a, Ord b) => [(a, [b])] -> [c] -> Potential a b c
 unsafeFromList frames values = unsafeFromList' $ zip (toPermutations frames) values
 
-unsafeFromList' :: forall c b a. (HasCallStack, Ord a, Ord b) => [([(a, b)], c)] -> Potential a b c
+unsafeFromList' :: forall c b a. (Ord a, Ord b) => [([(a, b)], c)] -> Potential a b c
 unsafeFromList' rows = fromPermutationMap (M.mapKeys M.fromList $ M.fromList rows)
 
 {- | Satisfies invariants if:
@@ -116,7 +119,7 @@ project union p domain = unsafeCreate newFrames newValues
 numPermutations :: M.Map a (S.IndexedSet b) -> Int
 numPermutations = product . map S.size . M.elems
 
--- TODO: There exists a more efficent way to do this.
+-- TODO: There exists a slightly more efficent way to do this.
 unsafeGetAssignment :: M.Map a (S.IndexedSet b) -> Int -> M.Map a b
 unsafeGetAssignment frames index = permutationList frames !! index
 

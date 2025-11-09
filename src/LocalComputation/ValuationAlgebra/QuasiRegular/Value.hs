@@ -18,7 +18,6 @@ import qualified LocalComputation.ValuationAlgebra.Semiring as S
 -- Typeclasses
 import           Control.DeepSeq                            (NFData)
 import           Data.Binary                                (Binary)
-import qualified Data.Massiv.Array                          as M
 import           Data.Vector.Unboxed.Deriving               (derivingUnbox)
 import           GHC.Generics                               (Generic)
 
@@ -26,28 +25,14 @@ import           GHC.Generics                               (Generic)
 class (S.SemiringValue a) => SemiringValue a where
     quasiInverse :: a -> a
 
-add :: (SemiringValue a) => a -> a -> a
-add = S.add
-
-multiply :: (SemiringValue a) => a -> a -> a
-multiply = S.multiply
-
-zero :: (SemiringValue a) => a   -- the additive identity
-zero = S.zero
-
-one :: (SemiringValue a) => a    -- the multiplicative identity
-one = S.one
-
-    -- TODO:
-    -- zero and one also has to satisfy some special laws with
-    -- respect to idempotency and monotonicity to
-    -- work for path problems? pdf page 257 gen. inf.
-
 -- | A value from the tropical semiring of all real numbers.
 --
 -- Detailed page 232 of "Generic Inference" (Pouly & Kohlas, 2012).
 newtype TropicalSemiringValue = T Double deriving (Ord, Num, Real, Enum, Show, NFData, Eq, Generic, Read, Binary)
 
+-- An instance of Unbox for TropicalSemiringValue.
+-- Temporarily used for capatability with LabelledMatrix, when experimenting with unboxed labelled matricies.
+-- Can be removed safely.
 derivingUnbox "TropicalSemiringValue"
   [t| TropicalSemiringValue -> Double |]
   [| \(T x) -> x |]
@@ -66,3 +51,18 @@ instance SemiringValue TropicalSemiringValue where
     quasiInverse x
         | x >= 0 = 0
         | otherwise = T (read "-Infinity" :: Double)
+
+--------------------------------------------------------------------------------
+-- Copy semiring operations for quasi-regular semiring
+--------------------------------------------------------------------------------
+add :: (SemiringValue a) => a -> a -> a
+add = S.add
+
+multiply :: (SemiringValue a) => a -> a -> a
+multiply = S.multiply
+
+zero :: (SemiringValue a) => a   -- the additive identity
+zero = S.zero
+
+one :: (SemiringValue a) => a    -- the multiplicative identity
+one = S.one

@@ -86,7 +86,7 @@ node = do
         pure $ NodeInfo name states
     <?> "node"
 
--- todo may not have conditional vars. i.e. terminators and initials.
+-- TODO: may not have conditional vars. i.e. terminators and initials.
 potential :: M.Map String [String] -> GenParser Char st (Valuation String String)
 potential states = do
         conditioned <- s (string "potential") >> s (char '(') >> identifier

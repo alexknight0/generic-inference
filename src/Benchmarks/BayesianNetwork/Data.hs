@@ -19,7 +19,6 @@ module Benchmarks.BayesianNetwork.Data
     , asiaAnswersP3
     , asiaVariables
     , muninQueries
-    , muninAnswers
     , alarmQueries
     , alarmAnswers
     , thesisExampleQuery
@@ -223,7 +222,7 @@ asiaValuationsP1 :: [([AsiaVar], [BN.Probability])]
 asiaValuationsP1 = asiaValuations
 
 asiaQueriesP1 :: [BN.Query AsiaVar Bool]
-asiaQueriesP1 = map BN.toQueryA [
+asiaQueriesP1 = map BN.unsafeToQuery [
           (
            [(HasTuberculosis, True)],
            [(VisitToAsia, True)]
@@ -254,7 +253,7 @@ asiaValuationsP2 = asiaValuations
 
 -- | Queries that the baseline model can't handle, but the generic implementation can.
 asiaQueriesP2 :: [BN.Query AsiaVar Bool]
-asiaQueriesP2 = map BN.toQueryA [
+asiaQueriesP2 = map BN.unsafeToQuery [
           (
             [(XRayResult, True), (Dyspnea, True)],
             [(VisitToAsia, True)]
@@ -288,7 +287,7 @@ asiaValuationsP3 :: [([AsiaVar], [BN.Probability])]
 asiaValuationsP3 = asiaValuations ++ [([XRayResultAndDyspnea, XRayResult, Dyspnea], [1, 1, 1, 0, 0, 0, 0, 1])]
 
 asiaQueriesP3 :: [BN.Query AsiaVar Bool]
-asiaQueriesP3 = map BN.toQueryA [
+asiaQueriesP3 = map BN.unsafeToQuery [
         (
           [(XRayResultAndDyspnea, True)],
           [(VisitToAsia, True)]
@@ -302,7 +301,7 @@ asiaAnswersP3 = [0.09882268]
 -- Other hardcoded test cases
 --------------------------------------------------------------------------------
 muninQueries :: [BN.Query String String]
-muninQueries = map BN.toQueryA [
+muninQueries = map BN.unsafeToQuery [
         -- Pretty sure we want underscores instead of '.'s here. Also may need to replace the dashes? idk. Maybe not.
           (
             [("R.MEDD2.DISP-WD", "NO")],
@@ -314,12 +313,8 @@ muninQueries = map BN.toQueryA [
           )
     ]
 
--- TODO: THESE ARE WRONG. NEED TO BE UPDATED.
-muninAnswers :: [BN.Probability]
-muninAnswers = [0.864, 0.874]
-
 alarmQueries  :: [BN.Query String String]
-alarmQueries = map BN.toQueryA [
+alarmQueries = map BN.unsafeToQuery [
           (
             [("HRBP", "LOW")],
             []
@@ -350,4 +345,4 @@ thesisExampleValuations = [
     ]
 
 thesisExampleQuery :: BN.Query ThesisExample Bool
-thesisExampleQuery = BN.toQueryA ([(Name, True), (ID, True)], [])
+thesisExampleQuery = BN.unsafeToQuery ([(Name, True), (ID, True)], [])

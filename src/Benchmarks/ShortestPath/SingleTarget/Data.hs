@@ -31,11 +31,11 @@ module Benchmarks.ShortestPath.SingleTarget.Data (
     , Query (Query)
 ) where
 
+import           Benchmarks.Utils                                     (parseFile)
 import qualified Benchmarks.Utils                                     as U
 import qualified LocalComputation.Graph                               as G
 import qualified LocalComputation.Instances.ShortestPath.Parser       as P
-import           LocalComputation.Utils                               (fromRight,
-                                                                       parseFile)
+import           LocalComputation.Utils                               (fromRight)
 import           Numeric.Natural                                      (Natural)
 import qualified Text.Parsec                                          as P (ParseError)
 
@@ -315,8 +315,6 @@ newYorkProblemOneToOne numQueries numArcs = do
 -------------------------------------------------------------------------------
 -- Utils
 -------------------------------------------------------------------------------
--- TODO: Don't think we need the self loops here? That should be handled by the wrapper
--- function...?
 parseFullGraph :: FilePath -> IO (Either P.ParseError (Either P.InvalidGraphFile (G.Graph Natural Double)))
 parseFullGraph filepath = fmap (P.mapParseResult (fromInteger)) $ parseFile P.fullGraph filepath
 

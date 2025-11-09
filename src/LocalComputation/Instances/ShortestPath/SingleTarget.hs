@@ -47,8 +47,6 @@ import qualified LocalComputation.ValuationAlgebra.QuasiRegular.Value as Q (Trop
                                                                             toDouble)
 import           Type.Reflection                                      (Typeable)
 
--- TODO: Where does the hashable constraint come from?
-
 -- | Query for a multiple-source single-target problem.
 data Query a = Query { sources :: [a], target :: a } deriving (Show, V.Generic, NFData)
 
@@ -130,7 +128,7 @@ type ComputeInference m a = D.DrawSettings
 -- TODO: Decomposition technically will duplicate edges.
 -- i.e. if we have cliques {A, B, C} and cliques {B, C, D} then edges between 'b' and 'c' will be present
 -- in multiple graphs, even though we could communicate that information by only including the
--- edges in one graph. Would solving this problem may result in speedups?
+-- edges in one graph. Does not make the decomposition invalid, but fixing this may result in improved performance.
 decomposition :: forall a b . (Ord a) => G.Graph a b -> [G.Graph a b]
 decomposition g = filter (not . G.isEmpty) $
                     decomposition' (E.create $ map (.neighbourhood) nHoods) nHoods

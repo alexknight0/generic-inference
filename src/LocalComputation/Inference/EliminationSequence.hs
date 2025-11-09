@@ -16,7 +16,6 @@ import           Data.PSQueue           (Binding ((:->)))
 import qualified Data.PSQueue           as P
 import qualified Data.Set               as S
 
-import           Control.Exception      (assert)
 import           Data.Either            (isRight)
 import qualified LocalComputation.Utils as U
 

@@ -12,11 +12,8 @@ module LocalComputation.IndexedSet (
     , size
     , unsafeMap
 ) where
-import qualified Data.List                         as L
 import qualified Data.Map.Strict                   as M
-import           Data.Maybe                        (fromJust)
 import qualified Data.Set                          as S
-import           GHC.Stack                         (HasCallStack)
 import qualified LocalComputation.Utils            as U
 import           LocalComputation.ValuationAlgebra (Binary, Generic, NFData)
 import           Prelude                           hiding (lookup, map)
@@ -26,7 +23,7 @@ newtype IndexedSet a = IndexedSet { m :: M.Map a Int } deriving (Eq, Binary, Gen
 unsafeFromMap :: M.Map a Int -> IndexedSet a
 unsafeFromMap = U.assertP satisfiesInvariants . IndexedSet
 
-unsafeFromList :: (HasCallStack, Ord a) => [a] -> IndexedSet a
+unsafeFromList :: (Ord a) => [a] -> IndexedSet a
 unsafeFromList xs = unsafeFromMap . M.fromList $ zip xs [0..]
 
 toList :: IndexedSet a -> [a]

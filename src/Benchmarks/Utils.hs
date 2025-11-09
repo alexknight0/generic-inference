@@ -9,6 +9,9 @@ module Benchmarks.Utils (
     , Seed
     , Word64
     , benchmarkComplexity
+    , parseFile
+    , unsafeParseFile
+    , unsafeParseFile'
 ) where
 
 -- These imports match imports used in hedgehog internals
@@ -34,6 +37,13 @@ import           System.IO                             (IOMode (AppendMode),
                                                         stdout, withFile)
 import qualified System.Random                         as R
 
+import qualified Text.ParserCombinators.Parsec         as P
+
+import qualified Control.DeepSeq                       as D
+import qualified Control.Exception                     as D
+
+import           System.IO                             (IOMode (ReadMode),
+                                                        hGetContents', openFile)
 --------------------------------------------------------------------------------
 -- Settings
 --------------------------------------------------------------------------------
@@ -117,3 +127,21 @@ benchmarkComplexity header problem complexity = do
 
     where
         line body = L.intercalate "," $ header ++ map show body
+
+parseFile :: P.GenParser Char () a -> FilePath -> IO (Either P.ParseError a)
+parseFile p filename = do
+    handle <- openFile filename ReadMode
+    contents <- hGetContents' handle
+    pure $ P.parse p filename contents
+
+unsafeParseFile :: P.GenParser Char () a -> FilePath -> IO a
+unsafeParseFile p filename = do
+    handle <- openFile filename ReadMode
+    contents <- hGetContents' handle
+    pure $ U.fromRight $ P.parse p filename contents
+
+-- | Strict version of `unsafeParseFile`
+unsafeParseFile' :: (D.NFData a) => P.GenParser Char () a -> FilePath -> IO a
+unsafeParseFile' p filename = D.evaluate . D.force =<< unsafeParseFile p filename
+
+

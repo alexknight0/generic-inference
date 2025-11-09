@@ -19,7 +19,6 @@ import qualified LocalComputation.Inference.MessagePassing         as MP
 import qualified LocalComputation.Inference.Statistics             as S
 import qualified LocalComputation.Instances.BayesianNetwork        as BN
 import qualified LocalComputation.Instances.BayesianNetwork.Parser as P
-import qualified LocalComputation.Utils                            as U
 import qualified LocalComputation.ValuationAlgebra                 as V
 
 getAsiaNet :: IO (D.NamedNet (BN.Network String String))

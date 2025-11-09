@@ -17,7 +17,7 @@ import qualified LocalComputation.Inference.JoinTree.Tree as JT
 import qualified LocalComputation.ValuationAlgebra        as V
 
 
--- TODO: Could add an assert on the given tree like 'supportsCollect' but only the renumbered part.
+-- TODO: Could add an assert on the given tree to ensure it has a proper numbering, preventing errors.
 
 -- | Computes a single solution from the solution set by repeatedly extending a solution set
 -- until it encompasses the whole query. In this case of a quasiregular valuation there is

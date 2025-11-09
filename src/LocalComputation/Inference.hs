@@ -40,11 +40,6 @@ import qualified LocalComputation.Inference.Statistics                 as S hidi
                                                                             (empty)
 import           LocalComputation.Utils.Composition
 
--- TODO: Future work; rather than all going through this one interface and hence
--- having a bunch of constraints not relevant to given modes; it would likely be better
--- to simply have all the 'query' methods in different modules but with their 'query' name the same
--- such that they can easily be swapped out.
-
 -- | Errors that could occur during inference
 --
 -- UnanswerableQuery indicates that there exists a variable in the query that is not
@@ -81,7 +76,8 @@ queriesDrawGraph :: (ConstrainedValuation v a, MonadIO m)
     => D.DrawSettings -> Mode -> [v a] -> [Domain a] -> Either Error (m [v a])
 queriesDrawGraph = fmap (fmap (.c)) .:: queriesWithStats
 
--- | TODO: Note when using it to have stat collection enabled...
+-- | Execute a series of queries, and return the results with some statistics. For the returned
+-- statistics to be meaningful, statistic collection must be enabled by passing "-DCOUNT_OPERATIONS=1".
 queriesWithStats :: (ConstrainedValuation v a, MonadIO m)
     => D.DrawSettings -> Mode -> [v a] -> [Domain a] -> Either Error (m (S.WithStats [v a]))
 queriesWithStats _ _ vs qs

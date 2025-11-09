@@ -4,9 +4,8 @@
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
--- TODO: rename from instances?
 module LocalComputation.Instances.BayesianNetwork
-    ( getProbability, toQueryA
+    ( getProbability, unsafeToQuery
     , Query (conditioned, conditional, Query)
     , Probability (P)
     , Network
@@ -112,8 +111,6 @@ conditionalP q p1 p2
     | otherwise                                                 = p1 (M.union q.conditioned q.conditional)
                                                                 / p2 q.conditional
 
--- TODO: Wait isn't this just M.intersectionWith const m1 m2  == M.intersectionWith (flip const) m1 m2
--- Edit: Simply replace with whatever the efficent way is of doing this, as we will find out when optimizing semiring.
 sharedKeysHaveSameValue :: (Ord a, Ord b) => M.Map a b -> M.Map a b -> Bool
 sharedKeysHaveSameValue m1 m2 = allTrue $ M.intersectionWith f (withIndicator m1) (withIndicator m2)
     where
@@ -126,9 +123,8 @@ sharedKeysHaveSameValue m1 m2 = allTrue $ M.intersectionWith f (withIndicator m1
 
         allTrue = all ((== True) . snd . snd) . M.toList
 
--- TODO: Unsafe don't export.
-toQueryA :: (Ord a) => ([(a, b)], [(a, b)]) -> Query a b
-toQueryA (x, y) = Query (M.fromListA x) (M.fromListA y)
+unsafeToQuery :: (Ord a) => ([(a, b)], [(a, b)]) -> Query a b
+unsafeToQuery (x, y) = Query (M.fromListA x) (M.fromListA y)
 
 -- | Converts a given probability query to an inference query. This inference query will allow inference
 -- to return the results necessary to answer the given probability query.

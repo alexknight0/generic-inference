@@ -14,12 +14,6 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
-{- | If an unsafe library function says it *asserts* something is the case,
-that literally means it uses the `Control.Exception` `assert`. Hence, the user
-should not rely on an error being thrown unless asserts are enabled.
-
-TODO: Move to head of library.
--}
 module LocalComputation.ValuationAlgebra
     (
     -- Types and typeclasses
@@ -76,14 +70,6 @@ type Valuation v a = (ValuationFamily v, Var a)
 
 data IntOrInfinity = Int Int | Infinity deriving (Eq, Ord, NFData, Generic, Show)
 
-
--- TODO: Is there any way we can get automatic property checking here?
--- Answer: Probably yes, but it would require an implementation of a Gen
--- for the given type, which can be hard its self.
--- | A valuation belonging to a certain family of valuation algebras
-
--- The identity function should return a valuation that behaves like
--- an identity element under combination.
 class ValuationFamily v where
 
     -- Core operations

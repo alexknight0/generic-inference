@@ -19,14 +19,14 @@ allBenchmarks = do
     if "ops" `elem` lowercaseArgs then
         -- Counting the number of operations
         sequence_ [
-            ST.benchmarkComplexity
+              ST.benchmarkComplexity
             , BN.benchmarkComplexity
         ]
 
     else do
         -- Performance testing
         benchmarks <- sequence [
-                                ST.benchmarkPerformance
+                                  ST.benchmarkPerformance
                                 , FFT.benchmarks
                                 , BN.benchmarkPerformance
                               ]

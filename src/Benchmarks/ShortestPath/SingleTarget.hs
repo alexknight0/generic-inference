@@ -50,8 +50,6 @@ import           Numeric.Natural
 -- Benchmarks
 --------------------------------------------------------------------------------
 
--- TODO: test graph composition diff.
-
 justDraw :: (MonadIO m) => m ()
 justDraw = do
     p <- fmap (head . (.ps) . head) $ setProblems
@@ -177,9 +175,6 @@ benchModes timestamp modes p = mapM benchMode modes
         benchMode mode = do
             afterSetup <- multipleSingleTargets mode D.def p
             pure $ bench (header mode) $ nfIO afterSetup
-
-    -- TODO: if we were using split why was decomposition slowing it down... Wait that means decomposition was
-    -- taking a while no?? Wait no it literally just should not have affected it - it never would have been called...
 
 --------------------------------------------------------------------------------
 -- Utilities

@@ -28,72 +28,10 @@ import qualified Data.Set                                         as S
 import qualified LocalComputation.Pretty                          as P
 import           LocalComputation.ValuationAlgebra.Semiring.Value
 
-import           GHC.Stack                                        (HasCallStack)
 import qualified LocalComputation.Potential                       as P
 import qualified LocalComputation.ValuationAlgebra                as V
 
--- TODO: Might be able to simplify this definition if a better notion of the identity element is created.
--- Or this might just slow the performance down.
--- TODO: Instead of extension could have 0 sized arrangement entry?
--- TODO: Update documentation
-
-{- | Valuation for a semiring valuation algebra.
-
-This can be thought of as a table, with each entry as a row.
-For example:
-
-    rowMap:  [([("Country", "Australia"), ("Item", "Gum")],   2),
-              ([("Country", "Australia"), ("Item", "Water")], 4),
-              ([("Country", "Korea"),     ("Item", "Gum")],   6),
-              ([("Country", "Korea"),     ("Item", "Water")], 8),
-            ]
-
-    varDomain:        ["Country", "Item"]
-    varToValueDomain: [("Country", ["Australia", "Korea"]),
-                       ("Item", ["Gum", "Water"])]
-    extension:        []
-
-Represents:
-
-    Country        Item
-
-    Australia      Gum             2
-    Australia      Water           4
-    Korea          Gum             6
-    Korea          Water           8
-
-
-rows :: M.Map (M.Map a b) c,
-
-    A mapping from variable arrangements 'M.Map a b' to values 'c'.
-    Each variable arrangement is a permutation of an assignment of
-    each element of the domain 'varDomain' to a value from
-    'varToValueDomain'. All permutations can be found in rowMap.
-
-d :: Domain a,
-
-    All the variables that are included in a variable arrangement.
-
-valueDomains :: M.Map a (Domain b),
-
-    The possible values each variable can take in a variable arrangement.
-
-e :: Domain a
-
-    An extension to 'varDomain' that extends the domain of the valuation
-    but without adding any extra rows. This could be thought of as adding
-    an extra variable to the 'varDomain' where the variable only has one
-    possible value, so no extra permutations are generated.
-
-    This is required as combination of a valuation with an identity element
-    must result in a label that contains the union of identity element's
-    domain and the other element's domain. If this does not occur, it will
-    appear that projections to domains that are outside a valuation's label
-    are occuring.
-
-Note that a restriction of this form is that the type of the value of each
-variable in a variable arrangement is the same.
--}
+{- | Valuation for a semiring valuation algebra. -}
 data Valuation c b a = Identity | Valuation {
       _p :: P.Potential a b c
 } deriving (Generic, Binary, NFData)
@@ -101,6 +39,7 @@ data Valuation c b a = Identity | Valuation {
 unsafeCreate :: P.Potential a b c -> Valuation c b a
 unsafeCreate p = Valuation p
 
+-- | A map that proxies an extra type such that it can be used to implement VarAssignment.
 type ProxiedMap c a b = M.Map a b
 
 instance (Ord b, Show b, Show c, SemiringValue c) => ValuationFamily (Valuation c b) where
@@ -168,7 +107,7 @@ with the values of the second parameter. For example:
     < Korea          Gum             6
     < Korea          Water           8
 -}
-getRows :: forall c b a. (HasCallStack, Ord a, Ord b) => [(a, [b])] -> [c] -> Valuation c b a
+getRows :: forall c b a. (Ord a, Ord b) => [(a, [b])] -> [c] -> Valuation c b a
 getRows vars ps = unsafeCreate $ P.unsafeFromList vars ps
 
 -- | Returns the value of the given variable arrangement. Unsafe.

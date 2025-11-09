@@ -98,8 +98,6 @@ messagePassing'' tree nodeActions = do
         case reasonForTermination of
              DiedNormal      -> pure ()
              DiedException e -> error $ "Error - DiedException (" ++ e ++ ")"
-             -- TODO: Does 'DiedUnknownId' indicate that the process died *before*
-             -- we got a chance to wait on it?
              x               -> error $ "Error - " ++ show x
 
     -- All should be terminated.
@@ -160,7 +158,7 @@ data CollectResults v a = CollectResults {
     , postbox :: [Message (v a)]
 }
 
--- TODO: Can place postbox on node.
+-- TODO: Can place postbox on node now that node contains a postbox.
 
 -- | Performs the collect phase and calculate phase for a given node.
 --
@@ -178,7 +176,7 @@ collectAndCalculate this neighbours = do
     let senders = map (.sender) postbox
 
         -- The target neighbour is the neighbour who didn't send a message to us
-        target = U.findAssertSingleMatch (\n -> n.id `notElem` senders) neighbours
+        target = U.findSingleMatchOrError (\n -> n.id `notElem` senders) neighbours
 
         newValuation = V.combines1 (this.node.v : map (.msg) postbox)
         messageForTarget = V.project newValuation (S.intersection this.node.d target.node.d)
@@ -208,7 +206,7 @@ collect this neighbours action = do
     let senders = map (.sender) postbox
 
         -- The target neighbour is the neighbour who didn't send a message to us
-        target = U.findAssertSingleMatch (\n -> n.id `notElem` senders) neighbours
+        target = U.findSingleMatchOrError (\n -> n.id `notElem` senders) neighbours
 
     -- Perform some action with these messages and send to remaining neighbour
     sendMsg this target (action postbox this target)

@@ -4,7 +4,6 @@
 
 module LocalComputation.Inference.ShenoyShafer (
       queries
-    , InferredData
 ) where
 
 import           Control.Distributed.Process                           hiding
@@ -30,26 +29,14 @@ import qualified LocalComputation.Inference.Statistics                 as S
 import           LocalComputation.LocalProcess                         (run)
 import           LocalComputation.ValuationAlgebra
 
--- TODO: [Hypothesis]... Due to the high serialization cost, using the Cloud Haskell library to represent
--- the message passing process by treating each node as a seperate computer is not efficent.
--- However as Cloud Haskell allows easy implementation of cross-machine message passing, there
--- could still be value obtained from this approach if there does not exist a single
--- computer with enough cores to provide the performance required to compute a certain result.
--- In this case, however, ideally we would still not directly use Cloud Haskell to represent the
--- message passing process - it would be much more efficent to minimize serialization and transportation
--- costs by assigning groups of nodes who are 'close' to each other to one processor. That one processor
--- could even then use a multi-threaded approach to avoid serialization costs entirely. This would require
--- the subproblem of finding 'groups' of nodes in the larger graph.
-
--- TODO: Rename ResultingTree; stop exporting
-type InferredData v a = JF.JoinForest v a
+type ResultingTree v a = JF.JoinForest v a
 
 -- | Extracts a given query from the query results.
 --
 -- Assumes query is subset of the domain the given valuations cover.
 extractQueryResults :: forall v a. (Var a)
     => [Domain a]
-    -> InferredData v a
+    -> ResultingTree v a
     -> [v a]
 extractQueryResults queryDomains results = map f queryDomains
     where

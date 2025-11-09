@@ -223,7 +223,7 @@ innerLoop phiY edges k
     | assert invariant False = undefined
     | otherwise = innerLoop newPhiY newEdges newK
     where
-        -- TODO: Fix
+        -- TODO: Simplify
         (r1, r2) = foldr1 (\(x1, x2) (y1, y2) -> if x1.d == S.empty && x2.d == S.empty then (x1, x2) else
                                                     if length (S.union x1.d x2.d) < length (S.union y1.d y2.d)
                                                             then (x1, x2) else (y1, y2))

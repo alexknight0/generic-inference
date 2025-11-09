@@ -5,6 +5,15 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving  #-}
 
+{- | A labelled matrix (see page 14 of Pouly's "Generic Inference").
+
+For optimization, we experimented with:
+    1. Using 'Unbox' or 'Storable'.
+    2. Using delayed arrays.
+    3. Changing matrix operations to perform in parallel.
+
+None of these provided speed ups. One more area that could be investigated is using mutable arrays.
+-}
 module LocalComputation.LabelledMatrix
     ( LabelledMatrix
     , fromMatrix
@@ -51,12 +60,10 @@ import qualified Data.Matrix                                          as M'
 import           Data.Maybe                                           (fromJust,
                                                                        isJust)
 import qualified Data.Set                                             as S
-import           LocalComputation.Utils                               (assert',
-                                                                       fromRight)
+import           LocalComputation.Utils                               (fromRight)
 import           LocalComputation.Utils.Composition
 import qualified LocalComputation.ValuationAlgebra.QuasiRegular.Value as Q
 
--- Typeclasses
 import           Control.DeepSeq                                      (NFData)
 import           Data.Binary                                          (Binary,
                                                                        get, put)
@@ -73,11 +80,6 @@ import qualified Data.Tuple.Extra                                     as T
 import           Debug.Trace                                          (trace)
 import qualified LocalComputation.Pretty                              as P
 import qualified LocalComputation.Utils                               as U
-
--- TODO: could experiment with using Unbox or Storable for speedups. -- DONE
--- TODO: could experiment with using delayed arrays. -- DONE
--- TODO: could experiment with using mutable arrays. -- NOT DONE
--- TODO: consider changing to parallel matrix ops -- DONE
 
 data InvalidFormat = NotTotalMapping
 
@@ -151,8 +153,8 @@ instance (Binary a, Binary b, Binary c, Ord a, Ord b) => Binary (LabelledMatrix 
 
     get = do
         matrix    <- fmap (M.fromLists' s) get   :: B.Get (M.Matrix Manifest c)
-        rowLabels <- fmap (BM.fromAscPairList . assert' checkIsAscPairList) get :: B.Get (BM.Bimap M.Ix1 a)
-        colLabels <- fmap (BM.fromAscPairList . assert' checkIsAscPairList) get :: B.Get (BM.Bimap M.Ix1 b)
+        rowLabels <- fmap (BM.fromAscPairList . U.assertP checkIsAscPairList) get :: B.Get (BM.Bimap M.Ix1 a)
+        colLabels <- fmap (BM.fromAscPairList . U.assertP checkIsAscPairList) get :: B.Get (BM.Bimap M.Ix1 b)
         pure (Matrix matrix rowLabels colLabels)
 
 instance (Eq a, Eq b) => Functor (LabelledMatrix a b) where
@@ -356,9 +358,9 @@ quasiInverse m
     | m.numRows /= m.numCols = Nothing
     | m.numRows == 0 = Just $ m
     | m.numRows == 1 = Just $ fmap Q.quasiInverse m
-    | otherwise = assert' isJust $ joinSquare newB newC newD newE
+    | otherwise = U.assertP isJust $ joinSquare newB newC newD newE
     where
-        (b, c, d, e) = fromJust $ decompose m
+        (b, c, d, e) = decompose m
         f = addQ e (multiplys' [d, bStar, c])
         bStar = unsafeQuasiInverse b
         fStar = unsafeQuasiInverse f
@@ -373,6 +375,7 @@ quasiInverse m
 
 -- TODO: This function could probably be made a lot faster by not calling project.
 -- for example we could have a new function that just operates on indices and splits on them.
+-- However, this function is not currently showing up as a meaningful performance bottleneck.
 
 {- Decomposes a square matrix with matching labels on each side into four matrices.
 
@@ -384,14 +387,10 @@ Returns a tuple (A, B, C, D) defined through the following shape:
  └─   ─┘
 
 Where D is of shape `div numRows 2` x `div numCols 2`.
-
-Returns Nothing if the given matrix is empty.   TODO: it probably doesn't have to return Nothing here.
 -}
-decompose :: (Ord a) => LabelledMatrix a a c -> Maybe (LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c)
-decompose m
-    | m.numRows == 0 && m.numCols == 0 = Nothing
-    | otherwise = Just (project' m aRows    aCols, project' m aRows    notACols,
-                        project' m notARows aCols, project' m notARows notACols)
+decompose :: (Ord a) => LabelledMatrix a a c -> (LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c, LabelledMatrix a a c)
+decompose m = (project' m aRows    aCols, project' m aRows    notACols,
+               project' m notARows aCols, project' m notARows notACols)
 
     where
         aNumRows = m.numRows `div` 2 + m.numRows `mod` 2
@@ -400,9 +399,10 @@ decompose m
         (aRows, notARows) = T.both (Map.keysSet . BM.toMapR) $ BM.partition (\i _ -> i < aNumRows) m.rowLabels
         (aCols, notACols) = T.both (Map.keysSet . BM.toMapR) $ BM.partition (\i _ -> i < aNumCols) m.colLabels
 
-        project' x y z = fromJust $ project x y z
+        project' = unsafeProject
 
 -- TODO: Reduce code duplication by calling `appendRows` and creating a new `appendCols` function.
+
 {- Joins four matrices, returning Nothing if the matrices are not arranged in a square.
 
 For inputs A -> B -> C -> D returns:
@@ -501,7 +501,7 @@ all' p m = M.and $ M.imap g m.matrix
 -- Utilities
 --------------------------------------------------------------------------------
 enumerate :: (Ord a) => S.Set a -> BM.Bimap M.Ix1 a
-enumerate xs = (BM.fromAscPairList . assert' checkIsAscPairList) $ zip [M.Ix1 0..] (S.toAscList xs)
+enumerate xs = (BM.fromAscPairList . U.assertP checkIsAscPairList) $ zip [M.Ix1 0..] (S.toAscList xs)
 
 unsafeRowIndex :: (Ord a) => a -> LabelledMatrix a b c -> M.Ix1
 unsafeRowIndex x m = (BM.!>) m.rowLabels x

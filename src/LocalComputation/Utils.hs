@@ -10,7 +10,7 @@ module LocalComputation.Utils
     , snd4
     , thd4
     , fth4
-    , findAssertSingleMatch
+    , findSingleMatchOrError
     , unsafeFind
     , unionUnsafe
     , fromListAssertDisjoint
@@ -26,16 +26,12 @@ module LocalComputation.Utils
     , divAssert
     , toBinary
     , toBinaryLeadingZeroes
-    , assert'
     , assertP
     , errorP
     , integerLogBase2
     , listOfPowersOfTwo
     , safeHead
     , fromListAssertDisjoint'
-    , parseFile
-    , unsafeParseFile
-    , unsafeParseFile'
     , fromRight
     , lookupDefault
     , lookupDefaultR
@@ -70,36 +66,30 @@ module LocalComputation.Utils
 where
 
 
-import qualified Algebra.Graph                 as DG
-import qualified Data.Bimap                    as BM
-import           Data.List                     (find)
-import           Data.Map                      (Map, adjust, elems, insert,
-                                                member)
-import qualified Data.Map                      as M
-import           Data.Set                      (Set)
-import qualified Data.Set                      as S
-import           Data.Time                     (UTCTime, addUTCTime,
-                                                getCurrentTime, utctDayTime)
-import           Text.Printf                   (printf)
+import qualified Algebra.Graph          as DG
+import qualified Data.Bimap             as BM
+import           Data.List              (find)
+import           Data.Map               (Map, adjust, elems, insert, member)
+import qualified Data.Map               as M
+import           Data.Set               (Set)
+import qualified Data.Set               as S
+import           Data.Time              (UTCTime, addUTCTime, getCurrentTime,
+                                         utctDayTime)
+import           Text.Printf            (printf)
 
-import qualified Text.ParserCombinators.Parsec as P
 
-import qualified Control.DeepSeq               as D
-import           Control.Exception             (assert)
-import qualified Control.Exception             as D
-import           Control.Monad                 (void, when)
-import           Control.Monad.IO.Class        (MonadIO (liftIO))
-import qualified Data.Array                    as A
-import qualified Data.List                     as L
-import           Data.Maybe                    (fromJust, isJust)
-import           GHC.IO                        (unsafePerformIO)
-import           GHC.IORef                     (IORef, atomicModifyIORef',
-                                                newIORef, readIORef)
-import           GHC.Stack                     (HasCallStack)
+import           Control.Exception      (assert)
+import           Control.Monad          (void, when)
+import           Control.Monad.IO.Class (MonadIO (liftIO))
+import qualified Data.Array             as A
+import qualified Data.List              as L
+import           Data.Maybe             (fromJust, isJust)
+import           GHC.IO                 (unsafePerformIO)
+import           GHC.IORef              (IORef, atomicModifyIORef', newIORef,
+                                         readIORef)
+import           GHC.Stack              (HasCallStack)
 import           Numeric.Natural
-import           System.IO                     (IOMode (ReadMode),
-                                                hGetContents', hPutStrLn,
-                                                openFile, stderr)
+import           System.IO              (hPutStrLn, stderr)
 
 listArray0 :: [a] -> A.Array Int a
 listArray0 xs = A.listArray (0, length xs - 1) xs
@@ -132,9 +122,8 @@ snd4 (_, x, _, _) = x
 fth4 :: (a, b, c, d) -> d
 fth4 (_, _, _, x) = x
 
--- TODO: not an assert
-findAssertSingleMatch :: (a -> Bool) -> [a] -> a
-findAssertSingleMatch p xs
+findSingleMatchOrError :: (a -> Bool) -> [a] -> a
+findSingleMatchOrError p xs
     | [y] <- filter p xs = y
     | ys <- filter p xs = let numMatches = length (take 10000 ys) in
                                 error $ "findAssertSingleMatch found " ++ (if numMatches == 10000 then ">" else "") ++ show numMatches ++ " matches"
@@ -168,7 +157,7 @@ fromListA :: (Ord a) => [(a, b)] -> Map a b
 fromListA = fromListAssertDisjoint
 
 fromListAssertDisjoint' :: Ord a => [a] -> Set a
-fromListAssertDisjoint' xs = assert' (\ys -> length ys == length xs) (S.fromList xs)
+fromListAssertDisjoint' xs = assertP (\ys -> length ys == length xs) (S.fromList xs)
 
 unzipWith :: (a -> (b, c)) -> [a] -> ([b], [c])
 unzipWith f xs = (map (fst . f) xs, map (snd . f) xs)
@@ -200,11 +189,7 @@ toBinaryLeadingZeroes :: Natural -> Natural -> [Bool]
 toBinaryLeadingZeroes totalDigits x = take numLeadingZeroes (repeat False) ++ binary
     where
         binary = toBinary x
-        numLeadingZeroes = assert' (>=0) (fromIntegral totalDigits - length binary)
-
--- TODO: Remove all calls and replace with assertId
-assert' :: HasCallStack => (a -> Bool) -> a -> a
-assert' p x = assert (p x) x
+        numLeadingZeroes = assertP (>=0) (fromIntegral totalDigits - length binary)
 
 -- | Asserts a given predicate holds for a given value.
 assertP :: HasCallStack => (a -> Bool) -> a -> a
@@ -233,23 +218,6 @@ listOfPowersOfTwo = 1 : (map (*2) listOfPowersOfTwo)
 safeHead :: [a] -> Maybe a
 safeHead []    = Nothing
 safeHead (x:_) = Just x
-
--- TODO: Move to benchmark utils file.
-parseFile :: P.GenParser Char () a -> FilePath -> IO (Either P.ParseError a)
-parseFile p filename = do
-    handle <- openFile filename ReadMode
-    contents <- hGetContents' handle
-    pure $ P.parse p filename contents
-
-unsafeParseFile :: P.GenParser Char () a -> FilePath -> IO a
-unsafeParseFile p filename = do
-    handle <- openFile filename ReadMode
-    contents <- hGetContents' handle
-    pure $ fromRight $ P.parse p filename contents
-
--- | Strict version of `unsafeParseFile`
-unsafeParseFile' :: (D.NFData a) => P.GenParser Char () a -> FilePath -> IO a
-unsafeParseFile' p filename = D.evaluate . D.force =<< unsafeParseFile p filename
 
 fromRight :: HasCallStack => Either a b -> b
 fromRight (Right x) = x
