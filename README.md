@@ -73,7 +73,7 @@ For recording the number of operations consider:
 ```
 stack bench --ghc-options="-O2 -fno-full-laziness -fno-cse -DCOUNT_OPERATIONS=1" --benchmark-arguments "ops"
 ```
-(The `-fno-full-laziness` and `-fno-cse` are used to help ensure usage of `unsafePerformIO` is safe (see wiki if confused). `-DCOUNT_OPERATIONS=1` passes a c preprocessor flag that enables counting the number of invocations of certain functions (which may have a small runtime cost when enabled))
+The `-fno-full-laziness` and `-fno-cse` are used to help ensure usage of `unsafePerformIO` is safe (see wiki if confused). `-DCOUNT_OPERATIONS=1` passes a c preprocessor flag that enables counting the number of invocations of certain functions (which may have a small runtime cost when enabled)
 
 ## Directory Structure
 ```
