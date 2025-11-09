@@ -36,7 +36,7 @@
 │   ├── Benchmark.hs
 |   |
 |   |
-│   ├── LocalComputation                    // Main library code
+│   ├── generic-inference                    // Main library code
 │   │   ├── Graph.hs
 │   │   ├── Inference                       // Code related to implementing inference
 │   │   │   ├── Collect.hs
@@ -87,7 +87,7 @@ The project uses `stack`, and can hence be built with `stack build`.
 To run tests, run `stack test --fast` (the `--fast` prevents GHC optimizing out certain asserts)
 
 To benchmark, run `stack bench --benchmark-arguments "--output report.html" --profile`.
-This will output a `report.html` detailing some benchmarking details, as well as a `localcomputation.prof` that will detail what functions were most computationally intensive.
+This will output a `report.html` detailing some benchmarking details, as well as a `generic-inference.prof` that will detail what functions were most computationally intensive.
 
 ## Missing Data Files
 If benchmarks or tests fail due to missing data files, please contact me and remind me to post links to where they can be found.

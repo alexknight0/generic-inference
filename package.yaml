@@ -1,6 +1,6 @@
-name:                localcomputation
+name:                generic-inference
 version:             0.1.0.0
-github:              "githubuser/localcomputation"
+github:              "alexknight0/generic-inference"
 license:             BSD-3-Clause
 author:              "Author name here"
 maintainer:          "example@example.com"
@@ -17,52 +17,62 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/githubuser/localcomputation#readme>
+description:         Please see the README on GitHub at <https://github.com/alexknight0/generic-inference#readme>
 
 dependencies:
 - base >= 4.7 && < 5
-- distributed-process == 0.7.8
-- binary
-- network-transport-tcp
-- algebraic-graphs == 0.7
-- containers
-- extra
 - time
-- fft
-- hedgehog
-- strict-concurrency
-- deepseq
-- network-transport
-- dijkstra-simple
-- parsec
-- probability
-- carray
-- silently
-- array
-- matrix
-- heap
-- pretty-simple
-- text
-- cached-io
-- criterion
-- unordered-containers
-- hashable
-- massiv
+
+# Data structures
+- algebraic-graphs
 - bimap
-- bytestring
-- random
+- containers
+- PSQueue
+- parsec
+- extra
+
+# Join Tree Diagrams
+- text
+- boxes
+- pretty-simple
+- colour
+- filepath
 - diagrams
 - diagrams-lib
 - diagrams-svg
 - diagrams-rasterific
 - SVGFonts
-- colour
-- boxes
-- filepath
+
+# Multi-threading
 - parallel
+
+# Distributed Computation
+- distributed-process
+- network-transport
+- network-transport-tcp
+- strict-concurrency
+- deepseq
+- binary
+- hashable
+
+# Matrices
+- array
 - vector-th-unbox
-- PSQueue
+- massiv
+- matrix
+
+# Testing & Benchmarking
+- criterion
+- probability
+- dijkstra-simple
+- hedgehog
+- random
+
+# Testing & Benchmarking (FFT)
+- fft
+- carray
 - vector
+
 
 ghc-options:
 - -Wall
@@ -83,7 +93,7 @@ library:
   - OverloadedRecordDot
 
 executables:
-  localcomputation-exe:
+  generic-inference-exe:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
@@ -91,17 +101,17 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - localcomputation
+    - generic-inference
     when:
       - condition: false
-        other-modules: Paths_localcomputation
+        other-modules: Paths_generic-inference
     default-extensions:
     - DuplicateRecordFields
     - NoFieldSelectors
     - OverloadedRecordDot
 
 tests:
-  localcomputation-test:
+  generic-inference-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -109,14 +119,14 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - localcomputation
+    - generic-inference
     default-extensions:
     - DuplicateRecordFields
     - NoFieldSelectors
     - OverloadedRecordDot
 
 benchmarks:
-  localcomputation-benchmark:
+  generic-inference-benchmark:
     main:                Bench.hs
     source-dirs:         bench
     ghc-options:
@@ -125,7 +135,7 @@ benchmarks:
     - -with-rtsopts=-N
     - -O2
     dependencies:
-    - localcomputation
+    - generic-inference
     default-extensions:
     - DuplicateRecordFields
     - NoFieldSelectors

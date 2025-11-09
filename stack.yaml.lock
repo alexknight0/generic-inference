@@ -32,13 +32,6 @@ packages:
       size: 530
   original:
     hackage: fingertree-0.1.4.2@sha256:b368fda61b14073bd798f45c8fa91e1c5331628193a8b88d93fb5a4341849c64,2063
-- completed:
-    hackage: cached-io-1.3.0.0@sha256:3148fe036f5d411e201fc30169358dbfcfc7fdfe0e28a1623aaddc0a4a1992a0,1754
-    pantry-tree:
-      sha256: c4e134231393f1c2fa68ba61a37f49439c7fd1b37369912d60fb1be42a25f007
-      size: 392
-  original:
-    hackage: cached-io-1.3.0.0@sha256:3148fe036f5d411e201fc30169358dbfcfc7fdfe0e28a1623aaddc0a4a1992a0,1754
 snapshots:
 - completed:
     sha256: 4a0e5e187fbef423f9c60072bfb1dd56f2a01a07a2667eb1469bd79073cfceaf

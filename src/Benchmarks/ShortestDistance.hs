@@ -216,7 +216,7 @@ singleTargets :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable a, M
 
 singleTargets Baseline _ graph qs = do
     -- We perform arc reversal during setup as we want to compare the baseline and
-    -- localcomputation algorithms as if both were single source or single target.
+    -- generic-inference algorithms as if both were single source or single target.
     -- We add zero cost edges to make sure both algorithms would return the same result.
     let reversedGraph = (G.addSelfLoops 0 . G.flipArcDirections) graph
 
@@ -273,7 +273,7 @@ singleTargetsSplit :: (V.NFData a, V.Var a, V.Binary a, V.Typeable a, H.Hashable
 
 singleTargetsSplit Baseline _ gs qs = do
     -- We perform arc reversal during setup as we want to compare the baseline and
-    -- localcomputation algorithms as if both were single source or single target.
+    -- generic-inference algorithms as if both were single source or single target.
     -- We add zero cost edges to make sure both algorithms would return the same result.
     let reversedGraphs = map (G.addSelfLoops 0 . G.flipArcDirections) gs
 

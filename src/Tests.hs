@@ -1,4 +1,4 @@
-{- | Tests for the localcomputation library.
+{- | Tests for the generic-inference library.
 
 Placed inside the library as Haskell Language Server can't dynamically reload the library when editing another component.
 No functions in the library should import any functionality from 'Tests' modules.

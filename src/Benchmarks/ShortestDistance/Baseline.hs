@@ -1,5 +1,5 @@
 -- | A baseline implementation of djikstras algorithm imported
--- from hackage to test the localcomputation implementation against.
+-- from hackage to test the generic-inference implementation against.
 --
 -- All functions assert cost self loops on the input graphs. This is
 -- important as it is easy to forget that the results of using the

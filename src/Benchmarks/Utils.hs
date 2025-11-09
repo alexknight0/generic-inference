@@ -115,8 +115,8 @@ benchmarkComplexity header problem complexity = do
 
         hPutStrLn h $ line [ show $ combinations
                            , show $ projections
-                           , show $ maximum result.stats.treeWidths
-                           , show $ maximum result.stats.valuations
+                           , show $ maximum $ 0 : result.stats.treeWidths
+                           , show $ maximum $ 0 : result.stats.valuations
                            , show $ complexity result.stats
                            , show $ result.stats.valuations
                            , show $ result.stats.treeVertices
