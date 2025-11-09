@@ -1,7 +1,7 @@
 # Generic Inference
 An experimental Haskell library for the computation of Generic Inference. Detailed in the paper "Implementation of Generic Inference in Haskell".
 
-# Importing as a dependency
+# As a dependency
 
 The library can be added as a dependency by linking this git repo.
 
